@@ -6,6 +6,7 @@ import { Card, CardPerk, Benefit } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { getCurrentMonthRedemptions, getAnnualRedemptions } from '../../../lib/database';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { Colors } from '../../constants/Colors';
 
 type SegmentKey = 'monthly' | 'annualFees';
 
@@ -109,7 +110,7 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
             return sum + redemption.value_redeemed;
           }
           return sum;
-        }, 0) ?? monthlyRedemptions;
+        }, 0) ?? 0; // Default to 0 instead of monthlyRedemptions
 
         if (isMounted) {
           setMonthlyRedemptions(monthlySum);
@@ -120,44 +121,18 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
         if (!isMounted) return;
 
         if (annualError) {
-          // Only log and retry if it's not a network error during app resume
-          const errorMessage = annualError instanceof Error ? annualError.message : 
-            typeof annualError === 'object' && annualError !== null && 'message' in annualError ? 
-            annualError.message : '';
-            
-          if (errorMessage !== 'Network request failed') {
-            console.error('Error fetching annual redemptions:', annualError);
-            if (retryCount < maxRetries) {
-              retryCount++;
-              setTimeout(loadRedemptions, retryDelay);
-              return;
-            }
-          }
+          console.error('Error fetching annual redemptions:', annualError);
           return;
         }
 
         const annualSum = annualData?.reduce((sum, redemption) => 
-          sum + redemption.value_redeemed, 0) ?? annualRedemptions;
-        
+          sum + redemption.value_redeemed, 0) ?? 0;
+
         if (isMounted) {
           setAnnualRedemptions(annualSum);
         }
-        
-        // Reset retry count on success
-        retryCount = 0;
-      } catch (error: unknown) {
-        // Only log and retry if it's not a network error during app resume
-        const errorMessage = error instanceof Error ? error.message :
-          typeof error === 'object' && error !== null && 'message' in error ?
-          error.message : '';
-          
-        if (errorMessage !== 'Network request failed') {
-          console.error('Error loading redemptions:', error);
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(loadRedemptions, retryDelay);
-          }
-        }
+      } catch (error) {
+        console.error('Error loading redemptions:', error);
       } finally {
         if (isMounted) {
           setIsRefreshing(false);
@@ -165,51 +140,51 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
       }
     };
 
-    // Add a small delay before loading to allow network to stabilize
-    const timeoutId = setTimeout(() => {
-      loadRedemptions();
-    }, 500);
+    loadRedemptions();
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
-      setIsRefreshing(false);
     };
-  }, [user, lastRefresh, monthlyRedemptions, annualRedemptions]);
+  }, [user, lastRefresh]);
 
-  const monthlyPerkData = useMemo(() => {
-    // Count only monthly perks for secondary metric
-    const perkCounts = userCardsWithPerks.reduce((counts, { perks }) => {
-      const monthlyPerks = perks.filter(perk => perk.periodMonths === 1);
-      const availablePerks = monthlyPerks.filter(perk => perk.status === 'available').length;
-      const redeemedPerks = monthlyPerks.filter(perk => perk.status === 'redeemed').length;
-      return {
-        available: counts.available + availablePerks,
-        redeemed: counts.redeemed + redeemedPerks
-      };
-    }, { available: 0, redeemed: 0 });
+  // Calculate monthly metrics
+  const monthlyMetrics = useMemo(() => {
+    let totalMonthlyPerks = 0;
+    let redeemedMonthlyPerks = 0;
+    let monthlyValue = monthlyRedemptions; // Use database value
+    let monthlyPossibleValue = monthlyPossibleTotal;
 
-    const totalPerks = perkCounts.available + perkCounts.redeemed;
-    
+    userCardsWithPerks.forEach(({ perks }) => {
+      // Only count monthly perks (periodMonths === 1)
+      const monthlyPerks = perks.filter(p => p.periodMonths === 1);
+      totalMonthlyPerks += monthlyPerks.length;
+      
+      // Count redeemed perks from local state for the count only
+      redeemedMonthlyPerks += monthlyPerks.filter(p => p.status === 'redeemed').length;
+    });
+
     return {
-      value: monthlyRedemptions,
-      total: monthlyPossibleTotal,
-      progress: monthlyPossibleTotal > 0 ? monthlyRedemptions / monthlyPossibleTotal : 0,
-      primaryMetric: {
-        value: monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        label: 'Monthly Value Redeemed',
-      },
-      secondaryMetric: {
-        value: `${perkCounts.redeemed} of ${totalPerks} monthly perks`,
-        label: 'Monthly Perks Used',
-      },
-      donutLabel: {
-        value: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} / ${monthlyPossibleTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
-        label: 'Monthly Credits',
-      },
-      color: '#2196f3',
+      totalPerks: totalMonthlyPerks,
+      redeemedPerks: redeemedMonthlyPerks,
+      value: monthlyValue,
+      possibleValue: monthlyPossibleValue,
     };
   }, [userCardsWithPerks, monthlyRedemptions, monthlyPossibleTotal]);
+
+  const monthlyPerkData = useMemo(() => ({
+    value: monthlyMetrics.value,
+    total: monthlyMetrics.possibleValue,
+    progress: monthlyMetrics.possibleValue > 0 ? monthlyMetrics.value / monthlyMetrics.possibleValue : 0,
+    primaryMetric: {
+      value: monthlyMetrics.value.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+      label: 'Monthly Value Redeemed',
+    },
+    secondaryMetric: {
+      value: `${monthlyMetrics.redeemedPerks} of ${monthlyMetrics.totalPerks} monthly perks`,
+      label: 'Monthly Perks Used',
+    },
+    color: '#2196f3',
+  }), [monthlyMetrics]);
 
   const annualFeesData = useMemo(() => {
     const formattedFees = totalAnnualFees.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -286,15 +261,24 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
         </View>
 
         <ProgressDonut
-          size={120}
+          size={180}
           strokeWidth={12}
           progress={activeData.progress}
-          value={activeData.value}
-          total={activeData.total}
           color={activeData.color}
-          label={activeData.donutLabel.label}
-          valueLabel={activeData.donutLabel.value}
-        />
+        >
+          <View style={styles.donutContent}>
+            <Text style={styles.valueAmount} numberOfLines={1} adjustsFontSizeToFit>
+              ${activeData.value.toFixed(2)}
+              <Text style={styles.valueTotal}>/${activeData.total.toFixed(2)}</Text>
+            </Text>
+            <Text style={styles.perkCount}>
+              {activeSegmentKey === 'monthly' 
+                ? `${monthlyMetrics.redeemedPerks} of ${monthlyMetrics.totalPerks} perks used`
+                : `${((activeData.value / activeData.total) * 100).toFixed(0)}% of annual fees`
+              }
+            </Text>
+          </View>
+        </ProgressDonut>
 
         <View style={styles.secondaryMetric}>
           <Text style={styles.secondaryValue}>{activeData.secondaryMetric.value}</Text>
@@ -411,6 +395,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     padding: 16,
+  },
+  donutContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  valueAmount: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.light.text,
+    textAlign: 'center',
+  },
+  valueTotal: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.light.textSecondary,
+  },
+  perkCount: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
 
