@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import { Card, Benefit, allCards } from '../src/data/card-data';
 
+export { supabase };
+
 interface UserCard {
   id: string;
   user_id: string;
@@ -126,7 +128,7 @@ export async function hasUserSelectedCards(userId: string): Promise<boolean> {
 
 export async function trackPerkRedemption(
   userId: string,
-  cardId: string, // e.g. 'amex_gold'
+  cardId: string,
   perk: Benefit,
   valueRedeemed: number
 ) {
@@ -166,10 +168,30 @@ export async function trackPerkRedemption(
       return { error: new Error(`Perk definition not found: ${perk.name}`) };
     }
 
-    console.log('Found perk definition:', { 
-      id: perkDef.id, 
-      name: perkDef.name 
-    });
+    // Check for existing redemption in the current period
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const startOfNextMonth = new Date(startOfMonth);
+    startOfNextMonth.setMonth(startOfMonth.getMonth() + 1);
+
+    const { data: existingRedemptions } = await supabase
+      .from('perk_redemptions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('perk_id', perkDef.id)
+      .gte('redemption_date', startOfMonth.toISOString())
+      .lt('redemption_date', startOfNextMonth.toISOString());
+
+    if (existingRedemptions && existingRedemptions.length > 0) {
+      console.log('Perk already redeemed this period:', {
+        perkName: perk.name,
+        perkId: perkDef.id,
+        existingRedemptions: existingRedemptions.length
+      });
+      return { error: new Error('Perk already redeemed this period') };
+    }
 
     // Get the user's card ID from the database
     const { data: userCards, error: cardError } = await supabase
@@ -190,8 +212,6 @@ export async function trackPerkRedemption(
       });
       return { error: cardError || new Error('User card not found') };
     }
-
-    console.log('Found user card:', userCards);
 
     // Calculate reset date based on period and type
     const now = new Date();
@@ -217,9 +237,7 @@ export async function trackPerkRedemption(
       resetDate.setMonth(resetDate.getMonth() + perk.periodMonths);
     }
 
-    console.log('Calculated reset date:', resetDate);
-
-    // Insert the redemption record using the UUIDs
+    // Insert the redemption record
     const { data, error } = await supabase
       .from('perk_redemptions')
       .insert({
@@ -311,9 +329,37 @@ export async function getAnnualRedemptions(userId: string) {
   return getPerkRedemptions(userId, startOfYear, startOfNextYear);
 }
 
-export async function deletePerkRedemption(userId: string, perkId: string) {
-  return await supabase
-    .from('perk_redemptions')
-    .delete()
-    .match({ user_id: userId, perk_id: perkId });
+export async function deletePerkRedemption(userId: string, perkName: string) {
+  try {
+    // First, find the perk definition to get the database ID
+    const { data: perkDef, error: perkDefError } = await supabase
+      .from('perk_definitions')
+      .select('id')
+      .eq('name', perkName)
+      .single();
+
+    if (perkDefError || !perkDef) {
+      console.error('Error finding perk definition for deletion:', { perkName, error: perkDefError });
+      return { error: perkDefError || new Error(`Perk definition not found: ${perkName}`) };
+    }
+
+    // Delete the redemption using the database ID
+    const { data, error } = await supabase
+      .from('perk_redemptions')
+      .delete()
+      .match({ user_id: userId, perk_id: perkDef.id })
+      .gte('redemption_date', new Date(new Date().setDate(1)).toISOString()) // Only delete current month's redemption
+      .lt('redemption_date', new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString());
+
+    if (error) {
+      console.error('Error deleting redemption:', error);
+      return { error };
+    }
+
+    console.log('Successfully deleted perk redemption:', { perkName, perkId: perkDef.id });
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error deleting redemption:', error);
+    return { error };
+  }
 } 

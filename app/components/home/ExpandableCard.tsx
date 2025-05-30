@@ -7,11 +7,12 @@ import {
   Image,
   Platform,
   Animated,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
-import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption } from '../../../lib/database';
+import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase } from '../../../lib/database';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -43,6 +44,17 @@ export default function ExpandableCard({
     if (!user) return;
     
     try {
+      // First get perk definitions to map names to IDs
+      const { data: perkDefs } = await supabase
+        .from('perk_definitions')
+        .select('id, name');
+
+      if (!perkDefs) return;
+
+      // Create a map of perk names to their database IDs
+      const perkNameToId = new Map(perkDefs.map((p: { name: string; id: string }) => [p.name, p.id]));
+      
+      // Get current month's redemptions
       const { data: monthlyData, error } = await getCurrentMonthRedemptions(user.id);
       if (error) {
         console.error('Error fetching redemptions:', error);
@@ -51,7 +63,19 @@ export default function ExpandableCard({
 
       // Create a set of redeemed perk IDs
       const redeemedIds = new Set(monthlyData?.map(redemption => redemption.perk_id) || []);
-      setRedeemedPerkIds(redeemedIds);
+      
+      // Map our local perk IDs to database IDs and check if they're redeemed
+      const redeemedLocalIds = new Set(
+        perks
+          .filter(perk => {
+            const dbPerkId = perkNameToId.get(perk.name);
+            return dbPerkId && redeemedIds.has(dbPerkId);
+          })
+          .map(perk => perk.id)
+      );
+
+      console.log('Redeemed perks for card:', card.name, Array.from(redeemedLocalIds));
+      setRedeemedPerkIds(redeemedLocalIds);
     } catch (error) {
       console.error('Error loading redeemed perks:', error);
     }
@@ -60,7 +84,7 @@ export default function ExpandableCard({
   // Load redeemed perks from database
   useEffect(() => {
     loadRedeemedPerks();
-  }, [user]);
+  }, [user, card.id]);
 
   // Only count monthly perks for the unredeemed count
   const unredeemedPerks = perks.filter(p => {
@@ -121,37 +145,64 @@ export default function ExpandableCard({
   const handlePerkLongPress = async (perk: CardPerk) => {
     if (!user) return;
 
-    try {
-      const isCurrentlyRedeemed = redeemedPerkIds.has(perk.id);
+    const isCurrentlyRedeemed = redeemedPerkIds.has(perk.id);
+    const actionText = isCurrentlyRedeemed ? 'mark as available' : 'mark as redeemed';
+    const confirmText = isCurrentlyRedeemed 
+      ? `Are you sure you want to mark "${perk.name}" as available?`
+      : `Are you sure you want to mark "${perk.name}" as redeemed?`;
 
-      if (!isCurrentlyRedeemed) {
-        // If changing to redeemed, track in database
-        const { error } = await trackPerkRedemption(
-          user.id,
-          card.id,
-          perk,
-          perk.value
-        );
+    Alert.alert(
+      `Confirm ${actionText}`,
+      confirmText,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            try {
+              if (!isCurrentlyRedeemed) {
+                // If changing to redeemed, track in database
+                const { error } = await trackPerkRedemption(
+                  user.id,
+                  card.id,
+                  perk,
+                  perk.value
+                );
 
-        if (error) {
-          console.error('Error tracking redemption:', error);
-          return;
-        }
-      } else {
-        // If changing to available, delete from database
-        const { error } = await deletePerkRedemption(user.id, perk.id);
-        if (error) {
-          console.error('Error deleting redemption:', error);
-          return;
-        }
-      }
+                if (error) {
+                  if (error.message === 'Perk already redeemed this period') {
+                    Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+                  } else {
+                    console.error('Error tracking redemption:', error);
+                    Alert.alert('Error', 'Failed to mark perk as redeemed. Please try again.');
+                  }
+                  return;
+                }
+              } else {
+                // If changing to available, delete from database
+                const { error } = await deletePerkRedemption(user.id, perk.name);
+                if (error) {
+                  console.error('Error deleting redemption:', error);
+                  Alert.alert('Error', 'Failed to mark perk as available. Please try again.');
+                  return;
+                }
+              }
 
-      // Update local state
-      await loadRedeemedPerks(); // Refresh redemption state
-      await onLongPressPerk(card.id, perk.id, perk);
-    } catch (error) {
-      console.error('Error handling perk long press:', error);
-    }
+              // Update local state
+              await loadRedeemedPerks(); // Refresh redemption state
+              await onLongPressPerk(card.id, perk.id, perk);
+            } catch (error) {
+              console.error('Error handling perk long press:', error);
+              Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   const translateY = animation.interpolate({
