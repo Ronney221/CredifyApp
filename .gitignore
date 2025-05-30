@@ -1,0 +1,98 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# Environment variables and secrets
+.env
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Supabase
+**/supabase/.temp
+.supabase
+.supabase-temp
+**/supabase/config.toml
+
+# OAuth and API keys
+**/oauth-config.*
+**/api-keys.*
+**/credentials.*
+**/secrets.*
+google-services.json
+GoogleService-Info.plist
+
+# SSL/TLS certificates
+*.crt
+*.cer
+*.pem
+*.key
+*.p12
+*.pfx
+*.csr
+
+# typescript
+*.tsbuildinfo
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.bak
+
+# Build and temp files
+build/
+dist/
+temp/
+tmp/
+*.tmp
+*.temp
+
+# Example and documentation files that might contain sensitive data
+app-example/
+GOOGLE_OAUTH_SETUP.md
+SUPABASE_EMAIL_FIX.md
+database/simple-setup.sql
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+

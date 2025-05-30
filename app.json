@@ -1,0 +1,170 @@
+{
+  "expo": {
+    "name": "Credify",
+    "slug": "Credify",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "credify",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.credifyronney.credify",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["credify"]
+          }
+        ],
+        "LSApplicationQueriesSchemes": [
+          "dunkindonuts",
+          "uber",
+          "ubereats",
+          "doordash",
+          "grubhub",
+          "resy",
+          "otherapp"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIStatusBarHidden": false,
+        "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
+        "UIViewControllerBasedStatusBarAppearance": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.credifyronney.credify",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "credify",
+              "host": "*",
+              "pathPrefix": "/auth/callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
+      "queries": [
+        {
+          "package": "com.dunkinbrands.otgo"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "dunkindonuts"
+              }
+            }
+          ]
+        },
+        {
+          "package": "com.ubercab"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "uber"
+              }
+            }
+          ]
+        },
+        {
+          "package": "com.ubercab.eats"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "ubereats"
+              }
+            }
+          ]
+        },
+        {
+          "package": "com.dd.doordash"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "doordash"
+              }
+            }
+          ]
+        },
+        {
+          "package": "com.grubhub.android"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "grubhub"
+              }
+            }
+          ]
+        },
+        {
+          "package": "com.resy.android"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "resy"
+              }
+            }
+          ]
+        },
+        { "package": "com.example.otherapp" },
+        {
+          "intent": [{
+            "action": "VIEW",
+            "data": { "scheme": "otherapp" }
+          }]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ec64179f-210d-4298-87f3-48a2fdc065e9"
+      }
+    }
+  }
+}
