@@ -11,6 +11,7 @@ interface ProgressDonutProps {
   value: number;
   total: number;
   label: string;
+  valueLabel?: string; // Optional custom value label
 }
 
 export default function ProgressDonut({
@@ -22,20 +23,15 @@ export default function ProgressDonut({
   value,
   total,
   label,
+  valueLabel,
 }: ProgressDonutProps) {
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progress);
 
-  // Format numbers for display
-  const formattedValue = value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-  const formattedTotal = total.toLocaleString('en-US', {
+  // Only format numbers if no custom valueLabel is provided
+  const formattedValue = valueLabel || value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 0,
@@ -71,8 +67,9 @@ export default function ProgressDonut({
           />
         </Svg>
         <View style={[styles.textContainer, { width: size, height: size }]}>
-          <Text style={[styles.valueText, { color }]}>{formattedValue}</Text>
-          <Text style={styles.totalText}>/ {formattedTotal}</Text>
+          <Text style={[styles.valueText, { color }]} numberOfLines={2} adjustsFontSizeToFit>
+            {formattedValue}
+          </Text>
         </View>
       </View>
       <Text style={styles.label}>{label}</Text>
@@ -98,18 +95,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 10,
   },
   valueText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
-  },
-  totalText: {
-    fontSize: 14,
-    color: '#8e8e93',
+    textAlign: 'center',
   },
   label: {
     fontSize: 14,
     color: '#8e8e93',
     marginTop: 8,
+    textAlign: 'center',
   },
 }); 

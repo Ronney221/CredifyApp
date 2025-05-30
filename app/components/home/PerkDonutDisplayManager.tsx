@@ -26,42 +26,79 @@ export default function PerkDonutDisplayManager({
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>('monthly');
 
   const monthlyPerkData = useMemo(() => {
-    const totalValue = userCardsWithPerks.reduce((sum, { perks }) => 
-      sum + perks.reduce((perkSum, perk) => perkSum + (perk.status === 'redeemed' ? perk.value : 0), 0), 
-    0);
+    // Calculate monetary values for monthly perks
+    const monthlyValues = userCardsWithPerks.reduce((acc, { perks }) => {
+      const redeemedValue = perks.reduce((sum, perk) => 
+        sum + (perk.status === 'redeemed' ? perk.value : 0), 0);
+      const totalValue = perks.reduce((sum, perk) => sum + perk.value, 0);
+      return {
+        redeemedValue: acc.redeemedValue + redeemedValue,
+        totalValue: acc.totalValue + totalValue
+      };
+    }, { redeemedValue: 0, totalValue: 0 });
+
+    // Count perks for secondary metric
+    const perkCounts = userCardsWithPerks.reduce((counts, { perks }) => {
+      const availablePerks = perks.filter(perk => perk.status === 'available').length;
+      const redeemedPerks = perks.filter(perk => perk.status === 'redeemed').length;
+      return {
+        available: counts.available + availablePerks,
+        redeemed: counts.redeemed + redeemedPerks
+      };
+    }, { available: 0, redeemed: 0 });
+
+    const totalPerks = perkCounts.available + perkCounts.redeemed;
     
     return {
-      value: monthlyCreditsRedeemed,
-      total: monthlyCreditsPossible,
-      progress: monthlyCreditsPossible > 0 ? monthlyCreditsRedeemed / monthlyCreditsPossible : 0,
+      value: monthlyValues.redeemedValue,
+      total: monthlyValues.totalValue,
+      progress: monthlyValues.totalValue > 0 ? monthlyValues.redeemedValue / monthlyValues.totalValue : 0,
       primaryMetric: {
-        value: totalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        label: 'Total Value Redeemed',
+        value: monthlyValues.redeemedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        label: 'Value Redeemed',
       },
       secondaryMetric: {
-        value: `${monthlyCreditsRedeemed} of ${monthlyCreditsPossible}`,
+        value: `${perkCounts.redeemed} of ${totalPerks} perks`,
         label: 'Perks Used',
+      },
+      donutLabel: {
+        value: `${monthlyValues.redeemedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} / ${monthlyValues.totalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
+        label: 'Monthly Credits',
       },
       color: '#2196f3',
     };
-  }, [monthlyCreditsRedeemed, monthlyCreditsPossible, userCardsWithPerks]);
+  }, [userCardsWithPerks]);
 
   const annualFeesData = useMemo(() => {
-    const totalFees = userCardsWithPerks.reduce((sum, { card }) => sum + (card.annualFee || 0), 0);
+    // Calculate total annual fees and total redeemed value
+    const cardData = userCardsWithPerks.reduce((acc, { card, perks }) => {
+      const cardRedeemedValue = perks.reduce((sum, perk) => 
+        sum + (perk.status === 'redeemed' ? perk.value : 0), 0);
+      return {
+        totalFees: acc.totalFees + (card.annualFee || 0),
+        totalRedeemedValue: acc.totalRedeemedValue + cardRedeemedValue
+      };
+    }, { totalFees: 0, totalRedeemedValue: 0 });
+
+    const { totalFees, totalRedeemedValue } = cardData;
     const formattedFees = totalFees.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-    const breakEvenAmount = totalFees * 1.5; // Assuming 1.5x annual fees as break-even target
+    const formattedRedeemedValue = totalRedeemedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     
     return {
-      value: totalFees,
-      total: breakEvenAmount,
-      progress: totalFees > 0 ? Math.min(1, totalFees / breakEvenAmount) : 0,
+      value: totalRedeemedValue,
+      total: totalFees,
+      progress: totalFees > 0 ? totalRedeemedValue / totalFees : 0,
       primaryMetric: {
-        value: formattedFees,
-        label: 'Annual Fees',
+        value: formattedRedeemedValue,
+        label: 'Value Redeemed',
       },
       secondaryMetric: {
-        value: breakEvenAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        label: 'Break-even Target',
+        value: `${((totalFees > 0 ? totalRedeemedValue / totalFees : 0) * 100).toFixed(0)}% of annual fees`,
+        label: 'Break-even Progress',
+      },
+      donutLabel: {
+        value: `${formattedRedeemedValue} / ${formattedFees}`,
+        label: 'Annual Break-even',
       },
       color: '#5856d6',
     };
@@ -120,7 +157,8 @@ export default function PerkDonutDisplayManager({
           value={activeData.value}
           total={activeData.total}
           color={activeData.color}
-          label={activeData.primaryMetric.label}
+          label={activeData.donutLabel.label}
+          valueLabel={activeData.donutLabel.value}
         />
 
         <View style={styles.secondaryMetric}>
