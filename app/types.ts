@@ -3,8 +3,8 @@ import { Card as BaseCard, Benefit } from '../src/data/card-data';
 // Re-export the base types
 export type Card = BaseCard;
 
-// Define PerkStatus type
-export type PerkStatus = 'available' | 'pending' | 'redeemed';
+// Define PerkStatus type - removed 'pending' status
+export type PerkStatus = 'available' | 'redeemed';
 
 // Define CardPerk interface
 export interface CardPerk extends Benefit {

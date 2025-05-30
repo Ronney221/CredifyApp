@@ -2,192 +2,119 @@ import { Linking, Alert, Platform } from 'react-native';
 import * as Application from 'expo-application';
 import { CardPerk, multiChoicePerksConfig } from '../types';
 
-interface PerkTargetConfig {
-  appScheme: string;
-  websiteUrl: string;
-  appName?: string; // Optional: for more descriptive alerts
-  appStoreUrlIOS?: string; // Optional: URL for iOS App Store
-  appStoreUrlAndroid?: string; // Optional: URL for Google Play Store
-}
-
-// IMPORTANT: The keys in this map (e.g., "Dunkin\' Donuts Credit")
-// MUST EXACTLY MATCH the 'name' property of the perks from your card-data.ts.
-// Please verify and update these names as needed.
-const perkNameMappings: Record<string, PerkTargetConfig> = {
-  "Dunkin' Donuts Credit": { // Example: For Amex Gold Dunkin' perk
-    appScheme: 'dunkindonuts://',
-    websiteUrl: 'https://www.dunkindonuts.com/',
-    appName: "Dunkin' Donuts",
-    appStoreUrlIOS: 'https://apps.apple.com/app/id1056813463',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.dunkinbrands.otgo',
-  },
-  "Uber Ride Credit": { // Renamed from "Uber Credits" for clarity
-    appScheme: 'uber://',
-    websiteUrl: 'https://www.uber.com/ride/',
-    appName: 'Uber',
-    appStoreUrlIOS: 'https://apps.apple.com/app/uber/id368677368',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.ubercab',
-  },
-  "Uber Eats Credit": {
-    appScheme: 'ubereats://', // Basic scheme to open the app. Specific paths like /store/browse can be added if needed.
-    websiteUrl: 'https://www.ubereats.com/',
-    appName: 'Uber Eats',
-    appStoreUrlIOS: 'https://apps.apple.com/app/uber-eats-food-delivery/id1058959277',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.ubercab.eats',
-  },
-  "DoorDash Grocery Credit": {
-    appScheme: 'doordash://',
-    websiteUrl: 'https://www.doordash.com/',
-    appName: 'DoorDash',
-    appStoreUrlIOS: 'https://apps.apple.com/app/doordash-food-delivery/id719972451',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.dd.doordash',
-  },
-  "Grubhub Credit": { // Scheme is likely, may need verification
-    appScheme: 'grubhub://',
-    websiteUrl: 'https://www.grubhub.com/',
-    appName: 'Grubhub',
-    appStoreUrlIOS: 'https://apps.apple.com/app/grubhub-local-food-delivery/id302920553',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.grubhub.android',
-  },
-  "Resy Credit": { // Scheme is likely, may need verification
-    appScheme: 'resy://',
-    websiteUrl: 'https://resy.com/',
-    appName: 'Resy',
-    appStoreUrlIOS: 'https://apps.apple.com/app/resy/id799274035',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.resy.android',
-  },
-  /* ────── Amex Platinum "Digital Entertainment Credit" choices ────── */
-  "Disney+ Credit": {
-    appScheme: "disneyplus://",
-    websiteUrl: "https://www.disneyplus.com/",
-    appName: "Disney+",
-    appStoreUrlIOS: "https://apps.apple.com/app/id1446075923",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.disney.disneyplus",
-  },
-  "Hulu Credit": {
-    appScheme: "hulu://",
-    websiteUrl: "https://www.hulu.com/",
-    appName: "Hulu",
-    appStoreUrlIOS: "https://apps.apple.com/app/id376510438",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.hulu.plus",
-  },
-  "ESPN+ Credit": {
-    appScheme: "sportscenter://",          // ESPN's registered scheme
-    websiteUrl: "https://www.espn.com/espnplus/",
-    appName: "ESPN",
-    appStoreUrlIOS: "https://apps.apple.com/app/id317469184",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.espn.score_center",
-  },
-  "Peacock Credit": {
-    appScheme: "peacock://",
-    websiteUrl: "https://www.peacocktv.com/",
-    appName: "Peacock",
-    appStoreUrlIOS: "https://apps.apple.com/app/id1508186374",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.peacocktv.peacockandroid",
-  },
-  "NYTimes Credit": {
-    appScheme: "nytimes://",
-    websiteUrl: "https://www.nytimes.com/",
-    appName: "The New York Times",
-    appStoreUrlIOS: "https://apps.apple.com/app/id284862083",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.nytimes.android",
-  },
-
-  /* ────── Walmart+ rebate (Amex Platinum) ────── */
-  "Walmart+ Membership Rebate": {
-    appScheme: "walmart://",
-    websiteUrl: "https://www.walmart.com/plus",
-    appName: "Walmart",
-    appStoreUrlIOS: "https://apps.apple.com/app/id338137227",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.walmart.android",
-  },
-
-  /* ────── DoorDash restaurant credit (CSR) ────── */
-  "DoorDash Restaurant Credit": {          // distinct from Grocery credit
-    appScheme: "doordash://",
-    websiteUrl: "https://www.doordash.com/",
-    appName: "DoorDash",
-    appStoreUrlIOS: "https://apps.apple.com/app/id719972451",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.dd.doordash",
-  },
-
-  /* ────── Instacart credit (CSR/CSP) ────── */
-  "Instacart Credit": {
-    appScheme: "instacart://",
-    websiteUrl: "https://www.instacart.com/",
-    appName: "Instacart",
-    appStoreUrlIOS: "https://apps.apple.com/app/id545599256",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.instacart.client",
-  },
-
-  /* ────── Capital One Venture X travel portal ────── */
-  "Capital One Travel Credit": {
-    appScheme: "capitalone://",
-    websiteUrl: "https://travel.capitalone.com/",
-    appName: "Capital One",
-    appStoreUrlIOS: "https://apps.apple.com/app/id407558537",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.capitalone.mobile",
-  },
-
-  /* ────── CLEAR Plus credit (Amex Green) ────── */
-  "CLEAR Plus Credit": {
-    appScheme: "",                         // no documented scheme
-    websiteUrl: "https://www.clearme.com/",
-    appName: "CLEAR",
-    appStoreUrlIOS: "https://apps.apple.com/app/id1436333504",
-    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.clearme.clearapp",
-  },
-};
-
-// App URL schemes
+// App URL schemes and configurations
 const APP_SCHEMES = {
   uber: {
     ios: 'uber://',
     android: 'uber://',
     fallback: 'https://m.uber.com/',
     androidPackage: 'com.ubercab',
+    appStoreUrlIOS: 'https://apps.apple.com/app/uber/id368677368',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.ubercab',
   },
   uberEats: {
     ios: 'ubereats://',
     android: 'ubereats://',
     fallback: 'https://www.ubereats.com/',
     androidPackage: 'com.ubercab.eats',
+    appStoreUrlIOS: 'https://apps.apple.com/app/uber-eats-food-delivery/id1058959277',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.ubercab.eats',
   },
   grubhub: {
     ios: 'grubhub://',
     android: 'grubhub://',
     fallback: 'https://www.grubhub.com/',
     androidPackage: 'com.grubhub.android',
+    appStoreUrlIOS: 'https://apps.apple.com/app/grubhub-local-food-delivery/id302920553',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.grubhub.android',
   },
   disneyPlus: {
     ios: 'disneyplus://',
     android: 'disneyplus://',
     fallback: 'https://www.disneyplus.com/',
     androidPackage: 'com.disney.disneyplus',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id1446075923',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.disney.disneyplus',
   },
   hulu: {
     ios: 'hulu://',
     android: 'hulu://',
     fallback: 'https://www.hulu.com/',
     androidPackage: 'com.hulu.plus',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id376510438',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.hulu.plus',
   },
   espn: {
-    ios: 'espn://',
-    android: 'espn://',
-    fallback: 'https://www.espn.com/',
+    ios: 'sportscenter://',
+    android: 'sportscenter://',
+    fallback: 'https://www.espn.com/espnplus/',
     androidPackage: 'com.espn.score_center',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id317469184',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.espn.score_center',
   },
   peacock: {
     ios: 'peacock://',
     android: 'peacocktv://',
     fallback: 'https://www.peacocktv.com/',
     androidPackage: 'com.peacocktv.peacockandroid',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id1508186374',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.peacocktv.peacockandroid',
   },
   nytimes: {
     ios: 'nytimes://',
     android: 'nytimes://',
     fallback: 'https://www.nytimes.com/',
     androidPackage: 'com.nytimes.android',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id284862083',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.nytimes.android',
+  },
+  dunkin: {
+    ios: 'dunkindonuts://',
+    android: 'dunkindonuts://',
+    fallback: 'https://www.dunkindonuts.com/',
+    androidPackage: 'com.dunkinbrands.otgo',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id1056813463',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.dunkinbrands.otgo',
+  },
+  doordash: {
+    ios: 'doordash://',
+    android: 'doordash://',
+    fallback: 'https://www.doordash.com/',
+    androidPackage: 'com.dd.doordash',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id719972451',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.dd.doordash',
+  },
+  instacart: {
+    ios: 'instacart://',
+    android: 'instacart://',
+    fallback: 'https://www.instacart.com/',
+    androidPackage: 'com.instacart.client',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id545599256',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.instacart.client',
+  },
+  resy: {
+    ios: 'resy://',
+    android: 'resy://',
+    fallback: 'https://resy.com/',
+    androidPackage: 'com.resy.android',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id799274035',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.resy.android',
+  },
+  walmart: {
+    ios: 'walmart://',
+    android: 'walmart://',
+    fallback: 'https://www.walmart.com/plus',
+    androidPackage: 'com.walmart.android',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id338137227',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.walmart.android',
+  },
+  capitalOne: {
+    ios: 'capitalone://',
+    android: 'capitalone://',
+    fallback: 'https://travel.capitalone.com/',
+    androidPackage: 'com.capitalone.mobile',
+    appStoreUrlIOS: 'https://apps.apple.com/app/id407558537',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.capitalone.mobile',
   },
 };
 
@@ -201,6 +128,13 @@ const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'ESPN+ Credit': 'espn',
   'Peacock Credit': 'peacock',
   'NYTimes Credit': 'nytimes',
+  "Dunkin' Donuts Credit": 'dunkin',
+  "DoorDash Grocery Credit": 'doordash',
+  "DoorDash Restaurant Credit": 'doordash',
+  "Instacart Credit": 'instacart',
+  "Resy Credit": 'resy',
+  "Walmart+ Membership Rebate": 'walmart',
+  "Capital One Travel Credit": 'capitalOne',
 };
 
 async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean> {
@@ -209,7 +143,7 @@ async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean
     if (Platform.OS === 'ios') {
       return await Linking.canOpenURL(appSchemes.ios);
     } else {
-      // On Android, we can check if the package is installed
+      // On Android, we need to check if the package is installed
       return await Linking.canOpenURL(appSchemes.android);
     }
   } catch (error) {
@@ -232,10 +166,46 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
 
   try {
     const isInstalled = await isAppInstalled(appKey);
-    const urlToOpen = isInstalled ? scheme : appSchemes.fallback;
-    
-    await Linking.openURL(urlToOpen);
-    return true;
+    if (isInstalled) {
+      await Linking.openURL(scheme);
+      return true;
+    } else {
+      // If app is not installed, show an alert with options
+      return new Promise((resolve) => {
+        Alert.alert(
+          'App Not Installed',
+          'Would you like to install the app or visit the website?',
+          [
+            {
+              text: 'Install App',
+              onPress: async () => {
+                const storeUrl = Platform.select({
+                  ios: appSchemes.appStoreUrlIOS,
+                  android: appSchemes.appStoreUrlAndroid,
+                });
+                if (storeUrl) {
+                  await Linking.openURL(storeUrl);
+                }
+                resolve(false);
+              },
+            },
+            {
+              text: 'Open Website',
+              onPress: async () => {
+                await Linking.openURL(appSchemes.fallback);
+                resolve(true);
+              },
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => resolve(false),
+            },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) }
+        );
+      });
+    }
   } catch (error) {
     console.error(`Error opening ${appKey}:`, error);
     // If the deep link fails, try the fallback URL
