@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import ProgressDonut from './ProgressDonut'; // Assumes ProgressDonut is in the same directory
-import { Card, CardPerk } from '../../types'; // Adjust path as needed
+import { Ionicons } from '@expo/vector-icons';
+import ProgressDonut from './ProgressDonut';
+import { Card, CardPerk } from '../../types';
 
 type SegmentKey = 'monthly' | 'annualFees';
 
@@ -25,29 +26,44 @@ export default function PerkDonutDisplayManager({
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>('monthly');
 
   const monthlyPerkData = useMemo(() => {
+    const totalValue = userCardsWithPerks.reduce((sum, { perks }) => 
+      sum + perks.reduce((perkSum, perk) => perkSum + (perk.status === 'redeemed' ? perk.value : 0), 0), 
+    0);
+    
     return {
       value: monthlyCreditsRedeemed,
       total: monthlyCreditsPossible,
       progress: monthlyCreditsPossible > 0 ? monthlyCreditsRedeemed / monthlyCreditsPossible : 0,
-      label: 'Monthly Perks Used',
-      color: '#007aff', // Blue for monthly
-      description: `${monthlyCreditsRedeemed} of ${monthlyCreditsPossible} perks redeemed`,
+      primaryMetric: {
+        value: totalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        label: 'Total Value Redeemed',
+      },
+      secondaryMetric: {
+        value: `${monthlyCreditsRedeemed} of ${monthlyCreditsPossible}`,
+        label: 'Perks Used',
+      },
+      color: '#2196f3',
     };
-  }, [monthlyCreditsRedeemed, monthlyCreditsPossible]);
+  }, [monthlyCreditsRedeemed, monthlyCreditsPossible, userCardsWithPerks]);
 
   const annualFeesData = useMemo(() => {
     const totalFees = userCardsWithPerks.reduce((sum, { card }) => sum + (card.annualFee || 0), 0);
-    const formattedFees = totalFees.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    });
+    const formattedFees = totalFees.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    const breakEvenAmount = totalFees * 1.5; // Assuming 1.5x annual fees as break-even target
+    
     return {
-      value: totalFees, // Show the total fee amount
-      total: totalFees, // Max value for the donut is the total fee
-      progress: totalFees > 0 ? 1 : 0, // Donut is full if there are fees, empty otherwise
-      label: 'Annual Fees',
-      color: '#5856d6', // Purple for annual fees
-      description: `Total annual fees: ${formattedFees}`,
+      value: totalFees,
+      total: breakEvenAmount,
+      progress: totalFees > 0 ? Math.min(1, totalFees / breakEvenAmount) : 0,
+      primaryMetric: {
+        value: formattedFees,
+        label: 'Annual Fees',
+      },
+      secondaryMetric: {
+        value: breakEvenAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        label: 'Break-even Target',
+      },
+      color: '#5856d6',
     };
   }, [userCardsWithPerks]);
 
@@ -73,7 +89,11 @@ export default function PerkDonutDisplayManager({
               ]}
               onPress={() => setActiveSegmentKey(segment.key)}
             >
-              <Text style={styles.segmentIcon}>{segment.icon}</Text>
+              <Ionicons 
+                name={segment.key === 'monthly' ? 'calendar-outline' : 'card-outline'} 
+                size={18} 
+                color={activeSegmentKey === segment.key ? '#007aff' : '#666'}
+              />
               <Text
                 style={[
                   styles.segmentText,
@@ -87,17 +107,26 @@ export default function PerkDonutDisplayManager({
         </View>
       </View>
 
-      <View style={styles.donutContainer}>
+      <View style={styles.metricsContainer}>
+        <View style={styles.primaryMetric}>
+          <Text style={styles.primaryValue}>{activeData.primaryMetric.value}</Text>
+          <Text style={styles.primaryLabel}>{activeData.primaryMetric.label}</Text>
+        </View>
+
         <ProgressDonut
-          size={160}
-          strokeWidth={15}
+          size={120}
+          strokeWidth={12}
           progress={activeData.progress}
           value={activeData.value}
           total={activeData.total}
-          label={activeData.label}
           color={activeData.color}
+          label={activeData.primaryMetric.label}
         />
-        <Text style={styles.description}>{activeData.description}</Text>
+
+        <View style={styles.secondaryMetric}>
+          <Text style={styles.secondaryValue}>{activeData.secondaryMetric.value}</Text>
+          <Text style={styles.secondaryLabel}>{activeData.secondaryMetric.label}</Text>
+        </View>
       </View>
     </View>
   );
@@ -107,12 +136,13 @@ const styles = StyleSheet.create({
   managerContainer: {
     alignItems: 'center',
     width: '100%',
+    paddingTop: 8,
   },
   segmentedControlWrapper: {
     width: '100%',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   segmentedControlContainer: {
     flexDirection: 'row',
@@ -128,7 +158,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     gap: 6,
   },
   firstSegmentButton: {
@@ -153,9 +183,6 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  segmentIcon: {
-    fontSize: 16,
-  },
   segmentText: {
     fontSize: 15,
     color: '#666',
@@ -165,14 +192,43 @@ const styles = StyleSheet.create({
     color: '#007aff',
     fontWeight: '600',
   },
-  donutContainer: {
+  metricsContainer: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingHorizontal: 20,
   },
-  description: {
-    marginTop: 12,
+  primaryMetric: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  primaryValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1c1c1e',
+    letterSpacing: -0.5,
+  },
+  primaryLabel: {
     fontSize: 15,
     color: '#666',
     fontWeight: '500',
+    marginTop: 4,
+  },
+  secondaryMetric: {
+    alignItems: 'center',
+    marginTop: 16,
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  secondaryValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1c1c1e',
+  },
+  secondaryLabel: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+    marginTop: 2,
   },
 }); 

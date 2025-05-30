@@ -11,9 +11,10 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -25,6 +26,26 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const checkEmailExists = async (email: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking email:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return false;
+    }
+  };
 
   const handleEmailSignUp = async () => {
     if (!email || !password || !confirmPassword) {
@@ -43,163 +64,226 @@ export default function SignUpScreen() {
     }
 
     setIsLoading(true);
-    const { error } = await signUp(email, password);
-    
-    if (error) {
-      Alert.alert('Sign Up Failed', error.message);
-    } else {
-      Alert.alert(
-        'Success',
-        'Account created! Please check your email to verify your account.',
-        [{ text: 'OK', onPress: () => router.push('/(auth)/login' as any) }]
-      );
+
+    try {
+      // Check if email already exists
+      const emailExists = await checkEmailExists(email);
+      if (emailExists) {
+        Alert.alert(
+          'Account Exists',
+          'An account with this email already exists. Would you like to sign in instead?',
+          [
+            {
+              text: 'Sign In',
+              onPress: () => router.replace('/(auth)/login'),
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+          ]
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await signUp(email, password);
+      
+      if (error) {
+        if (error.message.includes('already exists')) {
+          Alert.alert(
+            'Account Exists',
+            'An account with this email already exists. Would you like to sign in instead?',
+            [
+              {
+                text: 'Sign In',
+                onPress: () => router.replace('/(auth)/login'),
+              },
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+            ]
+          );
+        } else {
+          Alert.alert('Sign Up Failed', error.message);
+        }
+      } else {
+        Alert.alert(
+          'Success',
+          'Account created! Please check your email to verify your account.',
+          [{ 
+            text: 'OK', 
+            onPress: () => router.replace('/(auth)/login')
+          }]
+        );
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleGoogleSignUp = async () => {
     setIsLoading(true);
-    const { error } = await signInGoogle();
-    
-    if (error) {
-      Alert.alert('Google Sign Up Failed', error.message);
-    } else {
-      router.push('/card-selection' as any);
+    try {
+      const { error } = await signInGoogle();
+      
+      if (error) {
+        Alert.alert('Google Sign Up Failed', error.message);
+      } else {
+        router.replace('/card-selection');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleAppleSignUp = async () => {
-    const { error } = await signInApple();
-    if (error) {
-      Alert.alert('Apple Sign In', error.message);
+    try {
+      const { error } = await signInApple();
+      if (error) {
+        Alert.alert('Apple Sign In Failed', error.message);
+      } else {
+        router.replace('/card-selection');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
     }
   };
 
-  const navigateToLogin = () => {
-    router.push('/(auth)/login' as any);
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Credify and start managing your credit cards</Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
+    <>
+      <Stack.Screen 
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+          animation: 'fade',
+        }} 
+      />
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join Credify and start managing your credit cards</Text>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.passwordInput}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Create a password"
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
                 placeholderTextColor="#999"
-                secureTextEntry={!showPassword}
-                autoComplete="new-password"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
               />
-              <TouchableOpacity
-                style={styles.passwordToggle}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
             </View>
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Confirm your password"
-                placeholderTextColor="#999"
-                secureTextEntry={!showConfirmPassword}
-                autoComplete="new-password"
-              />
-              <TouchableOpacity
-                style={styles.passwordToggle}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color="#666"
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Create a password"
+                  placeholderTextColor="#999"
+                  secureTextEntry={!showPassword}
+                  autoComplete="new-password"
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          <TouchableOpacity
-            style={styles.signUpButton}
-            onPress={handleEmailSignUp}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.signUpButtonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#999"
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="new-password"
+                />
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off' : 'eye'}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or sign up with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialButtons}>
             <TouchableOpacity
-              style={styles.socialButton}
-              onPress={handleGoogleSignUp}
+              style={styles.signUpButton}
+              onPress={handleEmailSignUp}
               disabled={isLoading}
             >
-              <Ionicons name="logo-google" size={20} color="#4285f4" />
-              <Text style={styles.socialButtonText}>Google</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.signUpButtonText}>Create Account</Text>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.socialButton, styles.disabledButton]}
-              onPress={handleAppleSignUp}
-              disabled={true}
-            >
-              <Ionicons name="logo-apple" size={20} color="#999" />
-              <Text style={[styles.socialButtonText, styles.disabledText]}>Apple (Soon)</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or sign up with</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
-          <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={navigateToLogin}>
-              <Text style={styles.loginLink}>Sign In</Text>
-            </TouchableOpacity>
+            <View style={styles.socialButtons}>
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={handleGoogleSignUp}
+                disabled={isLoading}
+              >
+                <Ionicons name="logo-google" size={20} color="#4285f4" />
+                <Text style={styles.socialButtonText}>Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.socialButton, styles.disabledButton]}
+                onPress={handleAppleSignUp}
+                disabled={true}
+              >
+                <Ionicons name="logo-apple" size={20} color="#999" />
+                <Text style={[styles.socialButtonText, styles.disabledText]}>Apple (Soon)</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/(auth)/login' as any)}>
+                <Text style={styles.loginLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }
 

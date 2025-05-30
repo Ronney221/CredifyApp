@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   UIManager,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  ScrollViewProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -45,6 +46,29 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// Move helper functions outside component
+const getDaysRemainingInMonth = (): number => {
+  const today = new Date();
+  const lastDay = endOfMonth(today);
+  return differenceInDays(lastDay, today) + 1;
+};
+
+const getStatusColor = (daysRemaining: number) => {
+  if (daysRemaining <= 3) {
+    return {
+      bg: '#fff3e0',
+      text: '#f57c00'
+    };
+  }
+  return {
+    bg: '#e3f2fd',
+    text: '#1976d2'
+  };
+};
+
+// Add type for ScrollView ref
+type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> };
+
 export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string }>();
@@ -70,6 +94,18 @@ export default function HomeScreen() {
   } = usePerkStatus(userCardsWithPerks);
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
+  const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
+
+  const getDaysRemainingMessage = useCallback(() => {
+    if (daysRemaining === 1) {
+      return "Last day to use this month's perks";
+    } else if (daysRemaining <= 3) {
+      return `${daysRemaining} days left to use this month's perks`;
+    }
+    return `${daysRemaining} days remaining`;
+  }, [daysRemaining]);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,13 +193,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Add these new functions with proper types
-  const getDaysRemainingInMonth = (): number => {
-    const today = new Date();
-    const lastDay = endOfMonth(today);
-    return differenceInDays(lastDay, today) + 1;
-  };
-
   const sortCardsByUnredeemedPerks = (cards: { card: Card; perks: CardPerk[] }[]): typeof cards => {
     return [...cards].sort((a, b) => {
       if (a.card.id === activeCardId) return -1;
@@ -211,14 +240,17 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
-        ref={scrollViewRef}
+        {...(Platform.select({
+          ios: { ref: scrollViewRef },
+          android: { ref: scrollViewRef },
+        }))}
         scrollEventThrottle={16}
       >
         {/* Header with User Profile */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.welcomeText}>Welcome back,</Text>
+              <Text style={styles.welcomeText}>Hello,</Text>
               <Text style={styles.userName}>{user?.user_metadata?.full_name || 'User'}</Text>
             </View>
             <TouchableOpacity
@@ -261,20 +293,26 @@ export default function HomeScreen() {
                 <Image source={{ uri: user.user_metadata.avatar_url }} style={styles.profileImage} />
               ) : (
                 <View style={styles.profileImagePlaceholder}>
-                  <Ionicons name="person" size={24} color="#007aff" />
+                  <Text style={styles.profileInitial}>
+                    {user?.user_metadata?.full_name?.[0]?.toUpperCase() || 'U'}
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
           </View>
           
-          {/* Add Month Indicator */}
+          {/* Month Status Bar */}
           <View style={styles.monthIndicator}>
-            <Text style={styles.currentMonth}>
-              {format(new Date(), 'MMMM yyyy')}
-            </Text>
-            <Text style={styles.daysRemaining}>
-              {getDaysRemainingInMonth()} days remaining
-            </Text>
+            <View style={styles.monthStatusContainer}>
+              <Text style={styles.currentMonth}>
+                {format(new Date(), 'MMMM yyyy')}
+              </Text>
+              <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
+                <Text style={[styles.statusText, { color: statusColors.text }]}>
+                  {getDaysRemainingMessage()}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -312,19 +350,21 @@ export default function HomeScreen() {
 
               {sortedCards.length > 0 ? (
                 sortedCards.map(({ card, perks }, index) => {
-                  return (
-                    <ExpandableCard
-                      key={card.id}
-                      card={card}
-                      perks={perks}
-                      cumulativeSavedValue={cumulativeValueSavedPerCard[card.id] || 0}
-                      onTapPerk={handleTapPerk}
-                      onLongPressPerk={handleLongPressPerk}
-                      onExpandChange={handleCardExpandChange}
-                      isActive={card.id === activeCardId}
-                      sortIndex={index}
-                    />
-                  );
+                  const expandableCardProps = {
+                    card,
+                    perks,
+                    cumulativeSavedValue: cumulativeValueSavedPerCard[card.id] || 0,
+                    onTapPerk: handleTapPerk,
+                    onLongPressPerk: handleLongPressPerk,
+                    onExpandChange: handleCardExpandChange,
+                    isActive: card.id === activeCardId,
+                    sortIndex: index,
+                  };
+
+                  return React.createElement(ExpandableCard, {
+                    ...expandableCardProps,
+                    key: card.id,
+                  });
                 })
               ) : (
                 <View style={styles.noCardsContainer}>
@@ -393,46 +433,52 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-    paddingBottom: 15,
+    paddingBottom: 12,
     backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   welcomeText: {
     fontSize: 16,
-    color: '#8e8e93',
+    color: '#666',
+    fontWeight: '500',
   },
   userName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#1c1c1e',
+    marginTop: 2,
   },
   profileButton: {
-    height: 44,
-    width: 44,
-    borderRadius: 22,
+    height: 40,
+    width: 40,
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#ff8c00',
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileImage: {
-    height: 44,
-    width: 44,
-    borderRadius: 22,
+    height: 40,
+    width: 40,
+    borderRadius: 20,
   },
   profileImagePlaceholder: {
-    height: 44,
-    width: 44,
-    borderRadius: 22,
-    backgroundColor: '#f0f9ff',
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    backgroundColor: '#ff8c00',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  profileInitial: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   summarySection: {
     alignItems: 'center',
@@ -530,22 +576,27 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   monthIndicator: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 12,
+  },
+  monthStatusContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    marginTop: 12,
-    marginHorizontal: -16,
-    padding: 12,
-    borderRadius: 8,
   },
   currentMonth: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#1c1c1e',
   },
-  daysRemaining: {
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusText: {
     fontSize: 14,
-    color: '#8e8e93',
+    fontWeight: '500',
   },
 }); 

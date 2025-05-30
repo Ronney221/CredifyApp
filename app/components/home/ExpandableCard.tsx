@@ -35,7 +35,8 @@ export default function ExpandableCard({
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
-  const hasUnredeemedPerks = perks.some(p => p.status === 'available');
+  const unredeemedPerks = perks.filter(p => p.status === 'available');
+  const hasUnredeemedPerks = unredeemedPerks.length > 0;
   const isFullyRedeemed = !hasUnredeemedPerks;
 
   // Handle position animation when sort index changes
@@ -67,6 +68,10 @@ export default function ExpandableCard({
 
   const renderPerk = (perk: CardPerk) => {
     const isRedeemed = perk.status === 'redeemed';
+    const formattedValue = perk.value.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    });
 
     return (
       <TouchableOpacity
@@ -81,33 +86,29 @@ export default function ExpandableCard({
       >
         <View style={styles.perkContent}>
           <View style={styles.perkMainInfo}>
-            <Text style={[
-              styles.perkName,
-              isRedeemed && styles.redeemedText
-            ]}>
-              {perk.name}
-            </Text>
-            <Text style={[
-              styles.perkValue,
-              isRedeemed && styles.redeemedText
-            ]}>
-              ${perk.value}
+            <View style={styles.perkNameContainer}>
+              <Text style={[styles.perkName, isRedeemed && styles.redeemedText]}>
+                {perk.name}
+              </Text>
+              {isRedeemed ? (
+                <View style={styles.redeemedBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                  <Text style={styles.redeemedBadgeText}>Redeemed</Text>
+                </View>
+              ) : (
+                <View style={styles.availableBadge}>
+                  <Ionicons name="time-outline" size={14} color="#1976d2" />
+                  <Text style={styles.availableBadgeText}>Available</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.perkValue, isRedeemed && styles.redeemedText]}>
+              {formattedValue}
             </Text>
           </View>
-          <View style={styles.perkDetails}>
-            <Text style={[
-              styles.perkPeriod,
-              isRedeemed && styles.redeemedText
-            ]}>
-              {perk.period}
-            </Text>
-            {isRedeemed && (
-              <View style={styles.redeemedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                <Text style={styles.redeemedBadgeText}>Redeemed</Text>
-              </View>
-            )}
-          </View>
+          <Text style={[styles.perkPeriod, isRedeemed && styles.redeemedText]}>
+            {perk.period}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -135,29 +136,30 @@ export default function ExpandableCard({
           <View style={styles.cardTextContainer}>
             <View style={styles.cardNameContainer}>
               <Text style={styles.cardName}>{card.name}</Text>
-              {isFullyRedeemed && (
+              {isFullyRedeemed ? (
                 <View style={styles.completedBadge}>
                   <Ionicons name="checkmark-circle" size={14} color="#34c759" />
                   <Text style={styles.completedText}>All Set</Text>
+                </View>
+              ) : hasUnredeemedPerks && (
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingText}>
+                    {unredeemedPerks.length} pending
+                  </Text>
                 </View>
               )}
             </View>
             {cumulativeSavedValue > 0 && (
               <Text style={styles.savedValue}>
-                ${cumulativeSavedValue} saved
-              </Text>
-            )}
-            {!isExpanded && hasUnredeemedPerks && (
-              <Text style={styles.unredeemedAlert}>
-                {perks.filter(p => p.status === 'available').length} unredeemed perks
+                {cumulativeSavedValue.toLocaleString('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                })} saved
               </Text>
             )}
           </View>
         </View>
         <View style={styles.headerRight}>
-          {hasUnredeemedPerks && (
-            <View style={styles.notificationDot} />
-          )}
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
             size={24}
@@ -189,7 +191,7 @@ export default function ExpandableCard({
 const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
     marginHorizontal: 16,
     marginVertical: 8,
     overflow: 'hidden',
@@ -210,14 +212,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
   },
   cardInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 16,
   },
   cardImage: {
     width: 40,
@@ -227,7 +226,12 @@ const styles = StyleSheet.create({
   },
   cardTextContainer: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  cardNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   cardName: {
     fontSize: 16,
@@ -237,114 +241,19 @@ const styles = StyleSheet.create({
   savedValue: {
     fontSize: 14,
     color: '#34c759',
-    marginTop: 2,
-  },
-  perksContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  perkItem: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    marginVertical: 4,
-    padding: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: 'transparent',
-  },
-  redeemedPerk: {
-    backgroundColor: '#e8f5e9',
-    borderColor: '#34c759',
-    borderWidth: 1,
-    borderLeftColor: '#34c759',
-  },
-  availablePerk: {
-    borderLeftColor: '#007aff',
-    backgroundColor: '#f0f9ff',
-  },
-  perkContent: {
-    flex: 1,
-  },
-  perkMainInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  perkName: {
-    fontSize: 15,
     fontWeight: '500',
-    color: '#1c1c1e',
-    flex: 1,
-    marginRight: 8,
-  },
-  perkValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1c1c1e',
-  },
-  perkDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginTop: 4,
   },
-  perkPeriod: {
-    fontSize: 13,
-    color: '#8e8e93',
-    textTransform: 'capitalize',
-  },
-  redeemedText: {
-    color: '#34c759',
-  },
-  redeemedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#34c759',
+  pendingBadge: {
+    backgroundColor: '#e3f2fd',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
   },
-  redeemedBadgeText: {
-    color: '#ffffff',
+  pendingText: {
     fontSize: 12,
+    color: '#1976d2',
     fontWeight: '500',
-    marginLeft: 4,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 'auto',
-    paddingLeft: 8,
-  },
-  notificationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ff3b30',
-    marginRight: 12,
-  },
-  unredeemedAlert: {
-    color: '#ff3b30',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#8e8e93',
-    marginBottom: 8,
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
-  fullyRedeemedCard: {
-    opacity: 0.8,
-    backgroundColor: '#fafafa',
-  },
-  cardNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
   },
   completedBadge: {
     flexDirection: 'row',
@@ -352,13 +261,102 @@ const styles = StyleSheet.create({
     backgroundColor: '#e8f5e9',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
     gap: 4,
   },
   completedText: {
     fontSize: 12,
     color: '#34c759',
     fontWeight: '500',
+  },
+  perkItem: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginVertical: 4,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  redeemedPerk: {
+    backgroundColor: '#f8faf8',
+    borderColor: '#c8e6c9',
+  },
+  availablePerk: {
+    borderColor: '#bbdefb',
+    backgroundColor: '#f8fafe',
+  },
+  perkContent: {
+    flex: 1,
+  },
+  perkMainInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  perkNameContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginRight: 8,
+  },
+  perkName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1c1c1e',
+  },
+  perkValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c1c1e',
+  },
+  redeemedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#34c759',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  redeemedBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  availableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  availableBadgeText: {
+    color: '#1976d2',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  perkPeriod: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 4,
+  },
+  redeemedText: {
+    color: '#34c759',
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    marginVertical: 8,
+    paddingHorizontal: 4,
+  },
+  fullyRedeemedCard: {
+    opacity: 0.9,
   },
   activeCard: {
     ...Platform.select({
@@ -372,10 +370,18 @@ const styles = StyleSheet.create({
         elevation: 8,
       },
     }),
-    borderColor: '#007aff',
-    borderWidth: 1,
   },
   activeCardHeader: {
     backgroundColor: '#f8f9fa',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    paddingLeft: 8,
+  },
+  perksContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 }); 
