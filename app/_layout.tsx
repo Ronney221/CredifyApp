@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, type PropsWithChildren } from 'react';
 import { StatusBar } from 'react-native';
 import { Stack } from 'expo-router';
 import { AuthProvider } from '../contexts/AuthContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
+import { RootSiblingParent } from 'react-native-root-siblings';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -38,24 +39,26 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-        {/* Transparent status bar over white background */}
-        <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <RootSiblingParent>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          {/* Transparent status bar over white background */}
+          <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-        <AuthProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen
-              name="(auth)"
-              options={{ headerShown: false, presentation: 'modal' }}
-            />
-            <Stack.Screen name="auth/callback" />
-            <Stack.Screen name="auth/confirm" />
-            <Stack.Screen name="card-selection" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-        </AuthProvider>
-      </SafeAreaView>
+          <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen
+                name="(auth)"
+                options={{ headerShown: false, presentation: 'modal' }}
+              />
+              <Stack.Screen name="auth/callback" />
+              <Stack.Screen name="auth/confirm" />
+              <Stack.Screen name="card-selection" />
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+          </AuthProvider>
+        </SafeAreaView>
+      </RootSiblingParent>
     </SafeAreaProvider>
   );
 }

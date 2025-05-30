@@ -151,36 +151,11 @@ export default function HomeScreen() {
   };
 
   const handleTapPerk = async (cardId: string, perkId: string, perk: any) => {
-    const success = await openPerkTarget(perk);
-    if (success) {
-      setPerkStatus(cardId, perkId, 'redeemed'); 
-    }
+    setPerkStatus(cardId, perkId, 'redeemed');
   };
 
   const handleLongPressPerk = (cardId: string, perkId: string, currentPerk: CardPerk) => {
-    const isRedeemed = currentPerk.status === 'redeemed';
-    Alert.alert(
-      `Manage ${currentPerk.name}`,
-      isRedeemed 
-        ? "This perk has been redeemed. Would you like to mark it as available again?"
-        : "Would you like to mark this perk as redeemed?",
-      [
-        isRedeemed 
-          ? {
-              text: "Mark as Available",
-              onPress: () => setPerkStatus(cardId, perkId, 'available'),
-            }
-          : {
-          text: "Mark as Redeemed",
-          onPress: () => setPerkStatus(cardId, perkId, 'redeemed'),
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-      ],
-      { cancelable: true }
-    );
+    setPerkStatus(cardId, perkId, currentPerk.status === 'redeemed' ? 'available' : 'redeemed');
   };
 
   // DEV Date Picker Handler

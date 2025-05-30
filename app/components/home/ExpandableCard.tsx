@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-root-toast';
 import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase } from '../../../lib/database';
@@ -25,6 +26,29 @@ export interface ExpandableCardProps {
   isActive?: boolean;
   sortIndex: number;
 }
+
+const showToast = (message: string, onUndo?: () => void) => {
+  Toast.show(message, {
+    duration: 4000,
+    position: Toast.positions.BOTTOM,
+    shadow: true,
+    animation: true,
+    hideOnPress: true,
+    delay: 0,
+    containerStyle: {
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 64,
+    },
+    onHidden: () => {
+      // Clear any undo actions when toast disappears
+      if (onUndo) {
+        onUndo = undefined;
+      }
+    },
+  });
+};
 
 export default function ExpandableCard({
   card,
@@ -132,12 +156,31 @@ export default function ExpandableCard({
         );
 
         if (error) {
-          console.error('Error tracking redemption:', error);
+          if (typeof error === 'object' && error !== null && 'message' in error && error.message === 'Perk already redeemed this period') {
+            Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+          } else {
+            console.error('Error tracking redemption:', error);
+            Alert.alert('Error', 'Failed to mark perk as redeemed. Please try again.');
+          }
         } else {
           // Update local state
           await loadRedeemedPerks(); // Refresh redemption state
           await onTapPerk(card.id, perk.id, perk);
           onPerkStatusChange?.(); // Trigger donut refresh
+
+          // Show toast with undo option
+          showToast(
+            `${perk.name} marked as redeemed`,
+            async () => {
+              // Handle undo
+              const { error: undoError } = await deletePerkRedemption(user.id, perk.name);
+              if (!undoError) {
+                await loadRedeemedPerks();
+                onPerkStatusChange?.();
+                showToast(`${perk.name} marked as available`);
+              }
+            }
+          );
         }
       }
     } catch (error) {
@@ -181,6 +224,8 @@ export default function ExpandableCard({
                   console.error('Error tracking redemption:', error);
                   Alert.alert('Error', 'Failed to mark perk as redeemed. Please try again.');
                   return;
+                } else {
+                  showToast(`${perk.name} marked as redeemed`);
                 }
               } else {
                 // If changing to available, delete from database
@@ -189,6 +234,8 @@ export default function ExpandableCard({
                   console.error('Error deleting redemption:', error);
                   Alert.alert('Error', 'Failed to mark perk as available. Please try again.');
                   return;
+                } else {
+                  showToast(`${perk.name} marked as available`);
                 }
               }
 
