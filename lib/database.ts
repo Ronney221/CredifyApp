@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Card } from '../src/data/card-data';
+import { Card, Benefit, allCards } from '../src/data/card-data';
 
 interface UserCard {
   id: string;
@@ -10,6 +10,18 @@ interface UserCard {
   annual_fee: number;
   is_active: boolean;
   renewal_date?: string;
+}
+
+interface PerkRedemption {
+  id: string;
+  user_id: string;
+  user_card_id: string;
+  perk_id: string;
+  redemption_date: string;
+  reset_date: string;
+  status: 'available' | 'redeemed';
+  value_redeemed: number;
+  is_auto_redemption: boolean;
 }
 
 export async function getUserCards(userId: string) {
@@ -59,13 +71,13 @@ export async function saveUserCards(
       const cardData = {
         user_id: userId,
         card_name: card.name,
-        card_brand: card.id.split('_')[0] || 'unknown', // Extract brand from card ID (e.g., 'amex_gold' -> 'amex')
+        card_brand: card.id.split('_')[0], // Extract brand from card ID (e.g., 'amex_gold' -> 'amex')
         card_category: 'rewards', // Default category
         annual_fee: card.annualFee || 0,
         is_active: true,
         renewal_date: renewalDates[card.id] ? renewalDates[card.id].toISOString() : null
       };
-      console.log('Preparing card for insertion:', cardData.card_name);
+      console.log('Preparing card for insertion:', card.name);
       return cardData;
     });
 
@@ -110,4 +122,191 @@ export async function hasUserSelectedCards(userId: string): Promise<boolean> {
     console.error('Unexpected error checking user cards:', error);
     return false;
   }
+}
+
+export async function trackPerkRedemption(
+  userId: string,
+  cardId: string, // e.g. 'amex_gold'
+  perk: Benefit,
+  valueRedeemed: number
+) {
+  try {
+    console.log('Starting perk redemption tracking:', { 
+      userId, 
+      cardId, 
+      perkId: perk.id,
+      perkName: perk.name,
+      value: valueRedeemed 
+    });
+
+    // First, find the perk definition
+    const { data: perkDef, error: perkDefError } = await supabase
+      .from('perk_definitions')
+      .select('id, name')
+      .eq('name', perk.name)
+      .single();
+
+    if (perkDefError) {
+      console.error('Error finding perk definition:', { 
+        error: perkDefError, 
+        perkName: perk.name 
+      });
+      return { error: new Error(`Perk definition not found for: ${perk.name}`) };
+    }
+
+    if (!perkDef) {
+      console.error('Perk definition missing:', { 
+        perkName: perk.name,
+        perkDetails: {
+          value: perk.value,
+          periodMonths: perk.periodMonths,
+          resetType: perk.resetType
+        }
+      });
+      return { error: new Error(`Perk definition not found: ${perk.name}`) };
+    }
+
+    console.log('Found perk definition:', { 
+      id: perkDef.id, 
+      name: perkDef.name 
+    });
+
+    // Get the user's card ID from the database
+    const { data: userCards, error: cardError } = await supabase
+      .from('user_credit_cards')
+      .select('id, card_name, card_brand')
+      .eq('user_id', userId)
+      .eq('card_brand', cardId.split('_')[0])
+      .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
+      .eq('is_active', true)
+      .single();
+
+    if (cardError || !userCards) {
+      console.error('Error finding user card:', {
+        error: cardError,
+        cardId,
+        brand: cardId.split('_')[0],
+        name: allCards.find(c => c.id === cardId)?.name
+      });
+      return { error: cardError || new Error('User card not found') };
+    }
+
+    console.log('Found user card:', userCards);
+
+    // Calculate reset date based on period and type
+    const now = new Date();
+    let resetDate = new Date();
+
+    if (perk.resetType === 'calendar') {
+      switch (perk.period) {
+        case 'monthly':
+          resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          break;
+        case 'quarterly':
+          resetDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1);
+          break;
+        case 'semi_annual':
+          resetDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 6) * 6 + 6, 1);
+          break;
+        case 'yearly':
+          resetDate = new Date(now.getFullYear() + 1, 0, 1);
+          break;
+      }
+    } else {
+      // Anniversary based - add months based on period
+      resetDate.setMonth(resetDate.getMonth() + perk.periodMonths);
+    }
+
+    console.log('Calculated reset date:', resetDate);
+
+    // Insert the redemption record using the UUIDs
+    const { data, error } = await supabase
+      .from('perk_redemptions')
+      .insert({
+        user_id: userId,
+        user_card_id: userCards.id,
+        perk_id: perkDef.id,
+        redemption_date: now.toISOString(),
+        reset_date: resetDate.toISOString(),
+        status: 'redeemed',
+        value_redeemed: valueRedeemed,
+        is_auto_redemption: false
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error inserting redemption record:', error);
+      return { error };
+    }
+
+    console.log('Successfully tracked perk redemption:', data);
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error tracking perk redemption:', error);
+    return { error };
+  }
+}
+
+export async function getPerkRedemptions(
+  userId: string,
+  startDate?: Date,
+  endDate?: Date
+) {
+  try {
+    console.log('Fetching perk redemptions:', { userId, startDate, endDate });
+
+    let query = supabase
+      .from('perk_redemptions')
+      .select(`
+        *,
+        user_credit_cards (
+          card_name,
+          card_brand
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (startDate) {
+      query = query.gte('redemption_date', startDate.toISOString());
+    }
+    if (endDate) {
+      query = query.lt('redemption_date', endDate.toISOString());
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching perk redemptions:', error);
+      return { error };
+    }
+
+    console.log('Successfully fetched perk redemptions:', data?.length || 0);
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error fetching perk redemptions:', error);
+    return { error };
+  }
+}
+
+export async function getCurrentMonthRedemptions(userId: string) {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const startOfNextMonth = new Date(startOfMonth);
+  startOfNextMonth.setMonth(startOfMonth.getMonth() + 1);
+
+  return getPerkRedemptions(userId, startOfMonth, startOfNextMonth);
+}
+
+export async function getAnnualRedemptions(userId: string) {
+  const startOfYear = new Date();
+  startOfYear.setMonth(0, 1);
+  startOfYear.setHours(0, 0, 0, 0);
+
+  const startOfNextYear = new Date(startOfYear);
+  startOfNextYear.setFullYear(startOfYear.getFullYear() + 1);
+
+  return getPerkRedemptions(userId, startOfYear, startOfNextYear);
 } 

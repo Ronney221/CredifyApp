@@ -9,7 +9,9 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, CardPerk } from '../../../src/data/card-data';
+import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
+import { useAuth } from '../../hooks/useAuth';
+import { trackPerkRedemption } from '../../../lib/database';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -34,7 +36,10 @@ export default function ExpandableCard({
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
-  const unredeemedPerks = perks.filter(p => p.status === 'available');
+  const { user } = useAuth();
+  
+  // Only count monthly perks for the unredeemed count
+  const unredeemedPerks = perks.filter(p => p.status === 'available' && p.periodMonths === 1);
   const hasUnredeemedPerks = unredeemedPerks.length > 0;
   const isFullyRedeemed = !hasUnredeemedPerks;
 
@@ -55,6 +60,57 @@ export default function ExpandableCard({
     onExpandChange?.(card.id, newExpandedState);
   };
 
+  const handlePerkPress = async (perk: CardPerk) => {
+    if (!user) return;
+
+    try {
+      // First try to open the target app/website
+      const opened = await openPerkTarget(perk);
+      
+      if (opened) {
+        // Track the redemption in the database
+        const { error } = await trackPerkRedemption(
+          user.id,
+          card.id,
+          perk,
+          perk.value
+        );
+
+        if (error) {
+          console.error('Error tracking redemption:', error);
+          // You might want to show an error toast here
+        } else {
+          // Update local state
+          onTapPerk(card.id, perk.id, perk);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling perk press:', error);
+    }
+  };
+
+  const handlePerkLongPress = async (perk: CardPerk) => {
+    if (!user) return;
+
+    // If changing to redeemed, track in database
+    if (perk.status === 'available') {
+      const { error } = await trackPerkRedemption(
+        user.id,
+        card.id,
+        perk,
+        perk.value
+      );
+
+      if (error) {
+        console.error('Error tracking redemption:', error);
+        return;
+      }
+    }
+
+    // Update local state
+    onLongPressPerk(card.id, perk.id, perk);
+  };
+
   const translateY = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [50, 0],
@@ -72,6 +128,25 @@ export default function ExpandableCard({
       currency: 'USD',
     });
 
+    // Format period text
+    let periodText = '';
+    switch (perk.periodMonths) {
+      case 1:
+        periodText = 'Monthly';
+        break;
+      case 3:
+        periodText = 'Quarterly';
+        break;
+      case 6:
+        periodText = 'Semi-Annual';
+        break;
+      case 12:
+        periodText = 'Annual';
+        break;
+      default:
+        periodText = `Every ${perk.periodMonths} months`;
+    }
+
     return (
       <TouchableOpacity
         key={perk.id}
@@ -80,8 +155,8 @@ export default function ExpandableCard({
           isRedeemed && styles.redeemedPerk,
           !isRedeemed && styles.availablePerk,
         ]}
-        onPress={() => onTapPerk(card.id, perk.id, perk)}
-        onLongPress={() => onLongPressPerk(card.id, perk.id, perk)}
+        onPress={() => handlePerkPress(perk)}
+        onLongPress={() => handlePerkLongPress(perk)}
       >
         <View style={styles.perkContent}>
           <View style={styles.perkMainInfo}>
@@ -106,7 +181,7 @@ export default function ExpandableCard({
             </Text>
           </View>
           <Text style={[styles.perkPeriod, isRedeemed && styles.redeemedText]}>
-            {perk.period}
+            {periodText} • {perk.resetType === 'calendar' ? 'Calendar Reset' : 'Anniversary Reset'}
           </Text>
         </View>
       </TouchableOpacity>

@@ -666,6 +666,7 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'Uber Ride Credit': 'uber',
   'Uber Eats Credit': 'uberEats',
   'Uber Cash': 'uber',
+  'Uber Cash Credit': 'uber',
   
   // Food Delivery
   'Grubhub Credit': 'grubhub',
@@ -678,6 +679,7 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   // Streaming/Entertainment
   'Disney+ Credit': 'disneyPlus',
   'Disney Bundle Credit': 'disneyPlus',
+  'Digital Entertainment Credit': 'disneyPlus',
   
   // Retail
   'Saks Fifth Avenue Credit': 'saks',
@@ -687,6 +689,7 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'Dunkin\' Credit': 'dunkin',
   'Resy Credit': 'resy',
   'Resy Dining Credit': 'resy',
+  'Dining Credit': 'grubhub',
   
   // Fitness
   'Equinox Credit': 'equinox',
@@ -887,5 +890,5 @@ export function isCalendarReset(benefit: Benefit): boolean {
   // Most monthly/quarterly credits reset on statement cycle
   return benefit.period === 'yearly' || 
          benefit.name.toLowerCase().includes('calendar') ||
-         benefit.description?.toLowerCase().includes('calendar');
+         (benefit.description?.toLowerCase().includes('calendar') ?? false);
 } 

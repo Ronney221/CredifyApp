@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ProgressDonut from './ProgressDonut';
-import { Card, CardPerk } from '../../../src/data/card-data';
+import { Card, CardPerk, Benefit } from '../../../src/data/card-data';
+import { useAuth } from '../../hooks/useAuth';
+import { getCurrentMonthRedemptions, getAnnualRedemptions } from '../../../lib/database';
 
 type SegmentKey = 'monthly' | 'annualFees';
 
@@ -20,27 +22,31 @@ interface PerkDonutDisplayManagerProps {
 
 export default function PerkDonutDisplayManager({
   userCardsWithPerks,
-  monthlyCreditsRedeemed,
-  monthlyCreditsPossible,
 }: PerkDonutDisplayManagerProps) {
+  const { user } = useAuth();
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>('monthly');
+  const [monthlyRedemptions, setMonthlyRedemptions] = useState<number>(0);
+  const [annualRedemptions, setAnnualRedemptions] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
 
   const monthlyPerkData = useMemo(() => {
-    // Calculate monetary values for monthly perks
+    // Only include perks with period = 'monthly'
     const monthlyValues = userCardsWithPerks.reduce((acc, { perks }) => {
-      const redeemedValue = perks.reduce((sum, perk) => 
+      const monthlyPerks = perks.filter(perk => perk.periodMonths === 1);
+      const redeemedValue = monthlyPerks.reduce((sum, perk) => 
         sum + (perk.status === 'redeemed' ? perk.value : 0), 0);
-      const totalValue = perks.reduce((sum, perk) => sum + perk.value, 0);
+      const totalValue = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
       return {
         redeemedValue: acc.redeemedValue + redeemedValue,
         totalValue: acc.totalValue + totalValue
       };
     }, { redeemedValue: 0, totalValue: 0 });
 
-    // Count perks for secondary metric
+    // Count only monthly perks for secondary metric
     const perkCounts = userCardsWithPerks.reduce((counts, { perks }) => {
-      const availablePerks = perks.filter(perk => perk.status === 'available').length;
-      const redeemedPerks = perks.filter(perk => perk.status === 'redeemed').length;
+      const monthlyPerks = perks.filter(perk => perk.periodMonths === 1);
+      const availablePerks = monthlyPerks.filter(perk => perk.status === 'available').length;
+      const redeemedPerks = monthlyPerks.filter(perk => perk.status === 'redeemed').length;
       return {
         available: counts.available + availablePerks,
         redeemed: counts.redeemed + redeemedPerks
@@ -50,50 +56,45 @@ export default function PerkDonutDisplayManager({
     const totalPerks = perkCounts.available + perkCounts.redeemed;
     
     return {
-      value: monthlyValues.redeemedValue,
+      value: monthlyRedemptions, // Use the value from database
       total: monthlyValues.totalValue,
-      progress: monthlyValues.totalValue > 0 ? monthlyValues.redeemedValue / monthlyValues.totalValue : 0,
+      progress: monthlyValues.totalValue > 0 ? monthlyRedemptions / monthlyValues.totalValue : 0,
       primaryMetric: {
-        value: monthlyValues.redeemedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        value: monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
         label: 'Value Redeemed',
       },
       secondaryMetric: {
         value: `${perkCounts.redeemed} of ${totalPerks} perks`,
-        label: 'Perks Used',
+        label: 'Monthly Perks Used',
       },
       donutLabel: {
-        value: `${monthlyValues.redeemedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} / ${monthlyValues.totalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
+        value: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} / ${monthlyValues.totalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
         label: 'Monthly Credits',
       },
       color: '#2196f3',
     };
-  }, [userCardsWithPerks]);
+  }, [userCardsWithPerks, monthlyRedemptions]);
 
   const annualFeesData = useMemo(() => {
-    // Calculate total annual fees and total redeemed value
-    const cardData = userCardsWithPerks.reduce((acc, { card, perks }) => {
-      const cardRedeemedValue = perks.reduce((sum, perk) => 
-        sum + (perk.status === 'redeemed' ? perk.value : 0), 0);
-      return {
-        totalFees: acc.totalFees + (card.annualFee || 0),
-        totalRedeemedValue: acc.totalRedeemedValue + cardRedeemedValue
-      };
-    }, { totalFees: 0, totalRedeemedValue: 0 });
+    // Calculate total annual fees
+    const cardData = userCardsWithPerks.reduce((acc, { card }) => ({
+      totalFees: acc.totalFees + (card.annualFee || 0)
+    }), { totalFees: 0 });
 
-    const { totalFees, totalRedeemedValue } = cardData;
+    const { totalFees } = cardData;
     const formattedFees = totalFees.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-    const formattedRedeemedValue = totalRedeemedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    const formattedRedeemedValue = annualRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     
     return {
-      value: totalRedeemedValue,
+      value: annualRedemptions,
       total: totalFees,
-      progress: totalFees > 0 ? totalRedeemedValue / totalFees : 0,
+      progress: totalFees > 0 ? annualRedemptions / totalFees : 0,
       primaryMetric: {
         value: formattedRedeemedValue,
         label: 'Value Redeemed',
       },
       secondaryMetric: {
-        value: `${((totalFees > 0 ? totalRedeemedValue / totalFees : 0) * 100).toFixed(0)}% of annual fees`,
+        value: `${((totalFees > 0 ? annualRedemptions / totalFees : 0) * 100).toFixed(0)}% of annual fees`,
         label: 'Break-even Progress',
       },
       donutLabel: {
@@ -102,7 +103,55 @@ export default function PerkDonutDisplayManager({
       },
       color: '#5856d6',
     };
-  }, [userCardsWithPerks]);
+  }, [userCardsWithPerks, annualRedemptions]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadRedemptions = async () => {
+      setLoading(true);
+      try {
+        // Get current month's redemptions
+        const { data: monthlyData, error: monthlyError } = await getCurrentMonthRedemptions(user.id);
+        if (monthlyError) {
+          console.error('Error fetching monthly redemptions:', monthlyError);
+        } else {
+          // Only sum monthly perks (period_months = 1)
+          const monthlySum = monthlyData?.reduce((sum, redemption) => {
+            // Check if the perk is monthly before adding to sum
+            const card = userCardsWithPerks.find(c => 
+              c.perks.some(p => p.id === redemption.perk_id));
+            const perk = card?.perks.find(p => p.id === redemption.perk_id);
+            if (perk?.periodMonths === 1) {
+              return sum + redemption.value_redeemed;
+            }
+            return sum;
+          }, 0) ?? 0;
+          setMonthlyRedemptions(monthlySum);
+        }
+
+        // Get annual redemptions
+        const { data: annualData, error: annualError } = await getAnnualRedemptions(user.id);
+        if (annualError) {
+          console.error('Error fetching annual redemptions:', annualError);
+        } else {
+          const annualSum = annualData?.reduce((sum, redemption) => 
+            sum + redemption.value_redeemed, 0) ?? 0;
+          setAnnualRedemptions(annualSum);
+        }
+      } catch (error) {
+        console.error('Error loading redemptions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRedemptions();
+  }, [user, userCardsWithPerks]);
+
+  if (!user || loading) {
+    return <View style={styles.container} />;
+  }
 
   const segments: Segment[] = [
     { key: 'monthly', label: 'Monthly', icon: '📅' },
@@ -268,5 +317,11 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
     marginTop: 2,
+  },
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    padding: 16,
   },
 }); 
