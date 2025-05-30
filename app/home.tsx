@@ -31,6 +31,7 @@ import { usePerkStatus } from './hooks/usePerkStatus';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../src/data/card-data';
 import AccountButton from './components/home/AccountButton';
+import Header from './components/home/Header';
 
 // Import notification functions
 import {
@@ -225,30 +226,7 @@ export default function HomeScreen() {
         }))}
         scrollEventThrottle={16}
       >
-        {/* Header with User Profile */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.welcomeText}>Hello,</Text>
-              <Text style={styles.userName}>{user?.user_metadata?.full_name || 'User'}</Text>
-            </View>
-            <AccountButton />
-          </View>
-          
-          {/* Month Status Bar */}
-          <View style={styles.monthIndicator}>
-            <View style={styles.monthStatusContainer}>
-              <Text style={styles.currentMonth}>
-                {format(new Date(), 'MMMM yyyy')}
-              </Text>
-              <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-                <Text style={[styles.statusText, { color: statusColors.text }]}>
-                  {getDaysRemainingMessage()}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
+        <Header />
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
