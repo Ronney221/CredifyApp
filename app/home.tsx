@@ -30,6 +30,7 @@ import { useUserCards } from './hooks/useUserCards';
 import { usePerkStatus } from './hooks/usePerkStatus';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../src/data/card-data';
+import AccountButton from './components/home/AccountButton';
 
 // Import notification functions
 import {
@@ -231,52 +232,7 @@ export default function HomeScreen() {
               <Text style={styles.welcomeText}>Hello,</Text>
               <Text style={styles.userName}>{user?.user_metadata?.full_name || 'User'}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.profileButton}
-              onPress={() => {
-                Alert.alert(
-                  'Account Options',
-                  'What would you like to do?',
-                  [
-                    {
-                      text: 'Edit Cards',
-                      onPress: () => router.push({
-                        pathname: '/card-selection-screen',
-                        params: { mode: 'edit' }
-                      } as any),
-                    },
-                    {
-                      text: 'Sign Out',
-                      onPress: async () => {
-                        try {
-                          const { error } = await supabase.auth.signOut();
-                          if (error) throw error;
-                          router.replace('/');
-                        } catch (error) {
-                          console.error('Error signing out:', error);
-                          Alert.alert('Error', 'Failed to sign out. Please try again.');
-                        }
-                      },
-                      style: 'destructive',
-                    },
-                    {
-                      text: 'Cancel',
-                      style: 'cancel',
-                    },
-                  ]
-                );
-              }}
-            >
-              {user?.user_metadata?.avatar_url ? (
-                <Image source={{ uri: user.user_metadata.avatar_url }} style={styles.profileImage} />
-              ) : (
-                <View style={styles.profileImagePlaceholder}>
-                  <Text style={styles.profileInitial}>
-                    {user?.user_metadata?.full_name?.[0]?.toUpperCase() || 'U'}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            <AccountButton />
           </View>
           
           {/* Month Status Bar */}

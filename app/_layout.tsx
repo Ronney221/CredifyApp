@@ -6,6 +6,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { RootSiblingParent } from 'react-native-root-siblings';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -38,27 +40,36 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <RootSiblingParent>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-          {/* Transparent status bar over white background */}
-          <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+    <GestureHandlerRootView style={styles.container}>
+      <SafeAreaProvider>
+        <RootSiblingParent>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+            {/* Transparent status bar over white background */}
+            <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-          <AuthProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen
-                name="(auth)"
-                options={{ headerShown: false, presentation: 'modal' }}
-              />
-              <Stack.Screen name="auth/callback" />
-              <Stack.Screen name="auth/confirm" />
-              <Stack.Screen name="card-selection" />
-              <Stack.Screen name="(tabs)" />
-            </Stack>
-          </AuthProvider>
-        </SafeAreaView>
-      </RootSiblingParent>
-    </SafeAreaProvider>
+            <AuthProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen
+                  name="(auth)"
+                  options={{ headerShown: false, presentation: 'modal' }}
+                />
+                <Stack.Screen name="auth/callback" />
+                <Stack.Screen name="auth/confirm" />
+                <Stack.Screen name="card-selection" />
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+            </AuthProvider>
+          </SafeAreaView>
+        </RootSiblingParent>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  // ... other styles ...
+});
