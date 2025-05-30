@@ -109,34 +109,56 @@
           "package": "com.grubhub.android"
         },
         {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "grubhub"
-              }
-            }
-          ]
-        },
-        {
-          "package": "com.resy.android"
+          "package": "com.walmart.android"
         },
         {
           "intent": [
             {
               "action": "android.intent.action.VIEW",
               "data": {
-                "scheme": "resy"
+                "scheme": "walmart"
               }
             }
           ]
         },
-        { "package": "com.example.otherapp" },
         {
-          "intent": [{
-            "action": "VIEW",
-            "data": { "scheme": "otherapp" }
-          }]
+          "package": "com.saks.android"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "saksfifthavenue"
+              }
+            }
+          ]
+        },
+        {
+          "package": "com.equinox.mobile"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "equinox"
+              }
+            }
+          ]
+        },
+        {
+          "package": "me.lyft.android"
+        },
+        {
+          "intent": [
+            {
+              "action": "android.intent.action.VIEW",
+              "data": {
+                "scheme": "lyft"
+              }
+            }
+          ]
         }
       ]
     },

@@ -132,7 +132,7 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.resy.android',
   },
   walmart: {
-    ios: 'wmt-spark://',
+    ios: 'walmart://',
     android: 'com.walmart.android://',
     fallback: 'https://www.walmart.com/plus',
     androidPackage: 'com.walmart.android',
@@ -141,7 +141,7 @@ export const APP_SCHEMES = {
   },
   capitalOne: {
     ios: 'capitalone://',
-    android: 'capitalone://',
+    android: 'com.capitalone.mobile://',
     fallback: 'https://travel.capitalone.com/',
     androidPackage: 'com.capitalone.mobile',
     appStoreUrlIOS: 'https://apps.apple.com/app/id407558537',
@@ -149,22 +149,22 @@ export const APP_SCHEMES = {
   },
   lyft: {
     ios: 'lyft://',
-    android: 'lyft://',
+    android: 'me.lyft.android://',
     fallback: 'https://www.lyft.com/',
     androidPackage: 'me.lyft.android',
     appStoreUrlIOS: 'https://apps.apple.com/app/lyft/id529379082',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=me.lyft.android',
   },
   saks: {
-    ios: 'saks://',
-    android: 'saks://',
+    ios: 'saksfifthavenue://',
+    android: 'com.saks.android://',
     fallback: 'https://www.saksfifthavenue.com/',
     androidPackage: 'com.saks.android',
     appStoreUrlIOS: 'https://apps.apple.com/app/saks-fifth-avenue/id491507258',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.saks.android',
   },
   equinox: {
-    ios: 'equinoxfitness://',
+    ios: 'equinox://',
     android: 'com.equinox.mobile://',
     fallback: 'https://www.equinox.com/',
     androidPackage: 'com.equinox.mobile',
@@ -742,84 +742,97 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
     if (isInstalled) {
       // Try to open the app directly
       if (Platform.OS === 'ios') {
-        await Linking.openURL(appSchemes.ios);
+        try {
+          await Linking.openURL(appSchemes.ios);
+          return true;
+        } catch (error) {
+          console.log(`Failed to open ${appKey} with iOS scheme, trying fallback:`, error);
+          // Try universal link as fallback
+          await Linking.openURL(appSchemes.fallback);
+          return true;
+        }
       } else {
         // On Android, try the intent URL first
         try {
-          await Linking.openURL(`intent://${appKey}/#Intent;package=${appSchemes.androidPackage};scheme=${appKey};end`);
-        } catch {
-          // Fallback to simple scheme if intent fails
-          await Linking.openURL(appSchemes.android);
+          // Use a more reliable intent format for Android
+          const intentUrl = `intent://#Intent;package=${appSchemes.androidPackage};scheme=${appSchemes.android.replace('://', '')};end`;
+          await Linking.openURL(intentUrl);
+          return true;
+        } catch (error) {
+          console.log(`Failed to open ${appKey} with intent, trying package:`, error);
+          // Try package URL as fallback
+          try {
+            await Linking.openURL(`${appSchemes.androidPackage}://`);
+            return true;
+          } catch (packageError) {
+            console.log(`Failed to open ${appKey} with package, trying scheme:`, packageError);
+            // Try scheme as last resort
+            try {
+              await Linking.openURL(appSchemes.android);
+              return true;
+            } catch (schemeError) {
+              console.log(`Failed to open ${appKey} with scheme, falling back to website:`, schemeError);
+              await Linking.openURL(appSchemes.fallback);
+              return true;
+            }
+          }
         }
       }
-      return true;
-    } else {
-      // If app is not installed, show an alert with options
-      return new Promise((resolve) => {
-        Alert.alert(
-          'App Not Installed',
-          'Would you like to install the app or visit the website?',
-          [
-            {
-              text: 'Install App',
-              onPress: async () => {
-                const storeUrl = Platform.select({
-                  ios: appSchemes.appStoreUrlIOS,
-                  android: appSchemes.appStoreUrlAndroid,
-                });
-                if (storeUrl) {
-                  try {
-                    await Linking.openURL(storeUrl);
-                  } catch (error) {
-                    console.error('Error opening store URL:', error);
-                    // If store URL fails, try fallback website
-                    await Linking.openURL(appSchemes.fallback);
-                  }
-                }
-                resolve(false);
-              },
-            },
-            {
-              text: 'Open Website',
-              onPress: async () => {
+    }
+
+    // If app is not installed, show an alert with options
+    return new Promise((resolve) => {
+      Alert.alert(
+        'App Not Installed',
+        'Would you like to install the app or visit the website?',
+        [
+          {
+            text: 'Install App',
+            onPress: async () => {
+              const storeUrl = Platform.select({
+                ios: appSchemes.appStoreUrlIOS,
+                android: appSchemes.appStoreUrlAndroid,
+              });
+              if (storeUrl) {
                 try {
-                  // For certain apps that have web-to-app functionality
-                  if (['uber', 'ubereats', 'doordash', 'walmart', 'equinox'].includes(appKey)) {
-                    // These apps often redirect web to app if installed
-                    const webUrl = Platform.select({
-                      ios: appSchemes.ios,
-                      android: `intent://${appKey}/#Intent;package=${appSchemes.androidPackage};scheme=${appKey};end`,
-                    }) || appSchemes.fallback;
-                    await Linking.openURL(webUrl);
-                  } else {
-                    await Linking.openURL(appSchemes.fallback);
-                  }
+                  await Linking.openURL(storeUrl);
                 } catch (error) {
-                  console.error('Error opening fallback URL:', error);
-                  // If deep linking fails, fall back to website
+                  console.log('Error opening store URL, trying fallback website:', error);
                   await Linking.openURL(appSchemes.fallback);
                 }
+              }
+              resolve(false);
+            },
+          },
+          {
+            text: 'Open Website',
+            onPress: async () => {
+              try {
+                await Linking.openURL(appSchemes.fallback);
                 resolve(true);
-              },
+              } catch (error) {
+                console.log('Error opening fallback URL:', error);
+                resolve(false);
+              }
             },
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => resolve(false),
-            },
-          ],
-          { cancelable: true, onDismiss: () => resolve(false) }
-        );
-      });
-    }
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => resolve(false),
+          },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) }
+      );
+    });
   } catch (error) {
-    console.error(`Error opening ${appKey}:`, error);
+    console.log(`Error in openAppOrFallback for ${appKey}:`, error);
     // If all else fails, try the fallback URL
     try {
       await Linking.openURL(appSchemes.fallback);
       return true;
     } catch (fallbackError) {
-      console.error('Fallback URL also failed:', fallbackError);
+      console.log('Fallback URL also failed:', fallbackError);
       return false;
     }
   }
