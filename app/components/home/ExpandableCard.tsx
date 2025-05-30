@@ -153,10 +153,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+    minHeight: 72,
   },
   cardInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 16,
   },
   cardImage: {
     width: 40,
@@ -166,6 +169,7 @@ const styles = StyleSheet.create({
   },
   cardTextContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
   cardName: {
     fontSize: 16,
@@ -175,7 +179,7 @@ const styles = StyleSheet.create({
   savedValue: {
     fontSize: 14,
     color: '#34c759',
-    marginTop: 4,
+    marginTop: 2,
   },
   perksContainer: {
     paddingHorizontal: 16,
@@ -251,19 +255,20 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 4,
+    marginLeft: 'auto',
+    paddingLeft: 8,
   },
   notificationDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#ff3b30',
-    marginRight: 8,
+    marginRight: 12,
   },
   unredeemedAlert: {
     color: '#ff3b30',
     fontSize: 13,
-    marginTop: 4,
+    marginTop: 2,
   },
   sectionLabel: {
     fontSize: 13,
