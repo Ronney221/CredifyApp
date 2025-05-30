@@ -133,14 +133,24 @@ export default function CardSelectionScreen() {
     return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
   };
 
-  const filteredCards = useMemo(() => {
+  const selectedCardObjects = useMemo(() => 
+    allCards.filter(card => selectedCards.includes(card.id)),
+    [selectedCards]
+  );
+
+  const unselectedCardObjects = useMemo(() => 
+    allCards.filter(card => !selectedCards.includes(card.id)),
+    [selectedCards]
+  );
+
+  const filteredUnselectedCards = useMemo(() => {
     if (!searchQuery) {
-      return allCards;
+      return unselectedCardObjects;
     }
-    return allCards.filter((card) =>
+    return unselectedCardObjects.filter((card) =>
       card.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery, allCards]);
+  }, [searchQuery, unselectedCardObjects]);
 
   const handleContinue = async () => {
     try {
@@ -151,7 +161,6 @@ export default function CardSelectionScreen() {
         return;
       }
 
-      const selectedCardObjects = allCards.filter(card => selectedCards.includes(card.id));
       const { error } = await saveUserCards(user.id, selectedCardObjects, renewalDates);
       
       if (error) {
@@ -181,35 +190,31 @@ export default function CardSelectionScreen() {
     <SafeAreaView style={styles.container} edges={[]}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       <Text style={styles.title}>{isEditMode ? 'Edit Your Cards' : 'Select Your Cards'}</Text>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for a card..."
-          placeholderTextColor="#8e8e93"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-      >
-        {filteredCards.map((card) => {
-          const isSelected = selectedCards.includes(card.id);
-          return (
-            <TouchableOpacity
-              key={card.id}
-              style={[styles.cardItem, isSelected && styles.cardItemSelected]}
-              onPress={() => toggleCardSelection(card.id)}
-              activeOpacity={0.7}
-            >
-              <Image source={card.image} style={styles.cardImage} />
-              <View style={styles.cardTextContainer}>
-                <Text style={styles.cardName}>{card.name}</Text>
-                {isSelected && (
+      
+      {/* Selected Cards Section */}
+      {selectedCardObjects.length > 0 && (
+        <View style={styles.selectedCardsSection}>
+          <Text style={styles.sectionTitle}>Selected Cards</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.selectedCardsContainer}
+          >
+            {selectedCardObjects.map((card) => (
+              <TouchableOpacity
+                key={card.id}
+                style={styles.selectedCardItem}
+                onPress={() => toggleCardSelection(card.id)}
+                activeOpacity={0.7}
+              >
+                <Image source={card.image} style={styles.selectedCardImage} />
+                <View style={styles.selectedCardContent}>
+                  <Text style={styles.selectedCardName} numberOfLines={2}>
+                    {card.name}
+                  </Text>
                   <TouchableOpacity
                     onPress={() => showDatePicker(card.id)}
-                    style={styles.dateInputTouchable}
+                    style={styles.selectedCardDateButton}
                   >
                     <Text
                       style={
@@ -221,12 +226,53 @@ export default function CardSelectionScreen() {
                       {formatDate(renewalDates[card.id])}
                     </Text>
                   </TouchableOpacity>
-                )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for a card..."
+          placeholderTextColor="#8e8e93"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      {/* Available Cards Section */}
+      <View style={styles.availableCardsSection}>
+        <Text style={styles.sectionTitle}>Available Cards</Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollViewContent}
+        >
+          {filteredUnselectedCards.map((card) => (
+            <TouchableOpacity
+              key={card.id}
+              style={[styles.cardItem]}
+              onPress={() => toggleCardSelection(card.id)}
+              activeOpacity={0.7}
+            >
+              <Image source={card.image} style={styles.cardImage} />
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardName}>{card.name}</Text>
               </View>
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+          ))}
+          {filteredUnselectedCards.length === 0 && (
+            <Text style={styles.noResultsText}>
+              No cards found matching your search.
+            </Text>
+          )}
+        </ScrollView>
+      </View>
+
+      {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={[
@@ -246,6 +292,7 @@ export default function CardSelectionScreen() {
           )}
         </TouchableOpacity>
       </View>
+
       {currentEditingCardId && (
         <DateTimePickerModal
           isVisible={isDatePickerVisible}
@@ -326,10 +373,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
   },
-  cardItemSelected: {
-    borderColor: '#007aff',
-    backgroundColor: '#eff7ff',
-  },
   cardImage: {
     width: 80,
     height: 50,
@@ -343,24 +386,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     color: '#1c1c1e',
     marginBottom: 5,
-  },
-  dateInputTouchable: {
-    height: 35,
-    borderColor: '#c0c0c0',
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    marginTop: 5,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-  },
-  dateTextSet: {
-    fontSize: 14,
-    color: '#1c1c1e',
-  },
-  dateTextPlaceholder: {
-    fontSize: 14,
-    color: '#a0a0a0',
   },
   noResultsText: {
     textAlign: 'center',
@@ -396,5 +421,67 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '600',
+  },
+  selectedCardsSection: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1c1c1e',
+    marginLeft: 16,
+    marginBottom: 12,
+  },
+  selectedCardsContainer: {
+    paddingHorizontal: 16,
+  },
+  selectedCardItem: {
+    width: 160,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    marginRight: 12,
+    padding: 12,
+    borderWidth: 2,
+    borderColor: '#007aff',
+  },
+  selectedCardImage: {
+    width: '100%',
+    height: 100,
+    resizeMode: 'contain',
+    marginBottom: 8,
+  },
+  selectedCardContent: {
+    alignItems: 'center',
+  },
+  selectedCardName: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 8,
+    color: '#1c1c1e',
+  },
+  selectedCardDateButton: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#c0c0c0',
+    width: '100%',
+    alignItems: 'center',
+  },
+  availableCardsSection: {
+    flex: 1,
+    paddingTop: 15,
+  },
+  dateTextSet: {
+    fontSize: 14,
+    color: '#1c1c1e',
+  },
+  dateTextPlaceholder: {
+    fontSize: 14,
+    color: '#a0a0a0',
   },
 }); 
