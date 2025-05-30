@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -21,6 +22,8 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { Colors } from '../constants/Colors'; // Reverted to uppercase filename in import
 import { supabase } from '../lib/supabase';
 import { getUserCards } from '../lib/database';
+import { useAuth } from '../contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import notification functions
 import {
@@ -114,6 +117,8 @@ export default function HomeScreen() {
   // State for DEV date picker
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
   const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
+
+  const { user } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
@@ -461,9 +466,67 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      {/* <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} /> */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
+        {/* Header with User Profile */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.welcomeText}>Welcome back,</Text>
+              <Text style={styles.userName}>{user?.user_metadata?.full_name || 'User'}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => {
+                Alert.alert(
+                  'Account Options',
+                  'What would you like to do?',
+                  [
+                    {
+                      text: 'View Profile',
+                      onPress: () => {
+                        // TODO: Implement profile view
+                        Alert.alert('Coming Soon', 'Profile view will be available soon!');
+                      },
+                    },
+                    {
+                      text: 'Edit Cards',
+                      onPress: () => router.push('/card-selection'),
+                    },
+                    {
+                      text: 'Sign Out',
+                      onPress: async () => {
+                        try {
+                          const { error } = await supabase.auth.signOut();
+                          if (error) throw error;
+                          router.replace('/');
+                        } catch (error) {
+                          console.error('Error signing out:', error);
+                          Alert.alert('Error', 'Failed to sign out. Please try again.');
+                        }
+                      },
+                      style: 'destructive',
+                    },
+                    {
+                      text: 'Cancel',
+                      style: 'cancel',
+                    },
+                  ]
+                );
+              }}
+            >
+              {user?.user_metadata?.avatar_url ? (
+                <Image
+                  source={{ uri: user.user_metadata.avatar_url }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <View style={styles.profileImagePlaceholder}>
+                  <Ionicons name="person" size={24} color="#007aff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
@@ -472,36 +535,34 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {/* DEV Button to set date manually */}
-            <TouchableOpacity onPress={() => setShowDatePickerForDev(true)} style={styles.devButton}>
-              <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
-            </TouchableOpacity>
-
-            {showDatePickerForDev && (
-              <DateTimePicker
-                testID="dateTimePickerForDev"
-                value={devSelectedDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDevDateChange}
-                {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
+            {/* Summary Dashboard with improved styling */}
+            <View style={styles.dashboardContainer}>
+              <Text style={styles.sectionTitle}>Your Rewards Summary</Text>
+              <SummaryDashboard
+                monthlyCreditsRedeemed={monthlyCreditsRedeemed}
+                monthlyCreditsPossible={monthlyCreditsPossible}
+                yearlyCreditsRedeemed={yearlyCreditsRedeemed}
+                yearlyCreditsPossible={yearlyCreditsPossible}
+                summaryContainerStyle={styles.summaryContainer}
+                summaryCardStyle={styles.summaryCard}
+                summaryValueStyle={styles.summaryValue}
+                summaryLabelStyle={styles.summaryLabel}
               />
-            )}
+            </View>
 
-            <SummaryDashboard 
-              monthlyCreditsRedeemed={monthlyCreditsRedeemed}
-              monthlyCreditsPossible={monthlyCreditsPossible}
-              yearlyCreditsRedeemed={yearlyCreditsRedeemed}
-              yearlyCreditsPossible={yearlyCreditsPossible}
-              summaryContainerStyle={styles.summaryContainer}
-              summaryCardStyle={styles.summaryCard}
-              summaryValueStyle={styles.summaryValue}
-              summaryLabelStyle={styles.summaryLabel}
-            />
-
-            {/* List of Cards and Perks */}
+            {/* Cards and Perks Section */}
             <View style={styles.cardsPerksContainer}>
-              <Text style={styles.sectionTitle}>Your Cards & Perks</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Your Cards & Perks</Text>
+                <TouchableOpacity
+                  style={styles.addCardButton}
+                  onPress={() => router.push('/card-selection')}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color="#007aff" />
+                  <Text style={styles.addCardText}>Add Card</Text>
+                </TouchableOpacity>
+              </View>
+
               {userCardsWithPerks.length > 0 ? (
                 userCardsWithPerks.map(({ card, perks }) => (
                   <UserCardItem
@@ -518,9 +579,39 @@ export default function HomeScreen() {
                   />
                 ))
               ) : (
-                <Text style={styles.noCardsSelectedText}>
-                  No cards selected. Please go to card selection to add your cards.
-                </Text>
+                <View style={styles.noCardsContainer}>
+                  <Ionicons name="card-outline" size={48} color="#8e8e93" />
+                  <Text style={styles.noCardsText}>
+                    No cards selected. Add your first card to start tracking rewards!
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.addFirstCardButton}
+                    onPress={() => router.push('/card-selection')}
+                  >
+                    <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* DEV Date Picker moved to the bottom */}
+            <View style={styles.devSection}>
+              <TouchableOpacity
+                onPress={() => setShowDatePickerForDev(true)}
+                style={styles.devButton}
+              >
+                <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
+              </TouchableOpacity>
+
+              {showDatePickerForDev && (
+                <DateTimePicker
+                  testID="dateTimePickerForDev"
+                  value={devSelectedDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDevDateChange}
+                  {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
+                />
               )}
             </View>
           </>
@@ -528,14 +619,14 @@ export default function HomeScreen() {
       </ScrollView>
 
       {showCelebration && (
-        <LottieView 
+        <LottieView
           source={require('../assets/animations/celebration.json')}
-          autoPlay 
-          loop={false} 
+          autoPlay
+          loop={false}
           onAnimationFinish={() => {
             console.log("Celebration animation finished.");
             setShowCelebration(false);
-          }} 
+          }}
           style={styles.lottieCelebration}
         />
       )}
@@ -546,99 +637,173 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background, 
+    backgroundColor: '#ffffff',
   },
   scrollContent: {
-    padding: 16,
+    paddingBottom: 20,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text, 
-    marginBottom: 20,
-    textAlign: 'center',
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
+    paddingBottom: 15,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  devButton: { 
-    backgroundColor: Colors.light.tint, // Using tint as a placeholder for warning
-    padding: 10,
-    marginVertical: 10,
-    alignItems: 'center',
-    borderRadius: 5,
-  },
-  devButtonText: { 
-    color: Colors.light.background, // Text on tint, assuming background is light for contrast
-    fontWeight: '500',
-  },
-  summaryContainer: {
+  headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 25,
-  },
-  summaryCard: {
-    backgroundColor: Colors.light.background, // Using background for cards
-    padding: 15,
-    borderRadius: 10,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    flex: 1, 
-    marginHorizontal: 5,
-    shadowColor: Colors.light.text, 
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
   },
-  summaryValue: {
-    fontSize: 22,
+  welcomeText: {
+    fontSize: 16,
+    color: '#8e8e93',
+  },
+  userName: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.light.tint, // Using tint for primary emphasis
-    marginBottom: 5,
+    color: '#1c1c1e',
   },
-  summaryLabel: {
-    fontSize: 13,
-    color: Colors.light.text, // Using text for labels (could be less emphasized later)
-    textAlign: 'center',
+  profileButton: {
+    height: 44,
+    width: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  cardsPerksContainer: {
-    marginBottom: 20,
+  profileImage: {
+    height: 44,
+    width: 44,
+    borderRadius: 22,
+  },
+  profileImagePlaceholder: {
+    height: 44,
+    width: 44,
+    borderRadius: 22,
+    backgroundColor: '#f0f9ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dashboardContainer: {
+    padding: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: Colors.light.text, 
-    marginBottom: 15,
+    color: '#1c1c1e',
   },
-  cardDetailItem: {
-    backgroundColor: Colors.light.background, // Using background for card items
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    shadowColor: Colors.light.text, 
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+  addCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
   },
-  cardName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.light.text, 
+  addCardText: {
+    color: '#007aff',
+    marginLeft: 4,
+    fontSize: 16,
   },
-  cardHeaderContainer: { 
+  summaryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    marginTop: 15,
   },
-  valueSavedText: { 
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.tint, // Using tint for accent color
+  summaryCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    padding: 15,
+    borderRadius: 16,
+    marginHorizontal: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  noCardsSelectedText: { 
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007aff',
     textAlign: 'center',
-    marginTop: 20,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#8e8e93',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  cardsPerksContainer: {
+    flex: 1,
+  },
+  noCardsContainer: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: '#f9f9f9',
+    margin: 20,
+    borderRadius: 16,
+  },
+  noCardsText: {
     fontSize: 16,
-    color: Colors.light.text, // Using text
+    color: '#8e8e93',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  addFirstCardButton: {
+    backgroundColor: '#007aff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  addFirstCardButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cardDetailItem: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  devSection: {
+    padding: 20,
+    marginTop: 20,
+  },
+  devButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  devButtonText: {
+    color: '#666666',
+    fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#8e8e93',
   },
   lottieCelebration: {
     position: 'absolute',
@@ -649,15 +814,20 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     pointerEvents: 'none',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  cardHeaderContainer: { 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 20,
+    marginBottom: 10,
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: Colors.light.text,
+  cardName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1c1c1e',
+  },
+  valueSavedText: { 
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007aff',
   },
 }); 
