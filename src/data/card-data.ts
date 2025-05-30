@@ -4,11 +4,13 @@ export interface Benefit {
   id: string;
   name: string;
   value: number; // Can be monetary value or other unit
-  period: 'monthly' | 'quarterly' | 'yearly' | 'one-time' | 'semi_annual';
+  period: 'monthly' | 'quarterly' | 'semi_annual' | 'yearly';
+  periodMonths: 1 | 3 | 6 | 12; // Number of months between resets
+  resetType: 'calendar' | 'anniversary'; // Whether benefit resets on calendar year or card anniversary
   description?: string; // Optional detailed description
   redemptionInstructions?: string; // How to redeem, e.g., link, in-app action
-  appScheme?: keyof typeof APP_SCHEMES; // New field to link benefits to app schemes
-  // Add other relevant fields like category (e.g., travel, dining, shopping)
+  appScheme?: keyof typeof APP_SCHEMES; // Link benefits to app schemes
+  eligibleServices?: string[]; // Array of eligible services/merchants for redemption
 }
 
 export interface Card {
@@ -130,8 +132,8 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.resy.android',
   },
   walmart: {
-    ios: 'walmart://',
-    android: 'walmart://',
+    ios: 'wmt-spark://',
+    android: 'com.walmart.android://',
     fallback: 'https://www.walmart.com/plus',
     androidPackage: 'com.walmart.android',
     appStoreUrlIOS: 'https://apps.apple.com/app/walmart-shopping-grocery/id338137227',
@@ -162,8 +164,8 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.saks.android',
   },
   equinox: {
-    ios: 'equinox://',
-    android: 'equinox://',
+    ios: 'equinoxfitness://',
+    android: 'com.equinox.mobile://',
     fallback: 'https://www.equinox.com/',
     androidPackage: 'com.equinox.mobile',
     appStoreUrlIOS: 'https://apps.apple.com/app/equinox/id394112157',
@@ -211,6 +213,8 @@ export const allCards: Card[] = [
         name: 'Uber Cash',
         value: 15,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $15 in Uber Cash each month for U.S. Uber rides or Uber Eats orders (extra $20 in December, totaling $200/year).',
         redemptionInstructions: 'Add your Platinum Card to the Uber app to automatically receive Uber Cash each month.',
         appScheme: 'uber',
@@ -220,6 +224,8 @@ export const allCards: Card[] = [
         name: 'Digital Entertainment Credit',
         value: 20,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $20 back each month on eligible digital subscriptions. As of 2024–2025, covered services include Disney+ (and bundle with Hulu/ESPN+), Hulu, ESPN+, Peacock, The New York Times, and The Wall Street Journal.',
         redemptionInstructions: 'Enroll and pay with your Platinum Card for eligible digital subscriptions. The credit posts as a statement credit each month after an eligible charge.',
       },
@@ -228,6 +234,8 @@ export const allCards: Card[] = [
         name: 'Walmart+ Membership Rebate',
         value: 12.95,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Full reimbursement of Walmart+ monthly membership fee ($12.95 plus applicable taxes, ~$155/year).',
         redemptionInstructions: 'Enroll and use your Platinum Card to pay for a Walmart+ monthly membership. The credit will appear after the charge posts each month.',
         appScheme: 'walmart',
@@ -237,6 +245,8 @@ export const allCards: Card[] = [
         name: 'Equinox Credit',
         value: 25,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $25 back each month on Equinox gym memberships or Equinox+ digital fitness subscriptions (up to $300 annually).',
         redemptionInstructions: 'Use your Platinum Card to pay for an Equinox gym membership or Equinox+ digital fitness subscription. Credit posts monthly after charge.',
       },
@@ -245,6 +255,8 @@ export const allCards: Card[] = [
         name: 'Saks Fifth Avenue Credit',
         value: 50,
         period: 'semi_annual',
+        periodMonths: 6,
+        resetType: 'anniversary',
         description: 'Up to $50 in statement credits twice per year (Jan–Jun and Jul–Dec; $100 total annually).',
         redemptionInstructions: 'Enroll, then use your Platinum Card at Saks Fifth Avenue (in-store or online). Unused semiannual credits do not carry over.',
       },
@@ -253,6 +265,8 @@ export const allCards: Card[] = [
         name: 'CLEAR® Plus Credit',
         value: 189,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $189 in statement credits per calendar year to cover CLEAR Plus membership.',
         redemptionInstructions: 'Enroll in CLEAR Plus and pay with your Platinum Card. The credit covers one annual CLEAR membership.',
       },
@@ -261,6 +275,8 @@ export const allCards: Card[] = [
         name: 'Airline Fee Credit',
         value: 200,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $200 in statement credits per calendar year for incidental fees with one selected qualifying airline.',
         redemptionInstructions: 'Enroll and select one qualifying airline on your Amex account. Charges for incidental airline fees (checked bags, seat upgrades, lounge passes, etc.) will be reimbursed. Credit resets every Jan 1.',
       },
@@ -269,6 +285,8 @@ export const allCards: Card[] = [
         name: 'Hotel Credit (FHR/THC)',
         value: 200,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $200 back in statement credits each calendar year for prepaid hotels booked through Amex Fine Hotels + Resorts or The Hotel Collection.',
         redemptionInstructions: 'Use your Platinum Card to book prepaid hotels through Amex FHR or The Hotel Collection (minimum 2-night stay for THC) via Amex Travel.',
       },
@@ -287,6 +305,8 @@ export const allCards: Card[] = [
         name: 'Uber Cash Credit',
         value: 10,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $10 in Uber Cash each month for U.S. Uber rides or Uber Eats orders. Credits do not roll over - use it or lose it each month.',
         redemptionInstructions: 'Add your Gold Card to the Uber wallet and the credit auto-appears as Uber Cash.',
         appScheme: 'uber',
@@ -296,6 +316,8 @@ export const allCards: Card[] = [
         name: 'Dining Credit',
         value: 10,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $10 back each month at eligible dining partners: Grubhub/Seamless, The Cheesecake Factory, Goldbelly, Wine.com, and select Resy restaurants.',
         redemptionInstructions: 'Enroll your card and use it at eligible merchants. Credit appears automatically after qualifying purchase of $10 or more.',
         appScheme: 'grubhub',
@@ -305,6 +327,8 @@ export const allCards: Card[] = [
         name: 'Resy Dining Credit',
         value: 50,
         period: 'semi_annual',
+        periodMonths: 6,
+        resetType: 'anniversary',
         description: 'Up to $50 in statement credits twice per year (Jan-Jun and Jul-Dec) for dining purchases at Resy-booked restaurants in the U.S.',
         redemptionInstructions: 'Book and dine at Resy partner restaurants. No special code needed; credit posts automatically after dining.',
         appScheme: 'resy',
@@ -314,6 +338,8 @@ export const allCards: Card[] = [
         name: 'Dunkin\' Credit',
         value: 7,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $7 in statement credits each month for Dunkin\' Donuts purchases in the U.S. when you spend $7 or more.',
         redemptionInstructions: 'Enroll your card and use it at Dunkin\' Donuts. Credit appears on statement after qualifying purchase.',
         appScheme: 'dunkin',
@@ -333,6 +359,8 @@ export const allCards: Card[] = [
         name: 'Travel Purchase Credit',
         value: 300,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $300 in statement credits for travel purchases each calendar year. Applies to a broad range of travel expenses including airfare, hotels, car rentals, cruises, taxis, public transit, parking, tolls, etc.',
         redemptionInstructions: 'Use your Sapphire Reserve for any travel or transit purchases. Credits are applied in real time until you hit $300. Resets every January.',
       },
@@ -341,6 +369,8 @@ export const allCards: Card[] = [
         name: 'DoorDash Restaurant Credit',
         value: 5,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: '$5 off one eligible DoorDash restaurant order each month when paying with the Reserve card and enrolled in complimentary DashPass (valid through Dec 2027).',
         redemptionInstructions: 'Enroll for complimentary DashPass membership. The $5 discount is available in your DoorDash account\'s "Promo" section each month and must be applied at checkout.',
         appScheme: 'doordash',
@@ -350,6 +380,8 @@ export const allCards: Card[] = [
         name: 'DoorDash Non-Restaurant Credit #1',
         value: 10,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: '$10 off one eligible non-restaurant order (grocery, convenience store, etc.) per month with DashPass enrollment (valid through Dec 2027).',
         redemptionInstructions: 'Use your Reserve card with active DashPass membership. The $10 discount appears in your DoorDash account\'s "Promo" section and must be applied at checkout.',
         appScheme: 'doordash',
@@ -359,6 +391,8 @@ export const allCards: Card[] = [
         name: 'DoorDash Non-Restaurant Credit #2',
         value: 10,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Second $10 off eligible non-restaurant order (grocery, convenience store, etc.) per month with DashPass enrollment (valid through Dec 2027).',
         redemptionInstructions: 'Use your Reserve card with active DashPass membership. The second $10 discount appears in your DoorDash account\'s "Promo" section after using the first credit.',
         appScheme: 'doordash',
@@ -368,6 +402,8 @@ export const allCards: Card[] = [
         name: 'Lyft Credit',
         value: 10,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: '$10 in-app Lyft ride credit each month (April 2025 through Sept 2027). Plus earn 5x points on Lyft rides.',
         redemptionInstructions: 'Add your Sapphire Reserve as the payment method in the Lyft app. Credit appears automatically (usually labeled as "Amp" or Chase credit) and applies to your next ride(s).',
       },
@@ -386,6 +422,8 @@ export const allCards: Card[] = [
         name: 'Hotel Credit',
         value: 50,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $50 statement credit each account anniversary year for hotel stays booked via the Chase Ultimate Rewards travel portal.',
         redemptionInstructions: 'Book a hotel through Chase Travel using your Sapphire Preferred; the first $50 of hotel charges will be automatically refunded. Credit resets every account anniversary.',
       },
@@ -394,6 +432,8 @@ export const allCards: Card[] = [
         name: 'DoorDash Grocery Credit',
         value: 10,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: '$10 monthly DoorDash credit for non-restaurant purchases (grocery stores, convenience stores, DashMart, etc.) through 2027.',
         redemptionInstructions: 'Use your Preferred card with DashPass activated. You\'ll see a $10 off promo automatically for eligible non-restaurant orders each month. Credit does not roll over.',
         appScheme: 'doordash',
@@ -413,6 +453,8 @@ export const allCards: Card[] = [
         name: 'Dining Credit',
         value: 25,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: '$25 dining statement credit each month (up to $300 per year) at restaurants worldwide.',
       },
     ],
@@ -430,6 +472,8 @@ export const allCards: Card[] = [
         name: 'Airline Flight Credit',
         value: 50,
         period: 'quarterly',
+        periodMonths: 3,
+        resetType: 'anniversary',
         description: 'Up to $50 back in statement credits each quarter on eligible flight purchases (total $200 yr).',
       },
     ],
@@ -447,6 +491,8 @@ export const allCards: Card[] = [
         name: 'Capital One Travel Credit',
         value: 300,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $300 per year in credits to offset bookings made through the Capital One Travel portal. Can be used in part or full across multiple bookings.',
         redemptionInstructions: 'Use your Venture X to book travel through the Capital One Travel portal. At checkout, you can apply the credit to your booking. Credit resets on your account anniversary each year.',
         appScheme: 'capitalOne',
@@ -456,6 +502,8 @@ export const allCards: Card[] = [
         name: 'Anniversary Miles Bonus',
         value: 100,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: '10,000 bonus miles awarded every account anniversary (≈$100 in travel value).',
         redemptionInstructions: 'Automatic benefit - miles are deposited into your account each anniversary.',
       },
@@ -474,6 +522,8 @@ export const allCards: Card[] = [
         name: 'Disney Bundle Credit',
         value: 7,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $7 back each month on Disney Bundle subscription (Disney+, Hulu, and ESPN+) when you spend $9.99 or more.',
         redemptionInstructions: 'Enroll your Blue Cash Preferred and use it to pay for the Disney Bundle. Credit posts monthly after the charge.',
       },
@@ -492,6 +542,8 @@ export const allCards: Card[] = [
         name: 'Resy Dining Credit',
         value: 20,
         period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
         description: 'Up to $20 back each month on Resy restaurant purchases.',
       },
     ],
@@ -509,6 +561,8 @@ export const allCards: Card[] = [
         name: 'CLEAR® Plus Credit',
         value: 189,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $189 in statement credits per calendar year for CLEAR Plus airport security membership.',
         redemptionInstructions: 'Use your Green Card to pay for a CLEAR Plus membership. No enrollment required beyond using the card for payment.',
       },
@@ -527,6 +581,8 @@ export const allCards: Card[] = [
         name: 'Airline Incidental Credit',
         value: 100,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $100 in statement credits per calendar year for qualifying airline incidental fees (checked baggage, seat selection fees, lounge passes, onboard food, etc.).',
         redemptionInstructions: 'Use your Premium Rewards card to pay for qualifying airline incidental fees. No enrollment needed; credits post usually within a week of an eligible charge until you hit $100 for the year.',
       },
@@ -545,6 +601,8 @@ export const allCards: Card[] = [
         name: 'Airline Incidental Credits',
         value: 300,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $300 annually in airline incidental fee credits for charges like seat upgrades, baggage fees, airline lounge memberships, etc. (not airfare).',
         redemptionInstructions: 'Use the card for qualifying airline fees and you\'ll be reimbursed automatically, up to $300 per year. Resets each calendar year.',
       },
@@ -553,6 +611,8 @@ export const allCards: Card[] = [
         name: 'Lifestyle Convenience Credits',
         value: 150,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $150 annually in statement credits for lifestyle expenses including ride-hailing, streaming services, food delivery, and fitness subscriptions.',
         redemptionInstructions: 'Use the card for eligible lifestyle purchases like monthly streaming subscriptions, Uber/Lyft rides, food delivery, or gym memberships. Credits post automatically as eligible transactions occur.',
       },
@@ -571,6 +631,8 @@ export const allCards: Card[] = [
         name: 'Travel/Dining Credit',
         value: 325,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $325 per year in combined travel and dining purchases reimbursement. Includes airlines, hotels, rental cars, taxis, restaurants, takeout, and food delivery.',
         redemptionInstructions: 'Use the Altitude Reserve for any travel or dining expenses. Charges in those categories will be credited back until you\'ve accumulated $325 in credits. Resets on your cardmember anniversary.',
       },
@@ -589,6 +651,8 @@ export const allCards: Card[] = [
         name: 'Travel Credit',
         value: 250,
         period: 'yearly',
+        periodMonths: 12,
+        resetType: 'calendar',
         description: 'Up to $250 in statement credits for travel purchases each year. Any purchase that codes as travel (flights, hotels, travel agencies, parking, Uber/Lyft, etc.) will be automatically reimbursed.',
         redemptionInstructions: 'No activation needed; use the card for travel purchases and receive automatic statement credits until you hit $250 for the year. Credit resets every Jan 1.',
       },
@@ -637,9 +701,27 @@ async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean
   const appSchemes = APP_SCHEMES[appKey];
   try {
     if (Platform.OS === 'ios') {
-      return await Linking.canOpenURL(appSchemes.ios);
+      // On iOS, we need to check both the custom scheme and universal links
+      const customSchemeSupported = await Linking.canOpenURL(appSchemes.ios);
+      if (customSchemeSupported) return true;
+      
+      // Try universal link if custom scheme fails
+      const universalLinkSupported = await Linking.canOpenURL(appSchemes.fallback);
+      return universalLinkSupported;
     } else {
-      return await Linking.canOpenURL(appSchemes.android);
+      // On Android, check if the package is installed
+      const isPackageInstalled = await Linking.canOpenURL(`${appSchemes.androidPackage}://`);
+      if (isPackageInstalled) return true;
+
+      // Try package check as fallback
+      try {
+        await Linking.sendIntent('android.intent.action.VIEW', [
+          { key: 'package', value: appSchemes.androidPackage }
+        ]);
+        return true;
+      } catch {
+        return false;
+      }
     }
   } catch (error) {
     console.log(`Error checking if app is installed for ${appKey}:`, error);
@@ -650,20 +732,23 @@ async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean
 // Helper function to open app or fallback to website/store
 async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<boolean> {
   const appSchemes = APP_SCHEMES[appKey];
-  const scheme = Platform.select({
-    ios: appSchemes.ios,
-    android: appSchemes.android,
-  });
   
-  if (!scheme) {
-    console.log(`No scheme found for platform: ${Platform.OS}`);
-    return false;
-  }
-
   try {
     const isInstalled = await isAppInstalled(appKey);
+    
     if (isInstalled) {
-      await Linking.openURL(scheme);
+      // Try to open the app directly
+      if (Platform.OS === 'ios') {
+        await Linking.openURL(appSchemes.ios);
+      } else {
+        // On Android, try the intent URL first
+        try {
+          await Linking.openURL(`intent://${appKey}/#Intent;package=${appSchemes.androidPackage};scheme=${appKey};end`);
+        } catch {
+          // Fallback to simple scheme if intent fails
+          await Linking.openURL(appSchemes.android);
+        }
+      }
       return true;
     } else {
       // If app is not installed, show an alert with options
@@ -680,7 +765,13 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
                   android: appSchemes.appStoreUrlAndroid,
                 });
                 if (storeUrl) {
-                  await Linking.openURL(storeUrl);
+                  try {
+                    await Linking.openURL(storeUrl);
+                  } catch (error) {
+                    console.error('Error opening store URL:', error);
+                    // If store URL fails, try fallback website
+                    await Linking.openURL(appSchemes.fallback);
+                  }
                 }
                 resolve(false);
               },
@@ -688,7 +779,23 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
             {
               text: 'Open Website',
               onPress: async () => {
-                await Linking.openURL(appSchemes.fallback);
+                try {
+                  // For certain apps that have web-to-app functionality
+                  if (['uber', 'ubereats', 'doordash', 'walmart', 'equinox'].includes(appKey)) {
+                    // These apps often redirect web to app if installed
+                    const webUrl = Platform.select({
+                      ios: appSchemes.ios,
+                      android: `intent://${appKey}/#Intent;package=${appSchemes.androidPackage};scheme=${appKey};end`,
+                    }) || appSchemes.fallback;
+                    await Linking.openURL(webUrl);
+                  } else {
+                    await Linking.openURL(appSchemes.fallback);
+                  }
+                } catch (error) {
+                  console.error('Error opening fallback URL:', error);
+                  // If deep linking fails, fall back to website
+                  await Linking.openURL(appSchemes.fallback);
+                }
                 resolve(true);
               },
             },
@@ -704,7 +811,7 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
     }
   } catch (error) {
     console.error(`Error opening ${appKey}:`, error);
-    // If the deep link fails, try the fallback URL
+    // If all else fails, try the fallback URL
     try {
       await Linking.openURL(appSchemes.fallback);
       return true;
@@ -761,4 +868,24 @@ export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
     }
     return openAppOrFallback(appKey);
   }
+}
+
+// Helper function to get period in months
+export function getPeriodMonths(period: Benefit['period']): Benefit['periodMonths'] {
+  const periodMap: Record<Benefit['period'], Benefit['periodMonths']> = {
+    'monthly': 1,
+    'quarterly': 3,
+    'semi_annual': 6,
+    'yearly': 12,
+  };
+  return periodMap[period];
+}
+
+// Helper function to determine if a benefit resets on calendar year
+export function isCalendarReset(benefit: Benefit): boolean {
+  // Most yearly credits reset on calendar year
+  // Most monthly/quarterly credits reset on statement cycle
+  return benefit.period === 'yearly' || 
+         benefit.name.toLowerCase().includes('calendar') ||
+         benefit.description?.toLowerCase().includes('calendar');
 } 
