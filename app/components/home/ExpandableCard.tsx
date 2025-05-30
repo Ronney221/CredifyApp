@@ -37,6 +37,7 @@ export default function ExpandableCard({
         style={[
           styles.perkItem,
           isRedeemed && styles.redeemedPerk,
+          !isRedeemed && styles.availablePerk,
         ]}
         onPress={() => onTapPerk(card.id, perk.id, perk)}
         onLongPress={() => onLongPressPerk(card.id, perk.id, perk)}
@@ -90,18 +91,39 @@ export default function ExpandableCard({
                 ${cumulativeSavedValue} saved
               </Text>
             )}
+            {!isExpanded && perks.some(p => p.status === 'available') && (
+              <Text style={styles.unredeemedAlert}>
+                {perks.filter(p => p.status === 'available').length} unredeemed perks
+              </Text>
+            )}
           </View>
         </View>
-        <Ionicons
-          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={24}
-          color="#8e8e93"
-        />
+        <View style={styles.headerRight}>
+          {perks.some(p => p.status === 'available') && (
+            <View style={styles.notificationDot} />
+          )}
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={24}
+            color="#8e8e93"
+          />
+        </View>
       </TouchableOpacity>
 
       {isExpanded && (
         <View style={styles.perksContainer}>
-          {perks.map(renderPerk)}
+          {perks.some(p => p.status === 'available') && (
+            <>
+              <Text style={styles.sectionLabel}>Available Perks</Text>
+              {perks.filter(p => p.status === 'available').map(renderPerk)}
+            </>
+          )}
+          {perks.some(p => p.status === 'redeemed') && (
+            <>
+              <Text style={styles.sectionLabel}>Redeemed Perks</Text>
+              {perks.filter(p => p.status === 'redeemed').map(renderPerk)}
+            </>
+          )}
         </View>
       )}
     </View>
@@ -164,11 +186,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 4,
     padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: 'transparent',
   },
   redeemedPerk: {
     backgroundColor: '#e8f5e9',
     borderColor: '#34c759',
     borderWidth: 1,
+    borderLeftColor: '#34c759',
+  },
+  availablePerk: {
+    borderLeftColor: '#007aff',
+    backgroundColor: '#f0f9ff',
   },
   perkContent: {
     flex: 1,
@@ -218,5 +247,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 4,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 4,
+  },
+  notificationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ff3b30',
+    marginRight: 8,
+  },
+  unredeemedAlert: {
+    color: '#ff3b30',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8e8e93',
+    marginBottom: 8,
+    marginTop: 8,
+    paddingHorizontal: 4,
   },
 }); 

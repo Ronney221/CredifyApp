@@ -84,30 +84,33 @@ export function usePerkStatus(
     // Update monthly/yearly credits
     if (perk.period === 'monthly') {
       if (newStatus === 'redeemed') {
-        setMonthlyCreditsRedeemed(prev => prev + perk.value);
+        setMonthlyCreditsRedeemed(prev => Number((prev + perk.value).toFixed(2)));
       } else {
-        setMonthlyCreditsRedeemed(prev => Math.max(0, prev - perk.value));
+        setMonthlyCreditsRedeemed(prev => Number(Math.max(0, prev - perk.value).toFixed(2)));
       }
     } else if (perk.period === 'yearly') {
       if (newStatus === 'redeemed') {
-        setYearlyCreditsRedeemed(prev => prev + perk.value);
+        setYearlyCreditsRedeemed(prev => Number((prev + perk.value).toFixed(2)));
       } else {
-        setYearlyCreditsRedeemed(prev => Math.max(0, prev - perk.value));
+        setYearlyCreditsRedeemed(prev => Number(Math.max(0, prev - perk.value).toFixed(2)));
       }
     }
 
     // Handle cumulative value updates
     if (newStatus === 'redeemed') {
-      setCumulativeValueSavedPerCard(prev => ({
-        ...prev,
-        [cardId]: (prev[cardId] || 0) + perk.value
-      }));
+      setCumulativeValueSavedPerCard(prev => {
+        const newValue = Number(((prev[cardId] || 0) + perk.value).toFixed(2));
+        return {
+          ...prev,
+          [cardId]: newValue
+        };
+      });
       if (perk.period === 'monthly') {
         setRedeemedInCurrentCycle(prev => ({ ...prev, [perk.id]: true }));
       }
     } else {
       setCumulativeValueSavedPerCard(prev => {
-        const newValue = Math.max(0, (prev[cardId] || 0) - perk.value);
+        const newValue = Number(Math.max(0, (prev[cardId] || 0) - perk.value).toFixed(2));
         const newState = { ...prev };
         if (newValue === 0) {
           delete newState[cardId];
@@ -126,7 +129,8 @@ export function usePerkStatus(
     }
 
     // Check for full monthly completion
-    if (monthlyCreditsPossible > 0 && monthlyCreditsRedeemed + (newStatus === 'redeemed' ? perk.value : -perk.value) === monthlyCreditsPossible) {
+    const projectedMonthlyCredits = Number((monthlyCreditsRedeemed + (newStatus === 'redeemed' ? perk.value : -perk.value)).toFixed(2));
+    if (monthlyCreditsPossible > 0 && projectedMonthlyCredits === monthlyCreditsPossible) {
       setShowCelebration(true);
     }
 
