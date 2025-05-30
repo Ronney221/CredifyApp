@@ -21,6 +21,7 @@ export interface ExpandableCardProps {
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
   onLongPressPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
   onExpandChange?: (cardId: string, isExpanded: boolean) => void;
+  onPerkStatusChange?: () => void;
   isActive?: boolean;
   sortIndex: number;
 }
@@ -32,6 +33,7 @@ export default function ExpandableCard({
   onTapPerk,
   onLongPressPerk,
   onExpandChange,
+  onPerkStatusChange,
   isActive,
   sortIndex,
 }: ExpandableCardProps) {
@@ -135,6 +137,7 @@ export default function ExpandableCard({
           // Update local state
           await loadRedeemedPerks(); // Refresh redemption state
           await onTapPerk(card.id, perk.id, perk);
+          onPerkStatusChange?.(); // Trigger donut refresh
         }
       }
     } catch (error) {
@@ -172,13 +175,11 @@ export default function ExpandableCard({
                   perk.value
                 );
 
-                if (error) {
-                  if (error.message === 'Perk already redeemed this period') {
-                    Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
-                  } else {
-                    console.error('Error tracking redemption:', error);
-                    Alert.alert('Error', 'Failed to mark perk as redeemed. Please try again.');
-                  }
+                if (typeof error === 'object' && error !== null && 'message' in error && error.message === 'Perk already redeemed this period') {
+                  Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+                } else if (error) {
+                  console.error('Error tracking redemption:', error);
+                  Alert.alert('Error', 'Failed to mark perk as redeemed. Please try again.');
                   return;
                 }
               } else {
@@ -194,6 +195,7 @@ export default function ExpandableCard({
               // Update local state
               await loadRedeemedPerks(); // Refresh redemption state
               await onLongPressPerk(card.id, perk.id, perk);
+              onPerkStatusChange?.(); // Trigger donut refresh
             } catch (error) {
               console.error('Error handling perk long press:', error);
               Alert.alert('Error', 'An unexpected error occurred. Please try again.');

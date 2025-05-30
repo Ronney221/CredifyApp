@@ -71,6 +71,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string }>();
   const { user } = useAuth();
+  const donutDisplayRef = useRef<{ refresh: () => void }>(null);
 
   // State for DEV date picker
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
@@ -224,6 +225,10 @@ export default function HomeScreen() {
     }
   };
 
+  const handlePerkStatusChange = useCallback(() => {
+    donutDisplayRef.current?.refresh();
+  }, []);
+
   const sortedCards = sortCardsByUnredeemedPerks(userCardsWithPerks);
 
   if (error) {
@@ -324,6 +329,7 @@ export default function HomeScreen() {
             {/* Summary Section with Donut Chart */}
             <View style={[styles.summarySection, { paddingTop: 0 }]}>
               <PerkDonutDisplayManager
+                ref={donutDisplayRef}
                 userCardsWithPerks={userCardsWithPerks}
                 monthlyCreditsRedeemed={monthlyCreditsRedeemed}
                 monthlyCreditsPossible={monthlyCreditsPossible}
@@ -355,6 +361,7 @@ export default function HomeScreen() {
                     onTapPerk: handleTapPerk,
                     onLongPressPerk: handleLongPressPerk,
                     onExpandChange: handleCardExpandChange,
+                    onPerkStatusChange: handlePerkStatusChange,
                     isActive: card.id === activeCardId,
                     sortIndex: index,
                   };

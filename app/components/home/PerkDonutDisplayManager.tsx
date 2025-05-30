@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ProgressDonut from './ProgressDonut';
 import { Card, CardPerk, Benefit } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { getCurrentMonthRedemptions, getAnnualRedemptions } from '../../../lib/database';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 type SegmentKey = 'monthly' | 'annualFees';
 
@@ -16,16 +17,39 @@ interface Segment {
 
 interface PerkDonutDisplayManagerProps {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
+  monthlyCreditsRedeemed: number;
+  monthlyCreditsPossible: number;
 }
 
-export default function PerkDonutDisplayManager({
+const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDisplayManagerProps>(({
   userCardsWithPerks,
-}: PerkDonutDisplayManagerProps) {
+  monthlyCreditsRedeemed,
+  monthlyCreditsPossible,
+}, ref) => {
   const { user } = useAuth();
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>('monthly');
-  const [monthlyRedemptions, setMonthlyRedemptions] = useState<number>(0);
+  const [monthlyRedemptions, setMonthlyRedemptions] = useState<number>(monthlyCreditsRedeemed);
   const [annualRedemptions, setAnnualRedemptions] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const navigation = useNavigation();
+
+  // Function to trigger a refresh
+  const refreshData = useCallback(() => {
+    setLastRefresh(Date.now());
+  }, []);
+
+  // Add to component props
+  useImperativeHandle(ref, () => ({
+    refresh: refreshData
+  }));
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refreshData();
+    }, [refreshData])
+  );
 
   // Calculate total possible monthly credits (only monthly perks)
   const monthlyPossibleTotal = useMemo(() => {
@@ -86,7 +110,7 @@ export default function PerkDonutDisplayManager({
     };
 
     loadRedemptions();
-  }, [user, userCardsWithPerks]);
+  }, [user, lastRefresh]);
 
   const monthlyPerkData = useMemo(() => {
     // Count only monthly perks for secondary metric
@@ -214,7 +238,9 @@ export default function PerkDonutDisplayManager({
       </View>
     </View>
   );
-}
+});
+
+PerkDonutDisplayManager.displayName = 'PerkDonutDisplayManager';
 
 const styles = StyleSheet.create({
   managerContainer: {
@@ -321,4 +347,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
-}); 
+});
+
+export default PerkDonutDisplayManager; 
