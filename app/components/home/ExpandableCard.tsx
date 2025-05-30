@@ -27,6 +27,8 @@ export default function ExpandableCard({
   onLongPressPerk,
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hasUnredeemedPerks = perks.some(p => p.status === 'available');
+  const isFullyRedeemed = !hasUnredeemedPerks;
 
   const renderPerk = (perk: CardPerk) => {
     const isRedeemed = perk.status === 'redeemed';
@@ -77,7 +79,10 @@ export default function ExpandableCard({
   };
 
   return (
-    <View style={styles.cardContainer}>
+    <View style={[
+      styles.cardContainer,
+      isFullyRedeemed && styles.fullyRedeemedCard
+    ]}>
       <TouchableOpacity
         style={styles.cardHeader}
         onPress={() => setIsExpanded(!isExpanded)}
@@ -85,13 +90,21 @@ export default function ExpandableCard({
         <View style={styles.cardInfo}>
           <Image source={card.image} style={styles.cardImage} />
           <View style={styles.cardTextContainer}>
-            <Text style={styles.cardName}>{card.name}</Text>
+            <View style={styles.cardNameContainer}>
+              <Text style={styles.cardName}>{card.name}</Text>
+              {isFullyRedeemed && (
+                <View style={styles.completedBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#34c759" />
+                  <Text style={styles.completedText}>All Set</Text>
+                </View>
+              )}
+            </View>
             {cumulativeSavedValue > 0 && (
               <Text style={styles.savedValue}>
                 ${cumulativeSavedValue} saved
               </Text>
             )}
-            {!isExpanded && perks.some(p => p.status === 'available') && (
+            {!isExpanded && hasUnredeemedPerks && (
               <Text style={styles.unredeemedAlert}>
                 {perks.filter(p => p.status === 'available').length} unredeemed perks
               </Text>
@@ -99,7 +112,7 @@ export default function ExpandableCard({
           </View>
         </View>
         <View style={styles.headerRight}>
-          {perks.some(p => p.status === 'available') && (
+          {hasUnredeemedPerks && (
             <View style={styles.notificationDot} />
           )}
           <Ionicons
@@ -112,7 +125,7 @@ export default function ExpandableCard({
 
       {isExpanded && (
         <View style={styles.perksContainer}>
-          {perks.some(p => p.status === 'available') && (
+          {hasUnredeemedPerks && (
             <>
               <Text style={styles.sectionLabel}>Available Perks</Text>
               {perks.filter(p => p.status === 'available').map(renderPerk)}
@@ -277,5 +290,29 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 8,
     paddingHorizontal: 4,
+  },
+  fullyRedeemedCard: {
+    opacity: 0.8,
+    backgroundColor: '#fafafa',
+  },
+  cardNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  completedText: {
+    fontSize: 12,
+    color: '#34c759',
+    fontWeight: '500',
   },
 }); 

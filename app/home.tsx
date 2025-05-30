@@ -25,6 +25,7 @@ import ExpandableCard from './components/home/ExpandableCard';
 import { useUserCards } from './hooks/useUserCards';
 import { usePerkStatus } from './hooks/usePerkStatus';
 import { CardPerk } from './types';
+import { format, differenceInDays, endOfMonth } from 'date-fns';
 
 // Import notification functions
 import {
@@ -143,6 +144,24 @@ export default function HomeScreen() {
     }
   };
 
+  // Add these new functions with proper types
+  const getDaysRemainingInMonth = (): number => {
+    const today = new Date();
+    const lastDay = endOfMonth(today);
+    return differenceInDays(lastDay, today) + 1;
+  };
+
+  const sortCardsByUnredeemedPerks = (cards: { card: { id: string }; perks: CardPerk[] }[]): typeof cards => {
+    return [...cards].sort((a, b) => {
+      const aUnredeemed = a.perks.filter(p => p.status === 'available').length;
+      const bUnredeemed = b.perks.filter(p => p.status === 'available').length;
+      return bUnredeemed - aUnredeemed;
+    });
+  };
+
+  // Sort the cards
+  const sortedCards = sortCardsByUnredeemedPerks(userCardsWithPerks);
+
   if (error) {
     return (
       <View style={styles.loadingContainer}>
@@ -206,6 +225,16 @@ export default function HomeScreen() {
               )}
             </TouchableOpacity>
           </View>
+          
+          {/* Add Month Indicator */}
+          <View style={styles.monthIndicator}>
+            <Text style={styles.currentMonth}>
+              {format(new Date(), 'MMMM yyyy')}
+            </Text>
+            <Text style={styles.daysRemaining}>
+              {getDaysRemainingInMonth()} days remaining
+            </Text>
+          </View>
         </View>
 
         {isLoading ? (
@@ -252,8 +281,8 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              {userCardsWithPerks.length > 0 ? (
-                userCardsWithPerks.map(({ card, perks }) => (
+              {sortedCards.length > 0 ? (
+                sortedCards.map(({ card, perks }) => (
                   <ExpandableCard
                     key={card.id}
                     card={card}
@@ -468,5 +497,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1000,
     pointerEvents: 'none',
+  },
+  monthIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    marginTop: 12,
+    marginHorizontal: -16,
+    padding: 12,
+    borderRadius: 8,
+  },
+  currentMonth: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1c1c1e',
+  },
+  daysRemaining: {
+    fontSize: 14,
+    color: '#8e8e93',
   },
 }); 
