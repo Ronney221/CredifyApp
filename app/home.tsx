@@ -256,10 +256,8 @@ export default function HomeScreen() {
                     params: { mode: 'edit' }
                   } as any)}
                 >
-                  <View style={styles.addCardContent}>
-                    <Ionicons name="add-circle-outline" size={20} color="#007aff" />
-                    <Text style={styles.addCardText}>Add Card</Text>
-                  </View>
+                  <Ionicons name="add-circle-outline" size={20} color="#007aff" />
+                  <Text style={styles.addCardText}>Add Card</Text>
                 </TouchableOpacity>
               </View>
 
@@ -418,21 +416,14 @@ const styles = StyleSheet.create({
     color: '#1c1c1e',
   },
   addCardButton: {
-    height: 32,
-    paddingHorizontal: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    justifyContent: 'center',
-  },
-  addCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    padding: 8,
   },
   addCardText: {
     color: '#007aff',
+    marginLeft: 4,
     fontSize: 15,
-    fontWeight: '500',
   },
   noCardsContainer: {
     alignItems: 'center',

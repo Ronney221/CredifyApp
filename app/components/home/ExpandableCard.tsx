@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import Toast from 'react-native-root-toast';
 import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase } from '../../../lib/database';
-import { Colors } from '../../constants/Colors';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -62,70 +61,6 @@ const showToast = (message: string, onUndo?: () => void) => {
   });
 };
 
-interface CardHeaderProps {
-  card: Card;
-  perks: CardPerk[];
-  cumulativeSavedValue: number;
-  isExpanded: boolean;
-  onPress: () => void;
-}
-
-const CardHeader: React.FC<CardHeaderProps> = ({ card, perks, cumulativeSavedValue, isExpanded, onPress }) => {
-  const rotateAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
-
-  React.useEffect(() => {
-    Animated.spring(rotateAnim, {
-      toValue: isExpanded ? 1 : 0,
-      useNativeDriver: true,
-    }).start();
-  }, [isExpanded]);
-
-  const chevronRotation = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
-  // Only count monthly perks for the status
-  const monthlyPerks = perks.filter(p => p.periodMonths === 1);
-  const availableMonthlyPerks = monthlyPerks.filter(p => p.status === 'available').length;
-  
-  const statusText = [];
-  if (availableMonthlyPerks > 0) {
-    statusText.push(`${availableMonthlyPerks} ${availableMonthlyPerks === 1 ? 'perk' : 'perks'} left`);
-  }
-  if (cumulativeSavedValue > 0) {
-    statusText.push(`$${cumulativeSavedValue.toFixed(2)} saved`);
-  }
-
-  return (
-    <TouchableOpacity 
-      style={styles.headerContainer}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardInfo}>
-        <Image source={card.image} style={styles.cardImage} />
-        <View style={styles.cardTextContainer}>
-          <Text style={styles.cardName}>{card.name}</Text>
-          {statusText.length > 0 && (
-            <Text style={styles.cardStatus}>
-              {statusText.join(' • ')}
-            </Text>
-          )}
-        </View>
-      </View>
-      <Animated.View style={[styles.chevron, { transform: [{ rotate: chevronRotation }] }]}>
-        <Ionicons 
-          name="chevron-down" 
-          size={20} 
-          color={Colors.light.text} 
-          style={styles.chevronIcon}
-        />
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
-
 export default function ExpandableCard({
   card,
   perks,
@@ -139,27 +74,64 @@ export default function ExpandableCard({
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
+  const [redeemedPerkIds, setRedeemedPerkIds] = useState<Set<string>>(new Set());
   const { user } = useAuth();
+  
+  const loadRedeemedPerks = async () => {
+    if (!user) return;
+    
+    try {
+      // First get perk definitions to map names to IDs
+      const { data: perkDefs } = await supabase
+        .from('perk_definitions')
+        .select('id, name');
 
-  // Group perks by status and period
-  const groupedPerks = useMemo(() => {
-    const monthlyPerks = perks.filter(p => p.periodMonths === 1);
-    const otherPerks = perks.filter(p => p.periodMonths !== 1);
+      if (!perkDefs) return;
 
-    return {
-      available: {
-        monthly: monthlyPerks.filter(p => p.status === 'available'),
-        other: otherPerks.filter(p => p.status === 'available')
-      },
-      redeemed: {
-        monthly: monthlyPerks.filter(p => p.status === 'redeemed'),
-        other: otherPerks.filter(p => p.status === 'redeemed')
+      // Create a map of perk names to their database IDs
+      const perkNameToId = new Map(perkDefs.map((p: { name: string; id: string }) => [p.name, p.id]));
+      
+      // Get current month's redemptions
+      const { data: monthlyData, error } = await getCurrentMonthRedemptions(user.id);
+      if (error) {
+        console.error('Error fetching redemptions:', error);
+        return;
       }
-    };
-  }, [perks]);
 
-  const hasUnredeemedPerks = groupedPerks.available.monthly.length > 0;
-  const isFullyRedeemed = perks.filter(p => p.periodMonths === 1).length > 0 && !hasUnredeemedPerks;
+      // Create a set of redeemed perk IDs
+      const redeemedIds = new Set(monthlyData?.map(redemption => redemption.perk_id) || []);
+      
+      // Map our local perk IDs to database IDs and check if they're redeemed
+      const redeemedLocalIds = new Set(
+        perks
+          .filter(perk => {
+            const dbPerkId = perkNameToId.get(perk.name);
+            return dbPerkId && redeemedIds.has(dbPerkId);
+          })
+          .map(perk => perk.id)
+      );
+
+      console.log('Redeemed perks for card:', card.name, Array.from(redeemedLocalIds));
+      setRedeemedPerkIds(redeemedLocalIds);
+    } catch (error) {
+      console.error('Error loading redeemed perks:', error);
+    }
+  };
+  
+  // Load redeemed perks from database
+  useEffect(() => {
+    loadRedeemedPerks();
+  }, [user, card.id]);
+
+  // Only count monthly perks for the unredeemed count
+  const unredeemedPerks = perks.filter(p => {
+    const isMonthly = p.periodMonths === 1;
+    const isRedeemed = redeemedPerkIds.has(p.id);
+    return isMonthly && !isRedeemed;
+  });
+  
+  const hasUnredeemedPerks = unredeemedPerks.length > 0;
+  const isFullyRedeemed = !hasUnredeemedPerks;
 
   // Handle position animation when sort index changes
   useEffect(() => {
@@ -203,6 +175,7 @@ export default function ExpandableCard({
           }
         } else {
           // Update local state
+          await loadRedeemedPerks(); // Refresh redemption state
           await onTapPerk(card.id, perk.id, perk);
           onPerkStatusChange?.(); // Trigger donut refresh
 
@@ -213,7 +186,8 @@ export default function ExpandableCard({
               // Handle undo
               const { error: undoError } = await deletePerkRedemption(user.id, perk.name);
               if (!undoError) {
-                await onPerkStatusChange?.();
+                await loadRedeemedPerks();
+                onPerkStatusChange?.();
                 showToast(`${perk.name} marked as available`);
               }
             }
@@ -228,7 +202,7 @@ export default function ExpandableCard({
   const handlePerkLongPress = async (perk: CardPerk) => {
     if (!user) return;
 
-    const isCurrentlyRedeemed = groupedPerks.redeemed.monthly.includes(perk) || groupedPerks.redeemed.other.includes(perk);
+    const isCurrentlyRedeemed = redeemedPerkIds.has(perk.id);
     const actionText = isCurrentlyRedeemed ? 'mark as available' : 'mark as redeemed';
     const confirmText = isCurrentlyRedeemed 
       ? `Are you sure you want to mark "${perk.name}" as available?`
@@ -274,7 +248,9 @@ export default function ExpandableCard({
               }
 
               // Update local state
-              await onPerkStatusChange?.(); // Trigger donut refresh
+              await loadRedeemedPerks(); // Refresh redemption state
+              await onLongPressPerk(card.id, perk.id, perk);
+              onPerkStatusChange?.(); // Trigger donut refresh
 
               // Show toast notification
               showToast(
@@ -283,7 +259,8 @@ export default function ExpandableCard({
                   // Only show undo for redemptions
                   const { error: undoError } = await deletePerkRedemption(user.id, perk.name);
                   if (!undoError) {
-                    await onPerkStatusChange?.();
+                    await loadRedeemedPerks();
+                    onPerkStatusChange?.();
                     showToast(`${perk.name} marked as available`);
                   }
                 } : undefined
@@ -310,7 +287,7 @@ export default function ExpandableCard({
   });
 
   const renderPerk = (perk: CardPerk) => {
-    const isRedeemed = groupedPerks.redeemed.monthly.includes(perk) || groupedPerks.redeemed.other.includes(perk);
+    const isRedeemed = redeemedPerkIds.has(perk.id);
     const formattedValue = perk.value.toLocaleString('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -388,32 +365,60 @@ export default function ExpandableCard({
         },
       ]}
     >
-      <CardHeader
-        card={card}
-        perks={perks}
-        cumulativeSavedValue={cumulativeSavedValue}
-        isExpanded={isExpanded}
+      <TouchableOpacity
+        style={[styles.cardHeader, isActive && styles.activeCardHeader]}
         onPress={handleExpand}
-      />
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardInfo}>
+          <Image source={card.image} style={styles.cardImage} />
+          <View style={styles.cardTextContainer}>
+            <View style={styles.cardNameContainer}>
+              <Text style={styles.cardName}>{card.name}</Text>
+              {isFullyRedeemed ? (
+                <View style={styles.completedBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#34c759" />
+                  <Text style={styles.completedText}>All Set</Text>
+                </View>
+              ) : hasUnredeemedPerks && (
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingText}>
+                    {unredeemedPerks.length} pending
+                  </Text>
+                </View>
+              )}
+            </View>
+            {cumulativeSavedValue > 0 && (
+              <Text style={styles.savedValue}>
+                {cumulativeSavedValue.toLocaleString('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                })} saved
+              </Text>
+            )}
+          </View>
+        </View>
+        <View style={styles.headerRight}>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={24}
+            color="#8e8e93"
+          />
+        </View>
+      </TouchableOpacity>
 
       {isExpanded && (
         <View style={styles.perksContainer}>
-          {groupedPerks.available.monthly.length > 0 && (
+          {perks.filter(p => !redeemedPerkIds.has(p.id)).length > 0 && (
             <>
-              <Text style={styles.sectionLabel}>Available Monthly Perks</Text>
-              {groupedPerks.available.monthly.map(renderPerk)}
+              <Text style={styles.sectionLabel}>Available Perks</Text>
+              {perks.filter(p => !redeemedPerkIds.has(p.id)).map(renderPerk)}
             </>
           )}
-          {groupedPerks.available.other.length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Available Other Perks</Text>
-              {groupedPerks.available.other.map(renderPerk)}
-            </>
-          )}
-          {(groupedPerks.redeemed.monthly.length > 0 || groupedPerks.redeemed.other.length > 0) && (
+          {Array.from(redeemedPerkIds).length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-              {[...groupedPerks.redeemed.monthly, ...groupedPerks.redeemed.other].map(renderPerk)}
+              {perks.filter(p => redeemedPerkIds.has(p.id)).map(renderPerk)}
             </>
           )}
         </View>
@@ -441,49 +446,67 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  headerContainer: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: Colors.light.background,
-    borderRadius: 16,
   },
   cardInfo: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   cardImage: {
-    width: 56,
-    height: 36,
+    width: 40,
+    height: 25,
     resizeMode: 'contain',
     marginRight: 12,
   },
   cardTextContainer: {
     flex: 1,
-    marginRight: 12,
+  },
+  cardNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   cardName: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 4,
+    color: '#1c1c1e',
   },
-  cardStatus: {
+  savedValue: {
     fontSize: 14,
-    color: Colors.light.textSecondary,
+    color: '#34c759',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  pendingBadge: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  pendingText: {
+    fontSize: 12,
+    color: '#1976d2',
     fontWeight: '500',
   },
-  chevron: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
+  completedBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
   },
-  chevronIcon: {
-    marginTop: 2,
+  completedText: {
+    fontSize: 12,
+    color: '#34c759',
+    fontWeight: '500',
   },
   perkItem: {
     backgroundColor: '#ffffff',

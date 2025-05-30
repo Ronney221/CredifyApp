@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, StatusBar } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Colors } from '../../constants/Colors';
-import { format } from 'date-fns';
 import AccountButton from './AccountButton';
 
 export default function Header() {
@@ -26,18 +25,14 @@ export default function Header() {
     return lastDay.getDate() - today.getDate() + 1;
   }, []);
 
-  const currentMonth = useMemo(() => {
-    return format(new Date(), 'MMMM');
-  }, []);
-
   const statusMessage = useMemo(() => {
     if (daysRemaining === 1) {
-      return `Last day to use your ${currentMonth} perks!`;
+      return "Last day to use this month's perks!";
     } else if (daysRemaining <= 3) {
-      return `${daysRemaining} days left to use your ${currentMonth} perks`;
+      return `${daysRemaining} days left to use this month's perks`;
     }
-    return `${daysRemaining} days left in ${currentMonth}`;
-  }, [daysRemaining, currentMonth]);
+    return `${daysRemaining} days left this month`;
+  }, [daysRemaining]);
 
   return (
     <View style={styles.container}>
