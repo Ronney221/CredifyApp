@@ -24,6 +24,8 @@ import { supabase } from '../lib/supabase';
 import { getUserCards } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import ProgressDonut from './components/home/ProgressDonut';
+import ExpandableCard from './components/home/ExpandableCard';
 
 // Import notification functions
 import {
@@ -526,30 +528,36 @@ export default function HomeScreen() {
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.light.tint} />
+            <ActivityIndicator size="large" color="#007aff" />
             <Text style={styles.loadingText}>Loading your cards...</Text>
           </View>
         ) : (
           <>
-            {/* Summary Dashboard with improved styling */}
-            <View style={styles.dashboardContainer}>
-              <Text style={styles.sectionTitle}>Your Rewards Summary</Text>
-              <SummaryDashboard
-                monthlyCreditsRedeemed={monthlyCreditsRedeemed}
-                monthlyCreditsPossible={monthlyCreditsPossible}
-                yearlyCreditsRedeemed={yearlyCreditsRedeemed}
-                yearlyCreditsPossible={yearlyCreditsPossible}
-                summaryContainerStyle={styles.summaryContainer}
-                summaryCardStyle={styles.summaryCard}
-                summaryValueStyle={styles.summaryValue}
-                summaryLabelStyle={styles.summaryLabel}
+            {/* Summary Section with Donut Chart */}
+            <View style={styles.summarySection}>
+              <ProgressDonut
+                progress={monthlyCreditsPossible > 0 ? monthlyCreditsRedeemed / monthlyCreditsPossible : 0}
+                value={monthlyCreditsRedeemed}
+                total={monthlyCreditsPossible}
+                label="Monthly Credits"
+                size={140}
               />
+              <View style={styles.yearlyProgressContainer}>
+                <ProgressDonut
+                  progress={yearlyCreditsPossible > 0 ? yearlyCreditsRedeemed / yearlyCreditsPossible : 0}
+                  value={yearlyCreditsRedeemed}
+                  total={yearlyCreditsPossible}
+                  label="Yearly Credits"
+                  size={100}
+                  color="#34c759"
+                />
+              </View>
             </View>
 
-            {/* Cards and Perks Section */}
-            <View style={styles.cardsPerksContainer}>
+            {/* Cards Section */}
+            <View style={styles.cardsSection}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Your Cards & Perks</Text>
+                <Text style={styles.sectionTitle}>Your Cards</Text>
                 <TouchableOpacity
                   style={styles.addCardButton}
                   onPress={() => router.push({
@@ -557,24 +565,20 @@ export default function HomeScreen() {
                     params: { mode: 'edit' }
                   } as any)}
                 >
-                  <Ionicons name="add-circle-outline" size={24} color="#007aff" />
+                  <Ionicons name="add-circle-outline" size={20} color="#007aff" />
                   <Text style={styles.addCardText}>Add Card</Text>
                 </TouchableOpacity>
               </View>
 
               {userCardsWithPerks.length > 0 ? (
                 userCardsWithPerks.map(({ card, perks }) => (
-                  <UserCardItem
+                  <ExpandableCard
                     key={card.id}
                     card={card}
                     perks={perks}
                     cumulativeSavedValue={cumulativeValueSavedPerCard[card.id] || 0}
                     onTapPerk={handleTapPerk}
                     onLongPressPerk={handleLongPressPerk}
-                    cardDetailItemStyle={styles.cardDetailItem}
-                    cardHeaderContainerStyle={styles.cardHeaderContainer}
-                    cardNameStyle={styles.cardName}
-                    valueSavedTextStyle={styles.valueSavedText}
                   />
                 ))
               ) : (
@@ -596,7 +600,7 @@ export default function HomeScreen() {
               )}
             </View>
 
-            {/* DEV Date Picker moved to the bottom */}
+            {/* DEV Date Picker */}
             <View style={styles.devSection}>
               <TouchableOpacity
                 onPress={() => setShowDatePickerForDev(true)}
@@ -626,7 +630,6 @@ export default function HomeScreen() {
           autoPlay
           loop={false}
           onAnimationFinish={() => {
-            console.log("Celebration animation finished.");
             setShowCelebration(false);
           }}
           style={styles.lottieCelebration}
@@ -688,15 +691,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dashboardContainer: {
-    padding: 20,
+  summarySection: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    backgroundColor: '#ffffff',
+  },
+  yearlyProgressContainer: {
+    marginTop: 16,
+  },
+  cardsSection: {
+    flex: 1,
+    paddingTop: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 20,
@@ -711,39 +723,7 @@ const styles = StyleSheet.create({
   addCardText: {
     color: '#007aff',
     marginLeft: 4,
-    fontSize: 16,
-  },
-  summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 15,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    padding: 15,
-    borderRadius: 16,
-    marginHorizontal: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  summaryValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#007aff',
-    textAlign: 'center',
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#8e8e93',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  cardsPerksContainer: {
-    flex: 1,
+    fontSize: 15,
   },
   noCardsContainer: {
     alignItems: 'center',
@@ -769,18 +749,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  cardDetailItem: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   devSection: {
     padding: 20,
@@ -815,21 +783,5 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1000,
     pointerEvents: 'none',
-  },
-  cardHeaderContainer: { 
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  cardName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-  },
-  valueSavedText: { 
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007aff',
   },
 }); 
