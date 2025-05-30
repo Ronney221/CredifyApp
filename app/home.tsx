@@ -153,7 +153,7 @@ export default function HomeScreen() {
   };
 
   const handleTapPerk = async (cardId: string, perkId: string, perk: any) => {
-    setPerkStatus(cardId, perkId, 'redeemed');
+      setPerkStatus(cardId, perkId, 'redeemed'); 
   };
 
   const handleLongPressPerk = (cardId: string, perkId: string, currentPerk: CardPerk) => {
@@ -216,6 +216,14 @@ export default function HomeScreen() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.tint} />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView 
@@ -228,99 +236,90 @@ export default function HomeScreen() {
       >
         <Header />
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007aff" />
-            <Text style={styles.loadingText}>Loading your cards...</Text>
-          </View>
-        ) : (
-          <>
-            {/* Summary Section with Donut Chart */}
-            <View style={[styles.summarySection, { paddingTop: 0 }]}>
-              <PerkDonutDisplayManager
-                ref={donutDisplayRef}
-                userCardsWithPerks={userCardsWithPerks}
-                monthlyCreditsRedeemed={monthlyCreditsRedeemed}
-                monthlyCreditsPossible={monthlyCreditsPossible}
-              />
-            </View>
-
-            {/* Cards Section */}
-            <View style={styles.cardsSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Your Cards</Text>
-                <TouchableOpacity
-                  style={styles.addCardButton}
-                  onPress={() => router.push({
-                    pathname: '/card-selection-screen',
-                    params: { mode: 'edit' }
-                  } as any)}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color="#007aff" />
-                  <Text style={styles.addCardText}>Add Card</Text>
-                </TouchableOpacity>
-              </View>
-
-              {sortedCards.length > 0 ? (
-                sortedCards.map(({ card, perks }, index) => {
-                  const expandableCardProps = {
-                    card,
-                    perks,
-                    cumulativeSavedValue: cumulativeValueSavedPerCard[card.id] || 0,
-                    onTapPerk: handleTapPerk,
-                    onLongPressPerk: handleLongPressPerk,
-                    onExpandChange: handleCardExpandChange,
-                    onPerkStatusChange: handlePerkStatusChange,
-                    isActive: card.id === activeCardId,
-                    sortIndex: index,
-                  };
-
-                  return React.createElement(ExpandableCard, {
-                    ...expandableCardProps,
-                    key: card.id,
-                  });
-                })
-              ) : (
-                <View style={styles.noCardsContainer}>
-                  <Ionicons name="card-outline" size={48} color="#8e8e93" />
-                  <Text style={styles.noCardsText}>
-                    No cards selected. Add your first card to start tracking rewards!
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.addFirstCardButton}
-                    onPress={() => router.push({
-                      pathname: '/card-selection-screen',
-                      params: { mode: 'edit' }
-                    } as any)}
-                  >
-                    <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* DEV Date Picker */}
-            <View style={styles.devSection}>
-              <TouchableOpacity
-                onPress={() => setShowDatePickerForDev(true)}
-                style={styles.devButton}
-              >
-          <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
-        </TouchableOpacity>
-
-        {showDatePickerForDev && (
-          <DateTimePicker
-            testID="dateTimePickerForDev"
-            value={devSelectedDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDevDateChange}
-            {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
+        {/* Summary Section with Donut Chart */}
+        <View style={[styles.summarySection, { paddingTop: 0 }]}>
+          <PerkDonutDisplayManager
+            ref={donutDisplayRef}
+            userCardsWithPerks={userCardsWithPerks}
+            monthlyCreditsRedeemed={monthlyCreditsRedeemed}
+            monthlyCreditsPossible={monthlyCreditsPossible}
           />
-        )}
+        </View>
+
+        {/* Cards Section */}
+        <View style={styles.cardsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Your Cards</Text>
+            <TouchableOpacity
+              style={styles.addCardButton}
+              onPress={() => router.push({
+                pathname: '/card-selection-screen',
+                params: { mode: 'edit' }
+              } as any)}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#007aff" />
+              <Text style={styles.addCardText}>Add Card</Text>
+            </TouchableOpacity>
+          </View>
+
+          {sortedCards.length > 0 ? (
+            sortedCards.map(({ card, perks }, index) => {
+              const expandableCardProps = {
+                card,
+                perks,
+                cumulativeSavedValue: cumulativeValueSavedPerCard[card.id] || 0,
+                onTapPerk: handleTapPerk,
+                onLongPressPerk: handleLongPressPerk,
+                onExpandChange: handleCardExpandChange,
+                onPerkStatusChange: handlePerkStatusChange,
+                isActive: card.id === activeCardId,
+                sortIndex: index,
+              };
+
+              return React.createElement(ExpandableCard, {
+                ...expandableCardProps,
+                key: card.id,
+              });
+            })
+          ) : (
+            <View style={styles.noCardsContainer}>
+              <Ionicons name="card-outline" size={48} color="#8e8e93" />
+              <Text style={styles.noCardsText}>
+                No cards selected. Add your first card to start tracking rewards!
+              </Text>
+              <TouchableOpacity
+                style={styles.addFirstCardButton}
+                onPress={() => router.push({
+                  pathname: '/card-selection-screen',
+                  params: { mode: 'edit' }
+                } as any)}
+              >
+                <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
+              </TouchableOpacity>
             </View>
-          </>
-        )}
+          )}
+        </View>
+
+        {/* DEV Date Picker */}
+        <View style={styles.devSection}>
+          <TouchableOpacity
+            onPress={() => setShowDatePickerForDev(true)}
+            style={styles.devButton}
+          >
+            <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
+          </TouchableOpacity>
+
+          {showDatePickerForDev && (
+            <DateTimePicker
+              testID="dateTimePickerForDev"
+              value={devSelectedDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDevDateChange}
+              {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
+            />
+          )}
+        </View>
       </ScrollView>
 
       {showCelebration && (

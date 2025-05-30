@@ -77,19 +77,43 @@ export default function ExpandableCard({
   const [redeemedPerkIds, setRedeemedPerkIds] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   
+  console.log(`========= ExpandableCard ${card.name} - Props & State =========`);
+  console.log('Props:', {
+    cardId: card.id,
+    cumulativeSavedValue,
+    numberOfPerks: perks.length,
+    isActive,
+    sortIndex
+  });
+  
   const loadRedeemedPerks = async () => {
     if (!user) return;
     
     try {
+      console.log(`\nLoading redeemed perks for ${card.name}...`);
+      
       // First get perk definitions to map names to IDs
       const { data: perkDefs } = await supabase
         .from('perk_definitions')
-        .select('id, name');
+        .select('id, name, value');
 
-      if (!perkDefs) return;
+      if (!perkDefs) {
+        console.log('No perk definitions found');
+        return;
+      }
 
-      // Create a map of perk names to their database IDs
-      const perkNameToId = new Map(perkDefs.map((p: { name: string; id: string }) => [p.name, p.id]));
+      console.log('Perk definitions loaded:', {
+        count: perkDefs.length,
+        perks: perkDefs.map(p => ({ name: p.name, value: p.value }))
+      });
+
+      // Create a map of perk names to their database IDs and values
+      const perkNameToDetails = new Map(
+        perkDefs.map((p: { name: string; id: string; value: number }) => [
+          p.name, 
+          { id: p.id, value: p.value }
+        ])
+      );
       
       // Get current month's redemptions
       const { data: monthlyData, error } = await getCurrentMonthRedemptions(user.id);
@@ -98,6 +122,14 @@ export default function ExpandableCard({
         return;
       }
 
+      console.log('Monthly redemptions loaded:', {
+        total: monthlyData?.length || 0,
+        redemptions: monthlyData?.map(r => ({
+          perkId: r.perk_id,
+          value: r.value_redeemed
+        }))
+      });
+
       // Create a set of redeemed perk IDs
       const redeemedIds = new Set(monthlyData?.map(redemption => redemption.perk_id) || []);
       
@@ -105,13 +137,19 @@ export default function ExpandableCard({
       const redeemedLocalIds = new Set(
         perks
           .filter(perk => {
-            const dbPerkId = perkNameToId.get(perk.name);
-            return dbPerkId && redeemedIds.has(dbPerkId);
+            const dbPerkDetails = perkNameToDetails.get(perk.name);
+            return dbPerkDetails && redeemedIds.has(dbPerkDetails.id);
           })
           .map(perk => perk.id)
       );
 
-      console.log('Redeemed perks for card:', card.name, Array.from(redeemedLocalIds));
+      console.log(`${card.name} redemption status:`, {
+        redeemedLocalIds: Array.from(redeemedLocalIds),
+        redeemedPerks: perks
+          .filter(p => redeemedLocalIds.has(p.id))
+          .map(p => ({ id: p.id, name: p.name, value: p.value }))
+      });
+
       setRedeemedPerkIds(redeemedLocalIds);
     } catch (error) {
       console.error('Error loading redeemed perks:', error);
@@ -120,6 +158,7 @@ export default function ExpandableCard({
   
   // Load redeemed perks from database
   useEffect(() => {
+    console.log(`${card.name} useEffect triggered - Loading redeemed perks`);
     loadRedeemedPerks();
   }, [user, card.id]);
 
@@ -128,6 +167,13 @@ export default function ExpandableCard({
     const isMonthly = p.periodMonths === 1;
     const isRedeemed = redeemedPerkIds.has(p.id);
     return isMonthly && !isRedeemed;
+  });
+
+  console.log(`${card.name} status:`, {
+    unredeemedPerks: unredeemedPerks.length,
+    totalPerks: perks.length,
+    redeemedPerkIds: Array.from(redeemedPerkIds),
+    cumulativeSavedValue
   });
   
   const hasUnredeemedPerks = unredeemedPerks.length > 0;
@@ -373,29 +419,49 @@ export default function ExpandableCard({
         <View style={styles.cardInfo}>
           <Image source={card.image} style={styles.cardImage} />
           <View style={styles.cardTextContainer}>
-            <View style={styles.cardNameContainer}>
-              <Text style={styles.cardName}>{card.name}</Text>
+            <Text style={styles.cardName}>{card.name}</Text>
+            <View style={styles.cardSubtitle}>
               {isFullyRedeemed ? (
-                <View style={styles.completedBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color="#34c759" />
-                  <Text style={styles.completedText}>All Set</Text>
-                </View>
-              ) : hasUnredeemedPerks && (
-                <View style={styles.pendingBadge}>
-                  <Text style={styles.pendingText}>
-                    {unredeemedPerks.length} pending
+                <Text style={styles.subtitleText}>
+                  <Ionicons name="checkmark-circle" size={14} color="#34c759" /> All perks redeemed
+                  {cumulativeSavedValue > 0 && (
+                    <Text style={styles.subtitleDivider}> • </Text>
+                  )}
+                  {cumulativeSavedValue > 0 && (
+                    <Text style={[styles.subtitleText, styles.savedValueText]}>
+                      {cumulativeSavedValue.toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      })} saved
+                    </Text>
+                  )}
+                </Text>
+              ) : hasUnredeemedPerks ? (
+                <Text style={styles.subtitleText}>
+                  {unredeemedPerks.length} {unredeemedPerks.length === 1 ? 'perk' : 'perks'} left
+                  {cumulativeSavedValue > 0 && (
+                    <Text style={styles.subtitleDivider}> • </Text>
+                  )}
+                  {cumulativeSavedValue > 0 && (
+                    <Text style={[styles.subtitleText, styles.savedValueText]}>
+                      {cumulativeSavedValue.toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      })} saved
+                    </Text>
+                  )}
+                </Text>
+              ) : (
+                cumulativeSavedValue > 0 && (
+                  <Text style={[styles.subtitleText, styles.savedValueText]}>
+                    {cumulativeSavedValue.toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    })} saved
                   </Text>
-                </View>
+                )
               )}
             </View>
-            {cumulativeSavedValue > 0 && (
-              <Text style={styles.savedValue}>
-                {cumulativeSavedValue.toLocaleString('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                })} saved
-              </Text>
-            )}
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -465,48 +531,30 @@ const styles = StyleSheet.create({
   },
   cardTextContainer: {
     flex: 1,
-  },
-  cardNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'center',
   },
   cardName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1c1c1e',
+    marginBottom: 2,
   },
-  savedValue: {
-    fontSize: 14,
-    color: '#34c759',
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  pendingBadge: {
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  pendingText: {
-    fontSize: 12,
-    color: '#1976d2',
-    fontWeight: '500',
-  },
-  completedBadge: {
+  cardSubtitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    gap: 4,
+    flexWrap: 'wrap',
   },
-  completedText: {
-    fontSize: 12,
-    color: '#34c759',
+  subtitleText: {
+    fontSize: 14,
+    color: '#666',
     fontWeight: '500',
+  },
+  subtitleDivider: {
+    color: '#666',
+    fontWeight: '400',
+  },
+  savedValueText: {
+    color: '#34c759',
   },
   perkItem: {
     backgroundColor: '#ffffff',

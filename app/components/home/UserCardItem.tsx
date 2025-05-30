@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Card, CardPerk } from '../../../src/data/card-data';
 import ExpandableCard from './ExpandableCard';
 import { Colors } from '../../constants/Colors';
@@ -11,9 +11,6 @@ interface UserCardItemProps {
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
   onLongPressPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
   cardDetailItemStyle?: object;
-  cardHeaderContainerStyle?: object;
-  cardNameStyle?: object;
-  valueSavedTextStyle?: object;
 }
 
 const UserCardItem: React.FC<UserCardItemProps> = ({
@@ -23,9 +20,6 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
   onTapPerk,
   onLongPressPerk,
   cardDetailItemStyle,
-  cardHeaderContainerStyle,
-  cardNameStyle,
-  valueSavedTextStyle,
 }) => {
   return (
     <View style={[styles.cardDetailItem, cardDetailItemStyle]}>
