@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../../src/data/card-data';
@@ -17,6 +18,9 @@ interface ExpandableCardProps {
   cumulativeSavedValue: number;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
   onLongPressPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
+  onExpandChange?: (cardId: string, isExpanded: boolean) => void;
+  isActive?: boolean;
+  sortIndex: number;
 }
 
 export default function ExpandableCard({
@@ -25,10 +29,41 @@ export default function ExpandableCard({
   cumulativeSavedValue,
   onTapPerk,
   onLongPressPerk,
+  onExpandChange,
+  isActive,
+  sortIndex,
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [animation] = useState(new Animated.Value(0));
   const hasUnredeemedPerks = perks.some(p => p.status === 'available');
   const isFullyRedeemed = !hasUnredeemedPerks;
+
+  // Handle position animation when sort index changes
+  useEffect(() => {
+    Animated.spring(animation, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+    return () => animation.setValue(0);
+  }, [sortIndex]);
+
+  const handleExpand = () => {
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+    onExpandChange?.(card.id, newExpandedState);
+  };
+
+  const translateY = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [50, 0],
+  });
+
+  const scale = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.95, 1],
+  });
 
   const renderPerk = (perk: CardPerk) => {
     const isRedeemed = perk.status === 'redeemed';
@@ -79,13 +114,21 @@ export default function ExpandableCard({
   };
 
   return (
-    <View style={[
-      styles.cardContainer,
-      isFullyRedeemed && styles.fullyRedeemedCard
-    ]}>
+    <Animated.View
+      style={[
+        styles.cardContainer,
+        isFullyRedeemed && styles.fullyRedeemedCard,
+        isActive && styles.activeCard,
+        {
+          transform: [{ translateY }, { scale }],
+          zIndex: isActive ? 2 : 1,
+        },
+      ]}
+    >
       <TouchableOpacity
-        style={styles.cardHeader}
-        onPress={() => setIsExpanded(!isExpanded)}
+        style={[styles.cardHeader, isActive && styles.activeCardHeader]}
+        onPress={handleExpand}
+        activeOpacity={0.7}
       >
         <View style={styles.cardInfo}>
           <Image source={card.image} style={styles.cardImage} />
@@ -139,7 +182,7 @@ export default function ExpandableCard({
           )}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -149,6 +192,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginVertical: 8,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -166,7 +210,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    minHeight: 72,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   cardInfo: {
     flexDirection: 'row',
@@ -314,5 +359,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#34c759',
     fontWeight: '500',
+  },
+  activeCard: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+    borderColor: '#007aff',
+    borderWidth: 1,
+  },
+  activeCardHeader: {
+    backgroundColor: '#f8f9fa',
   },
 }); 

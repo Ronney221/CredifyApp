@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -26,6 +28,7 @@ import { useUserCards } from './hooks/useUserCards';
 import { usePerkStatus } from './hooks/usePerkStatus';
 import { CardPerk } from './types';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
+import { Card } from '../src/data/card-data';
 
 // Import notification functions
 import {
@@ -35,6 +38,11 @@ import {
   cancelAllScheduledNotificationsAsync
 } from './utils/notifications';
 
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string }>();
@@ -43,6 +51,7 @@ export default function HomeScreen() {
   // State for DEV date picker
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
   const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
   // Use custom hooks
   const { userCardsWithPerks, isLoading, error } = useUserCards(params.selectedCardIds);
@@ -58,6 +67,8 @@ export default function HomeScreen() {
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   useFocusEffect(
     useCallback(() => {
       StatusBar.setBarStyle('dark-content');
@@ -65,7 +76,7 @@ export default function HomeScreen() {
         StatusBar.setBackgroundColor('transparent');
         StatusBar.setTranslucent(true);
       }
-      setupNotifications();
+      setupNotifications(); 
     }, [])
   );
 
@@ -105,7 +116,7 @@ export default function HomeScreen() {
   const handleTapPerk = async (cardId: string, perkId: string, perk: any) => {
     const success = await openPerkTarget(perk);
     if (success) {
-      setPerkStatus(cardId, perkId, 'redeemed');
+      setPerkStatus(cardId, perkId, 'redeemed'); 
     }
   };
 
@@ -123,9 +134,9 @@ export default function HomeScreen() {
               onPress: () => setPerkStatus(cardId, perkId, 'available'),
             }
           : {
-              text: "Mark as Redeemed",
-              onPress: () => setPerkStatus(cardId, perkId, 'redeemed'),
-            },
+          text: "Mark as Redeemed",
+          onPress: () => setPerkStatus(cardId, perkId, 'redeemed'),
+        },
         {
           text: "Cancel",
           style: "cancel",
@@ -140,7 +151,7 @@ export default function HomeScreen() {
     setShowDatePickerForDev(false);
     if (event.type === 'set' && selectedDate) {
       setDevSelectedDate(selectedDate);
-      processNewMonth(selectedDate);
+      processNewMonth(selectedDate); 
     }
   };
 
@@ -151,15 +162,39 @@ export default function HomeScreen() {
     return differenceInDays(lastDay, today) + 1;
   };
 
-  const sortCardsByUnredeemedPerks = (cards: { card: { id: string }; perks: CardPerk[] }[]): typeof cards => {
+  const sortCardsByUnredeemedPerks = (cards: { card: Card; perks: CardPerk[] }[]): typeof cards => {
     return [...cards].sort((a, b) => {
+      if (a.card.id === activeCardId) return -1;
+      if (b.card.id === activeCardId) return 1;
+
       const aUnredeemed = a.perks.filter(p => p.status === 'available').length;
       const bUnredeemed = b.perks.filter(p => p.status === 'available').length;
-      return bUnredeemed - aUnredeemed;
+      
+      if (aUnredeemed !== bUnredeemed) {
+        return bUnredeemed - aUnredeemed;
+      }
+      
+      return 0;
     });
   };
 
-  // Sort the cards
+  const handleCardExpandChange = (cardId: string, isExpanded: boolean) => {
+    // Configure the animation
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    
+    setActiveCardId(isExpanded ? cardId : null);
+    
+    if (isExpanded) {
+      // Wait for the next frame to ensure the card has moved to its new position
+      requestAnimationFrame(() => {
+        scrollViewRef.current?.scrollTo({
+          y: 400, // Start 500 pixels from the top
+          animated: true
+        });
+      });
+    }
+  };
+
   const sortedCards = sortCardsByUnredeemedPerks(userCardsWithPerks);
 
   if (error) {
@@ -172,7 +207,10 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Header with User Profile */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
@@ -282,7 +320,7 @@ export default function HomeScreen() {
               </View>
 
               {sortedCards.length > 0 ? (
-                sortedCards.map(({ card, perks }) => (
+                sortedCards.map(({ card, perks }, index) => (
                   <ExpandableCard
                     key={card.id}
                     card={card}
@@ -290,6 +328,9 @@ export default function HomeScreen() {
                     cumulativeSavedValue={cumulativeValueSavedPerCard[card.id] || 0}
                     onTapPerk={handleTapPerk}
                     onLongPressPerk={handleLongPressPerk}
+                    onExpandChange={handleCardExpandChange}
+                    isActive={card.id === activeCardId}
+                    sortIndex={index}
                   />
                 ))
               ) : (
@@ -317,29 +358,29 @@ export default function HomeScreen() {
                 onPress={() => setShowDatePickerForDev(true)}
                 style={styles.devButton}
               >
-                <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
-              </TouchableOpacity>
+          <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
+        </TouchableOpacity>
 
-              {showDatePickerForDev && (
-                <DateTimePicker
-                  testID="dateTimePickerForDev"
-                  value={devSelectedDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleDevDateChange}
-                  {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
-                />
-              )}
+        {showDatePickerForDev && (
+          <DateTimePicker
+            testID="dateTimePickerForDev"
+            value={devSelectedDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDevDateChange}
+            {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
+          />
+        )}
             </View>
           </>
         )}
       </ScrollView>
 
       {showCelebration && (
-        <LottieView
+        <LottieView 
           source={require('../assets/animations/celebration.json')}
-          autoPlay
-          loop={false}
+          autoPlay 
+          loop={false} 
           onAnimationFinish={() => setShowCelebration(false)}
           style={styles.lottieCelebration}
         />
