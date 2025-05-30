@@ -11,7 +11,7 @@ interface PerkStatusHookResult {
   currentCycleIdentifier: string;
   showCelebration: boolean;
   setShowCelebration: (show: boolean) => void;
-  setPerkStatus: (cardId: string, perkId: string, newStatus: 'available' | 'pending' | 'redeemed') => void;
+  setPerkStatus: (cardId: string, perkId: string, newStatus: 'available' | 'redeemed') => void;
   processNewMonth: (forcedDate?: Date) => void;
 }
 
@@ -63,18 +63,42 @@ export function usePerkStatus(
     }
   }, [userCardsWithPerks]);
 
-  const setPerkStatus = (cardId: string, perkId: string, newStatus: 'available' | 'pending' | 'redeemed') => {
+  const setPerkStatus = (cardId: string, perkId: string, newStatus: 'available' | 'redeemed') => {
     const cardData = userCardsWithPerks.find(({ card }) => card.id === cardId);
     if (!cardData) return;
 
     const perk = cardData.perks.find(p => p.id === perkId);
     if (!perk) return;
 
-    if (perk.period === 'monthly' && newStatus === 'redeemed' && perk.status !== 'redeemed' && !redeemedInCurrentCycle[perk.id]) {
-      setRedeemedInCurrentCycle(prev => ({ ...prev, [perk.id]: true }));
-      setCumulativeValueSavedPerCard(prev => ({ ...prev, [cardId]: (prev[cardId] || 0) + perk.value }));
-    } else if (newStatus === 'redeemed' && perk.status !== 'redeemed') {
-      setCumulativeValueSavedPerCard(prev => ({ ...prev, [cardId]: (prev[cardId] || 0) + perk.value }));
+    // Handle cumulative value updates
+    if (newStatus === 'redeemed' && perk.status !== 'redeemed') {
+      // Add value when marking as redeemed
+      setCumulativeValueSavedPerCard(prev => ({
+        ...prev,
+        [cardId]: (prev[cardId] || 0) + perk.value
+      }));
+      if (perk.period === 'monthly') {
+        setRedeemedInCurrentCycle(prev => ({ ...prev, [perk.id]: true }));
+      }
+    } else if (newStatus === 'available' && perk.status === 'redeemed') {
+      // Subtract value when un-redeeming
+      setCumulativeValueSavedPerCard(prev => {
+        const newValue = Math.max(0, (prev[cardId] || 0) - perk.value);
+        const newState = { ...prev };
+        if (newValue === 0) {
+          delete newState[cardId]; // Remove the card if value is 0
+        } else {
+          newState[cardId] = newValue;
+        }
+        return newState;
+      });
+      if (perk.period === 'monthly') {
+        setRedeemedInCurrentCycle(prev => {
+          const newState = { ...prev };
+          delete newState[perk.id];
+          return newState;
+        });
+      }
     }
   };
 
@@ -93,13 +117,6 @@ export function usePerkStatus(
     const newCycleIdentifier = `${newCycleIdentifier_Year}-${newCycleIdentifier_Month}`;
 
     if (newCycleIdentifier !== currentCycleIdentifier || forcedDate) {
-      const [prevYearStr, prevMonthStr] = currentCycleIdentifier.split('-');
-      const prevYear = parseInt(prevYearStr, 10);
-      const prevMonth = parseInt(prevMonthStr, 10);
-
-      const conceptualMonthsPassed = (newCycleIdentifier_Year * 12 + newCycleIdentifier_Month) - (prevYear * 12 + prevMonth);
-      const hasAYearPassed = forcedDate ? conceptualMonthsPassed >= 12 : false;
-
       setCurrentCycleIdentifier(newCycleIdentifier);
       setRedeemedInCurrentCycle({});
     }

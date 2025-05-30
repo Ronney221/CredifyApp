@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, CardPerk } from '../../types';
-import SavingsBadge from './SavingsBadge';
+import { Card } from '../../../src/data/card-data';
+import { CardPerk } from '../../../app/types';
 
 interface ExpandableCardProps {
   card: Card;
@@ -19,60 +26,82 @@ export default function ExpandableCard({
   onTapPerk,
   onLongPressPerk,
 }: ExpandableCardProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [rotateAnim] = useState(new Animated.Value(0));
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const toggleExpanded = () => {
-    setExpanded(!expanded);
-    Animated.spring(rotateAnim, {
-      toValue: expanded ? 0 : 1,
-      useNativeDriver: true,
-    }).start();
+  const renderPerk = (perk: CardPerk) => {
+    const isRedeemed = perk.status === 'redeemed';
+
+    return (
+      <TouchableOpacity
+        key={perk.id}
+        style={[
+          styles.perkItem,
+          isRedeemed && styles.redeemedPerk,
+        ]}
+        onPress={() => onTapPerk(card.id, perk.id, perk)}
+        onLongPress={() => onLongPressPerk(card.id, perk.id, perk)}
+      >
+        <View style={styles.perkContent}>
+          <View style={styles.perkMainInfo}>
+            <Text style={[
+              styles.perkName,
+              isRedeemed && styles.redeemedText
+            ]}>
+              {perk.name}
+            </Text>
+            <Text style={[
+              styles.perkValue,
+              isRedeemed && styles.redeemedText
+            ]}>
+              ${perk.value}
+            </Text>
+          </View>
+          <View style={styles.perkDetails}>
+            <Text style={[
+              styles.perkPeriod,
+              isRedeemed && styles.redeemedText
+            ]}>
+              {perk.period}
+            </Text>
+            {isRedeemed && (
+              <View style={styles.redeemedBadge}>
+                <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                <Text style={styles.redeemedBadgeText}>Redeemed</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={toggleExpanded} style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.cardName}>{card.name}</Text>
-          <SavingsBadge value={cumulativeSavedValue} />
+    <View style={styles.cardContainer}>
+      <TouchableOpacity
+        style={styles.cardHeader}
+        onPress={() => setIsExpanded(!isExpanded)}
+      >
+        <View style={styles.cardInfo}>
+          <Image source={card.image} style={styles.cardImage} />
+          <View style={styles.cardTextContainer}>
+            <Text style={styles.cardName}>{card.name}</Text>
+            {cumulativeSavedValue > 0 && (
+              <Text style={styles.savedValue}>
+                ${cumulativeSavedValue} saved
+              </Text>
+            )}
+          </View>
         </View>
-        <Animated.View style={{ transform: [{ rotate: spin }] }}>
-          <Ionicons name="chevron-down" size={20} color="#8e8e93" />
-        </Animated.View>
+        <Ionicons
+          name={isExpanded ? 'chevron-up' : 'chevron-down'}
+          size={24}
+          color="#8e8e93"
+        />
       </TouchableOpacity>
 
-      {expanded && (
+      {isExpanded && (
         <View style={styles.perksContainer}>
-          {perks.map((perk) => (
-            <TouchableOpacity
-              key={perk.id}
-              style={styles.perkRow}
-              onPress={() => onTapPerk(card.id, perk.id, perk)}
-              onLongPress={() => onLongPressPerk(card.id, perk.id, perk)}
-            >
-              <View style={styles.perkInfo}>
-                <Text style={styles.perkName}>{perk.name}</Text>
-                <Text style={styles.perkValue}>
-                  ${perk.value} /{perk.period}
-                </Text>
-              </View>
-              <View style={styles.perkStatus}>
-                {perk.status === 'redeemed' ? (
-                  <Ionicons name="checkmark-circle" size={24} color="#34c759" />
-                ) : perk.status === 'pending' ? (
-                  <Ionicons name="time" size={24} color="#ff9500" />
-                ) : (
-                  <Ionicons name="arrow-forward-circle" size={24} color="#007aff" />
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+          {perks.map(renderPerk)}
         </View>
       )}
     </View>
@@ -80,59 +109,113 @@ export default function ExpandableCard({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  cardContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 12,
     marginHorizontal: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
+    marginVertical: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
-  header: {
+  cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
   },
-  headerContent: {
+  cardInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  cardImage: {
+    width: 40,
+    height: 25,
+    resizeMode: 'contain',
+    marginRight: 12,
+  },
+  cardTextContainer: {
     flex: 1,
   },
   cardName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1c1c1e',
   },
+  savedValue: {
+    fontSize: 14,
+    color: '#34c759',
+    marginTop: 4,
+  },
   perksContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#f2f2f7',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  perkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  perkItem: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginVertical: 4,
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f2f2f7',
   },
-  perkInfo: {
+  redeemedPerk: {
+    backgroundColor: '#f0f9f4',
+    borderColor: '#34c759',
+    borderWidth: 1,
+  },
+  perkContent: {
     flex: 1,
+  },
+  perkMainInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   perkName: {
     fontSize: 15,
     fontWeight: '500',
     color: '#1c1c1e',
-    marginBottom: 2,
+    flex: 1,
+    marginRight: 8,
   },
   perkValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c1c1e',
+  },
+  perkDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  perkPeriod: {
     fontSize: 13,
     color: '#8e8e93',
+    textTransform: 'capitalize',
   },
-  perkStatus: {
-    marginLeft: 12,
+  redeemedText: {
+    color: '#34c759',
+  },
+  redeemedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#34c759',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  redeemedBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
 }); 

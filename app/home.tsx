@@ -109,21 +109,20 @@ export default function HomeScreen() {
 
   const handleLongPressPerk = (cardId: string, perkId: string, currentPerk: any) => {
     Alert.alert(
-      `Manage Perk: ${currentPerk.name}`,
-      "Set perk status:",
+      `Manage ${currentPerk.name}`,
+      currentPerk.status === 'redeemed' 
+        ? "This perk has been redeemed. Would you like to mark it as available again?"
+        : "Would you like to mark this perk as redeemed?",
       [
-        {
-          text: "Mark as Redeemed",
-          onPress: () => setPerkStatus(cardId, perkId, 'redeemed'),
-        },
-        {
-          text: "Mark as Pending",
-          onPress: () => setPerkStatus(cardId, perkId, 'pending'),
-        },
-        {
-          text: "Clear Status (Set to Available)",
-          onPress: () => setPerkStatus(cardId, perkId, 'available'),
-        },
+        currentPerk.status === 'redeemed' 
+          ? {
+              text: "Mark as Available",
+              onPress: () => setPerkStatus(cardId, perkId, 'available'),
+            }
+          : {
+              text: "Mark as Redeemed",
+              onPress: () => setPerkStatus(cardId, perkId, 'redeemed'),
+            },
         {
           text: "Cancel",
           style: "cancel",
