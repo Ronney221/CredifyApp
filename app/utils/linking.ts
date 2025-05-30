@@ -1,5 +1,6 @@
 import { Linking, Alert, Platform } from 'react-native';
-import { CardPerk } from '../home'; // Assuming CardPerk is exported from home.tsx
+import * as Application from 'expo-application';
+import { CardPerk, multiChoicePerksConfig } from '../types';
 
 interface PerkTargetConfig {
   appScheme: string;
@@ -138,93 +139,159 @@ const perkNameMappings: Record<string, PerkTargetConfig> = {
   },
 };
 
-export const openPerkTarget = async (perk: CardPerk): Promise<boolean> => {
-  const targetConfig = perkNameMappings[perk.name];
+// App URL schemes
+const APP_SCHEMES = {
+  uber: {
+    ios: 'uber://',
+    android: 'uber://',
+    fallback: 'https://m.uber.com/',
+    androidPackage: 'com.ubercab',
+  },
+  uberEats: {
+    ios: 'ubereats://',
+    android: 'ubereats://',
+    fallback: 'https://www.ubereats.com/',
+    androidPackage: 'com.ubercab.eats',
+  },
+  grubhub: {
+    ios: 'grubhub://',
+    android: 'grubhub://',
+    fallback: 'https://www.grubhub.com/',
+    androidPackage: 'com.grubhub.android',
+  },
+  disneyPlus: {
+    ios: 'disneyplus://',
+    android: 'disneyplus://',
+    fallback: 'https://www.disneyplus.com/',
+    androidPackage: 'com.disney.disneyplus',
+  },
+  hulu: {
+    ios: 'hulu://',
+    android: 'hulu://',
+    fallback: 'https://www.hulu.com/',
+    androidPackage: 'com.hulu.plus',
+  },
+  espn: {
+    ios: 'espn://',
+    android: 'espn://',
+    fallback: 'https://www.espn.com/',
+    androidPackage: 'com.espn.score_center',
+  },
+  peacock: {
+    ios: 'peacock://',
+    android: 'peacocktv://',
+    fallback: 'https://www.peacocktv.com/',
+    androidPackage: 'com.peacocktv.peacockandroid',
+  },
+  nytimes: {
+    ios: 'nytimes://',
+    android: 'nytimes://',
+    fallback: 'https://www.nytimes.com/',
+    androidPackage: 'com.nytimes.android',
+  },
+};
 
-  if (!targetConfig) {
-    Alert.alert(
-      "Unsupported Perk",
-      `Deep linking for "${perk.name}" is not configured yet. Would you like to search for it online?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Search Online", 
-          onPress: () => Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(perk.name)}`).catch(err => console.error("Failed to open search:", err))
-        }
-      ]
-    );
-    console.warn(`No target configured for perk name: ${perk.name} (ID: ${perk.id})`);
+// Map perk names to their corresponding app schemes
+const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
+  'Uber Ride Credit': 'uber',
+  'Uber Eats Credit': 'uberEats',
+  'Grubhub Credit': 'grubhub',
+  'Disney+ Credit': 'disneyPlus',
+  'Hulu Credit': 'hulu',
+  'ESPN+ Credit': 'espn',
+  'Peacock Credit': 'peacock',
+  'NYTimes Credit': 'nytimes',
+};
+
+async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean> {
+  const appSchemes = APP_SCHEMES[appKey];
+  try {
+    if (Platform.OS === 'ios') {
+      return await Linking.canOpenURL(appSchemes.ios);
+    } else {
+      // On Android, we can check if the package is installed
+      return await Linking.canOpenURL(appSchemes.android);
+    }
+  } catch (error) {
+    console.log(`Error checking if app is installed for ${appKey}:`, error);
+    return false;
+  }
+}
+
+async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<boolean> {
+  const appSchemes = APP_SCHEMES[appKey];
+  const scheme = Platform.select({
+    ios: appSchemes.ios,
+    android: appSchemes.android,
+  });
+  
+  if (!scheme) {
+    console.log(`No scheme found for platform: ${Platform.OS}`);
     return false;
   }
 
-  const { appScheme, websiteUrl, appName, appStoreUrlIOS, appStoreUrlAndroid } = targetConfig;
-  const friendlyAppName = appName || perk.name.split(' ')[0]; // Default to first word of perk name if appName not specified
-
   try {
-    console.log(`[linking.ts] Checking if app can be opened with scheme: ${appScheme} for perk: ${perk.name}`);
-    const canOpenApp = await Linking.canOpenURL(appScheme).catch(err => {
-      console.error(`[linking.ts] Error calling canOpenURL for ${appScheme}:`, err);
-      return false;
-    });
-    console.log(`[linking.ts] canOpenURL for ${appScheme} returned: ${canOpenApp}`);
-
-    if (canOpenApp) {
-      await Linking.openURL(appScheme);
-      return true; // App scheme successfully launched
-    } else {
-      const storeURL = Platform.OS === 'ios' ? appStoreUrlIOS : appStoreUrlAndroid;
-
-      if (storeURL) {
-        Alert.alert(
-          `${friendlyAppName} App Not Installed`,
-          `The ${friendlyAppName} app is not installed. Would you like to install it from the app store?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            { 
-              text: "Install App", 
-              onPress: () => Linking.openURL(storeURL).catch(err => {
-                console.error(`Failed to open app store link for ${friendlyAppName}:`, err);
-                // Fallback to website if store link fails
-                Alert.alert(
-                  "Could Not Open Store",
-                  `We couldn't open the app store. Would you like to visit the ${friendlyAppName} website instead?`,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Open Website", onPress: () => Linking.openURL(websiteUrl).catch(webErr => console.error("Failed to open website:", webErr)) }
-                  ]
-                );
-              }) 
-            }
-          ]
-        );
-      } else { // Original fallback: no specific store URL configured
-        Alert.alert(
-          "App Not Installed",
-          `The ${friendlyAppName} app is not installed. Would you like to visit their website instead?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Open Website", onPress: () => Linking.openURL(websiteUrl).catch(err => console.error("Failed to open website:", err)) }
-          ]
-        );
-      }
-      return false; // App not installed or store link chosen
-    }
+    const isInstalled = await isAppInstalled(appKey);
+    const urlToOpen = isInstalled ? scheme : appSchemes.fallback;
+    
+    await Linking.openURL(urlToOpen);
+    return true;
   } catch (error) {
-    console.error(`Failed to process deep link for perk "${perk.name}":`, error);
-    Alert.alert(
-      "Error Opening Link",
-      "An unexpected error occurred while trying to open the link. Please try again later.",
-      [{ text: "OK" }]
-    );
-    // Optionally, try to open the website as a last resort if the error was specific to the app scheme attempt
-    // Alert.alert(
-    //   "Error",
-    //   `Could not open the ${friendlyAppName} app. Would you like to try their website?`,
-    //   [
-    //     { text: "Cancel", style: "cancel" },
-    //     { text: "Open Website", onPress: () => Linking.openURL(websiteUrl).catch(err => console.error("Failed to open website as fallback:", err)) }
-    //   ]
-    // );
-    return false; // Error occurred
+    console.error(`Error opening ${appKey}:`, error);
+    // If the deep link fails, try the fallback URL
+    try {
+      await Linking.openURL(appSchemes.fallback);
+      return true;
+    } catch (fallbackError) {
+      console.error('Fallback URL also failed:', fallbackError);
+      return false;
+    }
   }
-}; 
+}
+
+export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
+  // Check if this is a multi-choice perk
+  const choices = multiChoicePerksConfig[perk.name];
+
+  if (choices) {
+    // Return a promise that resolves when the user makes a choice
+    return new Promise((resolve) => {
+      Alert.alert(
+        `Redeem ${perk.name}`,
+        "Choose an app to open:",
+        [
+          ...choices.map(choice => ({
+            text: choice.label,
+            onPress: async () => {
+              const appKey = PERK_TO_APP_MAP[choice.targetPerkName];
+              if (!appKey) {
+                console.log(`No app mapping found for perk: ${choice.targetPerkName}`);
+                resolve(false);
+                return;
+              }
+              const success = await openAppOrFallback(appKey);
+              resolve(success);
+            },
+          })),
+          { 
+            text: "Cancel", 
+            style: "cancel",
+            onPress: () => resolve(false)
+          },
+        ],
+        { 
+          cancelable: true,
+          onDismiss: () => resolve(false)
+        }
+      );
+    });
+  } else {
+    // Single-target perk
+    const appKey = PERK_TO_APP_MAP[perk.name];
+    if (!appKey) {
+      console.log(`No app mapping found for perk: ${perk.name}`);
+      return false;
+    }
+    return openAppOrFallback(appKey);
+  }
+} 
