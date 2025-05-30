@@ -490,7 +490,7 @@ export default function HomeScreen() {
                     },
                     {
                       text: 'Edit Cards',
-                      onPress: () => router.push('/card-selection'),
+                      onPress: () => router.push('/card-selection-screen'),
                     },
                     {
                       text: 'Sign Out',
@@ -556,7 +556,7 @@ export default function HomeScreen() {
                 <Text style={styles.sectionTitle}>Your Cards & Perks</Text>
                 <TouchableOpacity
                   style={styles.addCardButton}
-                  onPress={() => router.push('/card-selection')}
+                  onPress={() => router.push('/card-selection-screen')}
                 >
                   <Ionicons name="add-circle-outline" size={24} color="#007aff" />
                   <Text style={styles.addCardText}>Add Card</Text>
@@ -586,7 +586,7 @@ export default function HomeScreen() {
                   </Text>
                   <TouchableOpacity
                     style={styles.addFirstCardButton}
-                    onPress={() => router.push('/card-selection')}
+                    onPress={() => router.push('/card-selection-screen')}
                   >
                     <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
                   </TouchableOpacity>
