@@ -29,7 +29,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIStatusBarHidden": false,
         "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
-        "UIViewControllerBasedStatusBarAppearance": false
+        "UIViewControllerBasedStatusBarAppearance": true
       }
     },
     "android": {
