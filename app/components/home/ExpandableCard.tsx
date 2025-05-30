@@ -12,11 +12,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../../src/data/card-data';
 import { CardPerk } from '../../../app/types';
 
-interface ExpandableCardProps {
+export interface ExpandableCardProps {
   card: Card;
   perks: CardPerk[];
   cumulativeSavedValue: number;
-  onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
+  onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
   onLongPressPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
   onExpandChange?: (cardId: string, isExpanded: boolean) => void;
   isActive?: boolean;

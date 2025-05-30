@@ -12,6 +12,8 @@ import {
   Image,
   LayoutAnimation,
   UIManager,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -22,8 +24,8 @@ import { Colors } from '../constants/Colors';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import ProgressDonut from './components/home/ProgressDonut';
-import ExpandableCard from './components/home/ExpandableCard';
+import PerkDonutDisplayManager from './components/home/PerkDonutDisplayManager';
+import ExpandableCard, { ExpandableCardProps } from './components/home/ExpandableCard';
 import { useUserCards } from './hooks/useUserCards';
 import { usePerkStatus } from './hooks/usePerkStatus';
 import { CardPerk } from './types';
@@ -208,8 +210,9 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView 
-        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
+        ref={scrollViewRef}
+        scrollEventThrottle={16}
       >
         {/* Header with User Profile */}
         <View style={styles.header}>
@@ -283,24 +286,12 @@ export default function HomeScreen() {
         ) : (
           <>
             {/* Summary Section with Donut Chart */}
-            <View style={styles.summarySection}>
-              <ProgressDonut
-                progress={monthlyCreditsPossible > 0 ? monthlyCreditsRedeemed / monthlyCreditsPossible : 0}
-                value={monthlyCreditsRedeemed}
-                total={monthlyCreditsPossible}
-                label="Monthly Credits"
-                size={140}
+            <View style={[styles.summarySection, { paddingTop: 0 }]}>
+              <PerkDonutDisplayManager
+                userCardsWithPerks={userCardsWithPerks}
+                monthlyCreditsRedeemed={monthlyCreditsRedeemed}
+                monthlyCreditsPossible={monthlyCreditsPossible}
               />
-              <View style={styles.yearlyProgressContainer}>
-                <ProgressDonut
-                  progress={yearlyCreditsPossible > 0 ? yearlyCreditsRedeemed / yearlyCreditsPossible : 0}
-                  value={yearlyCreditsRedeemed}
-                  total={yearlyCreditsPossible}
-                  label="Yearly Credits"
-                  size={100}
-                  color="#34c759"
-                />
-              </View>
             </View>
 
             {/* Cards Section */}
@@ -320,19 +311,21 @@ export default function HomeScreen() {
               </View>
 
               {sortedCards.length > 0 ? (
-                sortedCards.map(({ card, perks }, index) => (
-                  <ExpandableCard
-                    key={card.id}
-                    card={card}
-                    perks={perks}
-                    cumulativeSavedValue={cumulativeValueSavedPerCard[card.id] || 0}
-                    onTapPerk={handleTapPerk}
-                    onLongPressPerk={handleLongPressPerk}
-                    onExpandChange={handleCardExpandChange}
-                    isActive={card.id === activeCardId}
-                    sortIndex={index}
-                  />
-                ))
+                sortedCards.map(({ card, perks }, index) => {
+                  return (
+                    <ExpandableCard
+                      key={card.id}
+                      card={card}
+                      perks={perks}
+                      cumulativeSavedValue={cumulativeValueSavedPerCard[card.id] || 0}
+                      onTapPerk={handleTapPerk}
+                      onLongPressPerk={handleLongPressPerk}
+                      onExpandChange={handleCardExpandChange}
+                      isActive={card.id === activeCardId}
+                      sortIndex={index}
+                    />
+                  );
+                })
               ) : (
                 <View style={styles.noCardsContainer}>
                   <Ionicons name="card-outline" size={48} color="#8e8e93" />
@@ -443,11 +436,8 @@ const styles = StyleSheet.create({
   },
   summarySection: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 12,
     backgroundColor: '#ffffff',
-  },
-  yearlyProgressContainer: {
-    marginTop: 16,
   },
   cardsSection: {
     flex: 1,
