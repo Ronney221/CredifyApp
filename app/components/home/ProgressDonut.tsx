@@ -1,6 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Svg, Circle } from 'react-native-svg';
+import Animated, { 
+  useAnimatedProps, 
+  withTiming, 
+  Easing,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 interface ProgressDonutProps {
   progress: number; // 0 to 1
@@ -8,40 +15,56 @@ interface ProgressDonutProps {
   strokeWidth?: number;
   color?: string;
   backgroundColor?: string;
-  value: number;
-  total: number;
+  amount: string;
   label: string;
-  valueLabel?: string; // Optional custom value label
+  detail: string;
+  perksCount?: string;
 }
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function ProgressDonut({
   progress,
   size = 120,
-  strokeWidth = 10,
-  color = '#007aff',
-  backgroundColor = '#f2f2f7',
-  value,
-  total,
+  strokeWidth = 6,
+  color = Platform.OS === 'ios' ? '#007AFF' : 'dodgerblue',
+  backgroundColor = '#ECECEC',
+  amount,
   label,
-  valueLabel,
+  detail,
+  perksCount,
 }: ProgressDonutProps) {
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - progress);
+  
+  // Use shared value for animation
+  const progressValue = useSharedValue(progress);
+  
+  // Update progress value when prop changes
+  React.useEffect(() => {
+    progressValue.value = withTiming(progress, {
+      duration: 600,
+      easing: Easing.bezier(0.4, 0, 0.2, 1), // ease-in-out cubic
+    });
+  }, [progress]);
 
-  // Only format numbers if no custom valueLabel is provided
-  const formattedValue = valueLabel || value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+  const animatedProps = useAnimatedProps(() => {
+    // Calculate the offset - note that we subtract from circumference
+    // because we want the filled part to start from the top
+    const strokeDashoffset = circumference * (1 - progressValue.value);
+    return {
+      strokeDashoffset,
+    };
   });
 
   return (
     <View style={styles.container}>
+      <Text style={styles.amount}>{amount}</Text>
+      <Text style={styles.label}>{label}</Text>
+      
       <View style={styles.donutContainer}>
-        <Svg width={size} height={size} style={styles.svg}>
+        <Svg width={size} height={size}>
           {/* Background circle */}
           <Circle
             cx={center}
@@ -51,28 +74,30 @@ export default function ProgressDonut({
             strokeWidth={strokeWidth}
             fill="none"
           />
-          {/* Progress circle */}
-          <Circle
+          {/* Animated progress circle */}
+          <AnimatedCircle
             cx={center}
             cy={center}
             r={radius}
             stroke={color}
             strokeWidth={strokeWidth}
             strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={strokeDashoffset}
+            strokeDashoffset={0}
+            animatedProps={animatedProps}
             strokeLinecap="round"
             fill="none"
-            origin={`${center}, ${center}`}
-            rotation={-90}
+            transform={`rotate(-90 ${center} ${center})`}
           />
         </Svg>
-        <View style={[styles.textContainer, { width: size, height: size }]}>
-          <Text style={[styles.valueText, { color }]} numberOfLines={2} adjustsFontSizeToFit>
-            {formattedValue}
-          </Text>
-        </View>
+        
+        {perksCount && (
+          <View style={styles.centerTextContainer}>
+            <Text style={styles.centerText}>{perksCount}</Text>
+          </View>
+        )}
       </View>
-      <Text style={styles.label}>{label}</Text>
+      
+      <Text style={styles.detail}>{detail}</Text>
     </View>
   );
 }
@@ -80,32 +105,48 @@ export default function ProgressDonut({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    marginVertical: 20,
+  },
+  amount: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#000',
+    textAlign: 'center',
+    letterSpacing: 0.41,
+  },
+  label: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#3C3C4399',
+    marginTop: 4,
+    marginBottom: 20,
+    textAlign: 'center',
+    letterSpacing: -0.41,
   },
   donutContainer: {
     position: 'relative',
-  },
-  svg: {
-    transform: [{ rotate: '-90deg' }],
-  },
-  textContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    justifyContent: 'center',
   },
-  valueText: {
-    fontSize: 16,
-    fontWeight: '600',
+  centerTextContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  centerText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3C3C4399',
     textAlign: 'center',
   },
-  label: {
-    fontSize: 14,
-    color: '#8e8e93',
-    marginTop: 8,
+  detail: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3C3C4399',
+    marginTop: 16,
     textAlign: 'center',
+    letterSpacing: -0.24,
   },
 }); 

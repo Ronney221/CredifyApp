@@ -1,19 +1,13 @@
 import React, { useState, useMemo, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, Platform } from 'react-native';
+import { PerksToggle } from './PerksToggle';
 import ProgressDonut from './ProgressDonut';
-import { Card, CardPerk, Benefit } from '../../../src/data/card-data';
+import { Card, CardPerk } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { getCurrentMonthRedemptions, getAnnualRedemptions } from '../../../lib/database';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 type SegmentKey = 'monthly' | 'annualFees';
-
-interface Segment {
-  key: SegmentKey;
-  label: string;
-  icon: string;
-}
 
 interface PerkDonutDisplayManagerProps {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
@@ -195,13 +189,21 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
 
     // Instead of using local state, calculate redeemed count based on monthlyRedemptions
     // Assuming average perk value is monthlyPossibleTotal / totalMonthlyPerks
-    const avgPerkValue = monthlyCreditsPossible / totalMonthlyPerks;
-    const estimatedRedeemedCount = Math.round(monthlyRedemptions / avgPerkValue);
+    const avgPerkValue = totalMonthlyPerks > 0 ? monthlyCreditsPossible / totalMonthlyPerks : 0;
+    const estimatedRedeemedCount = avgPerkValue > 0 ? Math.round(monthlyRedemptions / avgPerkValue) : 0;
     
     console.log('Redemption calculation:', {
       avgPerkValue,
       monthlyRedemptions,
       estimatedRedeemedCount
+    });
+
+    // Log progress calculation for debugging
+    const monthlyProgress = monthlyPossibleTotal > 0 ? monthlyRedemptions / monthlyPossibleTotal : 0;
+    console.log('Monthly Progress Calculation:', {
+      monthlyRedemptions,
+      monthlyPossibleTotal,
+      progress: monthlyProgress,
     });
 
     // Log final metrics
@@ -210,7 +212,7 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
       totalMonthlyPerks,
       monthlyRedemptions,
       monthlyCreditsPossible,
-      progress: monthlyPossibleTotal > 0 ? monthlyRedemptions / monthlyPossibleTotal : 0
+      progress: monthlyProgress,
     };
     console.log('Final metrics:', metrics);
     console.log('===============================================');
@@ -218,43 +220,57 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
     return {
       value: monthlyRedemptions,
       total: monthlyPossibleTotal,
-      progress: monthlyPossibleTotal > 0 ? monthlyRedemptions / monthlyPossibleTotal : 0,
-      primaryMetric: {
-        value: monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        label: 'Monthly Value Redeemed',
-      },
-      secondaryMetric: {
-        value: `${estimatedRedeemedCount} of ${totalMonthlyPerks} monthly perks`,
-        label: 'Monthly Perks Used',
-      },
-      donutLabel: {
-        value: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} / ${monthlyPossibleTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
-        label: 'Monthly Credits',
-      },
-      color: '#2196f3',
+      progress: monthlyProgress,
+      amount: monthlyRedemptions.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+      }),
+      label: 'Monthly Perks Redeemed',
+      detail: `${monthlyRedemptions.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+      })} / ${monthlyPossibleTotal.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+      })}`,
+      perksCount: `${estimatedRedeemedCount} of ${totalMonthlyPerks}`,
+      color: Platform.OS === 'ios' ? '#007AFF' : 'dodgerblue',
     };
   }, [userCardsWithPerks, monthlyRedemptions, monthlyPossibleTotal]);
 
   const annualFeesData = useMemo(() => {
-    const formattedFees = totalAnnualFees.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-    const formattedRedeemedValue = annualRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    const formattedFees = totalAnnualFees.toLocaleString('en-US', { 
+      style: 'currency', 
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    });
+    const formattedRedeemedValue = annualRedemptions.toLocaleString('en-US', { 
+      style: 'currency', 
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    });
+    
+    const breakEvenPercent = totalAnnualFees > 0 
+      ? Math.round((annualRedemptions / totalAnnualFees) * 100)
+      : 0;
+    
+    // Log progress calculation for debugging
+    const annualProgress = totalAnnualFees > 0 ? annualRedemptions / totalAnnualFees : 0;
+    console.log('Annual Progress Calculation:', {
+      annualRedemptions,
+      totalAnnualFees,
+      progress: annualProgress,
+    });
     
     return {
       value: annualRedemptions,
       total: totalAnnualFees,
-      progress: totalAnnualFees > 0 ? annualRedemptions / totalAnnualFees : 0,
-      primaryMetric: {
-        value: formattedRedeemedValue,
-        label: 'Total Value Redeemed',
-      },
-      secondaryMetric: {
-        value: `${((totalAnnualFees > 0 ? annualRedemptions / totalAnnualFees : 0) * 100).toFixed(0)}% of annual fees`,
-        label: 'Break-even Progress',
-      },
-      donutLabel: {
-        value: `${formattedRedeemedValue} / ${formattedFees}`,
-        label: 'Annual Break-even',
-      },
+      progress: annualProgress,
+      amount: formattedRedeemedValue,
+      label: 'Annual Value Redeemed',
+      detail: `${formattedRedeemedValue} / ${formattedFees}`,
+      perksCount: `${breakEvenPercent}% of fees`,
       color: '#5856d6',
     };
   }, [annualRedemptions, totalAnnualFees]);
@@ -263,68 +279,26 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
     return <View style={styles.container} />;
   }
 
-  const segments: Segment[] = [
-    { key: 'monthly', label: 'Monthly', icon: '📅' },
-    { key: 'annualFees', label: 'Annual', icon: '💳' },
-  ];
-
   const activeData = activeSegmentKey === 'monthly' ? monthlyPerkData : annualFeesData;
 
   return (
-    <View style={styles.managerContainer}>
-      <View style={styles.segmentedControlWrapper}>
-        <View style={styles.segmentedControlContainer}>
-          {segments.map((segment, index) => (
-            <TouchableOpacity
-              key={segment.key}
-              style={[
-                styles.segmentButton,
-                activeSegmentKey === segment.key && styles.activeSegment,
-                index === 0 && styles.firstSegmentButton,
-                index === segments.length - 1 && styles.lastSegmentButton,
-              ]}
-              onPress={() => setActiveSegmentKey(segment.key)}
-            >
-              <Ionicons 
-                name={segment.key === 'monthly' ? 'calendar-outline' : 'card-outline'} 
-                size={18} 
-                color={activeSegmentKey === segment.key ? '#007aff' : '#666'}
-              />
-              <Text
-                style={[
-                  styles.segmentText,
-                  activeSegmentKey === segment.key && styles.activeSegmentText,
-                ]}
-              >
-                {segment.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+    <View style={[styles.metricsContainer, { opacity: isRefreshing ? 0.6 : 1 }]}>
+      <PerksToggle
+        selectedMode={activeSegmentKey}
+        onModeChange={setActiveSegmentKey}
+      />
 
-      <View style={[styles.metricsContainer, { opacity: isRefreshing ? 0.6 : 1 }]}>
-        <View style={styles.primaryMetric}>
-          <Text style={styles.primaryValue}>{activeData.primaryMetric.value}</Text>
-          <Text style={styles.primaryLabel}>{activeData.primaryMetric.label}</Text>
-        </View>
-
-        <ProgressDonut
-          size={120}
-          strokeWidth={12}
-          progress={activeData.progress}
-          value={activeData.value}
-          total={activeData.total}
-          color={activeData.color}
-          label={activeData.donutLabel.label}
-          valueLabel={activeData.donutLabel.value}
-        />
-
-        <View style={styles.secondaryMetric}>
-          <Text style={styles.secondaryValue}>{activeData.secondaryMetric.value}</Text>
-          <Text style={styles.secondaryLabel}>{activeData.secondaryMetric.label}</Text>
-        </View>
-      </View>
+      <ProgressDonut
+        size={120}
+        strokeWidth={6}
+        progress={activeData.progress}
+        amount={activeData.amount}
+        label={activeData.label}
+        detail={activeData.detail}
+        perksCount={activeData.perksCount}
+        color={activeData.color}
+        backgroundColor="#ECECEC"
+      />
     </View>
   );
 });
@@ -332,109 +306,29 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
 PerkDonutDisplayManager.displayName = 'PerkDonutDisplayManager';
 
 const styles = StyleSheet.create({
-  managerContainer: {
+  metricsContainer: {
     alignItems: 'center',
     width: '100%',
     paddingTop: 8,
-  },
-  segmentedControlWrapper: {
-    width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  segmentedControlContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 12,
-    padding: 4,
-    width: '100%',
-    maxWidth: 280,
-  },
-  segmentButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  firstSegmentButton: {
-    borderTopLeftRadius: 10,
-    borderBottomLeftRadius: 10,
-  },
-  lastSegmentButton: {
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10,
-  },
-  activeSegment: {
-    backgroundColor: '#ffffff',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  segmentText: {
-    fontSize: 15,
-    color: '#666',
-    fontWeight: '500',
-  },
-  activeSegmentText: {
-    color: '#007aff',
-    fontWeight: '600',
-  },
-  metricsContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  primaryMetric: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  primaryValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1c1c1e',
-    letterSpacing: -0.5,
-  },
-  primaryLabel: {
-    fontSize: 15,
-    color: '#666',
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  secondaryMetric: {
-    alignItems: 'center',
-    marginTop: 16,
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  secondaryValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1c1e',
-  },
-  secondaryLabel: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
-    marginTop: 2,
   },
   container: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     padding: 16,
+  },
+  perksUsedContainer: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  perksUsedText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3C3C4399',
+    textAlign: 'center',
   },
 });
 

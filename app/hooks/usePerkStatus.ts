@@ -125,6 +125,11 @@ export function usePerkStatus(
                 } else if (matchingPerk.periodMonths === 12) {
                   yRedeemed += value;
                 }
+
+                // Mark as redeemed in current cycle
+                if (matchingPerk.periodMonths === 1) {
+                  setRedeemedInCurrentCycle(prev => ({ ...prev, [matchingPerk.id]: true }));
+                }
                 break;
               }
             }
@@ -134,7 +139,8 @@ export function usePerkStatus(
         console.log('Calculated savings:', {
           perCard: newSavings,
           monthly: { redeemed: mRedeemed, possible: mPossible },
-          yearly: { redeemed: yRedeemed, possible: yPossible }
+          yearly: { redeemed: yRedeemed, possible: yPossible },
+          redemptions: monthlyRedemptions
         });
 
         setMonthlyCreditsPossible(mPossible);
@@ -195,84 +201,108 @@ export function usePerkStatus(
       return;
     }
 
-    // Update the perk status
-    perk.status = newStatus;
+    try {
+      // Get current month's start and end dates
+      const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      const currentMonthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
 
-    // Update monthly/yearly credits
-    if (perk.periodMonths === 1) {
-      if (newStatus === 'redeemed') {
-        setMonthlyCreditsRedeemed(prev => {
-          const newValue = Number((prev + perk.value).toFixed(2));
-          console.log('Updating monthly credits redeemed:', { prev, new: newValue });
-          return newValue;
+      // Check if this perk is already redeemed in the database for this month
+      const { data: existingRedemptions } = await supabase
+        .from('perk_redemptions')
+        .select('id, value_redeemed')
+        .eq('user_id', user.id)
+        .eq('perk_id', perkId)
+        .gte('redemption_date', currentMonthStart.toISOString())
+        .lte('redemption_date', currentMonthEnd.toISOString());
+
+      const isRedeemedInDb = existingRedemptions && existingRedemptions.length > 0;
+      console.log('Database redemption state:', { isRedeemedInDb, existingRedemptions });
+
+      // If marking as redeemed but it's already redeemed in DB, or
+      // marking as available but it's not in DB, then skip the value update
+      if ((newStatus === 'redeemed' && isRedeemedInDb) || 
+          (newStatus === 'available' && !isRedeemedInDb)) {
+        console.log('Skipping value update - database state matches desired state');
+        return;
+      }
+
+      // Update the perk status
+      perk.status = newStatus;
+
+      // Update monthly/yearly credits
+      if (perk.periodMonths === 1) {
+        if (newStatus === 'redeemed') {
+          setMonthlyCreditsRedeemed(prev => {
+            const newValue = Number((prev + perk.value).toFixed(2));
+            console.log('Updating monthly credits redeemed:', { prev, new: newValue });
+            return newValue;
+          });
+        } else {
+          setMonthlyCreditsRedeemed(prev => {
+            const newValue = Number(Math.max(0, prev - perk.value).toFixed(2));
+            console.log('Updating monthly credits redeemed:', { prev, new: newValue });
+            return newValue;
+          });
+        }
+      } else if (perk.periodMonths === 12) {
+        if (newStatus === 'redeemed') {
+          setYearlyCreditsRedeemed(prev => Number((prev + perk.value).toFixed(2)));
+        } else {
+          setYearlyCreditsRedeemed(prev => Number(Math.max(0, prev - perk.value).toFixed(2)));
+        }
+      }
+
+      // Handle cumulative value updates
+      setCumulativeValueSavedPerCard(prev => {
+        const currentValue = prev[cardId] || 0;
+        let newValue = currentValue;
+
+        if (newStatus === 'redeemed') {
+          newValue = Number((currentValue + perk.value).toFixed(2));
+        } else {
+          newValue = Number(Math.max(0, currentValue - perk.value).toFixed(2));
+        }
+
+        console.log('Updating cumulative value:', {
+          cardId,
+          currentValue,
+          newValue,
+          action: newStatus === 'redeemed' ? 'add' : 'subtract',
+          perkValue: perk.value,
+          status: newStatus,
+          dbState: isRedeemedInDb
         });
-      } else {
-        setMonthlyCreditsRedeemed(prev => {
-          const newValue = Number(Math.max(0, prev - perk.value).toFixed(2));
-          console.log('Updating monthly credits redeemed:', { prev, new: newValue });
-          return newValue;
-        });
-      }
-    } else if (perk.periodMonths === 12) {
-      if (newStatus === 'redeemed') {
-        setYearlyCreditsRedeemed(prev => Number((prev + perk.value).toFixed(2)));
-      } else {
-        setYearlyCreditsRedeemed(prev => Number(Math.max(0, prev - perk.value).toFixed(2)));
-      }
-    }
 
-    // Handle cumulative value updates
-    setCumulativeValueSavedPerCard(prev => {
-      const currentValue = prev[cardId] || 0;
-      let newValue = currentValue;
-
-      if (newStatus === 'redeemed') {
-        newValue = Number((currentValue + perk.value).toFixed(2));
-      } else {
-        // When marking as available, we should subtract the value
-        newValue = Number(Math.max(0, currentValue - perk.value).toFixed(2));
-      }
-
-      console.log('Updating cumulative value:', {
-        cardId,
-        currentValue,
-        newValue,
-        action: newStatus === 'redeemed' ? 'add' : 'subtract',
-        perkValue: perk.value
+        const newState = { ...prev };
+        if (newValue === 0) {
+          delete newState[cardId];
+        } else {
+          newState[cardId] = newValue;
+        }
+        return newState;
       });
 
-      const newState = { ...prev };
-      if (newValue === 0) {
-        delete newState[cardId];
-      } else {
-        newState[cardId] = newValue;
+      if (perk.periodMonths === 1) {
+        if (newStatus === 'redeemed') {
+          setRedeemedInCurrentCycle(prev => ({ ...prev, [perk.id]: true }));
+        } else {
+          setRedeemedInCurrentCycle(prev => {
+            const newState = { ...prev };
+            delete newState[perk.id];
+            return newState;
+          });
+        }
       }
-      return newState;
-    });
 
-    if (perk.periodMonths === 1) {
-      if (newStatus === 'redeemed') {
-        setRedeemedInCurrentCycle(prev => ({ ...prev, [perk.id]: true }));
-      } else {
-        setRedeemedInCurrentCycle(prev => {
-          const newState = { ...prev };
-          delete newState[perk.id];
-          return newState;
-        });
+      // Check for full monthly completion
+      const projectedMonthlyCredits = Number((monthlyCreditsRedeemed + (newStatus === 'redeemed' ? perk.value : -perk.value)).toFixed(2));
+      if (monthlyCreditsPossible > 0 && projectedMonthlyCredits === monthlyCreditsPossible) {
+        setShowCelebration(true);
       }
-    }
 
-    // Check for full monthly completion
-    const projectedMonthlyCredits = Number((monthlyCreditsRedeemed + (newStatus === 'redeemed' ? perk.value : -perk.value)).toFixed(2));
-    if (monthlyCreditsPossible > 0 && projectedMonthlyCredits === monthlyCreditsPossible) {
-      setShowCelebration(true);
+    } catch (error) {
+      console.error('Error updating perk status:', error);
     }
-
-    // Force a re-render by creating a new array
-    userCardsWithPerks[cardIndex] = {
-      ...userCardsWithPerks[cardIndex],
-      perks: [...userCardsWithPerks[cardIndex].perks]
-    };
   };
 
   const processNewMonth = (forcedDate?: Date) => {
