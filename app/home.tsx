@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { openPerkTarget } from './utils/linking';
 import LottieView from 'lottie-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colors } from '../constants/Colors';
@@ -29,9 +28,8 @@ import PerkDonutDisplayManager from './components/home/PerkDonutDisplayManager';
 import ExpandableCard, { ExpandableCardProps } from './components/home/ExpandableCard';
 import { useUserCards } from './hooks/useUserCards';
 import { usePerkStatus } from './hooks/usePerkStatus';
-import { CardPerk } from './types';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
-import { Card } from '../src/data/card-data';
+import { Card, CardPerk, openPerkTarget } from '../src/data/card-data';
 
 // Import notification functions
 import {

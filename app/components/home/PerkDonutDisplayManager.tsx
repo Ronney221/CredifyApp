@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ProgressDonut from './ProgressDonut';
-import { Card, CardPerk } from '../../types';
+import { Card, CardPerk } from '../../../src/data/card-data';
 
 type SegmentKey = 'monthly' | 'annualFees';
 

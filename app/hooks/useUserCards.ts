@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { Card, allCards } from '../../src/data/card-data';
 import { getUserCards } from '../../lib/database';
-import { CardPerk } from '../types';
+import { CardPerk } from '../../src/data/card-data';
 
 interface UserCardsHookResult {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];

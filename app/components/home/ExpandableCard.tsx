@@ -9,8 +9,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Card } from '../../../src/data/card-data';
-import { CardPerk } from '../../../app/types';
+import { Card, CardPerk } from '../../../src/data/card-data';
 
 export interface ExpandableCardProps {
   card: Card;

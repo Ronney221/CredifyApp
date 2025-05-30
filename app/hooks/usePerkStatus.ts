@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CardPerk } from '../types';
+import { CardPerk } from '../../src/data/card-data';
 
 interface PerkStatusHookResult {
   monthlyCreditsRedeemed: number;
