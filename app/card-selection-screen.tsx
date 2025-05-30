@@ -14,12 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Card, allCards } from '../src/data/card-data';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { getUserCards, saveUserCards, hasUserSelectedCards } from '../lib/database';
 
 export default function CardSelectionScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: 'edit' }>();
+  const isEditMode = params.mode === 'edit';
+
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
@@ -28,9 +31,9 @@ export default function CardSelectionScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Check if user has already selected cards
+  // Load existing cards if in edit mode
   useEffect(() => {
-    const checkExistingCards = async () => {
+    const loadExistingCards = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -38,22 +41,44 @@ export default function CardSelectionScreen() {
           return;
         }
 
-        const hasCards = await hasUserSelectedCards(user.id);
-        if (hasCards) {
-          // User has already selected cards, redirect to home
-          router.replace('/home');
-          return;
+        if (isEditMode) {
+          // Load existing cards for editing
+          const { data: userCards, error } = await getUserCards(user.id);
+          if (!error && userCards) {
+            const cardIds = allCards
+              .filter(card => userCards.some(uc => uc.card_name === card.name))
+              .map(card => card.id);
+            setSelectedCards(cardIds);
+            
+            // Load renewal dates if available
+            const dates: Record<string, Date> = {};
+            userCards.forEach(uc => {
+              if (uc.renewal_date) {
+                const card = allCards.find(c => c.name === uc.card_name);
+                if (card) {
+                  dates[card.id] = new Date(uc.renewal_date);
+                }
+              }
+            });
+            setRenewalDates(dates);
+          }
+        } else {
+          // Check if user has cards only in initial selection mode
+          const hasCards = await hasUserSelectedCards(user.id);
+          if (hasCards) {
+            router.replace('/home');
+            return;
+          }
         }
-
         setIsLoading(false);
       } catch (error) {
-        console.error('Error checking existing cards:', error);
+        console.error('Error loading cards:', error);
         setIsLoading(false);
       }
     };
 
-    checkExistingCards();
-  }, [router]);
+    loadExistingCards();
+  }, [router, isEditMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -131,18 +156,11 @@ export default function CardSelectionScreen() {
       
       if (error) {
         console.error('Error saving cards:', error);
-        // You might want to show an error message to the user here
         return;
       }
 
-      // Navigate to home screen with selected cards
-      router.replace({
-        pathname: '/home',
-        params: {
-          selectedCardIds: selectedCards.join(','),
-          renewalDates: JSON.stringify(renewalDates),
-        } as any
-      });
+      // Navigate back to home screen
+      router.replace('/home');
     } catch (error) {
       console.error('Error in continue handler:', error);
     } finally {
@@ -162,7 +180,7 @@ export default function CardSelectionScreen() {
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-      <Text style={styles.title}>Select Your Cards</Text>
+      <Text style={styles.title}>{isEditMode ? 'Edit Your Cards' : 'Select Your Cards'}</Text>
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -222,7 +240,9 @@ export default function CardSelectionScreen() {
           {isSaving ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <Text style={styles.continueButtonText}>
+              {isEditMode ? 'Save Changes' : 'Continue'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>

@@ -482,15 +482,11 @@ export default function HomeScreen() {
                   'What would you like to do?',
                   [
                     {
-                      text: 'View Profile',
-                      onPress: () => {
-                        // TODO: Implement profile view
-                        Alert.alert('Coming Soon', 'Profile view will be available soon!');
-                      },
-                    },
-                    {
                       text: 'Edit Cards',
-                      onPress: () => router.push('/card-selection-screen'),
+                      onPress: () => router.push({
+                        pathname: '/card-selection-screen',
+                        params: { mode: 'edit' }
+                      } as any),
                     },
                     {
                       text: 'Sign Out',
@@ -556,7 +552,10 @@ export default function HomeScreen() {
                 <Text style={styles.sectionTitle}>Your Cards & Perks</Text>
                 <TouchableOpacity
                   style={styles.addCardButton}
-                  onPress={() => router.push('/card-selection-screen')}
+                  onPress={() => router.push({
+                    pathname: '/card-selection-screen',
+                    params: { mode: 'edit' }
+                  } as any)}
                 >
                   <Ionicons name="add-circle-outline" size={24} color="#007aff" />
                   <Text style={styles.addCardText}>Add Card</Text>
@@ -586,7 +585,10 @@ export default function HomeScreen() {
                   </Text>
                   <TouchableOpacity
                     style={styles.addFirstCardButton}
-                    onPress={() => router.push('/card-selection-screen')}
+                    onPress={() => router.push({
+                      pathname: '/card-selection-screen',
+                      params: { mode: 'edit' }
+                    } as any)}
                   >
                     <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
                   </TouchableOpacity>
