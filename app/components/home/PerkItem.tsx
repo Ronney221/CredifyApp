@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CardPerk } from '../../home'; // Adjust path as needed, assuming home.tsx exports CardPerk
+import { CardPerk } from '../../../src/data/card-data';
 import StreakBadge from './StreakBadge'; // Import StreakBadge
 import { Colors } from '../../constants/Colors'; // Reverted to uppercase filename
 
-interface PerkItemProps {
+export interface PerkItemProps {
   perk: CardPerk;
   cardId: string;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
@@ -49,10 +49,6 @@ const styles = StyleSheet.create({
     color: Colors.light.accent, 
     textDecorationLine: 'line-through',
   },
-  perkNamePending: {
-    color: Colors.light.warning, 
-    fontStyle: 'italic',
-  },
   streakText: {
     // This style might be deprecated if StreakBadge handles all its own styling
     // fontSize: 13,
@@ -66,10 +62,6 @@ const styles = StyleSheet.create({
   perkValueRedeemed: {
     color: Colors.light.accent, 
     textDecorationLine: 'line-through',
-  },
-  perkValuePending: {
-    color: Colors.light.warning, 
-    fontStyle: 'italic',
   },
   redeemButton: {
     backgroundColor: Colors.light.redeemButtonDefault, 
@@ -121,13 +113,10 @@ const styles = StyleSheet.create({
 
 const PerkItem: React.FC<PerkItemProps> = ({ perk, cardId, onTapPerk, onLongPressPerk }) => {
   const isRedeemed = perk.status === 'redeemed';
-  const isPending = perk.status === 'pending';
 
   let progressBarBackgroundColor = Colors.light.progressBarTrack; 
   if (isRedeemed) {
     progressBarBackgroundColor = Colors.light.accent;
-  } else if (isPending) {
-    progressBarBackgroundColor = Colors.light.pending;
   }
 
   return (
@@ -141,26 +130,29 @@ const PerkItem: React.FC<PerkItemProps> = ({ perk, cardId, onTapPerk, onLongPres
         <View style={styles.perkContentRow}>
           <View style={styles.perkInfo}>
             <View style={styles.perkNameContainer}>
-              <Text style={[styles.perkName, isRedeemed && styles.perkNameRedeemed, isPending && styles.perkNamePending]}>
+              <Text style={[styles.perkName, isRedeemed && styles.perkNameRedeemed]}>
                 {perk.name}
               </Text>
               <StreakBadge streakCount={perk.streakCount} coldStreakCount={perk.coldStreakCount} />
             </View>
-            <Text style={[styles.perkValue, isRedeemed && styles.perkValueRedeemed, isPending && styles.perkValuePending]}>
-              (${perk.value} / {perk.period})
+            <Text style={[styles.perkValue, isRedeemed && styles.perkValueRedeemed]}>
+              {perk.value.toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD',
+              })} / {perk.period}
             </Text>
           </View>
           <TouchableOpacity
             style={[
               styles.redeemButton,
-              (isRedeemed || isPending) && styles.redeemButtonDisabled,
+              isRedeemed && styles.redeemButtonDisabled,
             ]}
-            onPress={() => onTapPerk(cardId, perk.id, perk)} // Keep for specific button tap if desired
-            onLongPress={() => onLongPressPerk(cardId, perk.id, perk)} // Keep for specific button longpress
-            disabled={isRedeemed || isPending}
+            onPress={() => onTapPerk(cardId, perk.id, perk)}
+            onLongPress={() => onLongPressPerk(cardId, perk.id, perk)}
+            disabled={isRedeemed}
           >
             <Text style={styles.redeemButtonText}>
-              {isRedeemed ? 'View' : (isPending ? 'Pending' : 'Redeem')}
+              {isRedeemed ? 'View' : 'Redeem'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -170,7 +162,7 @@ const PerkItem: React.FC<PerkItemProps> = ({ perk, cardId, onTapPerk, onLongPres
             styles.progressBarFill,
             { 
               backgroundColor: progressBarBackgroundColor, 
-              width: isRedeemed ? '100%' : isPending ? '50%' : '0%'
+              width: isRedeemed ? '100%' : '0%'
             }
           ]} />
         </View>

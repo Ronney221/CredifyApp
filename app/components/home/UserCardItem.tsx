@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { CardPerk } from '../../home'; // Adjust if CardPerk types are elsewhere
-import { Card } from '../../../src/data/card-data'; // Corrected path for Card type
+import { Card, CardPerk } from '../../../src/data/card-data';
 import PerkItem from './PerkItem';
-import { Colors } from '../../constants/Colors'; // Uppercase filename
+import { Colors } from '../../constants/Colors';
 
 interface UserCardItemProps {
   card: Card;
@@ -11,8 +10,7 @@ interface UserCardItemProps {
   cumulativeSavedValue: number;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
   onLongPressPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
-  // Styles that were originally in home.tsx for card items
-  cardDetailItemStyle?: object; // Made props optional as we have defaults
+  cardDetailItemStyle?: object;
   cardHeaderContainerStyle?: object;
   cardNameStyle?: object;
   valueSavedTextStyle?: object;
@@ -33,7 +31,12 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
     <View style={[styles.cardDetailItem, cardDetailItemStyle]}>
       <View style={[styles.cardHeaderContainer, cardHeaderContainerStyle]}>
         <Text style={[styles.cardName, cardNameStyle]}>{card.name}</Text>
-        <Text style={[styles.valueSavedText, valueSavedTextStyle]}>Value Saved: ${cumulativeSavedValue}</Text>
+        <Text style={[styles.valueSavedText, valueSavedTextStyle]}>
+          Value Saved: {cumulativeSavedValue.toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+          })}
+        </Text>
       </View>
       {perks.map((perk) => (
         <PerkItem
@@ -48,14 +51,13 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
   );
 };
 
-// Default styles for UserCardItem
 const styles = StyleSheet.create({
   cardDetailItem: {
-    backgroundColor: Colors.light.cardBackground, // Use uppercase Colors
+    backgroundColor: Colors.light.cardBackground,
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
-    shadowColor: Colors.light.text, // Use uppercase Colors
+    shadowColor: Colors.light.text,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 3,
@@ -70,14 +72,14 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.light.text, // Use uppercase Colors
-    flexShrink: 1, // Allow card name to shrink
-    marginRight: 8, // Add some space between card name and value saved
+    color: Colors.light.text,
+    flexShrink: 1,
+    marginRight: 8,
   },
   valueSavedText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.light.accent, // Use uppercase Colors
+    color: Colors.light.accent,
   },
 });
 
