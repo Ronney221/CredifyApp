@@ -28,8 +28,12 @@ export interface ExpandableCardProps {
 }
 
 const showToast = (message: string, onUndo?: () => void) => {
-  Toast.show(message, {
-    duration: 4000,
+  const toastMessage = onUndo 
+    ? `${message}\nTap to undo`
+    : message;
+
+  const toast = Toast.show(toastMessage, {
+    duration: onUndo ? 4000 : 2000,
     position: Toast.positions.BOTTOM,
     shadow: true,
     animation: true,
@@ -40,11 +44,18 @@ const showToast = (message: string, onUndo?: () => void) => {
       paddingHorizontal: 16,
       paddingVertical: 12,
       marginBottom: 64,
+      backgroundColor: '#1c1c1e',
     },
-    onHidden: () => {
-      // Clear any undo actions when toast disappears
+    textStyle: {
+      fontSize: 14,
+      fontWeight: '500',
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    onPress: () => {
       if (onUndo) {
-        onUndo = undefined;
+        Toast.hide(toast);
+        onUndo();
       }
     },
   });
@@ -220,12 +231,11 @@ export default function ExpandableCard({
 
                 if (typeof error === 'object' && error !== null && 'message' in error && error.message === 'Perk already redeemed this period') {
                   Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+                  return;
                 } else if (error) {
                   console.error('Error tracking redemption:', error);
                   Alert.alert('Error', 'Failed to mark perk as redeemed. Please try again.');
                   return;
-                } else {
-                  showToast(`${perk.name} marked as redeemed`);
                 }
               } else {
                 // If changing to available, delete from database
@@ -234,8 +244,6 @@ export default function ExpandableCard({
                   console.error('Error deleting redemption:', error);
                   Alert.alert('Error', 'Failed to mark perk as available. Please try again.');
                   return;
-                } else {
-                  showToast(`${perk.name} marked as available`);
                 }
               }
 
@@ -243,6 +251,20 @@ export default function ExpandableCard({
               await loadRedeemedPerks(); // Refresh redemption state
               await onLongPressPerk(card.id, perk.id, perk);
               onPerkStatusChange?.(); // Trigger donut refresh
+
+              // Show toast notification
+              showToast(
+                `${perk.name} ${isCurrentlyRedeemed ? 'marked as available' : 'marked as redeemed'}`,
+                !isCurrentlyRedeemed ? async () => {
+                  // Only show undo for redemptions
+                  const { error: undoError } = await deletePerkRedemption(user.id, perk.name);
+                  if (!undoError) {
+                    await loadRedeemedPerks();
+                    onPerkStatusChange?.();
+                    showToast(`${perk.name} marked as available`);
+                  }
+                } : undefined
+              );
             } catch (error) {
               console.error('Error handling perk long press:', error);
               Alert.alert('Error', 'An unexpected error occurred. Please try again.');

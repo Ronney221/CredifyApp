@@ -30,7 +30,7 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>('monthly');
   const [monthlyRedemptions, setMonthlyRedemptions] = useState<number>(monthlyCreditsRedeemed);
   const [annualRedemptions, setAnnualRedemptions] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
   const navigation = useNavigation();
 
@@ -68,49 +68,114 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
   useEffect(() => {
     if (!user) return;
 
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+
     const loadRedemptions = async () => {
-      setLoading(true);
+      if (!isMounted) return;
+      setIsRefreshing(true);
+      
       try {
         // Get current month's redemptions
         const { data: monthlyData, error: monthlyError } = await getCurrentMonthRedemptions(user.id);
-        if (monthlyError) {
-          console.error('Error fetching monthly redemptions:', monthlyError);
-        } else {
-          // Calculate monthly redemptions total (only for monthly perks)
-          const monthlySum = monthlyData?.reduce((sum, redemption) => {
-            // Check if the redemption has a reset_date that's monthly (approximately 1 month from redemption)
-            const redemptionDate = new Date(redemption.redemption_date);
-            const resetDate = new Date(redemption.reset_date);
-            const monthDiff = (resetDate.getTime() - redemptionDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-            
-            // If it's a monthly reset (roughly 1 month difference)
-            if (monthDiff <= 1.1) { // Allow some buffer for date calculations
-              return sum + redemption.value_redeemed;
-            }
-            return sum;
-          }, 0) ?? 0;
+        if (!isMounted) return;
 
+        if (monthlyError) {
+          // Only log and retry if it's not a network error during app resume
+          const errorMessage = monthlyError instanceof Error ? monthlyError.message : 
+            typeof monthlyError === 'object' && monthlyError !== null && 'message' in monthlyError ? 
+            monthlyError.message : '';
+            
+          if (errorMessage !== 'Network request failed') {
+            console.error('Error fetching monthly redemptions:', monthlyError);
+            if (retryCount < maxRetries) {
+              retryCount++;
+              setTimeout(loadRedemptions, retryDelay);
+              return;
+            }
+          }
+          return;
+        }
+
+        // Calculate monthly redemptions total (only for monthly perks)
+        const monthlySum = monthlyData?.reduce((sum, redemption) => {
+          const redemptionDate = new Date(redemption.redemption_date);
+          const resetDate = new Date(redemption.reset_date);
+          const monthDiff = (resetDate.getTime() - redemptionDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+          
+          if (monthDiff <= 1.1) {
+            return sum + redemption.value_redeemed;
+          }
+          return sum;
+        }, 0) ?? monthlyRedemptions;
+
+        if (isMounted) {
           setMonthlyRedemptions(monthlySum);
         }
 
         // Get annual redemptions
         const { data: annualData, error: annualError } = await getAnnualRedemptions(user.id);
+        if (!isMounted) return;
+
         if (annualError) {
-          console.error('Error fetching annual redemptions:', annualError);
-        } else {
-          const annualSum = annualData?.reduce((sum, redemption) => 
-            sum + redemption.value_redeemed, 0) ?? 0;
+          // Only log and retry if it's not a network error during app resume
+          const errorMessage = annualError instanceof Error ? annualError.message : 
+            typeof annualError === 'object' && annualError !== null && 'message' in annualError ? 
+            annualError.message : '';
+            
+          if (errorMessage !== 'Network request failed') {
+            console.error('Error fetching annual redemptions:', annualError);
+            if (retryCount < maxRetries) {
+              retryCount++;
+              setTimeout(loadRedemptions, retryDelay);
+              return;
+            }
+          }
+          return;
+        }
+
+        const annualSum = annualData?.reduce((sum, redemption) => 
+          sum + redemption.value_redeemed, 0) ?? annualRedemptions;
+        
+        if (isMounted) {
           setAnnualRedemptions(annualSum);
         }
-      } catch (error) {
-        console.error('Error loading redemptions:', error);
+        
+        // Reset retry count on success
+        retryCount = 0;
+      } catch (error: unknown) {
+        // Only log and retry if it's not a network error during app resume
+        const errorMessage = error instanceof Error ? error.message :
+          typeof error === 'object' && error !== null && 'message' in error ?
+          error.message : '';
+          
+        if (errorMessage !== 'Network request failed') {
+          console.error('Error loading redemptions:', error);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(loadRedemptions, retryDelay);
+          }
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setIsRefreshing(false);
+        }
       }
     };
 
-    loadRedemptions();
-  }, [user, lastRefresh]);
+    // Add a small delay before loading to allow network to stabilize
+    const timeoutId = setTimeout(() => {
+      loadRedemptions();
+    }, 500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      setIsRefreshing(false);
+    };
+  }, [user, lastRefresh, monthlyRedemptions, annualRedemptions]);
 
   const monthlyPerkData = useMemo(() => {
     // Count only monthly perks for secondary metric
@@ -170,7 +235,7 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
     };
   }, [annualRedemptions, totalAnnualFees]);
 
-  if (!user || loading) {
+  if (!user) {
     return <View style={styles.container} />;
   }
 
@@ -214,7 +279,7 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
         </View>
       </View>
 
-      <View style={styles.metricsContainer}>
+      <View style={[styles.metricsContainer, { opacity: isRefreshing ? 0.6 : 1 }]}>
         <View style={styles.primaryMetric}>
           <Text style={styles.primaryValue}>{activeData.primaryMetric.value}</Text>
           <Text style={styles.primaryLabel}>{activeData.primaryMetric.label}</Text>
