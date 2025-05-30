@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   redeemedPerk: {
-    backgroundColor: '#f0f9f4',
+    backgroundColor: '#e8f5e9',
     borderColor: '#34c759',
     borderWidth: 1,
   },
@@ -195,6 +195,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
   },
   perkPeriod: {
     fontSize: 13,

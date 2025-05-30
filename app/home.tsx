@@ -24,6 +24,7 @@ import ProgressDonut from './components/home/ProgressDonut';
 import ExpandableCard from './components/home/ExpandableCard';
 import { useUserCards } from './hooks/useUserCards';
 import { usePerkStatus } from './hooks/usePerkStatus';
+import { CardPerk } from './types';
 
 // Import notification functions
 import {
@@ -107,14 +108,15 @@ export default function HomeScreen() {
     }
   };
 
-  const handleLongPressPerk = (cardId: string, perkId: string, currentPerk: any) => {
+  const handleLongPressPerk = (cardId: string, perkId: string, currentPerk: CardPerk) => {
+    const isRedeemed = currentPerk.status === 'redeemed';
     Alert.alert(
       `Manage ${currentPerk.name}`,
-      currentPerk.status === 'redeemed' 
+      isRedeemed 
         ? "This perk has been redeemed. Would you like to mark it as available again?"
         : "Would you like to mark this perk as redeemed?",
       [
-        currentPerk.status === 'redeemed' 
+        isRedeemed 
           ? {
               text: "Mark as Available",
               onPress: () => setPerkStatus(cardId, perkId, 'available'),

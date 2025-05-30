@@ -64,15 +64,40 @@ export function usePerkStatus(
   }, [userCardsWithPerks]);
 
   const setPerkStatus = (cardId: string, perkId: string, newStatus: 'available' | 'redeemed') => {
-    const cardData = userCardsWithPerks.find(({ card }) => card.id === cardId);
-    if (!cardData) return;
+    // Find the card and perk
+    const cardIndex = userCardsWithPerks.findIndex(({ card }) => card.id === cardId);
+    if (cardIndex === -1) return;
 
-    const perk = cardData.perks.find(p => p.id === perkId);
-    if (!perk) return;
+    const perkIndex = userCardsWithPerks[cardIndex].perks.findIndex(p => p.id === perkId);
+    if (perkIndex === -1) return;
+
+    // Get the perk
+    const perk = userCardsWithPerks[cardIndex].perks[perkIndex];
+    const oldStatus = perk.status;
+
+    // Only proceed if there's an actual status change
+    if (oldStatus === newStatus) return;
+
+    // Update the perk status
+    perk.status = newStatus;
+
+    // Update monthly/yearly credits
+    if (perk.period === 'monthly') {
+      if (newStatus === 'redeemed') {
+        setMonthlyCreditsRedeemed(prev => prev + perk.value);
+      } else {
+        setMonthlyCreditsRedeemed(prev => Math.max(0, prev - perk.value));
+      }
+    } else if (perk.period === 'yearly') {
+      if (newStatus === 'redeemed') {
+        setYearlyCreditsRedeemed(prev => prev + perk.value);
+      } else {
+        setYearlyCreditsRedeemed(prev => Math.max(0, prev - perk.value));
+      }
+    }
 
     // Handle cumulative value updates
-    if (newStatus === 'redeemed' && perk.status !== 'redeemed') {
-      // Add value when marking as redeemed
+    if (newStatus === 'redeemed') {
       setCumulativeValueSavedPerCard(prev => ({
         ...prev,
         [cardId]: (prev[cardId] || 0) + perk.value
@@ -80,13 +105,12 @@ export function usePerkStatus(
       if (perk.period === 'monthly') {
         setRedeemedInCurrentCycle(prev => ({ ...prev, [perk.id]: true }));
       }
-    } else if (newStatus === 'available' && perk.status === 'redeemed') {
-      // Subtract value when un-redeeming
+    } else {
       setCumulativeValueSavedPerCard(prev => {
         const newValue = Math.max(0, (prev[cardId] || 0) - perk.value);
         const newState = { ...prev };
         if (newValue === 0) {
-          delete newState[cardId]; // Remove the card if value is 0
+          delete newState[cardId];
         } else {
           newState[cardId] = newValue;
         }
@@ -100,6 +124,17 @@ export function usePerkStatus(
         });
       }
     }
+
+    // Check for full monthly completion
+    if (monthlyCreditsPossible > 0 && monthlyCreditsRedeemed + (newStatus === 'redeemed' ? perk.value : -perk.value) === monthlyCreditsPossible) {
+      setShowCelebration(true);
+    }
+
+    // Force a re-render by creating a new array
+    userCardsWithPerks[cardIndex] = {
+      ...userCardsWithPerks[cardIndex],
+      perks: [...userCardsWithPerks[cardIndex].perks]
+    };
   };
 
   const processNewMonth = (forcedDate?: Date) => {
