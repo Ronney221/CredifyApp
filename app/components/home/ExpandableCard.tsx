@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
-import { trackPerkRedemption } from '../../../lib/database';
+import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption } from '../../../lib/database';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -36,10 +36,39 @@ export default function ExpandableCard({
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
+  const [redeemedPerkIds, setRedeemedPerkIds] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   
+  const loadRedeemedPerks = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: monthlyData, error } = await getCurrentMonthRedemptions(user.id);
+      if (error) {
+        console.error('Error fetching redemptions:', error);
+        return;
+      }
+
+      // Create a set of redeemed perk IDs
+      const redeemedIds = new Set(monthlyData?.map(redemption => redemption.perk_id) || []);
+      setRedeemedPerkIds(redeemedIds);
+    } catch (error) {
+      console.error('Error loading redeemed perks:', error);
+    }
+  };
+  
+  // Load redeemed perks from database
+  useEffect(() => {
+    loadRedeemedPerks();
+  }, [user]);
+
   // Only count monthly perks for the unredeemed count
-  const unredeemedPerks = perks.filter(p => p.status === 'available' && p.periodMonths === 1);
+  const unredeemedPerks = perks.filter(p => {
+    const isMonthly = p.periodMonths === 1;
+    const isRedeemed = redeemedPerkIds.has(p.id);
+    return isMonthly && !isRedeemed;
+  });
+  
   const hasUnredeemedPerks = unredeemedPerks.length > 0;
   const isFullyRedeemed = !hasUnredeemedPerks;
 
@@ -78,10 +107,10 @@ export default function ExpandableCard({
 
         if (error) {
           console.error('Error tracking redemption:', error);
-          // You might want to show an error toast here
         } else {
           // Update local state
-          onTapPerk(card.id, perk.id, perk);
+          await loadRedeemedPerks(); // Refresh redemption state
+          await onTapPerk(card.id, perk.id, perk);
         }
       }
     } catch (error) {
@@ -92,23 +121,37 @@ export default function ExpandableCard({
   const handlePerkLongPress = async (perk: CardPerk) => {
     if (!user) return;
 
-    // If changing to redeemed, track in database
-    if (perk.status === 'available') {
-      const { error } = await trackPerkRedemption(
-        user.id,
-        card.id,
-        perk,
-        perk.value
-      );
+    try {
+      const isCurrentlyRedeemed = redeemedPerkIds.has(perk.id);
 
-      if (error) {
-        console.error('Error tracking redemption:', error);
-        return;
+      if (!isCurrentlyRedeemed) {
+        // If changing to redeemed, track in database
+        const { error } = await trackPerkRedemption(
+          user.id,
+          card.id,
+          perk,
+          perk.value
+        );
+
+        if (error) {
+          console.error('Error tracking redemption:', error);
+          return;
+        }
+      } else {
+        // If changing to available, delete from database
+        const { error } = await deletePerkRedemption(user.id, perk.id);
+        if (error) {
+          console.error('Error deleting redemption:', error);
+          return;
+        }
       }
-    }
 
-    // Update local state
-    onLongPressPerk(card.id, perk.id, perk);
+      // Update local state
+      await loadRedeemedPerks(); // Refresh redemption state
+      await onLongPressPerk(card.id, perk.id, perk);
+    } catch (error) {
+      console.error('Error handling perk long press:', error);
+    }
   };
 
   const translateY = animation.interpolate({
@@ -122,7 +165,7 @@ export default function ExpandableCard({
   });
 
   const renderPerk = (perk: CardPerk) => {
-    const isRedeemed = perk.status === 'redeemed';
+    const isRedeemed = redeemedPerkIds.has(perk.id);
     const formattedValue = perk.value.toLocaleString('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -244,16 +287,16 @@ export default function ExpandableCard({
 
       {isExpanded && (
         <View style={styles.perksContainer}>
-          {hasUnredeemedPerks && (
+          {perks.filter(p => !redeemedPerkIds.has(p.id)).length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Available Perks</Text>
-              {perks.filter(p => p.status === 'available').map(renderPerk)}
+              {perks.filter(p => !redeemedPerkIds.has(p.id)).map(renderPerk)}
             </>
           )}
-          {perks.some(p => p.status === 'redeemed') && (
+          {Array.from(redeemedPerkIds).length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-              {perks.filter(p => p.status === 'redeemed').map(renderPerk)}
+              {perks.filter(p => redeemedPerkIds.has(p.id)).map(renderPerk)}
             </>
           )}
         </View>

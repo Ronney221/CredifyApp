@@ -309,4 +309,11 @@ export async function getAnnualRedemptions(userId: string) {
   startOfNextYear.setFullYear(startOfYear.getFullYear() + 1);
 
   return getPerkRedemptions(userId, startOfYear, startOfNextYear);
+}
+
+export async function deletePerkRedemption(userId: string, perkId: string) {
+  return await supabase
+    .from('perk_redemptions')
+    .delete()
+    .match({ user_id: userId, perk_id: perkId });
 } 

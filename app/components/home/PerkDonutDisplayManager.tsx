@@ -16,8 +16,6 @@ interface Segment {
 
 interface PerkDonutDisplayManagerProps {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
-  monthlyCreditsRedeemed: number;
-  monthlyCreditsPossible: number;
 }
 
 export default function PerkDonutDisplayManager({
@@ -29,81 +27,19 @@ export default function PerkDonutDisplayManager({
   const [annualRedemptions, setAnnualRedemptions] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  const monthlyPerkData = useMemo(() => {
-    // Only include perks with period = 'monthly'
-    const monthlyValues = userCardsWithPerks.reduce((acc, { perks }) => {
+  // Calculate total possible monthly credits (only monthly perks)
+  const monthlyPossibleTotal = useMemo(() => {
+    return userCardsWithPerks.reduce((acc, { perks }) => {
       const monthlyPerks = perks.filter(perk => perk.periodMonths === 1);
-      const redeemedValue = monthlyPerks.reduce((sum, perk) => 
-        sum + (perk.status === 'redeemed' ? perk.value : 0), 0);
-      const totalValue = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
-      return {
-        redeemedValue: acc.redeemedValue + redeemedValue,
-        totalValue: acc.totalValue + totalValue
-      };
-    }, { redeemedValue: 0, totalValue: 0 });
+      return acc + monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
+    }, 0);
+  }, [userCardsWithPerks]);
 
-    // Count only monthly perks for secondary metric
-    const perkCounts = userCardsWithPerks.reduce((counts, { perks }) => {
-      const monthlyPerks = perks.filter(perk => perk.periodMonths === 1);
-      const availablePerks = monthlyPerks.filter(perk => perk.status === 'available').length;
-      const redeemedPerks = monthlyPerks.filter(perk => perk.status === 'redeemed').length;
-      return {
-        available: counts.available + availablePerks,
-        redeemed: counts.redeemed + redeemedPerks
-      };
-    }, { available: 0, redeemed: 0 });
-
-    const totalPerks = perkCounts.available + perkCounts.redeemed;
-    
-    return {
-      value: monthlyRedemptions, // Use the value from database
-      total: monthlyValues.totalValue,
-      progress: monthlyValues.totalValue > 0 ? monthlyRedemptions / monthlyValues.totalValue : 0,
-      primaryMetric: {
-        value: monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        label: 'Value Redeemed',
-      },
-      secondaryMetric: {
-        value: `${perkCounts.redeemed} of ${totalPerks} perks`,
-        label: 'Monthly Perks Used',
-      },
-      donutLabel: {
-        value: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} / ${monthlyValues.totalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
-        label: 'Monthly Credits',
-      },
-      color: '#2196f3',
-    };
-  }, [userCardsWithPerks, monthlyRedemptions]);
-
-  const annualFeesData = useMemo(() => {
-    // Calculate total annual fees
-    const cardData = userCardsWithPerks.reduce((acc, { card }) => ({
-      totalFees: acc.totalFees + (card.annualFee || 0)
-    }), { totalFees: 0 });
-
-    const { totalFees } = cardData;
-    const formattedFees = totalFees.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-    const formattedRedeemedValue = annualRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-    
-    return {
-      value: annualRedemptions,
-      total: totalFees,
-      progress: totalFees > 0 ? annualRedemptions / totalFees : 0,
-      primaryMetric: {
-        value: formattedRedeemedValue,
-        label: 'Value Redeemed',
-      },
-      secondaryMetric: {
-        value: `${((totalFees > 0 ? annualRedemptions / totalFees : 0) * 100).toFixed(0)}% of annual fees`,
-        label: 'Break-even Progress',
-      },
-      donutLabel: {
-        value: `${formattedRedeemedValue} / ${formattedFees}`,
-        label: 'Annual Break-even',
-      },
-      color: '#5856d6',
-    };
-  }, [userCardsWithPerks, annualRedemptions]);
+  // Calculate total annual fees
+  const totalAnnualFees = useMemo(() => {
+    return userCardsWithPerks.reduce((acc, { card }) => 
+      acc + (card.annualFee || 0), 0);
+  }, [userCardsWithPerks]);
 
   useEffect(() => {
     if (!user) return;
@@ -116,17 +52,20 @@ export default function PerkDonutDisplayManager({
         if (monthlyError) {
           console.error('Error fetching monthly redemptions:', monthlyError);
         } else {
-          // Only sum monthly perks (period_months = 1)
+          // Calculate monthly redemptions total (only for monthly perks)
           const monthlySum = monthlyData?.reduce((sum, redemption) => {
-            // Check if the perk is monthly before adding to sum
-            const card = userCardsWithPerks.find(c => 
-              c.perks.some(p => p.id === redemption.perk_id));
-            const perk = card?.perks.find(p => p.id === redemption.perk_id);
-            if (perk?.periodMonths === 1) {
+            // Check if the redemption has a reset_date that's monthly (approximately 1 month from redemption)
+            const redemptionDate = new Date(redemption.redemption_date);
+            const resetDate = new Date(redemption.reset_date);
+            const monthDiff = (resetDate.getTime() - redemptionDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+            
+            // If it's a monthly reset (roughly 1 month difference)
+            if (monthDiff <= 1.1) { // Allow some buffer for date calculations
               return sum + redemption.value_redeemed;
             }
             return sum;
           }, 0) ?? 0;
+
           setMonthlyRedemptions(monthlySum);
         }
 
@@ -148,6 +87,64 @@ export default function PerkDonutDisplayManager({
 
     loadRedemptions();
   }, [user, userCardsWithPerks]);
+
+  const monthlyPerkData = useMemo(() => {
+    // Count only monthly perks for secondary metric
+    const perkCounts = userCardsWithPerks.reduce((counts, { perks }) => {
+      const monthlyPerks = perks.filter(perk => perk.periodMonths === 1);
+      const availablePerks = monthlyPerks.filter(perk => perk.status === 'available').length;
+      const redeemedPerks = monthlyPerks.filter(perk => perk.status === 'redeemed').length;
+      return {
+        available: counts.available + availablePerks,
+        redeemed: counts.redeemed + redeemedPerks
+      };
+    }, { available: 0, redeemed: 0 });
+
+    const totalPerks = perkCounts.available + perkCounts.redeemed;
+    
+    return {
+      value: monthlyRedemptions,
+      total: monthlyPossibleTotal,
+      progress: monthlyPossibleTotal > 0 ? monthlyRedemptions / monthlyPossibleTotal : 0,
+      primaryMetric: {
+        value: monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        label: 'Monthly Value Redeemed',
+      },
+      secondaryMetric: {
+        value: `${perkCounts.redeemed} of ${totalPerks} monthly perks`,
+        label: 'Monthly Perks Used',
+      },
+      donutLabel: {
+        value: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} / ${monthlyPossibleTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
+        label: 'Monthly Credits',
+      },
+      color: '#2196f3',
+    };
+  }, [userCardsWithPerks, monthlyRedemptions, monthlyPossibleTotal]);
+
+  const annualFeesData = useMemo(() => {
+    const formattedFees = totalAnnualFees.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    const formattedRedeemedValue = annualRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    
+    return {
+      value: annualRedemptions,
+      total: totalAnnualFees,
+      progress: totalAnnualFees > 0 ? annualRedemptions / totalAnnualFees : 0,
+      primaryMetric: {
+        value: formattedRedeemedValue,
+        label: 'Total Value Redeemed',
+      },
+      secondaryMetric: {
+        value: `${((totalAnnualFees > 0 ? annualRedemptions / totalAnnualFees : 0) * 100).toFixed(0)}% of annual fees`,
+        label: 'Break-even Progress',
+      },
+      donutLabel: {
+        value: `${formattedRedeemedValue} / ${formattedFees}`,
+        label: 'Annual Break-even',
+      },
+      color: '#5856d6',
+    };
+  }, [annualRedemptions, totalAnnualFees]);
 
   if (!user || loading) {
     return <View style={styles.container} />;
