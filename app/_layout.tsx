@@ -49,15 +49,9 @@ export default function RootLayout() {
 
             <AuthProvider>
               <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen
-                  name="(auth)"
-                  options={{ headerShown: false, presentation: 'modal' }}
-                />
-                <Stack.Screen name="auth/callback" />
-                <Stack.Screen name="auth/confirm" />
-                <Stack.Screen name="card-selection" />
-                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
               </Stack>
             </AuthProvider>
           </SafeAreaView>

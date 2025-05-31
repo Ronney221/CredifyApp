@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { Card, allCards } from '../src/data/card-data';
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../lib/supabase';
-import { getUserCards, saveUserCards, hasUserSelectedCards } from '../lib/database';
+import { Card, allCards } from '../../src/data/card-data';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { supabase } from '../../lib/supabase';
+import { getUserCards, saveUserCards } from '../../lib/database';
 
-export default function CardSelectionScreen() {
+export default function Cards() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: 'edit' }>();
-  const isEditMode = params.mode === 'edit';
-
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
@@ -31,7 +28,7 @@ export default function CardSelectionScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load existing cards if in edit mode
+  // Load existing cards
   useEffect(() => {
     const loadExistingCards = async () => {
       try {
@@ -41,34 +38,25 @@ export default function CardSelectionScreen() {
           return;
         }
 
-        if (isEditMode) {
-          // Load existing cards for editing
-          const { data: userCards, error } = await getUserCards(user.id);
-          if (!error && userCards) {
-            const cardIds = allCards
-              .filter(card => userCards.some(uc => uc.card_name === card.name))
-              .map(card => card.id);
-            setSelectedCards(cardIds);
-            
-            // Load renewal dates if available
-            const dates: Record<string, Date> = {};
-            userCards.forEach(uc => {
-              if (uc.renewal_date) {
-                const card = allCards.find(c => c.name === uc.card_name);
-                if (card) {
-                  dates[card.id] = new Date(uc.renewal_date);
-                }
+        // Load existing cards
+        const { data: userCards, error } = await getUserCards(user.id);
+        if (!error && userCards) {
+          const cardIds = allCards
+            .filter(card => userCards.some(uc => uc.card_name === card.name))
+            .map(card => card.id);
+          setSelectedCards(cardIds);
+          
+          // Load renewal dates if available
+          const dates: Record<string, Date> = {};
+          userCards.forEach(uc => {
+            if (uc.renewal_date) {
+              const card = allCards.find(c => c.name === uc.card_name);
+              if (card) {
+                dates[card.id] = new Date(uc.renewal_date);
               }
-            });
-            setRenewalDates(dates);
-          }
-        } else {
-          // Check if user has cards only in initial selection mode
-          const hasCards = await hasUserSelectedCards(user.id);
-          if (hasCards) {
-            router.replace('/home');
-            return;
-          }
+            }
+          });
+          setRenewalDates(dates);
         }
         setIsLoading(false);
       } catch (error) {
@@ -78,18 +66,16 @@ export default function CardSelectionScreen() {
     };
 
     loadExistingCards();
-  }, [router, isEditMode]);
+  }, [router]);
 
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       StatusBar.setBarStyle('dark-content');
       if (Platform.OS === 'android') {
         StatusBar.setBackgroundColor('transparent');
         StatusBar.setTranslucent(true);
       }
-      return () => {
-        // Optional: cleanup if you need to reset status bar styles when screen loses focus
-      };
+      return () => {};
     }, [])
   );
 
@@ -133,17 +119,17 @@ export default function CardSelectionScreen() {
     return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
   };
 
-  const selectedCardObjects = useMemo(() => 
+  const selectedCardObjects = React.useMemo(() => 
     allCards.filter(card => selectedCards.includes(card.id)),
     [selectedCards]
   );
 
-  const unselectedCardObjects = useMemo(() => 
+  const unselectedCardObjects = React.useMemo(() => 
     allCards.filter(card => !selectedCards.includes(card.id)),
     [selectedCards]
   );
 
-  const filteredUnselectedCards = useMemo(() => {
+  const filteredUnselectedCards = React.useMemo(() => {
     if (!searchQuery) {
       return unselectedCardObjects;
     }
@@ -168,8 +154,8 @@ export default function CardSelectionScreen() {
         return;
       }
 
-      // Navigate back to home screen
-      router.replace('/home');
+      // Navigate to the dashboard tab
+      router.replace('/(tabs)/dashboard');
     } catch (error) {
       console.error('Error in continue handler:', error);
     } finally {
@@ -189,7 +175,7 @@ export default function CardSelectionScreen() {
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-      <Text style={styles.title}>{isEditMode ? 'Edit Your Cards' : 'Select Your Cards'}</Text>
+      <Text style={styles.title}>Manage Your Cards</Text>
       
       {/* Selected Cards Section */}
       {selectedCardObjects.length > 0 && (
@@ -286,9 +272,7 @@ export default function CardSelectionScreen() {
           {isSaving ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={styles.continueButtonText}>
-              {isEditMode ? 'Save Changes' : 'Continue'}
-            </Text>
+            <Text style={styles.continueButtonText}>Save Changes</Text>
           )}
         </TouchableOpacity>
       </View>

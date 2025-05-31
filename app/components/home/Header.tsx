@@ -42,7 +42,6 @@ export default function Header() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
     paddingHorizontal: 20,
     paddingBottom: 12,
     backgroundColor: '#ffffff',

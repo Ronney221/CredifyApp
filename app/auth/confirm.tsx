@@ -28,7 +28,7 @@ export default function EmailConfirm() {
           } else {
             console.log('Email confirmed successfully:', data);
             setStatus('success');
-            setTimeout(() => router.replace('/card-selection'), 2000);
+            setTimeout(() => router.replace('/(tabs)/cards'), 2000);
           }
         } else {
           setStatus('error');

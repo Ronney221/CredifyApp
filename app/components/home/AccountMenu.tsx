@@ -20,7 +20,7 @@ export default function AccountMenu({ isVisible, onClose }: AccountMenuProps) {
   const handleEditCards = () => {
     onClose();
     router.push({
-      pathname: '/card-selection-screen',
+      pathname: '/(tabs)/cards',
       params: { mode: 'edit' }
     } as any);
   };

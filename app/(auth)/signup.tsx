@@ -114,7 +114,7 @@ export default function SignUpScreen() {
           'Account created! Please check your email to verify your account.',
           [{ 
             text: 'OK', 
-            onPress: () => router.replace('/(auth)/login')
+            onPress: () => router.replace('/(tabs)/cards')
           }]
         );
       }

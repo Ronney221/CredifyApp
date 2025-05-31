@@ -225,7 +225,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         {...(Platform.select({
@@ -253,7 +253,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.addCardButton}
               onPress={() => router.push({
-                pathname: '/card-selection-screen',
+                pathname: '/(tabs)/cards',
                 params: { mode: 'edit' }
               } as any)}
             >
@@ -290,7 +290,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.addFirstCardButton}
                 onPress={() => router.push({
-                  pathname: '/card-selection-screen',
+                  pathname: '/(tabs)/cards',
                   params: { mode: 'edit' }
                 } as any)}
               >

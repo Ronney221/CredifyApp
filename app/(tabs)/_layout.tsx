@@ -2,63 +2,57 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Tabs } from 'expo-router';
-import { Platform, View } from 'react-native';
-import Constants from 'expo-constants';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
+import { Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-export default function RootLayout() {
+export default function TabLayout() {
   const colorScheme = useColorScheme();
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
-  const bgColor  = Colors[colorScheme ?? 'light'].background;
 
   return (
     <>
-      {/* Global Status-Bar config */}
-      <StatusBar style={barStyle} translucent backgroundColor="transparent" />
-
-      {/* Underlay so the translucent bar never appears black on iOS */}
-      {Platform.OS === 'ios' && (
-        <View
-          style={{
-            height: Constants.statusBarHeight,
-            backgroundColor: bgColor,
-          }}
-        />
-      )}
-
-      {/* Tab navigator */}
+      <StatusBar style={barStyle} />
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
           headerShown: false,
-          tabBarButton: HapticTab,
-          tabBarBackground: TabBarBackground,
-          tabBarStyle: Platform.select({
-            ios: { position: 'absolute' },
-            default: {},
-          }),
+          tabBarStyle: {
+            backgroundColor: '#ffffff',
+            borderTopColor: '#e0e0e0',
+            elevation: 0,
+            shadowOpacity: 0,
+            height: Platform.OS === 'ios' ? 85 : 60,
+            paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+          },
+          tabBarActiveTintColor: '#007aff',
+          tabBarInactiveTintColor: '#8e8e93',
         }}
       >
         <Tabs.Screen
-          name="index"
+          name="dashboard"
           options={{
-            title: 'Home',
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="house.fill" color={color} />
+            title: 'Dashboard',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="home" size={size} color={color} />
             ),
           }}
         />
         <Tabs.Screen
-          name="explore"
+          name="cards"
           options={{
-            title: 'Explore',
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="paperplane.fill" color={color} />
+            title: 'Cards',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="card" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="insights"
+          options={{
+            title: 'Insights',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="analytics" size={size} color={color} />
             ),
           }}
         />

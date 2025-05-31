@@ -32,7 +32,7 @@ export default function AuthCallback() {
             router.replace('/(auth)/login');
           } else {
             console.log('Authentication successful:', data);
-            router.replace('/card-selection');
+            router.replace('/(tabs)/cards');
           }
         } else {
           console.log('No access token found, redirecting to login');
