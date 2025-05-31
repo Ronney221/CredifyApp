@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, StatusBar } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Colors } from '../../constants/Colors';
 import AccountButton from './AccountButton';
+import { TimeRemainingBanner } from './TimeRemainingBanner';
+import { endOfMonth, differenceInDays } from 'date-fns';
 
 export default function Header() {
   const { user } = useAuth();
@@ -21,18 +22,9 @@ export default function Header() {
 
   const daysRemaining = useMemo(() => {
     const today = new Date();
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    return lastDay.getDate() - today.getDate() + 1;
+    const lastDay = endOfMonth(today);
+    return differenceInDays(lastDay, today) + 1;
   }, []);
-
-  const statusMessage = useMemo(() => {
-    if (daysRemaining === 1) {
-      return "Last day to use this month's perks!";
-    } else if (daysRemaining <= 3) {
-      return `${daysRemaining} days left to use this month's perks`;
-    }
-    return `${daysRemaining} days left this month`;
-  }, [daysRemaining]);
 
   return (
     <View style={styles.container}>
@@ -40,15 +32,10 @@ export default function Header() {
         <View style={styles.textContainer}>
           <Text style={styles.greeting}>{greeting},</Text>
           <Text style={styles.name}>{firstName}</Text>
-          <Text style={[
-            styles.status,
-            daysRemaining <= 3 && styles.urgentStatus
-          ]}>
-            {statusMessage}
-          </Text>
         </View>
         <AccountButton />
       </View>
+      <TimeRemainingBanner daysRemaining={daysRemaining} />
     </View>
   );
 }
@@ -71,23 +58,14 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 16,
-    color: Colors.light.textSecondary,
+    color: '#666666',
     fontWeight: '500',
   },
   name: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.light.text,
+    color: '#1c1c1e',
     marginTop: 2,
     marginBottom: 4,
-  },
-  status: {
-    fontSize: 14,
-    color: Colors.light.textSecondary,
-    fontWeight: '500',
-  },
-  urgentStatus: {
-    color: Colors.light.error,
-    fontWeight: '600',
   },
 }); 

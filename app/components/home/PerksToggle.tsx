@@ -24,7 +24,7 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
 
   const translateX = slideAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [2, (containerWidth / 2) - 2], // Adjust for padding
+    outputRange: [2, (containerWidth / 2) - 2],
   });
 
   return (
@@ -40,7 +40,7 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
           style={[
             styles.slider,
             {
-              width: containerWidth ? (containerWidth / 2) - 4 : 0, // Adjust for padding
+              width: containerWidth ? (containerWidth / 2) - 4 : 0,
               transform: [{ translateX }],
             }
           ]} 
@@ -74,6 +74,7 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
           </TouchableOpacity>
         </View>
       </View>
+      <View style={styles.divider} />
     </View>
   );
 };
@@ -81,15 +82,17 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
 const styles = StyleSheet.create({
   outerContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 4,
     width: '100%',
   },
   segmentedControl: {
-    height: 36,
+    height: 32,
     backgroundColor: '#F2F2F7',
-    borderRadius: 8,
+    borderRadius: 6,
     overflow: 'hidden',
     width: '100%',
+    maxWidth: 240,
+    alignSelf: 'center',
     position: 'relative',
   },
   buttonsContainer: {
@@ -104,26 +107,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
     color: '#8E8E93',
   },
   activeText: {
     color: Platform.OS === 'ios' ? '#007AFF' : '#1a73e8',
+    fontWeight: '600',
   },
   slider: {
     position: 'absolute',
     top: 2,
     bottom: 2,
     backgroundColor: '#FFFFFF',
-    borderRadius: 6,
+    borderRadius: 5,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 1,
     elevation: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E5EA',
+    marginTop: 12,
+    marginHorizontal: -16,
+    width: '120%',
   },
 }); 
