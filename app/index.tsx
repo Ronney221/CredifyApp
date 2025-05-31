@@ -10,13 +10,48 @@ import {
   ActionSheetIOS,
   Alert,
   Dimensions,
+  TextStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, Link } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import LottieView from 'lottie-react-native';
 
 const { height } = Dimensions.get('window');
+
+// Typography scale following iOS HIG
+const Typography = StyleSheet.create({
+  largeTitle: {
+    fontSize: 34,
+    lineHeight: 41,
+    letterSpacing: 0.37,
+    fontWeight: '700',
+  } as TextStyle,
+  title1: {
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: 0.36,
+    fontWeight: '700',
+  } as TextStyle,
+  headline: {
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.24,
+    fontWeight: '600',
+  } as TextStyle,
+  body: {
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.24,
+    fontWeight: '400',
+  } as TextStyle,
+  caption1: {
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0,
+    fontWeight: '400',
+  } as TextStyle,
+});
 
 // Placeholder for app logo - replace with your actual logo
 // const AppLogo = require('../assets/images/app-logo.png');
@@ -45,7 +80,8 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (lottieRef.current) {
-      // Play animation with a slight delay for better UX
+      // Reset and play animation
+      lottieRef.current.reset();
       setTimeout(() => {
         lottieRef.current?.play();
       }, 100);
@@ -123,7 +159,19 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       <View style={styles.content}>
-        <View style={styles.animationContainer}>
+        <View style={styles.topSection}>
+          <Text style={[Typography.headline, styles.valueStatement]}>
+            Stop letting credits expire.
+          </Text>
+          <Text style={[Typography.title1, styles.tagline]}>
+            Your Credit Card Companion
+          </Text>
+          <Text style={[Typography.body, styles.description]}>
+            Track, redeem, and maximize all your credit-card benefits in one place.
+          </Text>
+        </View>
+
+        <View style={styles.middleSection}>
           <LottieView
             ref={lottieRef}
             source={require('../assets/animations/credit_card_animation.json')}
@@ -132,28 +180,36 @@ export default function WelcomeScreen() {
             style={styles.lottieAnimation}
             speed={0.8}
             resizeMode="contain"
+            renderMode="HARDWARE"
+            cacheComposition={true}
           />
         </View>
 
-        <View style={styles.textContainer}>
-          <Text style={styles.tagline}>Your Credit Card Companion</Text>
-          <Text style={styles.description}>
-            Manage your credit cards, track rewards, and optimize your spending with intelligent insights.
-          </Text>
-        </View>
-
-        <View style={styles.buttonContainer}>
+        <View style={styles.bottomSection}>
           <TouchableOpacity 
             style={styles.continueButton} 
             onPress={handleContinue}
             activeOpacity={0.8}
           >
-            <Text style={styles.continueButtonText}>Get Started</Text>
+            <Text style={[Typography.headline, styles.continueButtonText]}>
+              Get Started
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.termsContainer}>
-            <Text style={styles.termsText}>
-              By continuing, you agree to our Terms of Service and Privacy Policy
+            <Text 
+              style={[Typography.caption1, styles.termsText]}
+              allowFontScaling={true}
+              maxFontSizeMultiplier={1.5}
+            >
+              By continuing, you agree to our{' '}
+              <Link href="/(auth)/terms" asChild>
+                <Text style={styles.termsLink}>Terms of Service</Text>
+              </Link>
+              {' '}and{' '}
+              <Link href="/(auth)/terms" asChild>
+                <Text style={styles.termsLink}>Privacy Policy</Text>
+              </Link>
             </Text>
           </View>
         </View>
@@ -181,48 +237,49 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     justifyContent: 'space-between',
-    paddingTop: height * 0.05, // Dynamic top padding
-    paddingBottom: height * 0.05, // Dynamic bottom padding
+    paddingTop: Platform.OS === 'ios' ? height * 0.02 : height * 0.05,
+    paddingBottom: height * 0.05,
   },
-  animationContainer: {
+  topSection: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  middleSection: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    maxHeight: height * 0.4, // Limit animation height
+    minHeight: Math.min(height * 0.4, 300), // Either 40% of height or max 300px
+    paddingVertical: 20,
+  },
+  bottomSection: {
+    paddingTop: height * 0.02,
+  },
+  valueStatement: {
+    color: '#007aff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  tagline: {
+    color: '#1c1c1e',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  description: {
+    color: '#666666',
+    textAlign: 'center',
+    maxWidth: 300,
   },
   lottieAnimation: {
     width: '100%',
     height: '100%',
-  },
-  textContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginVertical: height * 0.04, // Dynamic vertical margin
-  },
-  tagline: {
-    fontSize: 28,
-    color: '#007aff',
-    marginBottom: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  description: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 24,
-    maxWidth: 300,
-  },
-  buttonContainer: {
-    paddingTop: height * 0.02, // Dynamic top padding
+    transform: [{ scale: 1.2 }],
   },
   continueButton: {
     backgroundColor: '#007aff',
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     shadowColor: '#007aff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -231,16 +288,19 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
   },
   termsContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   termsText: {
-    fontSize: 13,
     color: '#8e8e93',
     textAlign: 'center',
     lineHeight: 18,
+    fontSize: Platform.OS === 'ios' ? 11 : 12,
+  },
+  termsLink: {
+    color: '#007aff',
+    textDecorationLine: 'underline',
+    fontSize: Platform.OS === 'ios' ? 11 : 12,
   },
 }); 
