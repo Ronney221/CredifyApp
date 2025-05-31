@@ -79,13 +79,15 @@ export default function WelcomeScreen() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (lottieRef.current) {
-      // Reset and play animation
-      lottieRef.current.reset();
-      setTimeout(() => {
-        lottieRef.current?.play();
-      }, 100);
-    }
+    // Ensure animation plays properly on mount
+    const timer = setTimeout(() => {
+      if (lottieRef.current) {
+        lottieRef.current.reset();
+        lottieRef.current.play();
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleContinue = () => {
@@ -175,13 +177,14 @@ export default function WelcomeScreen() {
           <LottieView
             ref={lottieRef}
             source={require('../assets/animations/credit_card_animation.json')}
-            autoPlay={false}
+            autoPlay={true}
             loop={true}
             style={styles.lottieAnimation}
             speed={0.8}
             resizeMode="contain"
             renderMode="HARDWARE"
             cacheComposition={true}
+            key="credit-card-animation"
           />
         </View>
 
@@ -248,8 +251,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: Math.min(height * 0.4, 300), // Either 40% of height or max 300px
+    minHeight: Math.min(height * 0.4, 300),
     paddingVertical: 20,
+    overflow: 'hidden',
   },
   bottomSection: {
     paddingTop: height * 0.02,
@@ -271,8 +275,8 @@ const styles = StyleSheet.create({
   },
   lottieAnimation: {
     width: '100%',
-    height: '100%',
-    transform: [{ scale: 1.2 }],
+    aspectRatio: 1,
+    transform: [{ scale: 0.8 }],
   },
   continueButton: {
     backgroundColor: '#007aff',
