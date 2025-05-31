@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { Card, allCards } from '../../src/data/card-data';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getUserCards, saveUserCards } from '../../lib/database';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Cards() {
   const router = useRouter();
@@ -29,6 +30,21 @@ export default function Cards() {
   const [currentEditingCardId, setCurrentEditingCardId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Helper to get card network color
+  const getCardNetworkColor = (card: Card) => {
+    switch (card.network?.toLowerCase()) {
+      case 'amex':
+      case 'american express':
+        if (card.name?.toLowerCase().includes('platinum')) return '#E5E4E2';
+        if (card.name?.toLowerCase().includes('gold')) return '#B08D57';
+        return '#007bc1';
+      case 'chase':
+        return '#124A8D';
+      default:
+        return '#F0F0F0';
+    }
+  };
 
   // Track if there are unsaved changes
   const hasChanges = React.useMemo(() => {
@@ -208,41 +224,54 @@ export default function Cards() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.selectedCardsContainer}
           >
-            {selectedCardObjects.map((card) => (
-              <TouchableOpacity
-                key={card.id}
-                style={styles.selectedCardItem}
-                onPress={() => toggleCardSelection(card.id)}
-                activeOpacity={0.7}
-              >
-                <Image source={card.image} style={styles.selectedCardImage} />
-                <View style={styles.selectedCardContent}>
-                  <Text style={styles.selectedCardName} numberOfLines={2}>
-                    {card.name}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => showDatePicker(card.id)}
-                    style={styles.selectedCardDateButton}
-                  >
-                    <Text
-                      style={
-                        renewalDates[card.id]
-                          ? styles.dateTextSet
-                          : styles.dateTextPlaceholder
-                      }
-                    >
-                      {formatDate(renewalDates[card.id])}
+            {selectedCardObjects.map((card) => {
+              const networkColor = getCardNetworkColor(card);
+              return (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.selectedCardItem}
+                  onPress={() => toggleCardSelection(card.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.selectedCardImageWrapper, { backgroundColor: networkColor }]}>
+                    <Image source={card.image} style={styles.selectedCardImage} />
+                  </View>
+                  <View style={styles.selectedCardContent}>
+                    <Text style={styles.selectedCardName} numberOfLines={2}>
+                      {card.name}
                     </Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            ))}
+                    <TouchableOpacity
+                      onPress={() => showDatePicker(card.id)}
+                      style={styles.selectedCardDateButton}
+                    >
+                      <Ionicons name="calendar-outline" size={14} color="#8e8e93" style={{ marginRight: 4 }} />
+                      <Text
+                        style={[
+                          renewalDates[card.id]
+                            ? styles.dateTextSet
+                            : styles.dateTextPlaceholder,
+                          styles.dateTextBase
+                        ]}
+                      >
+                        {formatDate(renewalDates[card.id])}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
+        <Ionicons 
+          name="search" 
+          size={18} 
+          color="#8e8e93"
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder="Search for a card..."
@@ -332,18 +361,27 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 28,
+    zIndex: 1,
   },
   searchInput: {
     height: 40,
-    borderColor: '#d1d1d6',
-    borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#f2f2f7',
+    paddingLeft: 36,
+    backgroundColor: '#f0f0f0',
     fontSize: 16,
+    flex: 1,
+    color: '#1c1c1e',
   },
   scrollView: {
     flex: 1,
@@ -435,13 +473,21 @@ const styles = StyleSheet.create({
     marginRight: 8,
     padding: 8,
     borderWidth: 1,
-    borderColor: '#007aff',
+    borderColor: '#d1d1d6',
   },
-  selectedCardImage: {
+  selectedCardImageWrapper: {
     width: '100%',
     height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedCardImage: {
+    width: '90%',
+    height: '90%',
     resizeMode: 'contain',
-    marginBottom: 4,
   },
   selectedCardContent: {
     alignItems: 'center',
@@ -460,17 +506,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: '100%',
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   availableCardsSection: {
     flex: 1,
     paddingTop: 8,
   },
   dateTextSet: {
-    fontSize: 12,
     color: '#1c1c1e',
+    fontWeight: '500',
   },
   dateTextPlaceholder: {
-    fontSize: 12,
     color: '#8e8e93',
+  },
+  dateTextBase: {
+    fontSize: 12,
   },
 }); 
