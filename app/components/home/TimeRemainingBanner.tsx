@@ -32,9 +32,13 @@ export const TimeRemainingBanner: React.FC<TimeRemainingBannerProps> = ({ daysRe
 
   if (daysRemaining <= 0) return null;
 
-  const urgencyColor = daysRemaining <= 2 ? '#FF3B30' : '#FF9500';
-  const urgencyBgColor = daysRemaining <= 2 ? 'rgba(255, 59, 48, 0.08)' : 'rgba(255, 149, 0, 0.08)';
+  // const urgencyColor = daysRemaining <= 2 ? '#FF3B30' : '#FF9500';
+  // const urgencyBgColor = daysRemaining <= 2 ? 'rgba(255, 59, 48, 0.08)' : 'rgba(255, 149, 0, 0.08)';
   
+  // New color scheme: Orange for general warning, slightly more intense orange/yellow for few days left.
+  const urgencyColor = daysRemaining <= 2 ? '#FF8C00' : '#FF9500'; // DarkOrange for <=2 days, Orange for >2 days
+  const urgencyBgColor = daysRemaining <= 2 ? 'rgba(255, 140, 0, 0.1)' : 'rgba(255, 149, 0, 0.08)'; // Lighter, more transparent DarkOrange bg
+
   const message = daysRemaining === 1 
     ? "Last day to use this month's perks!"
     : `${daysRemaining} days left to use this month's perks`;
@@ -52,7 +56,8 @@ export const TimeRemainingBanner: React.FC<TimeRemainingBannerProps> = ({ daysRe
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Ionicons 
-            name={daysRemaining <= 2 ? "alert-circle" : "time"} 
+            // name={daysRemaining <= 2 ? "alert-circle" : "time"} 
+            name="time-outline" // Always use a clock icon
             size={18} 
             color={urgencyColor} 
           />

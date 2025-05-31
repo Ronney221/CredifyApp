@@ -1,4 +1,5 @@
 import { Platform, Linking, Alert } from 'react-native';
+import { ImageSourcePropType } from 'react-native';
 
 export interface Benefit {
   id: string;
@@ -16,8 +17,11 @@ export interface Benefit {
 export interface Card {
   id: string;
   name: string;
-  image: any; // React Native's ImageSourcePropType for require
-  annualFee?: number; // Optional: good to track for value calculations
+  image: ImageSourcePropType;
+  annualFee?: number;
+  statementCredit?: number;
+  rewardsCurrency?: string;
+  network?: string;
   benefits: Benefit[];
 }
 
@@ -838,8 +842,36 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
   }
 }
 
-// Export function to open perk target app
+// Export function to open perk target
 export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
+  // Helper function to handle the actual opening logic
+  const handleOpen = async (targetPerkName: string): Promise<boolean> => {
+    const appKey = PERK_TO_APP_MAP[targetPerkName];
+    if (appKey && APP_SCHEMES[appKey]) { // Check if appKey exists and is valid in APP_SCHEMES
+      return openAppOrFallback(appKey);
+    } else {
+      // If no appKey or invalid appKey, fall back to Google search
+      console.log(`No app mapping or invalid appKey found for perk: ${targetPerkName}. Falling back to Google search.`);
+      const searchTerm = encodeURIComponent(targetPerkName);
+      const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
+      try {
+        const canOpen = await Linking.canOpenURL(googleSearchUrl);
+        if (canOpen) {
+          await Linking.openURL(googleSearchUrl);
+          return true;
+        } else {
+          console.error(`Cannot open Google search URL for ${targetPerkName}`);
+          Alert.alert("Error", `Could not open a web search for ${targetPerkName}.`);
+          return false;
+        }
+      } catch (error) {
+        console.error(`Failed to open Google search for ${targetPerkName}:`, error);
+        Alert.alert("Error", `Could not open a link for ${targetPerkName}.`);
+        return false;
+      }
+    }
+  };
+
   // Check if this is a multi-choice perk
   const choices = multiChoicePerksConfig[perk.name];
 
@@ -848,41 +880,31 @@ export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
     return new Promise((resolve) => {
       Alert.alert(
         `Redeem ${perk.name}`,
-        "Choose an app to open:",
+        "Choose an option to open:", // Updated message for clarity
         [
           ...choices.map(choice => ({
             text: choice.label,
             onPress: async () => {
-              const appKey = PERK_TO_APP_MAP[choice.targetPerkName];
-              if (!appKey) {
-                console.log(`No app mapping found for perk: ${choice.targetPerkName}`);
-                resolve(false);
-                return;
-              }
-              const success = await openAppOrFallback(appKey);
+              // Use the targetPerkName from the choice for the app mapping
+              const success = await handleOpen(choice.targetPerkName);
               resolve(success);
             },
           })),
-          { 
-            text: "Cancel", 
+          {
+            text: "Cancel",
             style: "cancel",
             onPress: () => resolve(false)
           },
         ],
-        { 
+        {
           cancelable: true,
           onDismiss: () => resolve(false)
         }
       );
     });
   } else {
-    // Single-target perk
-    const appKey = PERK_TO_APP_MAP[perk.name];
-    if (!appKey) {
-      console.log(`No app mapping found for perk: ${perk.name}`);
-      return false;
-    }
-    return openAppOrFallback(appKey);
+    // Single-target perk, use perk.name directly
+    return handleOpen(perk.name);
   }
 }
 

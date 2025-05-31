@@ -17,7 +17,8 @@ interface ProgressDonutProps {
   backgroundColor?: string;
   amount: string;
   label: string;
-  detail: string;
+  detailLineOne: string;
+  detailLineTwo: string;
   perksCount?: string;
 }
 
@@ -31,7 +32,8 @@ export default function ProgressDonut({
   backgroundColor = '#ECECEC',
   amount,
   label,
-  detail,
+  detailLineOne,
+  detailLineTwo,
   perksCount,
 }: ProgressDonutProps) {
   const center = size / 2;
@@ -97,7 +99,8 @@ export default function ProgressDonut({
         )}
       </View>
       
-      <Text style={styles.detail}>{detail}</Text>
+      <Text style={styles.detailLine}>{detailLineOne}</Text>
+      <Text style={styles.detailLine}>{detailLineTwo}</Text>
     </View>
   );
 }
@@ -141,12 +144,12 @@ const styles = StyleSheet.create({
     color: '#3C3C4399',
     textAlign: 'center',
   },
-  detail: {
+  detailLine: {
     fontSize: 15,
     fontWeight: '500',
     color: '#3C3C4399',
-    marginTop: 16,
     textAlign: 'center',
     letterSpacing: -0.24,
+    marginTop: 2,
   },
 }); 

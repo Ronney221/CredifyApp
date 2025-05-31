@@ -149,8 +149,8 @@ export default function Dashboard() {
     setPerkStatus(cardId, perkId, 'redeemed'); 
   };
 
-  const handleLongPressPerk = (cardId: string, perkId: string, currentPerk: CardPerk) => {
-    setPerkStatus(cardId, perkId, currentPerk.status === 'redeemed' ? 'available' : 'redeemed');
+  const handleLongPressPerk = (cardId: string, perkId: string, intendedNewStatus: 'available' | 'redeemed') => {
+    setPerkStatus(cardId, perkId, intendedNewStatus);
   };
 
   // DEV Date Picker Handler

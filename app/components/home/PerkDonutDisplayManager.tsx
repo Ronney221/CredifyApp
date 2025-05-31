@@ -227,13 +227,8 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
         minimumFractionDigits: 2,
       }),
       label: 'Monthly Perks Redeemed',
-      detail: `${monthlyRedemptions.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      })} / ${monthlyPossibleTotal.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      })}`,
+      detailLineOne: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} redeemed`,
+      detailLineTwo: `${monthlyPossibleTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} available`,
       perksCount: `${estimatedRedeemedCount} of ${totalMonthlyPerks}`,
       color: Platform.OS === 'ios' ? '#007AFF' : 'dodgerblue',
     };
@@ -269,7 +264,8 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
       progress: annualProgress,
       amount: formattedRedeemedValue,
       label: 'Annual Value Redeemed',
-      detail: `${formattedRedeemedValue} / ${formattedFees}`,
+      detailLineOne: `${formattedRedeemedValue} redeemed value`,
+      detailLineTwo: `${formattedFees} total annual fees`,
       perksCount: `${breakEvenPercent}% of fees`,
       color: '#5856d6',
     };
@@ -294,7 +290,8 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
         progress={activeData.progress}
         amount={activeData.amount}
         label={activeData.label}
-        detail={activeData.detail}
+        detailLineOne={activeData.detailLineOne}
+        detailLineTwo={activeData.detailLineTwo}
         perksCount={activeData.perksCount}
         color={activeData.color}
         backgroundColor="#ECECEC"
