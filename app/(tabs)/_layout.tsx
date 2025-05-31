@@ -2,10 +2,11 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { BlurView } from 'expo-blur';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -17,13 +18,29 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarStyle: {
-            backgroundColor: '#ffffff',
-            borderTopColor: '#e0e0e0',
-            elevation: 0,
-            shadowOpacity: 0,
-            height: Platform.OS === 'ios' ? 85 : 60,
-            paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+          tabBarStyle: Platform.select({
+            ios: {
+              backgroundColor: 'rgba(255, 255, 255, 0.85)',
+              borderTopColor: 'rgba(0, 0, 0, 0.2)',
+              height: 52,
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              paddingBottom: 0,
+              paddingTop: 0,
+              backdropFilter: 'blur(15px)',
+            },
+            android: {
+              backgroundColor: '#ffffff',
+              borderTopColor: '#e0e0e0',
+              height: 56,
+              paddingBottom: 0,
+              paddingTop: 0,
+            },
+          }),
+          tabBarItemStyle: {
+            paddingVertical: 8,
           },
           tabBarActiveTintColor: '#007aff',
           tabBarInactiveTintColor: '#8e8e93',

@@ -21,12 +21,21 @@ import { getUserCards, saveUserCards } from '../../lib/database';
 export default function Cards() {
   const router = useRouter();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
+  const [initialSelectedCards, setInitialSelectedCards] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
+  const [initialRenewalDates, setInitialRenewalDates] = useState<Record<string, Date>>({});
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [currentEditingCardId, setCurrentEditingCardId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Track if there are unsaved changes
+  const hasChanges = React.useMemo(() => {
+    const selectedCardsChanged = JSON.stringify(selectedCards.sort()) !== JSON.stringify(initialSelectedCards.sort());
+    const renewalDatesChanged = JSON.stringify(renewalDates) !== JSON.stringify(initialRenewalDates);
+    return selectedCardsChanged || renewalDatesChanged;
+  }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates]);
 
   // Load existing cards
   useEffect(() => {
@@ -45,6 +54,7 @@ export default function Cards() {
             .filter(card => userCards.some(uc => uc.card_name === card.name))
             .map(card => card.id);
           setSelectedCards(cardIds);
+          setInitialSelectedCards(cardIds);
           
           // Load renewal dates if available
           const dates: Record<string, Date> = {};
@@ -57,6 +67,7 @@ export default function Cards() {
             }
           });
           setRenewalDates(dates);
+          setInitialRenewalDates(dates);
         }
         setIsLoading(false);
       } catch (error) {
@@ -154,8 +165,19 @@ export default function Cards() {
         return;
       }
 
-      // Navigate to the dashboard tab
-      router.replace('/(tabs)/dashboard');
+      // Update initial state to match current state
+      setInitialSelectedCards(selectedCards);
+      setInitialRenewalDates(renewalDates);
+
+      // Navigate to the dashboard tab and force a refresh
+      router.replace({
+        pathname: '/(tabs)/dashboard',
+        params: { 
+          refresh: Date.now().toString(),
+          selectedCardIds: selectedCards.join(','),
+          renewalDates: JSON.stringify(renewalDates)
+        }
+      });
     } catch (error) {
       console.error('Error in continue handler:', error);
     } finally {
@@ -259,23 +281,25 @@ export default function Cards() {
       </View>
 
       {/* Footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            styles.continueButton,
-            (selectedCards.length === 0 || isSaving) && styles.continueButtonDisabled,
-          ]}
-          onPress={handleContinue}
-          disabled={selectedCards.length === 0 || isSaving}
-          activeOpacity={0.8}
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.continueButtonText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      {hasChanges && (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.continueButton,
+              isSaving && styles.continueButtonDisabled,
+            ]}
+            onPress={handleContinue}
+            disabled={isSaving}
+            activeOpacity={0.8}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.continueButtonText}>Save Changes</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {currentEditingCardId && (
         <DateTimePickerModal
@@ -372,6 +396,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     backgroundColor: '#ffffff',
+    marginBottom: Platform.OS === 'ios' ? 49 : 56,
   },
   continueButton: {
     backgroundColor: '#007aff',

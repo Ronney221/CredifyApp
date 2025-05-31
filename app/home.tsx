@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -71,7 +71,7 @@ type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> }
 
 export default function HomeScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string }>();
+  const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
   const { user } = useAuth();
   const donutDisplayRef = useRef<{ refresh: () => void }>(null);
 
@@ -118,6 +118,13 @@ export default function HomeScreen() {
       setupNotifications(); 
     }, [])
   );
+
+  // Force refresh when params.refresh changes
+  useEffect(() => {
+    if (params.refresh) {
+      donutDisplayRef.current?.refresh();
+    }
+  }, [params.refresh]);
 
   // Function to set up notifications
   const setupNotifications = async () => {
@@ -341,7 +348,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   scrollContent: {
-    paddingBottom: 20,
+    flexGrow: 1,
   },
   header: {
     paddingHorizontal: 20,
