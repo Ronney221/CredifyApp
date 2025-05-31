@@ -10,6 +10,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -30,6 +31,8 @@ export default function Cards() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [addCardModalVisible, setAddCardModalVisible] = useState(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [tempSelectedCardIdsInModal, setTempSelectedCardIdsInModal] = useState<Set<string>>(new Set());
 
   const getCardNetworkColor = (card: Card) => {
     switch (card.network?.toLowerCase()) {
@@ -46,8 +49,16 @@ export default function Cards() {
   };
 
   const hasChanges = React.useMemo(() => {
-    const selectedCardsChanged = JSON.stringify(selectedCards.sort()) !== JSON.stringify(initialSelectedCards.sort());
+    console.log('[CardsScreen] Checking hasChanges...');
+    const selectedCardsSorted = [...selectedCards].sort();
+    const initialSelectedCardsSorted = [...initialSelectedCards].sort();
+    
+    const selectedCardsChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
     const renewalDatesChanged = JSON.stringify(renewalDates) !== JSON.stringify(initialRenewalDates);
+    
+    console.log('[CardsScreen] selectedCardsChanged:', selectedCardsChanged, { selected: selectedCardsSorted, initial: initialSelectedCardsSorted });
+    console.log('[CardsScreen] renewalDatesChanged:', renewalDatesChanged, { current: renewalDates, initial: initialRenewalDates });
+    
     return selectedCardsChanged || renewalDatesChanged;
   }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates]);
 
@@ -118,7 +129,7 @@ export default function Cards() {
     hideDatePicker();
   };
 
-  const toggleCardSelection = (cardId: string) => {
+  const toggleCardSelectionOnMainScreen = (cardId: string) => {
     setSelectedCards((prevSelectedCards) =>
       prevSelectedCards.includes(cardId)
         ? prevSelectedCards.filter((id) => id !== cardId)
@@ -169,9 +180,41 @@ export default function Cards() {
     }
   };
 
-  const handleAddAnotherCard = () => {
+  const handleOpenAddCardModal = () => {
+    setModalSearchQuery('');
+    setTempSelectedCardIdsInModal(new Set());
     setAddCardModalVisible(true);
   };
+
+  const handleToggleCardInModal = (cardId: string) => {
+    if (selectedCards.includes(cardId)) return;
+
+    setTempSelectedCardIdsInModal(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
+      } else {
+        newSet.add(cardId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDoneAddCardModal = () => {
+    setSelectedCards(prev => {
+      const combined = new Set([...prev, ...tempSelectedCardIdsInModal]);
+      const newSelectedCards = Array.from(combined);
+      console.log('[CardsScreen] handleDoneAddCardModal - newSelectedCards:', newSelectedCards, 'tempSelections:', Array.from(tempSelectedCardIdsInModal));
+      return newSelectedCards;
+    });
+    setAddCardModalVisible(false);
+  };
+
+  const filteredAvailableCardsForModal = React.useMemo(() => {
+    return allCards.filter(card => 
+      card.name.toLowerCase().includes(modalSearchQuery.toLowerCase())
+    );
+  }, [modalSearchQuery]);
 
   const handleGlobalReminders = () => {
     console.log("Placeholder: Open global reminders settings sheet");
@@ -179,6 +222,7 @@ export default function Cards() {
 
   const handleCardSettings = (cardId: string) => {
     console.log(`Placeholder: Open card settings sheet for ${cardId}`);
+    showDatePicker(cardId);
   };
 
   if (isLoading) {
@@ -198,21 +242,57 @@ export default function Cards() {
         animationType="slide"
         transparent={false}
         visible={addCardModalVisible}
-        onRequestClose={() => {
-          setAddCardModalVisible(!addCardModalVisible);
-        }}
+        onRequestClose={handleDoneAddCardModal}
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer} edges={['top', 'left', 'right', 'bottom']}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add a Card</Text>
-            <TouchableOpacity onPress={() => setAddCardModalVisible(false)} style={styles.modalCloseButton}>
-              <Ionicons name="close-circle" size={28} color="#007aff" />
+            <TouchableOpacity onPress={handleDoneAddCardModal} style={styles.modalDoneButton}>
+              <Text style={styles.modalDoneButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.modalSearchContainer}>
+            <Ionicons name="search" size={18} color="#8e8e93" style={styles.modalSearchIcon} />
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder="Search for a card..."
+              placeholderTextColor="#8e8e93"
+              value={modalSearchQuery}
+              onChangeText={setModalSearchQuery}
+            />
+          </View>
           <ScrollView style={styles.modalScrollView}>
-            <Text style={{padding: 20, textAlign: 'center'}}>
-              Search and list of available cards will go here.
-            </Text>
+            {filteredAvailableCardsForModal.map((card) => {
+              const isAlreadySelectedOnMain = selectedCards.includes(card.id);
+              const isSelectedInModalSession = tempSelectedCardIdsInModal.has(card.id);
+              const networkColor = getCardNetworkColor(card);
+
+              return (
+                <TouchableOpacity 
+                  key={card.id} 
+                  style={[styles.modalCardRow, isAlreadySelectedOnMain && styles.modalCardRowDisabled]}
+                  onPress={() => handleToggleCardInModal(card.id)}
+                  disabled={isAlreadySelectedOnMain}
+                >
+                  <View style={[styles.rowCardImageWrapper, { backgroundColor: networkColor }]}>
+                    <Image source={card.image} style={styles.rowCardImage} />
+                  </View>
+                  <View style={styles.cardRowContent}>
+                    <Text style={styles.rowLabel}>{card.name}</Text>
+                  </View>
+                  {isAlreadySelectedOnMain ? (
+                    <Ionicons name="checkmark-circle" size={24} color="#34c759" />
+                  ) : isSelectedInModalSession ? (
+                    <Ionicons name="checkmark-circle-outline" size={24} color="#007aff" />
+                  ) : (
+                    <Ionicons name="add-circle-outline" size={24} color="#007aff" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+            {filteredAvailableCardsForModal.length === 0 && modalSearchQuery !== '' && (
+              <Text style={styles.emptySectionText}>No cards found matching "{modalSearchQuery}".</Text>
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -236,9 +316,14 @@ export default function Cards() {
                   </View>
                   <View style={styles.cardRowContent}>
                     <Text style={styles.rowLabel}>{card.name}</Text>
-                    <Text style={styles.rowSubLabel}>{formatDate(renewalDates[card.id])}</Text>
+                    <Text style={[
+                        styles.rowSubLabel,
+                        !renewalDates[card.id] && styles.rowSubLabelPlaceholder
+                    ]}>
+                        {formatDate(renewalDates[card.id])}
+                    </Text>
                   </View>
-                  <TouchableOpacity onPress={() => toggleCardSelection(card.id)} style={styles.moreOptionsButton}>
+                  <TouchableOpacity onPress={() => toggleCardSelectionOnMainScreen(card.id)} style={styles.moreOptionsButton}>
                     <Ionicons name="remove-circle-outline" size={24} color="#ff3b30" />
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -249,7 +334,7 @@ export default function Cards() {
           )}
         </View>
 
-        <TouchableOpacity style={styles.settingsRow} onPress={handleAddAnotherCard}>
+        <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
           <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
           <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
         </TouchableOpacity>
@@ -377,6 +462,10 @@ const styles = StyleSheet.create({
     color: '#8e8e93',
     marginTop: 2,
   },
+  rowSubLabelPlaceholder: {
+    fontWeight: '600',
+    color: '#007aff',
+  },
   moreOptionsButton: {
     paddingLeft: 16,
   },
@@ -417,7 +506,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 25,
+    paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#c7c7cc',
     backgroundColor: '#ffffff',
@@ -427,10 +517,53 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000000',
   },
-  modalCloseButton: {
-    padding: 8,
+  modalDoneButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 8, 
+  },
+  modalDoneButtonText: {
+    fontSize: 17,
+    color: '#007aff',
+    fontWeight: '600',
+  },
+  modalSearchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff', 
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#c7c7cc',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  modalSearchIcon: {
+    position: 'absolute',
+    left: 28,
+    zIndex: 1,
+  },
+  modalSearchInput: {
+    height: 36,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingLeft: 32,
+    backgroundColor: '#efeff4',
+    fontSize: 17,
+    flex: 1,
+    color: '#000000',
   },
   modalScrollView: {
     flex: 1,
+  },
+  modalCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#c7c7cc',
+  },
+  modalCardRowDisabled: {
+    opacity: 0.5,
   },
 });
