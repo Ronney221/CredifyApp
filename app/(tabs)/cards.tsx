@@ -6,10 +6,10 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  TextInput,
   Platform,
   StatusBar,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -23,15 +23,14 @@ export default function Cards() {
   const router = useRouter();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [initialSelectedCards, setInitialSelectedCards] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
   const [initialRenewalDates, setInitialRenewalDates] = useState<Record<string, Date>>({});
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [currentEditingCardId, setCurrentEditingCardId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [addCardModalVisible, setAddCardModalVisible] = useState(false);
 
-  // Helper to get card network color
   const getCardNetworkColor = (card: Card) => {
     switch (card.network?.toLowerCase()) {
       case 'amex':
@@ -46,14 +45,12 @@ export default function Cards() {
     }
   };
 
-  // Track if there are unsaved changes
   const hasChanges = React.useMemo(() => {
     const selectedCardsChanged = JSON.stringify(selectedCards.sort()) !== JSON.stringify(initialSelectedCards.sort());
     const renewalDatesChanged = JSON.stringify(renewalDates) !== JSON.stringify(initialRenewalDates);
     return selectedCardsChanged || renewalDatesChanged;
   }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates]);
 
-  // Load existing cards
   useEffect(() => {
     const loadExistingCards = async () => {
       try {
@@ -62,8 +59,6 @@ export default function Cards() {
           router.replace('/(auth)/login');
           return;
         }
-
-        // Load existing cards
         const { data: userCards, error } = await getUserCards(user.id);
         if (!error && userCards) {
           const cardIds = allCards
@@ -71,8 +66,6 @@ export default function Cards() {
             .map(card => card.id);
           setSelectedCards(cardIds);
           setInitialSelectedCards(cardIds);
-          
-          // Load renewal dates if available
           const dates: Record<string, Date> = {};
           userCards.forEach(uc => {
             if (uc.renewal_date) {
@@ -91,7 +84,6 @@ export default function Cards() {
         setIsLoading(false);
       }
     };
-
     loadExistingCards();
   }, [router]);
 
@@ -151,21 +143,7 @@ export default function Cards() {
     [selectedCards]
   );
 
-  const unselectedCardObjects = React.useMemo(() => 
-    allCards.filter(card => !selectedCards.includes(card.id)),
-    [selectedCards]
-  );
-
-  const filteredUnselectedCards = React.useMemo(() => {
-    if (!searchQuery) {
-      return unselectedCardObjects;
-    }
-    return unselectedCardObjects.filter((card) =>
-      card.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery, unselectedCardObjects]);
-
-  const handleContinue = async () => {
+  const handleSaveChanges = async () => {
     try {
       setIsSaving(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -173,32 +151,34 @@ export default function Cards() {
         router.replace('/(auth)/login');
         return;
       }
-
       const { error } = await saveUserCards(user.id, selectedCardObjects, renewalDates);
-      
       if (error) {
         console.error('Error saving cards:', error);
         return;
       }
-
-      // Update initial state to match current state
       setInitialSelectedCards(selectedCards);
       setInitialRenewalDates(renewalDates);
-
-      // Navigate to the dashboard tab and force a refresh
       router.replace({
         pathname: '/(tabs)/dashboard',
-        params: { 
-          refresh: Date.now().toString(),
-          selectedCardIds: selectedCards.join(','),
-          renewalDates: JSON.stringify(renewalDates)
-        }
+        params: { refresh: Date.now().toString() }
       });
     } catch (error) {
-      console.error('Error in continue handler:', error);
+      console.error('Error in save handler:', error);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleAddAnotherCard = () => {
+    setAddCardModalVisible(true);
+  };
+
+  const handleGlobalReminders = () => {
+    console.log("Placeholder: Open global reminders settings sheet");
+  };
+
+  const handleCardSettings = (cardId: string) => {
+    console.log(`Placeholder: Open card settings sheet for ${cardId}`);
   };
 
   if (isLoading) {
@@ -211,120 +191,90 @@ export default function Cards() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-      <Text style={styles.title}>Manage Your Cards</Text>
       
-      {/* Selected Cards Section */}
-      {selectedCardObjects.length > 0 && (
-        <View style={styles.selectedCardsSection}>
-          <Text style={styles.sectionTitle}>Selected Cards</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.selectedCardsContainer}
-          >
-            {selectedCardObjects.map((card) => {
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={addCardModalVisible}
+        onRequestClose={() => {
+          setAddCardModalVisible(!addCardModalVisible);
+        }}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Add a Card</Text>
+            <TouchableOpacity onPress={() => setAddCardModalVisible(false)} style={styles.modalCloseButton}>
+              <Ionicons name="close-circle" size={28} color="#007aff" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScrollView}>
+            <Text style={{padding: 20, textAlign: 'center'}}>
+              Search and list of available cards will go here.
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      <ScrollView style={styles.mainScrollView}>
+        <Text style={styles.title}>Manage Your Cards</Text>
+        
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
+          {selectedCardObjects.length > 0 ? (
+            selectedCardObjects.map((card) => {
               const networkColor = getCardNetworkColor(card);
               return (
-                <TouchableOpacity
-                  key={card.id}
-                  style={styles.selectedCardItem}
-                  onPress={() => toggleCardSelection(card.id)}
-                  activeOpacity={0.7}
+                <TouchableOpacity 
+                  key={card.id} 
+                  style={styles.settingsRow}
+                  onPress={() => handleCardSettings(card.id)}
                 >
-                  <View style={[styles.selectedCardImageWrapper, { backgroundColor: networkColor }]}>
-                    <Image source={card.image} style={styles.selectedCardImage} />
+                  <View style={[styles.rowCardImageWrapper, { backgroundColor: networkColor }]}>
+                    <Image source={card.image} style={styles.rowCardImage} />
                   </View>
-                  <View style={styles.selectedCardContent}>
-                    <Text style={styles.selectedCardName} numberOfLines={2}>
-                      {card.name}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => showDatePicker(card.id)}
-                      style={styles.selectedCardDateButton}
-                    >
-                      <Ionicons name="calendar-outline" size={14} color="#8e8e93" style={{ marginRight: 4 }} />
-                      <Text
-                        style={[
-                          renewalDates[card.id]
-                            ? styles.dateTextSet
-                            : styles.dateTextPlaceholder,
-                          styles.dateTextBase
-                        ]}
-                      >
-                        {formatDate(renewalDates[card.id])}
-                      </Text>
-                    </TouchableOpacity>
+                  <View style={styles.cardRowContent}>
+                    <Text style={styles.rowLabel}>{card.name}</Text>
+                    <Text style={styles.rowSubLabel}>{formatDate(renewalDates[card.id])}</Text>
                   </View>
+                  <TouchableOpacity onPress={() => toggleCardSelection(card.id)} style={styles.moreOptionsButton}>
+                    <Ionicons name="remove-circle-outline" size={24} color="#ff3b30" />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons 
-          name="search" 
-          size={18} 
-          color="#8e8e93"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for a card..."
-          placeholderTextColor="#8e8e93"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* Available Cards Section */}
-      <View style={styles.availableCardsSection}>
-        <Text style={styles.sectionTitle}>Available Cards</Text>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollViewContent}
-        >
-          {filteredUnselectedCards.map((card) => (
-            <TouchableOpacity
-              key={card.id}
-              style={styles.cardItem}
-              onPress={() => toggleCardSelection(card.id)}
-              activeOpacity={0.7}
-            >
-              <Image source={card.image} style={styles.cardImage} />
-              <View style={styles.cardTextContainer}>
-                <Text style={styles.cardName}>{card.name}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-          {filteredUnselectedCards.length === 0 && (
-            <Text style={styles.noResultsText}>
-              No cards found matching your search.
-            </Text>
+            })
+          ) : (
+            <Text style={styles.emptySectionText}>No cards selected yet.</Text>
           )}
-        </ScrollView>
-      </View>
+        </View>
 
-      {/* Footer */}
+        <TouchableOpacity style={styles.settingsRow} onPress={handleAddAnotherCard}>
+          <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
+          <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
+        </TouchableOpacity>
+
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
+          <TouchableOpacity style={styles.settingsRow} onPress={handleGlobalReminders}>
+            <Text style={styles.rowLabel}>Global Reminders</Text>
+            <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
       {hasChanges && (
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[
-              styles.continueButton,
-              isSaving && styles.continueButtonDisabled,
-            ]}
-            onPress={handleContinue}
+            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+            onPress={handleSaveChanges}
             disabled={isSaving}
             activeOpacity={0.8}
           >
             {isSaving ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.continueButtonText}>Save Changes</Text>
+              <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -346,181 +296,141 @@ export default function Cards() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f2f2f7',
+  },
+  mainScrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f2f2f7',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: '#666666',
   },
-  searchContainer: {
+  title: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    marginTop: Platform.OS === 'android' ? 20 : 10,
+    marginBottom: 10, 
+    paddingHorizontal: 16,
+    color: '#1c1c1e',
+  },
+  sectionContainer: {
+    marginTop: 20, 
+    backgroundColor: '#ffffff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#c7c7cc',
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#6d6d72',
+    textTransform: 'uppercase',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 28,
-    zIndex: 1,
-  },
-  searchInput: {
-    height: 40,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingLeft: 36,
-    backgroundColor: '#f0f0f0',
-    fontSize: 16,
-    flex: 1,
-    color: '#1c1c1e',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: Platform.OS === 'android' ? 12 : 0,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    color: '#1c1c1e',
-  },
-  cardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#c7c7cc',
   },
-  cardTextContainer: {
-    flex: 1,
+  rowIcon: {
+    marginRight: 16,
   },
-  cardImage: {
-    width: 60,
-    height: 40,
-    resizeMode: 'contain',
-    marginRight: 12,
-  },
-  cardName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1c1c1e',
-  },
-  noResultsText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
-    color: '#666666',
-  },
-  footer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    backgroundColor: '#ffffff',
-    marginBottom: Platform.OS === 'ios' ? 49 : 56,
-  },
-  continueButton: {
-    backgroundColor: '#007aff',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
+  rowCardImageWrapper: {
+    width: 40,
+    height: 25,
+    borderRadius: 3,
+    marginRight: 16,
     justifyContent: 'center',
-  },
-  continueButtonDisabled: {
-    backgroundColor: '#c7c7cc',
-  },
-  continueButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  selectedCardsSection: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1c1e',
-    marginLeft: 16,
-    marginBottom: 8,
-  },
-  selectedCardsContainer: {
-    paddingHorizontal: 16,
-  },
-  selectedCardItem: {
-    width: 140,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginRight: 8,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-  },
-  selectedCardImageWrapper: {
-    width: '100%',
-    height: 80,
-    borderRadius: 8,
+    alignItems: 'center',
     overflow: 'hidden',
-    marginBottom: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  selectedCardImage: {
+  rowCardImage: {
     width: '90%',
     height: '90%',
     resizeMode: 'contain',
   },
-  selectedCardContent: {
-    alignItems: 'center',
+  cardRowContent: {
+    flex: 1,
   },
-  selectedCardName: {
-    fontSize: 12,
-    fontWeight: '500',
+  rowLabel: {
+    fontSize: 17,
+    color: '#000000',
+  },
+  addRowLabel: {
+    color: '#007aff',
+  },
+  rowSubLabel: {
+    fontSize: 15,
+    color: '#8e8e93',
+    marginTop: 2,
+  },
+  moreOptionsButton: {
+    paddingLeft: 16,
+  },
+  emptySectionText: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#6d6d72',
+    fontSize: 15,
     textAlign: 'center',
-    marginBottom: 4,
-    color: '#1c1c1e',
   },
-  selectedCardDateButton: {
+  footer: {
+    padding: 16, 
     backgroundColor: '#f2f2f7',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    width: '100%',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#c7c7cc',
+  },
+  saveButton: {
+    backgroundColor: '#007aff',
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    flexDirection: 'row',
     justifyContent: 'center',
   },
-  availableCardsSection: {
+  saveButtonDisabled: {
+    backgroundColor: '#c7c7cc',
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  modalContainer: {
     flex: 1,
-    paddingTop: 8,
+    backgroundColor: '#f2f2f7',
   },
-  dateTextSet: {
-    color: '#1c1c1e',
-    fontWeight: '500',
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#c7c7cc',
+    backgroundColor: '#ffffff',
   },
-  dateTextPlaceholder: {
-    color: '#8e8e93',
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
   },
-  dateTextBase: {
-    fontSize: 12,
+  modalCloseButton: {
+    padding: 8,
   },
-}); 
+  modalScrollView: {
+    flex: 1,
+  },
+});
