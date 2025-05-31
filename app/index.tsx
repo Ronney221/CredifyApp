@@ -12,7 +12,7 @@ import {
   Dimensions,
   TextStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, Link } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import LottieView from 'lottie-react-native';
@@ -60,6 +60,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { user, loading, signInGoogle } = useAuth();
   const lottieRef = useRef<LottieView>(null);
+  const insets = useSafeAreaInsets();
 
   useFocusEffect(
     useCallback(() => {
@@ -158,9 +159,15 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-      <View style={styles.content}>
+      <View style={[
+        styles.content,
+        {
+          // Adjust top padding to follow 8-point grid
+          paddingTop: Math.max(32 - insets.top, 16), // Either 4x8 or 2x8
+        }
+      ]}>
         <View style={styles.topSection}>
           <Text style={[Typography.headline, styles.valueStatement]}>
             Stop letting credits expire.
@@ -232,46 +239,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: 16, // Multiple of 8 (2x8)
     fontSize: 16,
     color: '#666666',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 24, // Multiple of 8 (3x8)
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? height * 0.02 : height * 0.05,
-    paddingBottom: height * 0.05,
   },
   topSection: {
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16, // Multiple of 8 (2x8)
   },
   middleSection: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: Math.min(height * 0.4, 300),
-    paddingVertical: 20,
+    paddingVertical: 16, // Multiple of 8 (2x8)
     overflow: 'hidden',
   },
   bottomSection: {
-    paddingTop: height * 0.02,
+    paddingTop: 16, // Multiple of 8 (2x8)
   },
   valueStatement: {
     color: '#007aff',
-    marginBottom: 8,
+    marginBottom: 8, // Base unit
     textAlign: 'center',
   },
   tagline: {
     color: '#1c1c1e',
-    marginBottom: 12,
+    marginBottom: 8, // Base unit
     textAlign: 'center',
   },
   description: {
     color: '#666666',
     textAlign: 'center',
     maxWidth: 300,
+    marginBottom: 24, // Multiple of 8 (3x8)
   },
   lottieAnimation: {
     width: '100%',
@@ -280,21 +286,21 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     backgroundColor: '#007aff',
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 16, // Multiple of 8 (2x8)
+    borderRadius: 16, // Multiple of 8 (2x8)
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 16, // Multiple of 8 (2x8)
     shadowColor: '#007aff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowRadius: 8, // Base unit
     elevation: 4,
   },
   continueButtonText: {
     color: '#ffffff',
   },
   termsContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 16, // Multiple of 8 (2x8)
   },
   termsText: {
     color: '#8e8e93',
