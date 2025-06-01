@@ -272,7 +272,7 @@ export default function ExpandableCard({
         }
       } else {
         console.log(`[ExpandableCard] Attempting to deletePerkRedemption for ${perk.name}`);
-        const { error } = await deletePerkRedemption(user.id, perk.name);
+        const { error } = await deletePerkRedemption(user.id, perk.definition_id);
         console.log(`[ExpandableCard] deletePerkRedemption result for ${perk.name}:`, error ? error : 'success');
         if (error) {
           console.error('Error deleting redemption:', error);
@@ -291,7 +291,7 @@ export default function ExpandableCard({
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           const undoAction = action === 'redeemed' ? 'available' : 'redeemed';
           if (undoAction === 'available') {
-            const { error: undoError } = await deletePerkRedemption(user.id, perk.name);
+            const { error: undoError } = await deletePerkRedemption(user.id, perk.definition_id);
             if (undoError) {
                 Alert.alert('Error', 'Failed to undo action.');
                 return;

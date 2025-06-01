@@ -265,6 +265,7 @@ export function usePerkStatus(
         setRedeemedInCurrentCycle(prev => {
           const newState = { ...prev };
           delete newState[perk.id];
+          console.log(`[usePerkStatus] Perk ${perk.name} (id: ${perk.id}) marked as available. Updated redeemedInCurrentCycle:`, newState);
           return newState;
         });
         setCumulativeValueSavedPerCard(prevCumulative => ({
@@ -294,11 +295,11 @@ export function usePerkStatus(
         userCardsWithPerks.forEach(c => {
             c.perks.forEach(p => {
                 if (p.periodMonths === 1 && redeemedInCurrentCycle[p.id]) {
-                    const def = perkDefinitions.find(pd => pd.id === p.id);
+                    const def = perkDefinitions.find(pd => pd.id === p.definition_id);
                     if (def) {
                         currentMonthlyRedeemedAfterUpdate += def.value;
                     } else {
-                        console.warn(`[usePerkStatus] Perk definition not found for redeemed perk ID: ${p.id}, Name: ${p.name}`);
+                        console.warn(`[usePerkStatus] Perk definition not found in stored definitions for perk.definition_id: ${p.definition_id} (Perk local ID: ${p.id}, Name: ${p.name}). Check static card data mapping.`)
                     }
                 }
             });

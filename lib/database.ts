@@ -329,37 +329,34 @@ export async function getAnnualRedemptions(userId: string) {
   return getPerkRedemptions(userId, startOfYear, startOfNextYear);
 }
 
-export async function deletePerkRedemption(userId: string, perkName: string) {
+export async function deletePerkRedemption(userId: string, perkDefinitionId: string) {
   try {
-    // First, find the perk definition to get the database ID
-    const { data: perkDef, error: perkDefError } = await supabase
-      .from('perk_definitions')
-      .select('id')
-      .eq('name', perkName)
-      .single();
+    console.log('[DB] Attempting to delete perk redemption:', { userId, perkDefinitionId });
+    // No longer need to find perkDef by name, we have the UUID (perkDefinitionId)
 
-    if (perkDefError || !perkDef) {
-      console.error('Error finding perk definition for deletion:', { perkName, error: perkDefError });
-      return { error: perkDefError || new Error(`Perk definition not found: ${perkName}`) };
-    }
-
-    // Delete the redemption using the database ID
-    const { data, error } = await supabase
+    const { error: deleteError } = await supabase
       .from('perk_redemptions')
       .delete()
-      .match({ user_id: userId, perk_id: perkDef.id })
-      .gte('redemption_date', new Date(new Date().setDate(1)).toISOString()) // Only delete current month's redemption
-      .lt('redemption_date', new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString());
+      .eq('user_id', userId)
+      .eq('perk_id', perkDefinitionId); // Use the provided perkDefinitionId (UUID)
 
-    if (error) {
-      console.error('Error deleting redemption:', error);
-      return { error };
+    if (deleteError) {
+      console.error('Database error deleting perk redemption:', { 
+        error: deleteError,
+        userId,
+        perkDefinitionId
+      });
+      return { error: deleteError };
     }
 
-    console.log('Successfully deleted perk redemption:', { perkName, perkId: perkDef.id });
-    return { data, error: null };
+    console.log('Successfully deleted perk redemption:', { userId, perkDefinitionId });
+    return { error: null };
   } catch (error) {
-    console.error('Error deleting redemption:', error);
+    console.error('Unexpected error deleting perk redemption:', { 
+      error,
+      userId,
+      perkDefinitionId
+    });
     return { error };
   }
 } 
