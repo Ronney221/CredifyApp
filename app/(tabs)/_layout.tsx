@@ -16,6 +16,7 @@ export default function TabLayout() {
     <>
       <StatusBar style={barStyle} />
       <Tabs
+        initialRouteName="01-dashboard"
         screenOptions={{
           headerShown: false,
           tabBarStyle: Platform.select({
@@ -47,7 +48,7 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="dashboard"
+          name="01-dashboard"
           options={{
             title: 'Dashboard',
             tabBarIcon: ({ color, size }) => (
@@ -56,7 +57,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="cards"
+          name="02-cards"
           options={{
             title: 'Cards',
             tabBarIcon: ({ color, size }) => (
@@ -65,7 +66,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="insights"
+          name="03-insights"
           options={{
             title: 'Insights',
             tabBarIcon: ({ color, size }) => (

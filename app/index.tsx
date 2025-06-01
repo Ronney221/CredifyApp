@@ -75,7 +75,7 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (!loading && user) {
       console.log('User authenticated, redirecting to card selection');
-      router.replace('/(tabs)/cards');
+      router.replace('/(tabs)/01-dashboard');
     }
   }, [user, loading, router]);
 
