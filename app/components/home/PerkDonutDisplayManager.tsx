@@ -13,12 +13,14 @@ interface PerkDonutDisplayManagerProps {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
   monthlyCreditsRedeemed: number;
   monthlyCreditsPossible: number;
+  redeemedInCurrentCycle: Record<string, boolean>;
 }
 
 const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDisplayManagerProps>(({
   userCardsWithPerks,
   monthlyCreditsRedeemed,
   monthlyCreditsPossible,
+  redeemedInCurrentCycle,
 }, ref) => {
   const { user } = useAuth();
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>('monthly');
@@ -179,24 +181,32 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
     // Count total monthly perks
     const totalMonthlyPerks = userCardsWithPerks.reduce((total, { perks, card }) => {
       const monthlyPerksForCard = perks.filter(perk => perk.periodMonths === 1);
-      console.log(`Card ${card.name}:`, {
-        totalMonthlyPerks: monthlyPerksForCard.length,
-        perks: monthlyPerksForCard.map(p => ({ id: p.id, status: p.status }))
-      });
+      // console.log(`Card ${card.name}:`, { // Keep this log if you find it useful
+      //   totalMonthlyPerks: monthlyPerksForCard.length,
+      //   perks: monthlyPerksForCard.map(p => ({ id: p.id, status: p.status }))
+      // });
       return total + monthlyPerksForCard.length;
     }, 0);
     console.log('Total monthly perks across all cards:', totalMonthlyPerks);
 
+    // Calculate actual count of redeemed monthly perks
+    const actualRedeemedMonthlyPerksCount = userCardsWithPerks.reduce((count, { perks }) => {
+      const redeemedOnThisCard = perks.filter(p => p.periodMonths === 1 && redeemedInCurrentCycle[p.id] === true).length;
+      return count + redeemedOnThisCard;
+    }, 0);
+    console.log('Actual redeemed monthly perks count:', actualRedeemedMonthlyPerksCount);
+
+
     // Instead of using local state, calculate redeemed count based on monthlyRedemptions
     // Assuming average perk value is monthlyPossibleTotal / totalMonthlyPerks
-    const avgPerkValue = totalMonthlyPerks > 0 ? monthlyCreditsPossible / totalMonthlyPerks : 0;
-    const estimatedRedeemedCount = avgPerkValue > 0 ? Math.round(monthlyRedemptions / avgPerkValue) : 0;
+    // const avgPerkValue = totalMonthlyPerks > 0 ? monthlyCreditsPossible / totalMonthlyPerks : 0; // Old estimation logic
+    // const estimatedRedeemedCount = avgPerkValue > 0 ? Math.round(monthlyRedemptions / avgPerkValue) : 0; // Old estimation logic
     
-    console.log('Redemption calculation:', {
-      avgPerkValue,
-      monthlyRedemptions,
-      estimatedRedeemedCount
-    });
+    // console.log('Redemption calculation (old estimation):', { // Old log
+    //   avgPerkValue,
+    //   monthlyRedemptions,
+    //   estimatedRedeemedCount
+    // });
 
     // Log progress calculation for debugging
     const monthlyProgress = monthlyPossibleTotal > 0 ? monthlyRedemptions / monthlyPossibleTotal : 0;
@@ -208,7 +218,7 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
 
     // Log final metrics
     const metrics = {
-      estimatedRedeemedCount,
+      actualRedeemedMonthlyPerksCount, // Use new actual count
       totalMonthlyPerks,
       monthlyRedemptions,
       monthlyCreditsPossible,
@@ -229,10 +239,10 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
       label: 'Monthly Perks Redeemed',
       detailLineOne: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} redeemed`,
       detailLineTwo: `${monthlyPossibleTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} available`,
-      perksCount: `${estimatedRedeemedCount} of ${totalMonthlyPerks}`,
+      perksCount: `${actualRedeemedMonthlyPerksCount} of ${totalMonthlyPerks}`, // Use actual count here
       color: Platform.OS === 'ios' ? '#007AFF' : 'dodgerblue',
     };
-  }, [userCardsWithPerks, monthlyRedemptions, monthlyPossibleTotal]);
+  }, [userCardsWithPerks, monthlyRedemptions, monthlyCreditsPossible, monthlyPossibleTotal, redeemedInCurrentCycle]);
 
   const annualFeesData = useMemo(() => {
     const formattedFees = totalAnnualFees.toLocaleString('en-US', { 

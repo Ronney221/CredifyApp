@@ -89,9 +89,13 @@ export default function Dashboard() {
     yearlyCreditsRedeemed,
     yearlyCreditsPossible,
     cumulativeValueSavedPerCard,
+    userCardsWithPerks: processedCardsFromPerkStatus,
+    setPerkStatus,
+    isCalculatingSavings,
+    refreshSavings,
+    redeemedInCurrentCycle,
     showCelebration,
     setShowCelebration,
-    setPerkStatus,
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
 
@@ -243,6 +247,7 @@ export default function Dashboard() {
             userCardsWithPerks={userCardsWithPerks}
             monthlyCreditsRedeemed={monthlyCreditsRedeemed}
             monthlyCreditsPossible={monthlyCreditsPossible}
+            redeemedInCurrentCycle={redeemedInCurrentCycle}
           />
         </View>
 
