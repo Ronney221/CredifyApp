@@ -107,10 +107,17 @@ export default function Dashboard() {
         StatusBar.setTranslucent(true);
       }
       setupNotifications();
-      refreshUserCards();
       donutDisplayRef.current?.refresh();
     }, [refreshUserCards])
   );
+
+  // Effect to refresh data when params.refresh changes (e.g., after saving cards)
+  useEffect(() => {
+    if (params.refresh) {
+      console.log('[Dashboard] Refresh parameter detected, calling refreshUserCards.');
+      refreshUserCards();
+    }
+  }, [params.refresh, refreshUserCards]);
 
   // Function to set up notifications
   const setupNotifications = async () => {

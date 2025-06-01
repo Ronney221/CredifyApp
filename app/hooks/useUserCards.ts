@@ -25,59 +25,74 @@ export function useUserCards(selectedCardIds?: string): UserCardsHookResult {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.replace('/(auth)/login');
+        setIsLoading(false);
         return;
       }
 
-      let selectedIds: string[] = [];
+      let finalSelectedIds: string[] = [];
 
-      // If we have URL params (from card selection screen), use those
-      if (selectedCardIds) {
-        selectedIds = selectedCardIds.split(',');
+      if (selectedCardIds && selectedCardIds.length > 0) {
+        console.log('[useUserCards] Using selectedCardIds from prop:', selectedCardIds);
+        finalSelectedIds = selectedCardIds.split(',');
       } else {
-        // Otherwise fetch from database
-        const { data: userCards, error: dbError } = await getUserCards(user.id);
+        console.log('[useUserCards] No selectedCardIds prop, fetching from DB for user:', user.id);
+        const { data: userCardsFromDb, error: dbError } = await getUserCards(user.id);
         if (dbError) {
           throw dbError;
         }
-        selectedIds = allCards
-          .filter(card => userCards?.some(uc => uc.card_name === card.name))
-          .map(card => card.id);
+        if (userCardsFromDb && userCardsFromDb.length > 0) {
+          finalSelectedIds = allCards
+            .filter(card => userCardsFromDb.some(uc => uc.card_name === card.name))
+            .map(card => card.id);
+          console.log('[useUserCards] Fetched card IDs from DB:', finalSelectedIds);
+        } else {
+          console.log('[useUserCards] No cards found in DB for user.');
+        }
       }
 
-      if (selectedIds.length === 0) {
+      if (finalSelectedIds.length === 0) {
+        console.log('[useUserCards] No selected card IDs to process, setting empty userCardsWithPerks.');
         setUserCardsWithPerks([]);
-        return;
+      } else {
+        const cardsWithPerks = allCards
+          .filter(card => finalSelectedIds.includes(card.id))
+          .map(card => ({
+            card,
+            perks: card.benefits.map(benefit => ({
+              ...benefit,
+              cardId: card.id,
+              status: 'available' as const,
+              streakCount: 0,
+              coldStreakCount: 0,
+            })),
+          }));
+        setUserCardsWithPerks(cardsWithPerks);
+        console.log('[useUserCards] Successfully processed cardsWithPerks:', cardsWithPerks.length);
       }
 
-      const cardsWithPerks = allCards
-        .filter(card => selectedIds.includes(card.id))
-        .map(card => ({
-          card,
-          perks: card.benefits.map(benefit => ({
-            ...benefit,
-            cardId: card.id,
-            status: 'available' as const,
-            streakCount: 0,
-            coldStreakCount: 0,
-          })),
-        }));
-
-      setUserCardsWithPerks(cardsWithPerks);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load user cards'));
-      console.error('Error loading user cards:', err);
+      console.error('Error loading user cards in useUserCards:', err);
     } finally {
       setIsLoading(false);
     }
   }, [selectedCardIds, router]);
 
   useEffect(() => {
+    console.log(`[useUserCards] useEffect triggered. refreshKey: ${refreshKey}, selectedCardIds prop: ${selectedCardIds}`);
     loadUserCards();
   }, [loadUserCards, refreshKey]);
 
   const refreshUserCards = useCallback(async () => {
-    setRefreshKey(prev => prev + 1);
-  }, []);
+    console.log('[useUserCards] refreshUserCards called, incrementing refreshKey.');
+    setRefreshKey(prevKey => prevKey + 1);
+    loadUserCards();
+  }, [loadUserCards]);
 
-  return { userCardsWithPerks, isLoading, error, refreshUserCards };
-} 
+  return {
+    userCardsWithPerks,
+    isLoading,
+    error,
+    refreshUserCards,
+  };
+}
