@@ -40,13 +40,13 @@ export default function TabLayout() {
             ios: {
               backgroundColor: 'rgba(255, 255, 255, 0.85)',
               borderTopColor: 'rgba(0, 0, 0, 0.2)',
-              height: 52,
+              height: 83,
               position: 'absolute',
               bottom: 0,
               left: 0,
               right: 0,
-              paddingBottom: 0,
-              paddingTop: 0,
+              paddingBottom: 34,
+              paddingTop: 8,
             },
             android: {
               backgroundColor: '#ffffff',
