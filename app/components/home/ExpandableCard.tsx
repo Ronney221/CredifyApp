@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   Image,
   Platform,
-  Animated,
   Alert,
 } from 'react-native';
+import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -75,7 +75,6 @@ export default function ExpandableCard({
   sortIndex,
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [animation] = useState(new Animated.Value(0));
   const [redeemedPerkIds, setRedeemedPerkIds] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
@@ -205,17 +204,6 @@ export default function ExpandableCard({
   const hasUnredeemedPerks = unredeemedPerks.length > 0;
   const isFullyRedeemed = !hasUnredeemedPerks;
 
-  // Handle position animation when sort index changes
-  useEffect(() => {
-    Animated.spring(animation, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7,
-    }).start();
-    return () => animation.setValue(0);
-  }, [sortIndex]);
-
   const handleExpand = () => {
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
@@ -316,17 +304,7 @@ export default function ExpandableCard({
     }
   };
 
-  const translateY = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [50, 0],
-  });
-
-  const scale = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.95, 1],
-  });
-
-  const renderLeftActions = (progress: Animated.AnimatedInterpolation<number>, dragX: Animated.AnimatedInterpolation<number>, perk: CardPerk) => {
+  const renderLeftActions = (progress: SharedValue<number>, dragX: SharedValue<number>, perk: CardPerk) => {
     return (
       <TouchableOpacity
         style={styles.leftAction}
@@ -339,7 +317,7 @@ export default function ExpandableCard({
     );
   };
 
-  const renderRightActions = (progress: Animated.AnimatedInterpolation<number>, dragX: Animated.AnimatedInterpolation<number>, perk: CardPerk) => {
+  const renderRightActions = (progress: SharedValue<number>, dragX: SharedValue<number>, perk: CardPerk) => {
     return (
       <TouchableOpacity
         style={styles.rightAction}
@@ -379,84 +357,62 @@ export default function ExpandableCard({
     }
 
     return (
-      <Swipeable
-        key={perk.id}
-        ref={(ref) => { swipeableRefs.current[perk.id] = ref; }}
-        renderLeftActions={(progress, dragX) => renderLeftActions(progress, dragX, perk)}
-        renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, perk)}
-        onSwipeableWillOpen={(direction) => {
-          console.log(`[ExpandableCard] onSwipeableWillOpen: direction=${direction} for ${perk.name}`);
-          Object.values(swipeableRefs.current).forEach(swipeRef => {
-            if (swipeRef && swipeRef !== swipeableRefs.current[perk.id]) {
-              swipeRef.close();
-            }
-          });
-          
-          if (direction === 'left') {
-            console.log(`[ExpandableCard] Triggering REDEEM from swipe for ${perk.name}`);
-            executePerkAction(perk, 'redeemed');
-          } else if (direction === 'right') {
-            console.log(`[ExpandableCard] Triggering AVAILABLE from swipe for ${perk.name}`);
-            executePerkAction(perk, 'available');
-          }
-        }}
-        friction={2}
-        leftThreshold={80}
-        rightThreshold={80}
-        activeOffsetX={[-10, 10]}
-        activeOffsetY={[-5, 5]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.perkItem,
-            isRedeemed && styles.redeemedPerk,
-            !isRedeemed && styles.availablePerk,
-          ]}
-          onPress={() => handlePerkTap(perk)}
+      <Reanimated.View key={perk.id} layout={Layout.springify()} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.perkItemContainer}>
+        <Swipeable
+          ref={(instance) => { swipeableRefs.current[perk.id] = instance; }}
+          renderLeftActions={(progress, dragX) => renderLeftActions(progress as any, dragX as any, perk)}
+          renderRightActions={(progress, dragX) => renderRightActions(progress as any, dragX as any, perk)}
+          onSwipeableOpen={(direction) => {
+            if (direction === 'left') executePerkAction(perk, 'available');
+            if (direction === 'right') executePerkAction(perk, 'redeemed');
+          }}
+          friction={2}
+          leftThreshold={80}
+          rightThreshold={80}
         >
-          <View style={styles.perkContent}>
-            <View style={styles.perkMainInfo}>
-              <View style={styles.perkNameContainer}>
-                <Text style={[styles.perkName, isRedeemed && styles.redeemedText]}>
-                  {perk.name}
+          <TouchableOpacity
+            style={[
+              styles.perkItem,
+              isRedeemed && styles.redeemedPerk,
+              !isRedeemed && styles.availablePerk,
+            ]}
+            onPress={() => handlePerkTap(perk)}
+            onLongPress={() => onLongPressPerk(card.id, perk.id, isRedeemed ? 'available' : 'redeemed')}
+          >
+            <View style={styles.perkContent}>
+              <View style={styles.perkMainInfo}>
+                <View style={styles.perkNameContainer}>
+                  <Text style={[styles.perkName, isRedeemed && styles.redeemedText]}>
+                    {perk.name}
+                  </Text>
+                  {isRedeemed ? (
+                    <View style={styles.redeemedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                      <Text style={styles.redeemedBadgeText}>Redeemed</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.availableBadge}>
+                      <Ionicons name="time-outline" size={14} color="#1976d2" />
+                      <Text style={styles.availableBadgeText}>Available</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.perkValue, isRedeemed && styles.redeemedText]}>
+                  {formattedValue}
                 </Text>
-                {isRedeemed ? (
-                  <View style={styles.redeemedBadge}>
-                    <Ionicons name="checkmark-circle" size={14} color="#fff" />
-                    <Text style={styles.redeemedBadgeText}>Redeemed</Text>
-                  </View>
-                ) : (
-                  <View style={styles.availableBadge}>
-                    <Ionicons name="time-outline" size={14} color="#1976d2" />
-                    <Text style={styles.availableBadgeText}>Available</Text>
-                  </View>
-                )}
               </View>
-              <Text style={[styles.perkValue, isRedeemed && styles.redeemedText]}>
-                {formattedValue}
+              <Text style={[styles.perkPeriod, isRedeemed && styles.redeemedText]}>
+                {periodText} • {perk.resetType === 'calendar' ? 'Calendar Reset' : 'Anniversary Reset'}
               </Text>
             </View>
-            <Text style={[styles.perkPeriod, isRedeemed && styles.redeemedText]}>
-              {periodText} • {perk.resetType === 'calendar' ? 'Calendar Reset' : 'Anniversary Reset'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </Swipeable>
+          </TouchableOpacity>
+        </Swipeable>
+      </Reanimated.View>
     );
   };
 
   return (
-    <Animated.View
-      style={[
-        styles.cardContainer,
-        isFullyRedeemed && styles.fullyRedeemedCard,
-        isActive && styles.activeCard,
-        {
-          transform: [{ translateY }, { scale }],
-          zIndex: isActive ? 2 : 1,
-        },
-      ]}
-    >
+    <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} layout={Layout.springify().duration(300)}>
       <TouchableOpacity
         style={[styles.cardHeader, isActive && styles.activeCardHeader]}
         onPress={handleExpand}
@@ -535,7 +491,10 @@ export default function ExpandableCard({
       </TouchableOpacity>
 
       {isExpanded && (
-        <View style={styles.perksContainer}>
+        <Reanimated.View 
+          style={styles.perksListContainer} 
+          layout={Layout.springify().duration(300)}
+        >
           {perks.filter(p => !redeemedPerkIds.has(p.id)).length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Available Perks</Text>
@@ -548,9 +507,9 @@ export default function ExpandableCard({
               {perks.filter(p => redeemedPerkIds.has(p.id)).map(renderPerk)}
             </>
           )}
-        </View>
+        </Reanimated.View>
       )}
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
@@ -740,7 +699,7 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
     flexShrink: 0,
   },
-  perksContainer: {
+  perksListContainer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
@@ -802,5 +761,8 @@ const styles = StyleSheet.create({
     color: '#555',
     marginLeft: 5,
     fontWeight: '500',
+  },
+  perkItemContainer: {
+    marginBottom: 8,
   },
 }); 

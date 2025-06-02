@@ -32,6 +32,7 @@ import { format, differenceInDays, endOfMonth } from 'date-fns';
 import { Card, CardPerk } from '../../src/data/card-data';
 import AccountButton from '../components/home/AccountButton';
 import Header from '../components/home/Header';
+import StackedCardDisplay from '../components/home/StackedCardDisplay';
 
 // Import notification functions
 import {
@@ -190,16 +191,22 @@ export default function Dashboard() {
   };
 
   const handleCardExpandChange = (cardId: string, isExpanded: boolean) => {
-    // Configure the animation
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    
+    // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); // REMOVED - Reanimated handles this in ExpandableCard
     setActiveCardId(isExpanded ? cardId : null);
     
+    // Scroll logic can remain if still desired
     if (isExpanded) {
-      // Wait for the next frame to ensure the card has moved to its new position
       requestAnimationFrame(() => {
+        const cardIndex = sortedCards.findIndex(c => c.card.id === cardId);
+        // Basic estimation of offset: assumes each card header is roughly 60-70pts, 
+        // plus some for section headers or other elements above the cards list.
+        // This might need fine-tuning based on actual layout.
+        const estimatedHeaderHeight = 200; // Adjust this based on what's above the cards list typically
+        const estimatedCardHeight = 70; // Approximate height of a collapsed card
+        const scrollToY = estimatedHeaderHeight + (cardIndex * estimatedCardHeight);
+
         scrollViewRef.current?.scrollTo({
-          y: 400, // Start 500 pixels from the top
+          y: scrollToY, 
           animated: true
         });
       });
@@ -232,10 +239,7 @@ export default function Dashboard() {
     <SafeAreaView style={styles.container}>
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
-        {...(Platform.select({
-          ios: { ref: scrollViewRef },
-          android: { ref: scrollViewRef },
-        }))}
+        ref={scrollViewRef}
         scrollEventThrottle={16}
       >
         <Header />
@@ -255,37 +259,18 @@ export default function Dashboard() {
         <View style={styles.cardsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Your Cards</Text>
-            <TouchableOpacity
-              style={styles.addCardButton}
-              onPress={() => router.push({
-                pathname: '/(tabs)/cards',
-                params: { mode: 'edit' }
-              } as any)}
-            >
-              <Ionicons name="add-circle-outline" size={20} color="#007aff" />
-              <Text style={styles.addCardText}>Add Card</Text>
-            </TouchableOpacity>
           </View>
 
           {sortedCards.length > 0 ? (
-            sortedCards.map(({ card, perks }, index) => {
-              const expandableCardProps = {
-                card,
-                perks,
-                cumulativeSavedValue: cumulativeValueSavedPerCard[card.id] || 0,
-                onTapPerk: handleTapPerk,
-                onLongPressPerk: handleLongPressPerk,
-                onExpandChange: handleCardExpandChange,
-                onPerkStatusChange: handlePerkStatusChange,
-                isActive: card.id === activeCardId,
-                sortIndex: index,
-              };
-
-              return React.createElement(ExpandableCard, {
-                ...expandableCardProps,
-                key: card.id,
-              });
-            })
+            <StackedCardDisplay
+              sortedCards={sortedCards}
+              cumulativeValueSavedPerCard={cumulativeValueSavedPerCard}
+              activeCardId={activeCardId}
+              onTapPerk={handleTapPerk}
+              onLongPressPerk={handleLongPressPerk}
+              onExpandChange={handleCardExpandChange}
+              onPerkStatusChange={handlePerkStatusChange}
+            />
           ) : (
             <View style={styles.noCardsContainer}>
               <Ionicons name="card-outline" size={48} color="#8e8e93" />
@@ -294,10 +279,7 @@ export default function Dashboard() {
               </Text>
               <TouchableOpacity
                 style={styles.addFirstCardButton}
-                onPress={() => router.push({
-                  pathname: '/(tabs)/cards',
-                  params: { mode: 'edit' }
-                } as any)}
+                onPress={() => router.push("/(tabs)/02-cards")}
               >
                 <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
               </TouchableOpacity>

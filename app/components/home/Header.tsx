@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
 import AccountButton from './AccountButton';
-import { TimeRemainingBanner } from './TimeRemainingBanner';
 import { endOfMonth, differenceInDays } from 'date-fns';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Header() {
   const { user } = useAuth();
@@ -35,7 +35,10 @@ export default function Header() {
         </View>
         <AccountButton />
       </View>
-      <TimeRemainingBanner daysRemaining={daysRemaining} />
+      <View style={styles.daysRemainingPill}>
+        <Ionicons name="alarm-outline" size={14} color="#545454" style={styles.pillIcon} />
+        <Text style={styles.pillText}>{daysRemaining} days left this month</Text>
+      </View>
     </View>
   );
 }
@@ -43,6 +46,7 @@ export default function Header() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: 12,
     backgroundColor: '#ffffff',
   },
@@ -50,6 +54,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 8,
   },
   textContainer: {
     flex: 1,
@@ -65,6 +70,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1c1c1e',
     marginTop: 2,
-    marginBottom: 4,
+  },
+  daysRemainingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+  },
+  pillIcon: {
+    marginRight: 6,
+  },
+  pillText: {
+    fontSize: 13,
+    color: '#545454',
+    fontWeight: '500',
   },
 }); 

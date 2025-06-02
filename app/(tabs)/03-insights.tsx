@@ -7,6 +7,7 @@ import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; //
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
+import ProgressDonut from '../components/home/ProgressDonut'; // Import ProgressDonut
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -61,6 +62,8 @@ interface Achievement {
 interface YearSection extends DefaultSectionT {
   year: string;
   data: MonthlyRedemptionSummary[];
+  totalRedeemedForYear: number;
+  totalPotentialForYear: number;
 }
 
 interface InsightsData {
@@ -76,7 +79,7 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
     card => selectedCards.includes(card.id)
   );
 
-  const monthlyDataByYear: Record<string, MonthlyRedemptionSummary[]> = {};
+  const monthlyDataByYear: Record<string, { شهرs: MonthlyRedemptionSummary[], yearTotalRedeemed: number, yearTotalPotential: number }> = {};
   const achievements: Achievement[] = [];
   const now = new Date();
 
@@ -101,7 +104,7 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
     const monthKey = `${yearStr}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
     if (!monthlyDataByYear[yearStr]) {
-      monthlyDataByYear[yearStr] = [];
+      monthlyDataByYear[yearStr] = { شهرs: [], yearTotalRedeemed: 0, yearTotalPotential: 0 };
     }
 
     let monthTotalRedeemed = 0;
@@ -164,7 +167,9 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
       coverageTrend, // Added
     };
     // Add to the beginning of the array for that year to keep months in reverse chronological order within the year section
-    monthlyDataByYear[yearStr].unshift(monthSummary);
+    monthlyDataByYear[yearStr].شهرs.unshift(monthSummary);
+    monthlyDataByYear[yearStr].yearTotalRedeemed += monthTotalRedeemed;
+    monthlyDataByYear[yearStr].yearTotalPotential += monthTotalPotential;
 
     // Achievement Calculations
     if (monthlyFeeProrationTarget > 0 && monthTotalRedeemed >= monthlyFeeProrationTarget) {
@@ -240,7 +245,9 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
     .sort((a, b) => parseInt(b) - parseInt(a)) // Sort years descending
     .map(year => ({
       year: year,
-      data: monthlyDataByYear[year], // Months are already reverse chrono within the year due to unshift
+      data: monthlyDataByYear[year].شهرs, // Months are already reverse chrono
+      totalRedeemedForYear: monthlyDataByYear[year].yearTotalRedeemed,
+      totalPotentialForYear: monthlyDataByYear[year].yearTotalPotential,
     }));
 
   return { yearSections, achievements, currentFeeCoverageStreak: consecutiveFeeCoverageMonths >= 2 ? consecutiveFeeCoverageMonths : undefined };
@@ -537,12 +544,32 @@ export default function InsightsScreen() {
     );
   };
 
-  const renderSectionHeader = ({ section }: { section: YearSection }) => (
-    <View style={styles.sectionHeaderContainer}>
-      <Text style={styles.sectionListHeader}>{section.year}</Text>
-      <ForecastDialPlaceholder />
-    </View>
-  );
+  const renderSectionHeader = ({ section }: { section: YearSection }) => {
+    const yearProgress = section.totalPotentialForYear > 0 ? section.totalRedeemedForYear / section.totalPotentialForYear : 0;
+    const amountSavedThisYear = section.totalRedeemedForYear.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const potentialSavingsThisYear = section.totalPotentialForYear.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    return (
+      <View style={styles.sectionHeaderContainer}>
+        <View style={styles.sectionHeaderDetails}>
+            <Text style={styles.sectionListHeader}>{section.year}</Text>
+            {/* Potentially add more year-specific summary text here if needed */}
+        </View>
+        <View style={styles.sectionHeaderDonutContainer}>
+            <ProgressDonut 
+                progress={yearProgress}
+                size={80} // Smaller donut for header
+                strokeWidth={5}
+                amount={amountSavedThisYear} // Display redeemed amount
+                label={`of ${potentialSavingsThisYear} potential`}
+                detailLineOne="Total Saved This Year"
+                detailLineTwo="" //  Can be empty or show something else
+                color={Colors.light.tint} // Or a year-specific color theme
+            />
+        </View>
+      </View>
+    );
+  };
 
   const handleCompareCards = () => {
     Alert.alert("Coming Soon!", "Compare Cards / ROI by Card feature is under development.");
@@ -742,19 +769,26 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   sectionHeaderContainer: {
-    backgroundColor: Colors.light.background, 
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 5,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: SEPARATOR_COLOR,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: Colors.light.background, // Ensure background for sticky header
+    borderBottomWidth: 1,
+    borderBottomColor: SEPARATOR_COLOR, 
   },
-  sectionListHeader: { 
+  sectionHeaderDetails: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  sectionHeaderDonutContainer: {
+    // Align donut to the right, adjust as needed
+  },
+  sectionListHeader: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: Colors.light.text,
-    marginBottom: 8,
   },
   forecastDialContainer: {
     alignItems: 'center',

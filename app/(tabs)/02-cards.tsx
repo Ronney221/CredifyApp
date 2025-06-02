@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -15,13 +15,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Card, allCards } from '../../src/data/card-data';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getUserCards, saveUserCards } from '../../lib/database';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Cards() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [initialSelectedCards, setInitialSelectedCards] = useState<string[]>([]);
   const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
@@ -33,6 +34,7 @@ export default function Cards() {
   const [addCardModalVisible, setAddCardModalVisible] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [tempSelectedCardIdsInModal, setTempSelectedCardIdsInModal] = useState<Set<string>>(new Set());
+  const [isEditing, setIsEditing] = useState(false);
 
   const getCardNetworkColor = (card: Card) => {
     switch (card.network?.toLowerCase()) {
@@ -54,13 +56,34 @@ export default function Cards() {
     const initialSelectedCardsSorted = [...initialSelectedCards].sort();
     
     const selectedCardsChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
-    const renewalDatesChanged = JSON.stringify(renewalDates) !== JSON.stringify(initialRenewalDates);
+    const currentSelectedRenewalDates = Object.fromEntries(
+      Object.entries(renewalDates).filter(([cardId]) => selectedCards.includes(cardId))
+    );
+    const initialSelectedRenewalDates = Object.fromEntries(
+      Object.entries(initialRenewalDates).filter(([cardId]) => initialSelectedCards.includes(cardId))
+    );
+    const renewalDatesChanged = JSON.stringify(currentSelectedRenewalDates) !== JSON.stringify(initialSelectedRenewalDates);
     
     console.log('[CardsScreen] selectedCardsChanged:', selectedCardsChanged, { selected: selectedCardsSorted, initial: initialSelectedCardsSorted });
-    console.log('[CardsScreen] renewalDatesChanged:', renewalDatesChanged, { current: renewalDates, initial: initialRenewalDates });
+    console.log('[CardsScreen] renewalDatesChanged:', renewalDatesChanged, { current: currentSelectedRenewalDates, initial: initialSelectedRenewalDates });
     
     return selectedCardsChanged || renewalDatesChanged;
   }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity 
+          onPress={() => setIsEditing(!isEditing)} 
+          style={{ marginRight: 15, padding: 5 }}
+        >
+          <Text style={{ color: Platform.OS === 'ios' ? '#007aff' : '#000000', fontSize: 17 }}>
+            {isEditing ? 'Done' : 'Edit'}
+          </Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, isEditing]);
 
   useEffect(() => {
     const loadExistingCards = async () => {
@@ -125,22 +148,25 @@ export default function Cards() {
         ...prevDates,
         [currentEditingCardId]: date,
       }));
+      if (!selectedCards.includes(currentEditingCardId)) {
+        setSelectedCards(prev => [...prev, currentEditingCardId!]);
+      }
     }
     hideDatePicker();
   };
 
   const toggleCardSelectionOnMainScreen = (cardId: string) => {
-    setSelectedCards((prevSelectedCards) =>
-      prevSelectedCards.includes(cardId)
-        ? prevSelectedCards.filter((id) => id !== cardId)
-        : [...prevSelectedCards, cardId]
-    );
-    if (selectedCards.includes(cardId)) {
+    if (isEditing) {
+      setSelectedCards((prevSelectedCards) =>
+        prevSelectedCards.filter((id) => id !== cardId)
+      );
       setRenewalDates(prevDates => {
         const newDates = {...prevDates};
         delete newDates[cardId];
         return newDates;
       });
+    } else {
+      handleCardSettings(cardId);
     }
   };
 
@@ -221,8 +247,9 @@ export default function Cards() {
   };
 
   const handleCardSettings = (cardId: string) => {
-    console.log(`Placeholder: Open card settings sheet for ${cardId}`);
-    showDatePicker(cardId);
+    if (!isEditing) {
+        showDatePicker(cardId);
+    }
   };
 
   if (isLoading) {
@@ -262,15 +289,16 @@ export default function Cards() {
           <ScrollView style={styles.modalScrollView}>
             {filteredAvailableCardsForModal.map((card) => {
               const isAlreadySelectedOnMain = selectedCards.includes(card.id);
+              const isDisabledForAdding = isAlreadySelectedOnMain;
               const isSelectedInModalSession = tempSelectedCardIdsInModal.has(card.id);
               const networkColor = getCardNetworkColor(card);
 
               return (
                 <TouchableOpacity 
                   key={card.id} 
-                  style={[styles.modalCardRow, isAlreadySelectedOnMain && styles.modalCardRowDisabled]}
+                  style={[styles.modalCardRow, isDisabledForAdding && styles.modalCardRowDisabled]}
                   onPress={() => handleToggleCardInModal(card.id)}
-                  disabled={isAlreadySelectedOnMain}
+                  disabled={isDisabledForAdding}
                 >
                   <View style={[styles.rowCardImageWrapper, { backgroundColor: networkColor }]}>
                     <Image source={card.image} style={styles.rowCardImage} />
@@ -305,7 +333,8 @@ export default function Cards() {
                 <TouchableOpacity 
                   key={card.id} 
                   style={styles.settingsRow}
-                  onPress={() => handleCardSettings(card.id)}
+                  onPress={() => toggleCardSelectionOnMainScreen(card.id)}
+                  disabled={isEditing && !selectedCards.includes(card.id)}
                 >
                   <View style={[styles.rowCardImageWrapper, { backgroundColor: networkColor }]}>
                     <Image source={card.image} style={styles.rowCardImage} />
@@ -316,12 +345,18 @@ export default function Cards() {
                         styles.rowSubLabel,
                         !renewalDates[card.id] && styles.rowSubLabelPlaceholder
                     ]}>
-                        {formatDate(renewalDates[card.id])}
+                        {(!isEditing || selectedCards.includes(card.id)) && formatDate(renewalDates[card.id])}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={() => toggleCardSelectionOnMainScreen(card.id)} style={styles.moreOptionsButton}>
-                    <Ionicons name="remove-circle-outline" size={24} color="#ff3b30" />
-                  </TouchableOpacity>
+                  {isEditing ? (
+                    <TouchableOpacity onPress={() => toggleCardSelectionOnMainScreen(card.id)} style={styles.moreOptionsButton}>
+                      <Ionicons name="remove-circle-outline" size={24} color="#ff3b30" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => handleCardSettings(card.id)} style={styles.moreOptionsButton}>
+                       <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
+                    </TouchableOpacity>
+                  )}
                 </TouchableOpacity>
               );
             })
@@ -330,10 +365,12 @@ export default function Cards() {
           )}
         </View>
 
-        <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
-          <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
-          <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
-        </TouchableOpacity>
+        {!isEditing && (
+          <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
+            <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
+            <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
@@ -344,7 +381,7 @@ export default function Cards() {
         </View>
       </ScrollView>
 
-      {hasChanges && (
+      {hasChanges && !isEditing && (
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
