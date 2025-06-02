@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, Modal, Switch, Button, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors'; // Assuming you have a Colors constant
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
+import { Svg, Polyline } from 'react-native-svg'; // Added Svg, Polyline
+import { PerkStatusFilter, PerkRedemptionDetail, MonthlyRedemptionSummary, Achievement, YearSection, InsightsData } from '../../types/insights'; // Import new types
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -27,48 +29,50 @@ const SUBTLE_GRAY_TEXT = Colors.light.icon; // For dimmed perk values
 const CARD_BACKGROUND_COLOR = '#F8F8F8';
 const SEPARATOR_COLOR = '#E0E0E0';
 
-type PerkStatusFilter = 'all' | 'redeemed' | 'missed';
+// type PerkStatusFilter = 'all' | 'redeemed' | 'missed'; // Removed
 
-interface PerkRedemptionDetail {
-  id: string;
-  name:string;
-  value: number;
-  status: 'redeemed' | 'missed';
-  period: Benefit['period'];
-}
+// interface PerkRedemptionDetail { // Removed
+//   id: string;
+//   name:string;
+//   value: number;
+//   status: 'redeemed' | 'missed';
+//   period: Benefit['period'];
+// }
 
-interface MonthlyRedemptionSummary {
-  monthYear: string; // e.g., "July 2024"
-  monthKey: string; // Unique key for the month, e.g., "2024-07"
-  totalRedeemedValue: number;
-  totalPotentialValue: number;
-  perksRedeemedCount: number;
-  perksMissedCount: number;
-  perkDetails: PerkRedemptionDetail[];
-  cardFeesProportion: number; // For calculating "on pace for annual fee"
-  allMonthlyPerksRedeemedThisMonth: boolean;
-}
+// interface MonthlyRedemptionSummary { // Removed
+//   monthYear: string; 
+//   monthKey: string; 
+//   totalRedeemedValue: number;
+//   totalPotentialValue: number;
+//   perksRedeemedCount: number;
+//   perksMissedCount: number;
+//   perkDetails: PerkRedemptionDetail[];
+//   cardFeesProportion: number; 
+//   allMonthlyPerksRedeemedThisMonth: boolean;
+//   coverageTrend: number[]; 
+// }
 
-interface Achievement {
-  id: string;
-  emoji: string;
-  title: string;
-  description: string;
-}
+// interface Achievement { // Removed
+//   id: string;
+//   emoji: string;
+//   title: string;
+//   description: string;
+// }
 
-interface YearSection extends DefaultSectionT {
-  year: string;
-  data: MonthlyRedemptionSummary[];
-}
+// interface YearSection extends DefaultSectionT { // Removed
+//   year: string;
+//   data: MonthlyRedemptionSummary[];
+// }
 
-interface InsightsData {
-  yearSections: YearSection[]; // Changed from monthlySummaries
-  achievements: Achievement[];
-  availableCardsForFilter: { id: string; name: string }[];
-}
+// interface InsightsData { // Removed
+//   yearSections: YearSection[]; 
+//   achievements: Achievement[];
+//   availableCardsForFilter: { id: string; name: string }[];
+//   currentFeeCoverageStreak?: number; 
+// }
 
 // --- DUMMY DATA GENERATION ---
-const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 'availableCardsForFilter'> => {
+const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 'availableCardsForFilter' | 'currentFeeCoverageStreak'> & { currentFeeCoverageStreak?: number } => {
   const insightsCards = allCards.filter(
     card => selectedCards.includes(card.id)
   );
@@ -88,7 +92,7 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
       emoji: '💳',
       title: 'No Cards Selected',
       description: 'Select cards in the filter to see insights.',
-    }] };
+    }], currentFeeCoverageStreak: 0 };
   }
 
   for (let i = 5; i >= 0; i--) { 
@@ -114,6 +118,9 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
       totalAnnualFeesForProration += card.annualFee || 0;
     });
     const monthlyFeeProrationTarget = totalAnnualFeesForProration / 12;
+
+    // Generate dummy coverage trend for the last 12 months
+    const coverageTrend: number[] = Array.from({ length: 12 }, () => Math.floor(Math.random() * 101));
 
     insightsCards.forEach(card => {
       card.benefits.forEach(perk => {
@@ -155,6 +162,7 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
       perkDetails: currentMonthPerkDetails,
       cardFeesProportion: monthlyFeeProrationTarget > 0 ? monthlyFeeProrationTarget : 0.01, // Avoid division by zero for feeProration
       allMonthlyPerksRedeemedThisMonth: allCurrentMonthlyPerksRedeemed,
+      coverageTrend, // Added
     };
     // Add to the beginning of the array for that year to keep months in reverse chronological order within the year section
     monthlyDataByYear[yearStr].unshift(monthSummary);
@@ -236,7 +244,7 @@ const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 
       data: monthlyDataByYear[year], // Months are already reverse chrono within the year due to unshift
     }));
 
-  return { yearSections, achievements };
+  return { yearSections, achievements, currentFeeCoverageStreak: consecutiveFeeCoverageMonths >= 2 ? consecutiveFeeCoverageMonths : undefined };
 };
 
 
@@ -281,6 +289,48 @@ const FeeCoverageMeterChip: React.FC<MeterChipProps> = ({ value, displayTextType
     <View style={[styles.meterChipBase, chipStyle]}>
       <Text style={[styles.meterChipTextBase, textStyle]}>{chipText}</Text>
     </View>
+  );
+};
+
+interface SparklineProps {
+  data: number[];
+  height: number;
+  width: number;
+  color: string;
+}
+
+const Sparkline: React.FC<SparklineProps> = ({ data, height, width, color }) => {
+  if (!data || data.length === 0) return null;
+
+  const points = data
+    .map((val, index) => {
+      const x = (index / (data.length - 1)) * width;
+      const y = height - (Math.max(0, Math.min(100, val)) / 100) * height; // Scale val 0-100 to height
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <View style={{ height, width, marginTop: 8 }}>
+      <Svg height={height} width={width}>
+        <Polyline points={points} fill="none" stroke={color} strokeWidth="2" />
+      </Svg>
+    </View>
+  );
+};
+
+interface StreakBadgeProps {
+  streakCount?: number;
+}
+
+const StreakBadge: React.FC<StreakBadgeProps> = ({ streakCount }) => {
+  if (!streakCount || streakCount < 2) { // Minimum 2 month streak to show
+    return null;
+  }
+  return (
+    <Animated.View entering={FadeIn.duration(500)} style={styles.streakBadgeContainer}>
+      <Text style={styles.streakBadgeText}>🔥 {streakCount}-month fee coverage streak!</Text>
+    </Animated.View>
   );
 };
 
@@ -330,6 +380,7 @@ const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded
             <Text style={styles.monthPerkCount}>
               {summary.perksRedeemedCount} perks used
             </Text>
+            <Sparkline data={summary.coverageTrend} height={30} width={100} color={Colors.light.tint} />
           </View>
           {/* Right aligned Chevron and Chip Container */}
           <View style={styles.monthCardRightAlignContainer}>
@@ -425,9 +476,9 @@ export default function InsightsScreen() {
   }, [selectedCardIds, perkStatusFilter, isDataLoaded]);
 
   const insightsData = useMemo(() => {
-    if (!isDataLoaded) return { yearSections: [], achievements: [], availableCardsForFilter: defaultCardsForFilter }; // Return empty while loading or before defaults applied
-    const { yearSections, achievements } = generateDummyInsightsData(selectedCardIds);
-    return { yearSections, achievements, availableCardsForFilter: defaultCardsForFilter };
+    if (!isDataLoaded) return { yearSections: [], achievements: [], availableCardsForFilter: defaultCardsForFilter, currentFeeCoverageStreak: 0 };
+    const { yearSections, achievements, currentFeeCoverageStreak } = generateDummyInsightsData(selectedCardIds);
+    return { yearSections, achievements, availableCardsForFilter: defaultCardsForFilter, currentFeeCoverageStreak };
   }, [selectedCardIds, isDataLoaded]);
 
   const handleToggleMonth = (monthKey: string) => {
@@ -466,9 +517,12 @@ export default function InsightsScreen() {
     <Text style={styles.sectionListHeader}>{section.year}</Text>
   );
 
+  const handleCompareCards = () => {
+    Alert.alert("Coming Soon!", "Compare Cards / ROI by Card feature is under development.");
+  };
+
   const handleShare = () => {
-    // Placeholder for actual sharing logic
-    alert('Share feature coming soon!');
+    Alert.alert('Share feature coming soon!');
   };
 
   const toggleCardSelection = (cardId: string) => {
@@ -492,11 +546,20 @@ export default function InsightsScreen() {
         <View style={styles.mainHeaderContainer}> {/* Renamed for clarity */}
             <View style={styles.headerLeftPlaceholder} />
             <Text style={styles.headerTitle}>Your Redemption Journey</Text>
-            <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
-                <Ionicons name="share-outline" size={24} color={Colors.light.text} />
-            </TouchableOpacity>
+            <View style={styles.headerIconsContainer}> 
+              <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
+                  <Ionicons name="share-outline" size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleCompareCards} style={styles.headerButton}>
+                  <Ionicons name="ellipsis-horizontal" size={24} color={Colors.light.text} />
+              </TouchableOpacity>
+            </View>
         </View>
         <View style={styles.headerDivider} />
+
+        {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
+          <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
+        )}
 
         {insightsData.achievements.length > 0 && (
           <View style={styles.achievementsSectionContainer}> 
@@ -525,6 +588,12 @@ export default function InsightsScreen() {
             contentContainerStyle={styles.historySection}
             ListHeaderComponent={<View style={{height: 10}}/>}
             showsVerticalScrollIndicator={false}
+            ListFooterComponent={() => (
+              <View style={styles.placeholdersContainer}>
+                <Text style={styles.placeholderText}>📅 Missed Value Heat-Map (Coming Soon!)</Text>
+                <Text style={styles.placeholderText}>🎯 Break-Even Forecast Dial (Coming Soon!)</Text>
+              </View>
+            )}
             />
         ) : (
             <View style={styles.emptyStateContainer}>
@@ -921,5 +990,37 @@ const styles = StyleSheet.create({
   cardFilterName: {
     fontSize: 15,
     color: Colors.light.text,
+  },
+  headerIconsContainer: {
+    flexDirection: 'row',
+  },
+  streakBadgeContainer: {
+    backgroundColor: ACCENT_YELLOW_BACKGROUND, // Or a distinct color
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20, // Pill shape
+    alignSelf: 'center', // Center it
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  streakBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text, // Or a specific color like orange/red for streak
+  },
+  placeholdersContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: Colors.light.icon,
+    textAlign: 'center',
+    marginVertical: 10,
+    fontStyle: 'italic',
   },
 }); 
