@@ -147,6 +147,7 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
   let totalAvailableValue = 0;
   let availablePerksCount = 0;
   let allMonthlyPerksRedeemed = true;
+  let mostExpensiveAvailablePerk: { name: string; value: number } | null = null;
 
   if (userId && expiryRemindersEnabled) { // Only fetch data if reminders are enabled and userId is present
     try {
@@ -164,7 +165,7 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
       
       if (!dbUserCards || dbUserCards.length === 0) {
         console.log('[Notifications] User has no cards, skipping custom perk value in notifications.');
-        allMonthlyPerksRedeemed = false; // Assume something could be available if we don't know card details
+        allMonthlyPerksRedeemed = false; 
       } else {
           const userCardSet = new Set(dbUserCards.map((c: any) => c.card_name));
           const currentUserAppCards: Card[] = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
@@ -172,6 +173,8 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
           const { data: currentRedemptions, error: redemptionError } = await getCurrentMonthRedemptions(userId);
           if (redemptionError) throw redemptionError;
           const redeemedPerkDefIds = new Set(currentRedemptions?.map((r: any) => r.perk_id) || []);
+
+          let currentMostExpensiveValue = 0;
 
           currentUserAppCards.forEach((appCard: Card) => {
             appCard.benefits.forEach((benefit: Benefit) => {
@@ -181,42 +184,65 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
                   totalAvailableValue += benefit.value;
                   availablePerksCount++;
                   allMonthlyPerksRedeemed = false;
+                  if (benefit.value > currentMostExpensiveValue) {
+                    currentMostExpensiveValue = benefit.value;
+                    mostExpensiveAvailablePerk = { name: definition.name, value: benefit.value };
+                  }
                 }
               }
             });
           });
-          console.log(`[Notifications] User ${userId}: ${availablePerksCount} monthly perks available, total value $${totalAvailableValue.toFixed(0)}. All redeemed: ${allMonthlyPerksRedeemed}`);
+          // Simplified log to avoid linter issues with type 'never'
+          let logMessage = `[Notifications] User ${userId}: ${availablePerksCount} monthly perks available, total $${totalAvailableValue.toFixed(0)}.`;
+          if (mostExpensiveAvailablePerk) {
+            logMessage += ` Most expensive: ${mostExpensiveAvailablePerk.name} ($${mostExpensiveAvailablePerk.value.toFixed(0)})`;
+          }
+          console.log(logMessage);
       }
     } catch (error) {
       console.error('[Notifications] Error fetching data for personalized notifications:', error);
       totalAvailableValue = 0; 
       availablePerksCount = 0; 
-      allMonthlyPerksRedeemed = false; // Fallback: assume not all redeemed to send generic reminder
+      allMonthlyPerksRedeemed = false; 
+      mostExpensiveAvailablePerk = null;
     }
   }
 
-  if (expiryRemindersEnabled && (!allMonthlyPerksRedeemed || !userId)) { // Send if not all redeemed, or if no user ID (generic)
+  if (expiryRemindersEnabled && (!allMonthlyPerksRedeemed || !userId)) { 
     reminderDays.forEach(daysBefore => {
-      if (daysBefore <= 0) return; // Skip invalid day numbers
+      if (daysBefore <= 0) return; 
 
       const reminderDate = new Date(endOfMonth);
       reminderDate.setDate(endOfMonth.getDate() - daysBefore);
-      reminderDate.setHours(23, 59, 50, 0); // Set to 11:59:50 PM
+      reminderDate.setHours(23, 59, 50, 0); 
 
       if (reminderDate > now) {
         let body = '';
         let title = '';
 
+        const totalValueString = `$${totalAvailableValue.toFixed(0)}`;
+        const perkCountString = `${availablePerksCount} perk${availablePerksCount > 1 ? 's' : ''}`;
+
         if (daysBefore === 1) {
             title = '🚨 Last Day for Monthly Perks!';
-            body = totalAvailableValue > 0 && availablePerksCount > 0
-            ? `Today's your last chance for $${totalAvailableValue.toFixed(0)} in monthly perks! (${availablePerksCount} perk${availablePerksCount > 1 ? 's' : ''})`
-            : `Today is the last day to use your monthly credits.`;
+            if (totalAvailableValue > 0 && availablePerksCount > 0) {
+                body = `Today is your last chance for ${perkCountString} worth ${totalValueString}!`;
+                if (mostExpensiveAvailablePerk && mostExpensiveAvailablePerk.value > 0) {
+                    body += ` Don't miss your $${mostExpensiveAvailablePerk.value.toFixed(0)} ${mostExpensiveAvailablePerk.name} credit.`;
+                }
+            } else {
+                body = `Today is the last day to use your monthly credits.`;
+            }
         } else {
             title = availablePerksCount > 0 ? '✨ Perks Expiring Soon!' : '🗓️ Monthly Credits Expiring';
-            body = totalAvailableValue > 0 && availablePerksCount > 0
-            ? `You have ${availablePerksCount} monthly perk${availablePerksCount > 1 ? 's' : ''} worth $${totalAvailableValue.toFixed(0)} expiring in ${daysBefore} days!`
-            : `About ${daysBefore} days left to use your monthly credits.`;
+            if (totalAvailableValue > 0 && availablePerksCount > 0) {
+                body = `You have ${perkCountString} worth ${totalValueString} expiring in ${daysBefore} days.`;
+                if (mostExpensiveAvailablePerk && mostExpensiveAvailablePerk.value > 0) {
+                    body += ` Key perk: $${mostExpensiveAvailablePerk.value.toFixed(0)} ${mostExpensiveAvailablePerk.name}.`;
+                }
+            } else {
+                body = `About ${daysBefore} days left to use your monthly credits.`;
+            }
         }
         
         tasks.push(

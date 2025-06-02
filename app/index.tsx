@@ -92,58 +92,8 @@ export default function WelcomeScreen() {
   }, []);
 
   const handleContinue = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Continue with Email', 'Continue with Google'],
-          cancelButtonIndex: 0,
-          userInterfaceStyle: 'light',
-        },
-        async (buttonIndex) => {
-          if (buttonIndex === 1) {
-            router.push('/(auth)/login');
-          } else if (buttonIndex === 2) {
-            try {
-              const { error } = await signInGoogle();
-              if (error) {
-                Alert.alert('Google Login Failed', error.message);
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'An unexpected error occurred');
-            }
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        'Choose Sign In Method',
-        'Select how you would like to continue',
-        [
-          {
-            text: 'Continue with Email',
-            onPress: () => router.push('/(auth)/login'),
-          },
-          {
-            text: 'Continue with Google',
-            onPress: async () => {
-              try {
-                const { error } = await signInGoogle();
-                if (error) {
-                  Alert.alert('Google Login Failed', error.message);
-                }
-              } catch (error: any) {
-                Alert.alert('Error', error.message || 'An unexpected error occurred');
-              }
-            },
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ],
-        { cancelable: true }
-      );
-    }
+    // Navigate directly to the first onboarding screen
+    router.push('/(onboarding)/card-select');
   };
 
   if (loading) {
