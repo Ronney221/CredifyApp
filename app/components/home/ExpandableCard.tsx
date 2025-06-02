@@ -79,6 +79,17 @@ export default function ExpandableCard({
   const { user } = useAuth();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   
+  // When card becomes active (e.g. from action hint pill), ensure it expands
+  useEffect(() => {
+    if (isActive && !isExpanded) {
+      setIsExpanded(true);
+      onExpandChange?.(card.id, true);
+    }
+    // We don't want to collapse it if isActive becomes false, 
+    // as it might be active but user manually collapsed it, or another card became active.
+    // Expansion is user-driven or driven by becoming the single active card.
+  }, [isActive, isExpanded, card.id, onExpandChange]);
+
   const cardNetworkColor = useMemo(() => {
     switch (card.network?.toLowerCase()) {
       case 'amex':

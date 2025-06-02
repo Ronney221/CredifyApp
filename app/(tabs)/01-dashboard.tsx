@@ -125,6 +125,18 @@ export default function Dashboard() {
     return actionablePerk;
   }, [processedCardsFromPerkStatus]);
 
+  // Handler for the action hint pill press
+  const handleActionHintPress = (perkToActivate: (CardPerk & { cardId: string; cardName: string }) | null) => {
+    if (perkToActivate) {
+      // Set the card as active. This will trigger its expansion via ExpandableCard's useEffect.
+      // The existing handleCardExpandChange (called by ExpandableCard) will handle scrolling.
+      setActiveCardId(perkToActivate.cardId);
+      console.log('ActionHintPill tapped, setting active card:', perkToActivate.cardId);
+      // Potentially, also directly call openPerkTarget if desired, though user might want to see context first
+      // openPerkTarget(perkToActivate);
+    }
+  };
+
   // Refresh data when navigating back to dashboard
   useFocusEffect(
     useCallback(() => {
@@ -282,12 +294,7 @@ export default function Dashboard() {
           <ActionHintPill 
             perk={nextActionablePerk} 
             daysRemaining={daysRemaining} 
-            onPress={() => {
-              console.log('ActionHintPill tapped for:', nextActionablePerk);
-              // TODO: Implement navigation to card and perk
-              // Example: setActiveCardId(nextActionablePerk.cardId); 
-              // then scroll to it, or router.push with params
-            }}
+            onPress={() => handleActionHintPress(nextActionablePerk)}
           />
         )}
 
