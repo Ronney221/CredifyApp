@@ -11,10 +11,12 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Card, allCards } from '../../src/data/card-data';
 import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -36,6 +38,98 @@ export default function Cards() {
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [tempSelectedCardIdsInModal, setTempSelectedCardIdsInModal] = useState<Set<string>>(new Set());
   const [isEditing, setIsEditing] = useState(false);
+
+  // Notification preferences state
+  const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(true);
+  const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(true);
+  const [perkResetConfirmationEnabled, setPerkResetConfirmationEnabled] = useState(true);
+  // New state for individual reminder days
+  const [remind1DayBeforeMonthly, setRemind1DayBeforeMonthly] = useState(true);
+  const [remind3DaysBeforeMonthly, setRemind3DaysBeforeMonthly] = useState(true);
+  const [remind7DaysBeforeMonthly, setRemind7DaysBeforeMonthly] = useState(true);
+
+  const NOTIFICATION_PREFS_KEY = '@notification_preferences';
+
+  // Load notification preferences
+  useEffect(() => {
+    const loadPrefs = async () => {
+      try {
+        const jsonValue = await AsyncStorage.getItem(NOTIFICATION_PREFS_KEY);
+        if (jsonValue != null) {
+          const prefs = JSON.parse(jsonValue);
+          setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : true);
+          setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : true);
+          setPerkResetConfirmationEnabled(prefs.perkResetConfirmationEnabled !== undefined ? prefs.perkResetConfirmationEnabled : true);
+          
+          // Load monthly perk reminder day preferences
+          setRemind1DayBeforeMonthly(prefs.remind1DayBeforeMonthly !== undefined ? prefs.remind1DayBeforeMonthly : true);
+          setRemind3DaysBeforeMonthly(prefs.remind3DaysBeforeMonthly !== undefined ? prefs.remind3DaysBeforeMonthly : true);
+          setRemind7DaysBeforeMonthly(prefs.remind7DaysBeforeMonthly !== undefined ? prefs.remind7DaysBeforeMonthly : true);
+        }
+      } catch (e) {
+        console.error("Failed to load notification prefs.", e);
+      }
+    };
+    loadPrefs();
+  }, []);
+
+  // Save notification preferences
+  const saveNotificationPreferences = async () => {
+    try {
+      const monthlyPerkExpiryReminderDays: number[] = [];
+      if (remind1DayBeforeMonthly) monthlyPerkExpiryReminderDays.push(1);
+      if (remind3DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(3);
+      if (remind7DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(7);
+
+      const prefsToSave = {
+        perkExpiryRemindersEnabled,
+        renewalRemindersEnabled,
+        perkResetConfirmationEnabled,
+        remind1DayBeforeMonthly, // Save individual toggles for UI state
+        remind3DaysBeforeMonthly,
+        remind7DaysBeforeMonthly,
+        monthlyPerkExpiryReminderDays, // Save the constructed array for the scheduler
+      };
+      await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefsToSave));
+    } catch (e) {
+      console.error("Failed to save notification prefs.", e);
+    }
+  };
+
+  // Update handlers to call the consolidated save function
+  const handleTogglePerkExpiryReminders = (value: boolean) => {
+    setPerkExpiryRemindersEnabled(value);
+    // saveNotificationPreference('perkExpiryRemindersEnabled', value); // Old call
+  };
+  useEffect(() => { saveNotificationPreferences(); }, [perkExpiryRemindersEnabled]);
+
+  const handleToggleRenewalReminders = (value: boolean) => {
+    setRenewalRemindersEnabled(value);
+    // saveNotificationPreference('renewalRemindersEnabled', value); // Old call
+  };
+  useEffect(() => { saveNotificationPreferences(); }, [renewalRemindersEnabled]);
+
+  const handleTogglePerkResetConfirmation = (value: boolean) => {
+    setPerkResetConfirmationEnabled(value);
+    // saveNotificationPreference('perkResetConfirmationEnabled', value); // Old call
+  };
+  useEffect(() => { saveNotificationPreferences(); }, [perkResetConfirmationEnabled]);
+
+  // New handlers for individual day toggles
+  const handleToggleRemind1DayMonthly = (value: boolean) => {
+    setRemind1DayBeforeMonthly(value);
+  };
+  useEffect(() => { saveNotificationPreferences(); }, [remind1DayBeforeMonthly]);
+
+  const handleToggleRemind3DayMonthly = (value: boolean) => {
+    setRemind3DaysBeforeMonthly(value);
+  };
+  useEffect(() => { saveNotificationPreferences(); }, [remind3DaysBeforeMonthly]);
+
+  const handleToggleRemind7DayMonthly = (value: boolean) => {
+    setRemind7DaysBeforeMonthly(value);
+  };
+  useEffect(() => { saveNotificationPreferences(); }, [remind7DaysBeforeMonthly]);
 
   const getCardNetworkColor = (card: Card) => {
     switch (card.network?.toLowerCase()) {
@@ -243,10 +337,6 @@ export default function Cards() {
     );
   }, [modalSearchQuery]);
 
-  const handleGlobalReminders = () => {
-    console.log("Placeholder: Open global reminders settings sheet");
-  };
-
   const handleCardSettings = (cardId: string) => {
     if (!isEditing) {
         showDatePicker(cardId);
@@ -364,7 +454,7 @@ export default function Cards() {
         </SafeAreaView>
       </Modal>
 
-      {selectedCardObjects.length > 0 && isEditing ? (
+      {isEditing ? (
         <DraggableFlatList
           data={selectedCardObjects}
           renderItem={renderCardItem}
@@ -377,51 +467,90 @@ export default function Cards() {
         />
       ) : (
         <ScrollView style={styles.mainScrollView}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
-              {selectedCardObjects.length > 0 ? (
-                selectedCardObjects.map((cardObject, index) => renderCardItem({ item: cardObject, drag: () => {}, isActive: false, getIndex: () => index }))
-              ) : (
-                <Text style={styles.emptySectionText}>No cards selected yet.</Text>
-              )}
-            </View>
-    
-            {!isEditing && (
-              <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
-                <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
-                <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
-              </TouchableOpacity>
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
+            {selectedCardObjects.length > 0 ? (
+              selectedCardObjects.map((cardObject, index) => renderCardItem({ item: cardObject, drag: () => {}, isActive: false, getIndex: () => index }))
+            ) : (
+              <Text style={styles.emptySectionText}>No cards selected yet.</Text>
             )}
-    
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
-              <TouchableOpacity style={styles.settingsRow} onPress={handleGlobalReminders}>
-                <Text style={styles.rowLabel}>Global Reminders</Text>
-                <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
-              </TouchableOpacity>
+          </View>
+  
+          <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
+            <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
+            <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
+          </TouchableOpacity>
+  
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionHeader}>NOTIFICATION PREFERENCES</Text>
+            <View style={styles.settingsRow}>
+              <Text style={styles.rowLabel}>Monthly Perk Expiry Reminders</Text>
+              <Switch 
+                trackColor={{ false: "#767577", true: "#81b0ff" }}
+                thumbColor={perkExpiryRemindersEnabled ? "#007aff" : "#f4f3f4"}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={handleTogglePerkExpiryReminders}
+                value={perkExpiryRemindersEnabled}
+              />
             </View>
+            {/* Sub-section for monthly perk reminder days - shown if main toggle is on */}
+            {perkExpiryRemindersEnabled && (
+              <View style={styles.subSectionContainer}>
+                <View style={styles.settingsRow}>
+                  <Text style={styles.subRowLabel}>Remind 1 day before expiry</Text>
+                  <Switch 
+                    trackColor={{ false: "#767577", true: "#81b0ff" }}
+                    thumbColor={remind1DayBeforeMonthly ? "#007aff" : "#f4f3f4"}
+                    ios_backgroundColor="#3e3e3e"
+                    onValueChange={handleToggleRemind1DayMonthly}
+                    value={remind1DayBeforeMonthly}
+                  />
+                </View>
+                <View style={styles.settingsRow}>
+                  <Text style={styles.subRowLabel}>Remind 3 days before expiry</Text>
+                  <Switch 
+                    trackColor={{ false: "#767577", true: "#81b0ff" }}
+                    thumbColor={remind3DaysBeforeMonthly ? "#007aff" : "#f4f3f4"}
+                    ios_backgroundColor="#3e3e3e"
+                    onValueChange={handleToggleRemind3DayMonthly}
+                    value={remind3DaysBeforeMonthly}
+                  />
+                </View>
+                <View style={styles.settingsRow}>
+                  <Text style={styles.subRowLabel}>Remind 7 days before expiry</Text>
+                  <Switch 
+                    trackColor={{ false: "#767577", true: "#81b0ff" }}
+                    thumbColor={remind7DaysBeforeMonthly ? "#007aff" : "#f4f3f4"}
+                    ios_backgroundColor="#3e3e3e"
+                    onValueChange={handleToggleRemind7DayMonthly}
+                    value={remind7DaysBeforeMonthly}
+                  />
+                </View>
+              </View>
+            )}
+            <View style={styles.settingsRow}>
+              <Text style={styles.rowLabel}>Card Renewal Reminders</Text>
+              <Switch 
+                trackColor={{ false: "#767577", true: "#81b0ff" }}
+                thumbColor={renewalRemindersEnabled ? "#007aff" : "#f4f3f4"}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={handleToggleRenewalReminders}
+                value={renewalRemindersEnabled}
+              />
+            </View>
+            <View style={styles.settingsRow}>
+              <Text style={styles.rowLabel}>Perk Reset Confirmations</Text>
+              <Switch 
+                trackColor={{ false: "#767577", true: "#81b0ff" }}
+                thumbColor={perkResetConfirmationEnabled ? "#007aff" : "#f4f3f4"}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={handleTogglePerkResetConfirmation}
+                value={perkResetConfirmationEnabled}
+              />
+            </View>
+          </View>
         </ScrollView>
       )}
-      {selectedCardObjects.length === 0 && !isEditing && (
-         <ScrollView style={styles.mainScrollView}>
-            <View style={styles.sectionContainer}>
-                <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
-                <Text style={styles.emptySectionText}>No cards selected yet.</Text>
-            </View>
-            <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
-                <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
-                <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
-            </TouchableOpacity>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
-              <TouchableOpacity style={styles.settingsRow} onPress={handleGlobalReminders}>
-                <Text style={styles.rowLabel}>Global Reminders</Text>
-                <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
-              </TouchableOpacity>
-            </View>
-        </ScrollView>
-      )}
-
       {hasChanges && !isEditing && (
         <View style={styles.footer}>
           <TouchableOpacity
@@ -522,6 +651,11 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 17,
     color: '#000000',
+  },
+  subRowLabel: {
+    fontSize: 15,
+    color: '#333333',
+    paddingLeft: 15, // Indent sub-options
   },
   addRowLabel: {
     color: '#007aff',
@@ -658,5 +792,10 @@ const styles = StyleSheet.create({
   },
   modalCardRowDisabled: {
     opacity: 0.5,
+  },
+  subSectionContainer: {
+    // Styles for the container of sub-switches, if needed for slight indent or different bg
+    // For now, it will inherit row styles, which might be fine.
+    // Add paddingLeft if direct child of sectionContainer and want to indent the whole block
   },
 });

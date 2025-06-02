@@ -34,13 +34,15 @@ import AccountButton from '../components/home/AccountButton';
 import Header from '../components/home/Header';
 import StackedCardDisplay from '../components/home/StackedCardDisplay';
 import ActionHintPill from '../components/home/ActionHintPill';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import notification functions
 import {
   requestPermissionsAsync,
   scheduleMonthlyPerkResetNotifications,
   scheduleCardRenewalReminder,
-  cancelAllScheduledNotificationsAsync
+  cancelAllScheduledNotificationsAsync,
+  NotificationPreferences,
 } from '../utils/notifications';
 
 // Enable LayoutAnimation for Android
@@ -158,6 +160,8 @@ export default function Dashboard() {
     }
   }, [params.refresh, refreshUserCards]);
 
+  const NOTIFICATION_PREFS_KEY = '@notification_preferences';
+
   // Function to set up notifications
   const setupNotifications = async () => {
     const hasPermission = await requestPermissionsAsync();
@@ -169,19 +173,33 @@ export default function Dashboard() {
       return;
     }
 
+    // Load preferences
+    let prefs: NotificationPreferences = {}; // Default to empty object (all true by default in scheduler)
+    try {
+      const jsonValue = await AsyncStorage.getItem(NOTIFICATION_PREFS_KEY);
+      if (jsonValue != null) {
+        prefs = JSON.parse(jsonValue);
+        // The monthlyPerkExpiryReminderDays array is now directly in prefs if saved from 02-cards.tsx
+        // No need to reconstruct it here.
+      }
+    } catch (e) {
+      console.error("[Dashboard] Failed to load notification prefs for scheduling.", e);
+    }
+
     await cancelAllScheduledNotificationsAsync();
-    await scheduleMonthlyPerkResetNotifications();
+    // Pass user ID and the full prefs object (which now includes monthlyPerkExpiryReminderDays if set)
+    await scheduleMonthlyPerkResetNotifications(user?.id, prefs);
 
     if (params.renewalDates && params.selectedCardIds) {
       try {
         const renewalDatesMap = JSON.parse(params.renewalDates);
-        const cardIds = params.selectedCardIds.split(',');
+        // const cardIds = params.selectedCardIds.split(','); // Not directly used here
 
-        for (const cardData of userCardsWithPerks) {
+        for (const cardData of userCardsWithPerks) { // Use userCardsWithPerks from useUserCards hook
           if (renewalDatesMap[cardData.card.id]) {
             const renewalDate = new Date(renewalDatesMap[cardData.card.id]);
             if (!isNaN(renewalDate.getTime()) && renewalDate > new Date()) {
-              await scheduleCardRenewalReminder(cardData.card.name, renewalDate, 7);
+              await scheduleCardRenewalReminder(cardData.card.name, renewalDate, 7, prefs);
             }
           }
         }
