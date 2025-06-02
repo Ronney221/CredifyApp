@@ -235,7 +235,7 @@ export default function Cards() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       
       <Modal

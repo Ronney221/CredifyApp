@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors'; // Assuming you have a Colors constant
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
-import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated'; // Added Reanimated imports
+import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 
 // Enable LayoutAnimation for Android
@@ -297,64 +297,80 @@ const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded
     ? (summary.totalRedeemedValue / summary.cardFeesProportion) * 100 
     : 0;
   
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    rotation.value = withTiming(isExpanded ? 180 : 0, { duration: 200 });
+  }, [isExpanded, rotation]);
+
+  const animatedChevronStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }],
+    };
+  });
+  
   const filteredPerkDetails = useMemo(() => {
     if (perkStatusFilter === 'all') return summary.perkDetails;
     return summary.perkDetails.filter(perk => perk.status === perkStatusFilter);
   }, [summary.perkDetails, perkStatusFilter]);
   
   return (
-    <View style={styles.monthCard}>
-      <TouchableOpacity onPress={onToggleExpand} activeOpacity={0.7} style={styles.monthCardHeader}>
-        <View style={styles.monthCardInfo}>
-          <Text style={styles.monthYearText}>{summary.monthYear}</Text>
-          <View style={styles.redeemedValueContainer}>
-            <Text style={styles.monthRedeemedValue}>
-              ${summary.totalRedeemedValue.toFixed(0)} redeemed
-            </Text>
-            {summary.totalPotentialValue > 0 && 
-              <Text style={styles.monthPotentialValue}> of ${summary.totalPotentialValue.toFixed(0)}</Text>}
-          </View>
-          <Text style={styles.monthPerkCount}>
-            {summary.perksRedeemedCount} perks used
-          </Text>
-        </View>
-        {/* Right aligned Chevron and Chip Container */}
-        <View style={styles.monthCardRightAlignContainer}>
-            <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={24} color={Colors.light.text} />
-            {summary.cardFeesProportion > 0 && (
-                <FeeCoverageMeterChip 
-                    value={feeCoveragePercentage} 
-                    displayTextType={isFirstOverallCard ? 'full' : 'percentage_only'}
-                />
-            )}
-        </View>
-      </TouchableOpacity>
-
-      {isExpanded && (
-        <Animated.View layout={Layout.springify()} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.perkDetailsContainer}>
-          {filteredPerkDetails.length > 0 ? filteredPerkDetails.map(perk => (
-            <View key={perk.id} style={styles.perkDetailItem}>
-              <Ionicons 
-                name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
-                size={20} 
-                color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED_BACKGROUND} 
-                style={styles.perkStatusIcon}
-              />
-              <View style={styles.perkNameContainer}>
-                <Text style={styles.perkName}>{perk.name}</Text>
-                <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
-              </View>
-              <Text style={[
-                  styles.perkStatusText, 
-                  perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
-              ]}>
-                {perk.status === 'redeemed' ? 'Redeemed' : 'Missed'}
+    <Pressable onPress={onToggleExpand} hitSlop={{top:8,left:8,right:8,bottom:8}}>
+      <View style={styles.monthCard}>
+        <View style={styles.monthCardHeader}>
+          <View style={styles.monthCardInfo}>
+            <Text style={styles.monthYearText}>{summary.monthYear}</Text>
+            <View style={styles.redeemedValueContainer}>
+              <Text style={styles.monthRedeemedValue}>
+                ${summary.totalRedeemedValue.toFixed(0)} redeemed
               </Text>
+              {summary.totalPotentialValue > 0 && 
+                <Text style={styles.monthPotentialValue}> of ${summary.totalPotentialValue.toFixed(0)}</Text>}
             </View>
-          )) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
-        </Animated.View>
-      )}
-    </View>
+            <Text style={styles.monthPerkCount}>
+              {summary.perksRedeemedCount} perks used
+            </Text>
+          </View>
+          {/* Right aligned Chevron and Chip Container */}
+          <View style={styles.monthCardRightAlignContainer}>
+              <Animated.View style={animatedChevronStyle}>
+                <Ionicons name="chevron-down" size={24} color={Colors.light.text} />
+              </Animated.View>
+              {summary.cardFeesProportion > 0 && (
+                  <FeeCoverageMeterChip 
+                      value={feeCoveragePercentage} 
+                      displayTextType={isFirstOverallCard ? 'full' : 'percentage_only'}
+                  />
+              )}
+          </View>
+        </View>
+
+        {isExpanded && (
+          <Animated.View layout={Layout.springify()} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.perkDetailsContainer}>
+            {filteredPerkDetails.length > 0 ? filteredPerkDetails.map(perk => (
+              <View key={perk.id} style={styles.perkDetailItem}>
+                <Ionicons 
+                  name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
+                  size={20} 
+                  color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED} 
+                  style={styles.perkStatusIcon}
+                />
+                <View style={styles.perkNameContainer}>
+                  <Text style={styles.perkName}>{perk.name}</Text>
+                  <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
+                </View>
+                <Text style={[
+                    styles.perkStatusText, 
+                    perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
+                ]}>
+                  {perk.status === 'redeemed' ? 'Redeemed' : 'Missed'}
+                </Text>
+              </View>
+            )) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
+          </Animated.View>
+        )}
+      </View>
+    </Pressable>
   );
 };
 
@@ -373,6 +389,7 @@ export default function InsightsScreen() {
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>(defaultCardsForFilter.map(c => c.id));
   const [perkStatusFilter, setPerkStatusFilter] = useState<PerkStatusFilter>('all');
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const scrollYPosition = useRef(0); // For scroll position restoration
 
   // Load filters from AsyncStorage on mount
   useEffect(() => {
@@ -417,6 +434,19 @@ export default function InsightsScreen() {
     setExpandedMonthKey(prev => (prev === monthKey ? null : monthKey));
   };
 
+  // Attempt to restore scroll position on focus
+  // This is a basic implementation. For SectionList, especially with dynamic content,
+  // robust scroll restoration might need `scrollToLocation` and careful state management.
+  // const navigation = useNavigation();
+  // useEffect(() => {
+  //   const unsubscribe = navigation.addListener('focus', () => {
+  //     if (sectionListRef.current && scrollYPosition.current > 0) {
+  //       sectionListRef.current.scrollToOffset({ animated: false, offset: scrollYPosition.current });
+  //     }
+  //   });
+  //   return unsubscribe;
+  // }, [navigation]);
+
   const renderMonthSummaryCard = ({ item, index, section }: { item: MonthlyRedemptionSummary; index: number; section: YearSection }) => {
     const isFirstOverallCard = insightsData.yearSections.length > 0 && 
                                section.year === insightsData.yearSections[0].year && 
@@ -458,7 +488,7 @@ export default function InsightsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.mainHeaderContainer}> {/* Renamed for clarity */}
             <View style={styles.headerLeftPlaceholder} />
             <Text style={styles.headerTitle}>Your Redemption Journey</Text>
@@ -487,6 +517,11 @@ export default function InsightsScreen() {
             renderItem={renderMonthSummaryCard}
             renderSectionHeader={renderSectionHeader}
             stickySectionHeadersEnabled={true}
+            initialNumToRender={6} /* Added initialNumToRender */
+            onScroll={(event) => { /* Store scroll position */
+              scrollYPosition.current = event.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
             contentContainerStyle={styles.historySection}
             ListHeaderComponent={<View style={{height: 10}}/>}
             showsVerticalScrollIndicator={false}
@@ -779,7 +814,7 @@ const styles = StyleSheet.create({
     color: SUCCESS_GREEN,
   },
   missedText: {
-    color: ERROR_RED_BACKGROUND, // Changed from ERROR_RED for consistency if it was a text color before
+    color: ERROR_RED, // Changed from ERROR_RED_BACKGROUND
   },
   noPerksText: {
     fontSize: 14,
