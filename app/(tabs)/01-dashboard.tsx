@@ -31,9 +31,9 @@ import { usePerkStatus } from '../hooks/usePerkStatus';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
 import { Card, CardPerk } from '../../src/data/card-data';
 import AccountButton from '../components/home/AccountButton';
-import Header from '../components/home/Header';
-import StackedCardDisplay from '../components/home/StackedCardDisplay';
-import ActionHintPill from '../components/home/ActionHintPill';
+import Header from '@/app/components/home/Header';
+import StackedCardDisplay from '@/app/components/home/StackedCardDisplay';
+import ActionHintPill from '@/app/components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import notification functions

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Card, Benefit, allCards } from '../src/data/card-data';
+import { NotificationPreferences } from '../app/utils/notifications';
 
 export { supabase };
 
@@ -359,4 +360,84 @@ export async function deletePerkRedemption(userId: string, perkDefinitionId: str
     });
     return { error };
   }
-} 
+}
+
+// --- Notification Settings --- (New Section)
+
+// Assuming NotificationPreferences is imported or defined in a way that this file can access it
+// e.g. import { NotificationPreferences } from '../utils/notifications'; // Adjust path as needed
+// For now, let's assume it's available globally or defined in a shared types file.
+// If not, we'll need to import it from its definition (likely app/utils/notifications.ts or a types file)
+
+/**
+ * Saves or updates user notification settings in the database.
+ * @param userId The ID of the user.
+ * @param settings The notification preferences object.
+ */
+export async function saveUserNotificationSettings(
+  userId: string, 
+  settings: NotificationPreferences
+) {
+  try {
+    console.log(`[DB] Saving notification settings for user ${userId}:`, settings);
+    const { data, error } = await supabase
+      .from('user_notification_settings') // New table
+      .upsert(
+        {
+          user_id: userId,
+          preferences: settings,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'user_id', // Upsert based on user_id
+        }
+      )
+      .select();
+
+    if (error) {
+      console.error('[DB] Error saving notification settings:', error);
+      return { error };
+    }
+    console.log('[DB] Successfully saved notification settings:', data);
+    return { data, error: null };
+  } catch (error) {
+    console.error('[DB] Unexpected error saving notification settings:', error);
+    return { error };
+  }
+}
+
+/**
+ * Retrieves user notification settings from the database.
+ * @param userId The ID of the user.
+ * @returns The notification preferences object or null if not found.
+ */
+export async function getUserNotificationSettings(userId: string): Promise<NotificationPreferences | null> {
+  try {
+    console.log(`[DB] Fetching notification settings for user ${userId}`);
+    const { data, error } = await supabase
+      .from('user_notification_settings') // New table
+      .select('preferences')
+      .eq('user_id', userId)
+      .single(); // Expecting at most one row
+
+    if (error && error.code !== 'PGRST116') { // PGRST116: Row not found, which is fine
+      console.error('[DB] Error fetching notification settings:', error);
+      return null; // Or return { error } if you prefer to handle error object
+    }
+
+    if (!data) {
+        console.log('[DB] No notification settings found for user, returning default (empty object implied).');
+        return null; // No settings found
+    }
+
+    console.log('[DB] Successfully fetched notification settings:', data.preferences);
+    return data.preferences as NotificationPreferences;
+  } catch (error) {
+    console.error('[DB] Unexpected error fetching notification settings:', error);
+    return null; // Or return { error }
+  }
+}
+
+// Ensure to import NotificationPreferences if it's defined elsewhere and not globally available
+// For example, if it's in app/utils/notifications.ts:
+// import { NotificationPreferences } from '../app/utils/notifications'; // Adjust path based on actual location 
