@@ -1,12 +1,29 @@
 // app/_layout.tsx
 import React from 'react';
+import { Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Tabs } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Platform, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { BlurView } from 'expo-blur';
+
+// Header Right Component for Insights Tab
+const InsightsHeaderRight = () => {
+  const handleShare = () => Alert.alert('Share feature coming soon!');
+  const handleCompareCards = () => Alert.alert("Coming Soon!", "Compare Cards / ROI feature coming soon!");
+
+  return (
+    <View style={{ flexDirection: 'row', marginRight: Platform.OS === 'ios' ? 10 : 20 }}>
+      <TouchableOpacity onPress={handleShare} style={{ paddingHorizontal: 8 }}>
+        <Ionicons name="share-outline" size={24} color={Colors.light.tint} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleCompareCards} style={{ paddingHorizontal: 8 }}>
+        <Ionicons name="ellipsis-horizontal" size={24} color={Colors.light.tint} />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -30,7 +47,6 @@ export default function TabLayout() {
               right: 0,
               paddingBottom: 0,
               paddingTop: 0,
-              backdropFilter: 'blur(15px)',
             },
             android: {
               backgroundColor: '#ffffff',
@@ -43,7 +59,7 @@ export default function TabLayout() {
           tabBarItemStyle: {
             paddingVertical: 8,
           },
-          tabBarActiveTintColor: '#007aff',
+          tabBarActiveTintColor: Colors.light.tint,
           tabBarInactiveTintColor: '#8e8e93',
         }}
       >
@@ -51,26 +67,30 @@ export default function TabLayout() {
           name="01-dashboard"
           options={{
             title: 'Dashboard',
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home" size={size} color={color} />
+              <Ionicons name="home-outline" size={size} color={color} />
             ),
           }}
         />
         <Tabs.Screen
           name="02-cards"
           options={{
-            title: 'Cards',
+            title: 'Manage Cards',
+            headerShown: true,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="card" size={size} color={color} />
+              <Ionicons name="card-outline" size={size} color={color} />
             ),
           }}
         />
         <Tabs.Screen
           name="03-insights"
           options={{
-            title: 'Insights',
+            title: 'Your Journey',
+            headerShown: true,
+            headerRight: () => <InsightsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="analytics" size={size} color={color} />
+              <Ionicons name="analytics-outline" size={size} color={color} />
             ),
           }}
         />

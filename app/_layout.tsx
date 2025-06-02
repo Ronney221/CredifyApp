@@ -1,9 +1,9 @@
 import React, { useEffect, type PropsWithChildren } from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { AuthProvider } from '../contexts/AuthContext';
 import * as SplashScreen from 'expo-splash-screen';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { RootSiblingParent } from 'react-native-root-siblings';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -43,7 +43,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <RootSiblingParent>
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{ flex: 1, backgroundColor: '#fff' }}>
             {/* Transparent status bar over white background */}
             <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
@@ -53,7 +53,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               </Stack>
             </AuthProvider>
-          </SafeAreaView>
+          </View>
         </RootSiblingParent>
       </SafeAreaProvider>
     </GestureHandlerRootView>

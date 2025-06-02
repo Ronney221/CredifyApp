@@ -170,7 +170,7 @@ export default function Cards() {
       setInitialSelectedCards(selectedCards);
       setInitialRenewalDates(renewalDates);
       router.replace({
-        pathname: '/(tabs)/dashboard',
+        pathname: '/(tabs)/01-dashboard',
         params: { refresh: Date.now().toString() }
       });
     } catch (error) {
@@ -236,8 +236,6 @@ export default function Cards() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
-      
       <Modal
         animationType="slide"
         transparent={false}
@@ -298,8 +296,6 @@ export default function Cards() {
       </Modal>
 
       <ScrollView style={styles.mainScrollView}>
-        <Text style={styles.title}>Manage Your Cards</Text>
-        
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
           {selectedCardObjects.length > 0 ? (
@@ -396,14 +392,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666666',
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    marginTop: Platform.OS === 'android' ? 20 : 10,
-    marginBottom: 10, 
-    paddingHorizontal: 16,
-    color: '#1c1c1e',
   },
   sectionContainer: {
     marginTop: 20, 

@@ -1,13 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, Modal, Switch, Button, Pressable, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button, Pressable, Alert } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors'; // Assuming you have a Colors constant
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
-import { Svg, Polyline } from 'react-native-svg'; // Added Svg, Polyline
-import { PerkStatusFilter, PerkRedemptionDetail, MonthlyRedemptionSummary, Achievement, YearSection, InsightsData } from '../../types/insights'; // Import new types
+import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -29,47 +28,47 @@ const SUBTLE_GRAY_TEXT = Colors.light.icon; // For dimmed perk values
 const CARD_BACKGROUND_COLOR = '#F8F8F8';
 const SEPARATOR_COLOR = '#E0E0E0';
 
-// type PerkStatusFilter = 'all' | 'redeemed' | 'missed'; // Removed
+type PerkStatusFilter = 'all' | 'redeemed' | 'missed';
 
-// interface PerkRedemptionDetail { // Removed
-//   id: string;
-//   name:string;
-//   value: number;
-//   status: 'redeemed' | 'missed';
-//   period: Benefit['period'];
-// }
+interface PerkRedemptionDetail {
+  id: string;
+  name:string;
+  value: number;
+  status: 'redeemed' | 'missed';
+  period: Benefit['period'];
+}
 
-// interface MonthlyRedemptionSummary { // Removed
-//   monthYear: string; 
-//   monthKey: string; 
-//   totalRedeemedValue: number;
-//   totalPotentialValue: number;
-//   perksRedeemedCount: number;
-//   perksMissedCount: number;
-//   perkDetails: PerkRedemptionDetail[];
-//   cardFeesProportion: number; 
-//   allMonthlyPerksRedeemedThisMonth: boolean;
-//   coverageTrend: number[]; 
-// }
+interface MonthlyRedemptionSummary {
+  monthYear: string; // e.g., "July 2024"
+  monthKey: string; // Unique key for the month, e.g., "2024-07"
+  totalRedeemedValue: number;
+  totalPotentialValue: number;
+  perksRedeemedCount: number;
+  perksMissedCount: number;
+  perkDetails: PerkRedemptionDetail[];
+  cardFeesProportion: number; // For calculating "on pace for annual fee"
+  allMonthlyPerksRedeemedThisMonth: boolean;
+  coverageTrend: number[]; // Added for sparkline
+}
 
-// interface Achievement { // Removed
-//   id: string;
-//   emoji: string;
-//   title: string;
-//   description: string;
-// }
+interface Achievement {
+  id: string;
+  emoji: string;
+  title: string;
+  description: string;
+}
 
-// interface YearSection extends DefaultSectionT { // Removed
-//   year: string;
-//   data: MonthlyRedemptionSummary[];
-// }
+interface YearSection extends DefaultSectionT {
+  year: string;
+  data: MonthlyRedemptionSummary[];
+}
 
-// interface InsightsData { // Removed
-//   yearSections: YearSection[]; 
-//   achievements: Achievement[];
-//   availableCardsForFilter: { id: string; name: string }[];
-//   currentFeeCoverageStreak?: number; 
-// }
+interface InsightsData {
+  yearSections: YearSection[]; // Changed from monthlySummaries
+  achievements: Achievement[];
+  availableCardsForFilter: { id: string; name: string }[];
+  currentFeeCoverageStreak?: number; // Added for streak badge
+}
 
 // --- DUMMY DATA GENERATION ---
 const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 'availableCardsForFilter' | 'currentFeeCoverageStreak'> & { currentFeeCoverageStreak?: number } => {
@@ -267,26 +266,29 @@ const AchievementChip: React.FC<AchievementChipProps> = ({ achievement }) => {
 };
 
 interface MeterChipProps {
-  value: number; // Percentage value (e.g., 104 for 104%)
+  value: number;
   displayTextType: 'full' | 'percentage_only';
 }
 
 const FeeCoverageMeterChip: React.FC<MeterChipProps> = ({ value, displayTextType }) => {
   let chipStyle = styles.meterChipGreen;
   let textStyle = styles.meterChipTextGreen;
-  const chipText = displayTextType === 'full' ? `${value.toFixed(0)}% fee coverage` : `${value.toFixed(0)}%`;
+  let iconName: keyof typeof Ionicons.glyphMap = 'checkmark-circle-outline';
 
   if (value < 50) {
-    chipStyle = styles.meterChipGray; // Changed from Red to Gray
+    chipStyle = styles.meterChipGray;
     textStyle = styles.meterChipTextGray;
+    iconName = 'alert-circle-outline';
   } else if (value < 90) { // Changed from < 100 to < 90 for Yellow
     chipStyle = styles.meterChipYellow;
     textStyle = styles.meterChipTextYellow;
+    iconName = 'arrow-up-circle-outline';
   }
-  // Default is Green (>=90)
+  const chipText = displayTextType === 'full' ? `${value.toFixed(0)}% fee coverage` : `${value.toFixed(0)}%`;
 
   return (
     <View style={[styles.meterChipBase, chipStyle]}>
+      <Ionicons name={iconName} size={14} color={textStyle.color} style={styles.meterChipIcon} />
       <Text style={[styles.meterChipTextBase, textStyle]}>{chipText}</Text>
     </View>
   );
@@ -339,14 +341,13 @@ interface MonthSummaryCardProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   perkStatusFilter: PerkStatusFilter;
-  isFirstOverallCard: boolean; // New prop
+  isFirstOverallCard: boolean;
 }
 
 const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded, onToggleExpand, perkStatusFilter, isFirstOverallCard }) => {
   const feeCoveragePercentage = summary.cardFeesProportion > 0 
     ? (summary.totalRedeemedValue / summary.cardFeesProportion) * 100 
     : 0;
-  
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -354,16 +355,14 @@ const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded
   }, [isExpanded, rotation]);
 
   const animatedChevronStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotate: `${rotation.value}deg` }],
-    };
+    return { transform: [{ rotate: `${rotation.value}deg` }] };
   });
   
   const filteredPerkDetails = useMemo(() => {
     if (perkStatusFilter === 'all') return summary.perkDetails;
     return summary.perkDetails.filter(perk => perk.status === perkStatusFilter);
   }, [summary.perkDetails, perkStatusFilter]);
-  
+
   return (
     <Pressable onPress={onToggleExpand} hitSlop={{top:8,left:8,right:8,bottom:8}}>
       <View style={styles.monthCard}>
@@ -380,19 +379,18 @@ const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded
             <Text style={styles.monthPerkCount}>
               {summary.perksRedeemedCount} perks used
             </Text>
-            <Sparkline data={summary.coverageTrend} height={30} width={100} color={Colors.light.tint} />
           </View>
-          {/* Right aligned Chevron and Chip Container */}
-          <View style={styles.monthCardRightAlignContainer}>
-              <Animated.View style={animatedChevronStyle}>
-                <Ionicons name="chevron-down" size={24} color={Colors.light.text} />
-              </Animated.View>
-              {summary.cardFeesProportion > 0 && (
-                  <FeeCoverageMeterChip 
-                      value={feeCoveragePercentage} 
-                      displayTextType={isFirstOverallCard ? 'full' : 'percentage_only'}
-                  />
-              )}
+          <View style={styles.monthCardRightColumn}>
+            {summary.cardFeesProportion > 0 && (
+              <FeeCoverageMeterChip 
+                value={feeCoveragePercentage} 
+                displayTextType={isFirstOverallCard ? 'full' : 'percentage_only'}
+              />
+            )}
+            <Sparkline data={summary.coverageTrend} height={30} width={80} color={Colors.light.tint} />
+            <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
+              <Ionicons name="chevron-down" size={24} color={Colors.light.text} />
+            </Animated.View>
           </View>
         </View>
 
@@ -432,7 +430,46 @@ const defaultCardsForFilter = [
 
 const ASYNC_STORAGE_FILTER_KEY = 'insights_filters';
 
+// --- NEW PLACEHOLDER COMPONENTS ---
+
+const HeatMapPlaceholder: React.FC = () => {
+  return (
+    <View style={[styles.placeholderModuleContainer, styles.skeletonStub]}>
+      <Text style={styles.skeletonStubText}>📅 Missed Value Heat-Map (Coming Soon!)</Text>
+    </View>
+  );
+};
+
+const ForecastDialPlaceholder: React.FC = () => {
+  const size = 50; // Reduced size
+  const strokeWidth = 5;
+  const radius = (size - strokeWidth) / 2;
+  const progress = 0.6; // Static progress
+  const angle = 135 + progress * 270; 
+  const circumference = radius * Math.PI * 2;
+
+  const arcPath = `M ${size / 2 - radius * Math.cos(45 * Math.PI/180)} ${size / 2 + radius * Math.sin(45 * Math.PI/180)} A ${radius} ${radius} 0 1 1 ${size/2 + radius * Math.cos(45*Math.PI/180)} ${size/2 + radius * Math.sin(45*Math.PI/180)}`;
+
+  return (
+    <View style={styles.forecastDialContainer}>
+      <View style={{ width: size, height: size * 0.85, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <G transform={`rotate(-225 ${size/2} ${size/2})`}>
+            <Path d={arcPath} stroke={Colors.light.icon} strokeWidth={strokeWidth} strokeOpacity={0.3} fill="none" />
+            <Path d={arcPath} stroke={Colors.light.tint} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress * (4/3))} fill="none" strokeLinecap="round"/>
+          </G>
+          <SvgText x={size/2} y={(size/2) + 4} fill={Colors.light.tint} fontSize="10" fontWeight="bold" textAnchor="middle">
+            {`${Math.round(progress * 100)}%`}
+          </SvgText>
+        </Svg>
+      </View>
+      <Text style={styles.forecastDialLabel}>Break-Even</Text>
+    </View>
+  );
+};
+
 export default function InsightsScreen() {
+  const insets = useSafeAreaInsets(); // For FAB positioning
   const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
   const sectionListRef = useRef<SectionList<MonthlyRedemptionSummary, YearSection>>(null);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
@@ -485,19 +522,6 @@ export default function InsightsScreen() {
     setExpandedMonthKey(prev => (prev === monthKey ? null : monthKey));
   };
 
-  // Attempt to restore scroll position on focus
-  // This is a basic implementation. For SectionList, especially with dynamic content,
-  // robust scroll restoration might need `scrollToLocation` and careful state management.
-  // const navigation = useNavigation();
-  // useEffect(() => {
-  //   const unsubscribe = navigation.addListener('focus', () => {
-  //     if (sectionListRef.current && scrollYPosition.current > 0) {
-  //       sectionListRef.current.scrollToOffset({ animated: false, offset: scrollYPosition.current });
-  //     }
-  //   });
-  //   return unsubscribe;
-  // }, [navigation]);
-
   const renderMonthSummaryCard = ({ item, index, section }: { item: MonthlyRedemptionSummary; index: number; section: YearSection }) => {
     const isFirstOverallCard = insightsData.yearSections.length > 0 && 
                                section.year === insightsData.yearSections[0].year && 
@@ -514,7 +538,10 @@ export default function InsightsScreen() {
   };
 
   const renderSectionHeader = ({ section }: { section: YearSection }) => (
-    <Text style={styles.sectionListHeader}>{section.year}</Text>
+    <View style={styles.sectionHeaderContainer}>
+      <Text style={styles.sectionListHeader}>{section.year}</Text>
+      <ForecastDialPlaceholder />
+    </View>
   );
 
   const handleCompareCards = () => {
@@ -543,26 +570,18 @@ export default function InsightsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.mainHeaderContainer}> {/* Renamed for clarity */}
-            <View style={styles.headerLeftPlaceholder} />
-            <Text style={styles.headerTitle}>Your Redemption Journey</Text>
-            <View style={styles.headerIconsContainer}> 
-              <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
-                  <Ionicons name="share-outline" size={24} color={Colors.light.text} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleCompareCards} style={styles.headerButton}>
-                  <Ionicons name="ellipsis-horizontal" size={24} color={Colors.light.text} />
-              </TouchableOpacity>
-            </View>
-        </View>
-        <View style={styles.headerDivider} />
+        {/* Header is now rendered by navigator */}
 
         {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
           <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
         )}
+        
+        <View style={styles.roiPlaceholderContainer}>
+          <Text style={styles.placeholderTitleSmall}>🏆 Card ROI Leaderboard (Coming Soon!)</Text>
+        </View>
 
         {insightsData.achievements.length > 0 && (
-          <View style={styles.achievementsSectionContainer}> 
+          <View style={styles.achievementsSectionContainer}>
             <Text style={styles.sectionTitle}>Achievements</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.achievementsScroll}>
               {insightsData.achievements.map(ach => (
@@ -590,8 +609,7 @@ export default function InsightsScreen() {
             showsVerticalScrollIndicator={false}
             ListFooterComponent={() => (
               <View style={styles.placeholdersContainer}>
-                <Text style={styles.placeholderText}>📅 Missed Value Heat-Map (Coming Soon!)</Text>
-                <Text style={styles.placeholderText}>🎯 Break-Even Forecast Dial (Coming Soon!)</Text>
+                <HeatMapPlaceholder />
               </View>
             )}
             />
@@ -604,7 +622,7 @@ export default function InsightsScreen() {
         )}
 
         {/* Filter FAB */}
-        <TouchableOpacity style={styles.fab} onPress={() => setFilterModalVisible(true)}>
+        <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 16 }]} onPress={() => setFilterModalVisible(true)}>
             <Ionicons name="filter" size={24} color={Colors.light.background} />
         </TouchableOpacity>
 
@@ -659,70 +677,38 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background, // Use app's background color
+    backgroundColor: Colors.light.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mainHeaderContainer: { // Renamed for clarity from headerContainer
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  roiPlaceholderContainer: {
+    paddingVertical: 8,
     alignItems: 'center',
-    paddingHorizontal: 15, 
-    paddingTop: 16, // Adjusted as per feedback
-    backgroundColor: Colors.light.background, 
-  },
-  headerLeftPlaceholder: {
-    width: 24, 
-  },
-  headerTitle: {
-    fontSize: 22, 
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    textAlign: 'center',
-  },
-  headerButton: {
-    padding: 5, 
-  },
-  headerDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: DIVIDER_COLOR_WITH_OPACITY, // Updated color
-    width: '100%',
-    marginTop: 10, 
-    marginBottom: 5, 
+    marginBottom: 5,
   },
   achievementsSectionContainer: { 
     paddingVertical: 10, 
     backgroundColor: Colors.light.background, 
   },
-  sectionTitle: { 
+  sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: Colors.light.text,
     paddingHorizontal: 20,
     marginBottom: 10, 
   },
-  sectionListHeader: { 
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    backgroundColor: Colors.light.background, 
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: SEPARATOR_COLOR,
-  },
   achievementsScroll: {
-    paddingHorizontal: 12, // Adjusted as per feedback
+    paddingHorizontal: 12,
     paddingBottom: 10, 
   },
   achievementChip: {
     backgroundColor: ACCENT_YELLOW_BACKGROUND, 
     borderRadius: 8, 
     paddingVertical: 10, 
-    paddingHorizontal: 12, // Adjusted as per feedback
+    paddingHorizontal: 12,
     marginRight: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -734,26 +720,49 @@ const styles = StyleSheet.create({
     minWidth: 250, 
   },
   achievementEmoji: {
-    fontSize: 24, 
+    fontSize: 24,
     marginRight: 10,
   },
   achievementTextContainer: {
     flex: 1,
   },
   achievementTitle: {
-    fontSize: 14, // Adjusted for caption1 feel
+    fontSize: 14,
     fontWeight: 'bold',
     color: Colors.light.text,
     marginBottom: 2,
   },
   achievementDescription: {
-    fontSize: 11, // Adjusted for caption1 feel
+    fontSize: 11,
     color: Colors.light.icon, 
     flexWrap: 'wrap',
   },
   historySection: { 
     paddingHorizontal: 15,
-    paddingBottom: 80, 
+    paddingBottom: 80,
+  },
+  sectionHeaderContainer: {
+    backgroundColor: Colors.light.background, 
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: SEPARATOR_COLOR,
+    alignItems: 'center',
+  },
+  sectionListHeader: { 
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  forecastDialContainer: {
+    alignItems: 'center',
+  },
+  forecastDialLabel: {
+    fontSize: 10,
+    color: Colors.light.icon,
+    marginTop: -5,
   },
   monthCard: {
     backgroundColor: CARD_BACKGROUND_COLOR, 
@@ -769,18 +778,21 @@ const styles = StyleSheet.create({
   monthCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    // alignItems: 'flex-start', // Removed to allow right container to define its own alignment
+    alignItems: 'flex-start', 
   },
-  monthCardInfo: {
+  monthCardInfo: { 
     flex: 1, 
     marginRight: 8, 
-    // Removed alignItems: flex-start to allow natural flow or specific alignment below
   },
-  monthCardRightAlignContainer: { // New container for chevron and chip
-    alignItems: 'flex-end', // Right align items here
-    // justifyContent: 'space-between', // If chevron and chip need space between them vertically
+  monthCardRightColumn: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    minHeight: 70, 
   },
-  redeemedValueContainer: { // To group redeemed and potential value for text styling
+  chevronWrapper: {
+    marginTop: 'auto', 
+  },
+  redeemedValueContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
     marginBottom: 4,
@@ -792,33 +804,37 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   monthRedeemedValue: {
-    fontSize: 17, // title3
+    fontSize: 17,
     color: Colors.light.tint, 
-    fontWeight: '600', // title3
-    // marginBottom: 4, // Moved to container
+    fontWeight: '600',
   },
   monthPotentialValue: {
-    fontSize: 15, // body
-    color: Colors.light.text, // Base color before opacity
-    opacity: 0.7, // body opacity
-    marginLeft: 4, // Space after redeemed value
+    fontSize: 15,
+    color: Colors.light.text,
+    opacity: 0.7,
+    marginLeft: 4,
   },
   monthPerkCount: {
-    fontSize: 12, // caption1
-    color: SUBTLE_GRAY_TEXT, // Base color before opacity
-    opacity: 0.6, // caption1 opacity
+    fontSize: 12,
+    color: SUBTLE_GRAY_TEXT,
+    opacity: 0.6,
     marginBottom: 8, 
   },
   meterChipBase: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    // alignSelf: 'flex-start', // Will be controlled by parent container monthCardRightAlignContainer
-    marginTop: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-end',
+    marginBottom: 8,
     borderWidth: 1, 
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  meterChipIcon: {
+    marginRight: 4,
   },
   meterChipTextBase: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
   meterChipGreen: {
@@ -828,23 +844,20 @@ const styles = StyleSheet.create({
   meterChipTextGreen: {
     color: SUCCESS_GREEN,
   },
-  meterChipYellow: { // New Yellow style
+  meterChipYellow: {
     backgroundColor: WARNING_YELLOW_BACKGROUND,
     borderColor: WARNING_YELLOW,
   },
   meterChipTextYellow: {
-    color: Colors.light.text, // Dark text on light yellow for contrast
+    color: Colors.light.text,
   },
-  meterChipGray: { // New Gray style
+  meterChipGray: {
     backgroundColor: NEUTRAL_GRAY_BACKGROUND,
     borderColor: NEUTRAL_GRAY_COLOR,
   },
   meterChipTextGray: {
     color: NEUTRAL_GRAY_COLOR,
   },
-  // ERROR_RED styles are kept for perk status, but meter chip uses Gray now for <50%
-  // meterChipRed: { ... }
-  // meterChipTextRed: { ... }
   perkDetailsContainer: {
     marginTop: 15,
     paddingTop: 10,
@@ -883,7 +896,7 @@ const styles = StyleSheet.create({
     color: SUCCESS_GREEN,
   },
   missedText: {
-    color: ERROR_RED, // Changed from ERROR_RED_BACKGROUND
+    color: ERROR_RED,
   },
   noPerksText: {
     fontSize: 14,
@@ -913,11 +926,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     margin: 16,
     right: 10,
-    bottom: 10,
     backgroundColor: Colors.light.tint,
-    borderRadius: 28, 
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 6, 
@@ -991,15 +1003,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.light.text,
   },
-  headerIconsContainer: {
-    flexDirection: 'row',
-  },
   streakBadgeContainer: {
-    backgroundColor: ACCENT_YELLOW_BACKGROUND, // Or a distinct color
+    backgroundColor: ACCENT_YELLOW_BACKGROUND,
     paddingVertical: 8,
     paddingHorizontal: 15,
-    borderRadius: 20, // Pill shape
-    alignSelf: 'center', // Center it
+    borderRadius: 20,
+    alignSelf: 'center',
     marginVertical: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -1010,17 +1019,54 @@ const styles = StyleSheet.create({
   streakBadgeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.light.text, // Or a specific color like orange/red for streak
+    color: Colors.light.text,
   },
   placeholdersContainer: {
-    padding: 20,
+    paddingHorizontal: 15,
+    paddingBottom: 20,
     alignItems: 'center',
   },
-  placeholderText: {
-    fontSize: 16,
-    color: Colors.light.icon,
-    textAlign: 'center',
+  placeholderModuleContainer: {
+    width: '100%',
+    justifyContent: 'center',
+    backgroundColor: CARD_BACKGROUND_COLOR,
+    borderRadius: 8,
     marginVertical: 10,
-    fontStyle: 'italic',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  skeletonStub: {
+    height: 48,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: CARD_BACKGROUND_COLOR,
+    borderRadius: 8,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  skeletonStubText: {
+    fontSize: 14,
+    color: Colors.light.icon, 
+    textAlign: 'center',
+  },
+  placeholderTitleSmall: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.light.icon,
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  dialPlaceholderText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: Colors.light.tint,
   },
 }); 
