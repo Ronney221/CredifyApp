@@ -33,6 +33,7 @@ import { Card, CardPerk } from '../../src/data/card-data';
 import AccountButton from '../components/home/AccountButton';
 import Header from '../components/home/Header';
 import StackedCardDisplay from '../components/home/StackedCardDisplay';
+import ActionHintPill from '../components/home/ActionHintPill';
 
 // Import notification functions
 import {
@@ -102,6 +103,27 @@ export default function Dashboard() {
 
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
+
+  const nextActionablePerk = useMemo(() => {
+    let actionablePerk: (CardPerk & { cardId: string; cardName: string }) | null = null;
+    let highestValue = 0;
+
+    processedCardsFromPerkStatus.forEach(cardData => {
+      cardData.perks.forEach(perk => {
+        if (perk.status === 'available' && perk.periodMonths === 1) {
+          if (perk.value > highestValue) {
+            highestValue = perk.value;
+            actionablePerk = { 
+              ...perk, 
+              cardId: cardData.card.id,
+              cardName: cardData.card.name 
+            };
+          }
+        }
+      });
+    });
+    return actionablePerk;
+  }, [processedCardsFromPerkStatus]);
 
   // Refresh data when navigating back to dashboard
   useFocusEffect(
@@ -254,6 +276,20 @@ export default function Dashboard() {
             redeemedInCurrentCycle={redeemedInCurrentCycle}
           />
         </View>
+
+        {/* Action Hint Pill */}
+        {nextActionablePerk && (
+          <ActionHintPill 
+            perk={nextActionablePerk} 
+            daysRemaining={daysRemaining} 
+            onPress={() => {
+              console.log('ActionHintPill tapped for:', nextActionablePerk);
+              // TODO: Implement navigation to card and perk
+              // Example: setActiveCardId(nextActionablePerk.cardId); 
+              // then scroll to it, or router.push with params
+            }}
+          />
+        )}
 
         {/* Cards Section */}
         <View style={styles.cardsSection}>

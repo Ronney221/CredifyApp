@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { Card, allCards } from '../../src/data/card-data';
 import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -176,7 +177,7 @@ export default function Cards() {
   };
 
   const selectedCardObjects = React.useMemo(() => 
-    allCards.filter(card => selectedCards.includes(card.id)),
+    selectedCards.map(id => allCards.find(card => card.id === id)).filter(card => card !== undefined) as Card[],
     [selectedCards]
   );
 
@@ -252,6 +253,46 @@ export default function Cards() {
     }
   };
 
+  const renderCardItem = useCallback(({ item: card, drag, isActive }: RenderItemParams<Card>) => {
+    if (!card) return null;
+    const networkColor = getCardNetworkColor(card);
+    return (
+      <TouchableOpacity 
+        key={card.id} 
+        style={[styles.settingsRow, isActive && styles.draggingItem, isEditing && styles.editingItemContainer]}
+        onPress={() => !isEditing && toggleCardSelectionOnMainScreen(card.id)}
+        disabled={isEditing}
+      >
+        {isEditing && (
+          <TouchableOpacity onPressIn={drag} style={styles.dragHandle} disabled={!isEditing}>
+            <Ionicons name="reorder-three-outline" size={24} color="#c7c7cc" />
+          </TouchableOpacity>
+        )}
+        <View style={[styles.rowCardImageWrapper, { backgroundColor: networkColor }]}>
+          <Image source={card.image} style={styles.rowCardImage} />
+        </View>
+        <View style={styles.cardRowContent}>
+          <Text style={styles.rowLabel}>{card.name}</Text>
+          <Text style={[
+              styles.rowSubLabel,
+              !renewalDates[card.id] && styles.rowSubLabelPlaceholder
+          ]}>
+              {formatDate(renewalDates[card.id])} 
+          </Text>
+        </View>
+        {isEditing ? (
+          <TouchableOpacity onPress={() => toggleCardSelectionOnMainScreen(card.id)} style={styles.removeButton}>
+            <Ionicons name="remove-circle-outline" size={24} color="#ff3b30" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => handleCardSettings(card.id)} style={styles.settingsButton}>
+             <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  }, [isEditing, renewalDates, getCardNetworkColor, toggleCardSelectionOnMainScreen, handleCardSettings, formatDate]);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -323,63 +364,63 @@ export default function Cards() {
         </SafeAreaView>
       </Modal>
 
-      <ScrollView style={styles.mainScrollView}>
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
-          {selectedCardObjects.length > 0 ? (
-            selectedCardObjects.map((card) => {
-              const networkColor = getCardNetworkColor(card);
-              return (
-                <TouchableOpacity 
-                  key={card.id} 
-                  style={styles.settingsRow}
-                  onPress={() => toggleCardSelectionOnMainScreen(card.id)}
-                  disabled={isEditing && !selectedCards.includes(card.id)}
-                >
-                  <View style={[styles.rowCardImageWrapper, { backgroundColor: networkColor }]}>
-                    <Image source={card.image} style={styles.rowCardImage} />
-                  </View>
-                  <View style={styles.cardRowContent}>
-                    <Text style={styles.rowLabel}>{card.name}</Text>
-                    <Text style={[
-                        styles.rowSubLabel,
-                        !renewalDates[card.id] && styles.rowSubLabelPlaceholder
-                    ]}>
-                        {(!isEditing || selectedCards.includes(card.id)) && formatDate(renewalDates[card.id])}
-                    </Text>
-                  </View>
-                  {isEditing ? (
-                    <TouchableOpacity onPress={() => toggleCardSelectionOnMainScreen(card.id)} style={styles.moreOptionsButton}>
-                      <Ionicons name="remove-circle-outline" size={24} color="#ff3b30" />
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity onPress={() => handleCardSettings(card.id)} style={styles.moreOptionsButton}>
-                       <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
-                    </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
-              );
-            })
-          ) : (
-            <Text style={styles.emptySectionText}>No cards selected yet.</Text>
-          )}
-        </View>
-
-        {!isEditing && (
-          <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
-            <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
-            <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
-          <TouchableOpacity style={styles.settingsRow} onPress={handleGlobalReminders}>
-            <Text style={styles.rowLabel}>Global Reminders</Text>
-            <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+      {selectedCardObjects.length > 0 && isEditing ? (
+        <DraggableFlatList
+          data={selectedCardObjects}
+          renderItem={renderCardItem}
+          keyExtractor={(item) => item.id}
+          onDragEnd={({ data }) => {
+            const newSelectedCardIds = data.map(card => card.id);
+            setSelectedCards(newSelectedCardIds);
+          }}
+          containerStyle={styles.draggableListContainer}
+        />
+      ) : (
+        <ScrollView style={styles.mainScrollView}>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
+              {selectedCardObjects.length > 0 ? (
+                selectedCardObjects.map((cardObject, index) => renderCardItem({ item: cardObject, drag: () => {}, isActive: false, getIndex: () => index }))
+              ) : (
+                <Text style={styles.emptySectionText}>No cards selected yet.</Text>
+              )}
+            </View>
+    
+            {!isEditing && (
+              <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
+                <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
+                <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
+              </TouchableOpacity>
+            )}
+    
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
+              <TouchableOpacity style={styles.settingsRow} onPress={handleGlobalReminders}>
+                <Text style={styles.rowLabel}>Global Reminders</Text>
+                <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
+              </TouchableOpacity>
+            </View>
+        </ScrollView>
+      )}
+      {selectedCardObjects.length === 0 && !isEditing && (
+         <ScrollView style={styles.mainScrollView}>
+            <View style={styles.sectionContainer}>
+                <Text style={styles.sectionHeader}>SELECTED CARDS</Text>
+                <Text style={styles.emptySectionText}>No cards selected yet.</Text>
+            </View>
+            <TouchableOpacity style={styles.settingsRow} onPress={handleOpenAddCardModal}>
+                <Ionicons name="add-circle-outline" size={24} color="#007aff" style={styles.rowIcon} />
+                <Text style={[styles.rowLabel, styles.addRowLabel]}>Add Another Card</Text>
+            </TouchableOpacity>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
+              <TouchableOpacity style={styles.settingsRow} onPress={handleGlobalReminders}>
+                <Text style={styles.rowLabel}>Global Reminders</Text>
+                <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
+              </TouchableOpacity>
+            </View>
+        </ScrollView>
+      )}
 
       {hasChanges && !isEditing && (
         <View style={styles.footer}>
@@ -415,6 +456,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f2f2f7',
+  },
+  draggableListContainer: {
+    flex: 1,
   },
   mainScrollView: {
     flex: 1,
@@ -491,8 +535,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007aff',
   },
-  moreOptionsButton: {
+  removeButton: {
     paddingLeft: 16,
+  },
+  settingsButton: {
+    paddingLeft: 16,
+  },
+  editingItemContainer: {
+    paddingLeft: 0,
+  },
+  draggingItem: {
+    opacity: 0.8,
+    backgroundColor: '#e0e0e0',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  dragHandle: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptySectionText: {
     paddingHorizontal: 16,

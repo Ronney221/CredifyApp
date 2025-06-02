@@ -28,6 +28,7 @@ const ERROR_RED_BACKGROUND = 'rgba(255, 59, 48, 0.1)';
 const SUBTLE_GRAY_TEXT = Colors.light.icon; // For dimmed perk values
 const CARD_BACKGROUND_COLOR = '#F8F8F8';
 const SEPARATOR_COLOR = '#E0E0E0';
+const SECONDARY_COLOR = '#ff9500'; // Fallback color, assuming secondary/accent are not defined in Colors.ts
 
 type PerkStatusFilter = 'all' | 'redeemed' | 'missed';
 
@@ -481,8 +482,12 @@ export default function InsightsScreen() {
   const sectionListRef = useRef<SectionList<MonthlyRedemptionSummary, YearSection>>(null);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   
-  const [selectedCardIds, setSelectedCardIds] = useState<string[]>(defaultCardsForFilter.map(c => c.id));
-  const [perkStatusFilter, setPerkStatusFilter] = useState<PerkStatusFilter>('all');
+  // Define default filter states
+  const defaultPerkStatusFilter: PerkStatusFilter = 'all';
+  const defaultSelectedCardIds = useMemo(() => defaultCardsForFilter.map(c => c.id), []);
+
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>(defaultSelectedCardIds);
+  const [perkStatusFilter, setPerkStatusFilter] = useState<PerkStatusFilter>(defaultPerkStatusFilter);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const scrollYPosition = useRef(0); // For scroll position restoration
 
@@ -522,8 +527,20 @@ export default function InsightsScreen() {
   const insightsData = useMemo(() => {
     if (!isDataLoaded) return { yearSections: [], achievements: [], availableCardsForFilter: defaultCardsForFilter, currentFeeCoverageStreak: 0 };
     const { yearSections, achievements, currentFeeCoverageStreak } = generateDummyInsightsData(selectedCardIds);
-    return { yearSections, achievements, availableCardsForFilter: defaultCardsForFilter, currentFeeCoverageStreak };
+    // availableCardsForFilter should come from allCards or a more dynamic source if cards can be added/removed by user elsewhere
+    const availableCards = allCards.map(c => ({id: c.id, name: c.name }));
+    return { yearSections, achievements, availableCardsForFilter: availableCards, currentFeeCoverageStreak };
   }, [selectedCardIds, isDataLoaded]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (perkStatusFilter !== defaultPerkStatusFilter) count++;
+    // Check if selectedCardIds is different from the default set
+    const sortedSelected = [...selectedCardIds].sort();
+    const sortedDefault = [...defaultSelectedCardIds].sort();
+    if (JSON.stringify(sortedSelected) !== JSON.stringify(sortedDefault)) count++;
+    return count;
+  }, [perkStatusFilter, selectedCardIds, defaultPerkStatusFilter, defaultSelectedCardIds]);
 
   const handleToggleMonth = (monthKey: string) => {
     setExpandedMonthKey(prev => (prev === monthKey ? null : monthKey));
@@ -643,14 +660,25 @@ export default function InsightsScreen() {
         ) : (
             <View style={styles.emptyStateContainer}>
                 <Text style={styles.emptyStateText}>No insights to display.</Text>
-                 {selectedCardIds.length === 0 && 
-                    <Text style={styles.emptyStateSubText}>Try selecting some cards in the filter.</Text>}
+                 {(selectedCardIds.length === 0 || activeFilterCount > 0) && 
+                    <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>}
             </View>
+        )}
+
+        {/* Active Filter Chip - positioned near FAB or above list */}
+        {activeFilterCount > 0 && (
+            <TouchableOpacity 
+                style={[styles.activeFilterChip, { bottom: insets.bottom + 16 + 48 + 10 }]} // Position above FAB
+                onPress={() => setFilterModalVisible(true)}
+            >
+                <Ionicons name="options-outline" size={16} color={Colors.dark.text} />
+                <Text style={styles.activeFilterChipText}>{activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active</Text>
+            </TouchableOpacity>
         )}
 
         {/* Filter FAB */}
         <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 16 }]} onPress={() => setFilterModalVisible(true)}>
-            <Ionicons name="filter" size={24} color={Colors.light.background} />
+            <Ionicons name="filter" size={24} color={Colors.dark.text} />{/* Ensure icon color contrasts with new FAB bg*/}
         </TouchableOpacity>
 
         {/* Filter Modal */}
@@ -960,7 +988,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     margin: 16,
     right: 10,
-    backgroundColor: Colors.light.tint,
+    backgroundColor: SECONDARY_COLOR, // Use defined secondary color
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -1102,5 +1130,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     color: Colors.light.tint,
+  },
+  activeFilterChip: {
+    position: 'absolute',
+    right: 10 + 16, // Align with FAB horizontally
+    backgroundColor: Colors.light.tint, // Or another contrasting color
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 4,
+  },
+  activeFilterChipText: {
+    color: Colors.dark.text, // Ensure text is readable on chip background
+    fontSize: 13,
+    fontWeight: '500',
+    marginLeft: 6,
   },
 }); 
