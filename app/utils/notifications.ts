@@ -194,9 +194,9 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
           });
           // Simplified log to avoid linter issues with type 'never'
           let logMessage = `[Notifications] User ${userId}: ${availablePerksCount} monthly perks available, total $${totalAvailableValue.toFixed(0)}.`;
-          // if (mostExpensiveAvailablePerk) { // Commenting out to resolve persistent linter error
-          //   logMessage += ` Most expensive: ${mostExpensiveAvailablePerk.name} ($${mostExpensiveAvailablePerk.value.toFixed(0)})`;
-          // }
+          if (mostExpensiveAvailablePerk) {
+            logMessage += ` Most expensive: ${mostExpensiveAvailablePerk.name} ($${mostExpensiveAvailablePerk.value.toFixed(0)})`;
+          }
           console.log(logMessage);
       }
     } catch (error) {
@@ -245,14 +245,14 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
             }
         }
         
-        tasks.push(
-          scheduleNotificationAsync(
+    tasks.push(
+      scheduleNotificationAsync(
             title,
             body,
             reminderDate,
-          ),
-        );
-      }
+      ),
+    );
+  }
     });
   }
 
