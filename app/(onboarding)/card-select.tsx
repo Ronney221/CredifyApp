@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,16 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Card, allCards } from '../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors'; // Assuming Colors constant
+import { Colors } from '../../constants/Colors';
+import LottieView from 'lottie-react-native';
+import * as Haptics from 'expo-haptics';
 
 // Helper to get card network color (can be moved to a utility if used elsewhere)
 const getCardNetworkColor = (card: Card) => {
@@ -33,17 +37,57 @@ const getCardNetworkColor = (card: Card) => {
 export default function OnboardingCardSelectScreen() {
   const router = useRouter();
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  const [firstCardAdded, setFirstCardAdded] = useState(false);
+
+  const scaleValues = useRef(new Map<string, Animated.Value>()).current;
+  const lottieRefs = useRef(new Map<string, LottieView | null>()).current;
+
+  const getScaleValue = (cardId: string) => {
+    if (!scaleValues.has(cardId)) {
+      scaleValues.set(cardId, new Animated.Value(1));
+    }
+    return scaleValues.get(cardId)!;
+  };
 
   const handleToggleCard = (cardId: string) => {
-    setSelectedCardIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(cardId)) {
-        newSet.delete(cardId);
-      } else {
-        newSet.add(cardId);
+    const newSelectedCardIds = new Set(selectedCardIds);
+    const cardScale = getScaleValue(cardId);
+    const lottieRef = lottieRefs.get(cardId);
+
+    if (newSelectedCardIds.has(cardId)) {
+      newSelectedCardIds.delete(cardId);
+      Animated.timing(cardScale, {
+        toValue: 1,
+        duration: 200,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    } else {
+      newSelectedCardIds.add(cardId);
+      if (!firstCardAdded) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setFirstCardAdded(true);
       }
-      return newSet;
-    });
+
+      Animated.sequence([
+        Animated.timing(cardScale, {
+          toValue: 1.05,
+          duration: 100,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardScale, {
+          toValue: 1,
+          duration: 100,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      
+      // Play Lottie animation from the beginning
+      lottieRef?.play(0); // Play from frame 0 to end
+    }
+    setSelectedCardIds(newSelectedCardIds);
   };
 
   const handleNext = () => {
@@ -64,6 +108,43 @@ export default function OnboardingCardSelectScreen() {
     []
   );
 
+  const renderCardItem = ({ item: card }: { item: Card }) => {
+    const isSelected = selectedCardIds.has(card.id);
+    const networkColor = getCardNetworkColor(card);
+    const cardScaleAnim = getScaleValue(card.id);
+
+    return (
+      <TouchableOpacity 
+        key={card.id} 
+        style={[styles.cardRow, isSelected && styles.cardRowSelected]}
+        onPress={() => handleToggleCard(card.id)}
+        activeOpacity={0.7}
+      >
+        <Animated.View style={[styles.cardImageWrapper, { backgroundColor: networkColor, transform: [{ scale: cardScaleAnim }] }]}>
+          <Image source={card.image} style={styles.cardImage} />
+          {isSelected && (
+            <LottieView
+              ref={r => { lottieRefs.set(card.id, r); }}
+              source={require('../../assets/animations/checkmark.json')}
+              autoPlay={false}
+              loop={false}
+              style={styles.lottieCheckmark}
+              speed={1.5}
+            />
+          )}
+        </Animated.View>
+        <Text style={styles.cardName}>{card.name}</Text>
+        {!isSelected && (
+          <Ionicons 
+            name={'ellipse-outline'} 
+            size={24} 
+            color={'#c7c7cc'} 
+          />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
@@ -73,28 +154,7 @@ export default function OnboardingCardSelectScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {sortedAllCards.map((card) => {
-          const isSelected = selectedCardIds.has(card.id);
-          const networkColor = getCardNetworkColor(card);
-          return (
-            <TouchableOpacity 
-              key={card.id} 
-              style={[styles.cardRow, isSelected && styles.cardRowSelected]}
-              onPress={() => handleToggleCard(card.id)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.cardImageWrapper, { backgroundColor: networkColor }]}>
-                <Image source={card.image} style={styles.cardImage} />
-              </View>
-              <Text style={styles.cardName}>{card.name}</Text>
-              <Ionicons 
-                name={isSelected ? 'checkmark-circle' : 'ellipse-outline'} 
-                size={24} 
-                color={isSelected ? Colors.light.tint : '#c7c7cc'} 
-              />
-            </TouchableOpacity>
-          );
-        })}
+        {sortedAllCards.map((card) => renderCardItem({ item: card }))}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -153,7 +213,7 @@ const styles = StyleSheet.create({
     marginRight: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
+    overflow: 'visible',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -169,6 +229,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     color: Colors.light.text,
+  },
+  lottieCheckmark: {
+    position: 'absolute',
+    width: 36,
+    height: 36,
+    right: -8,
+    top: -8,
+    backgroundColor: 'transparent',
   },
   footer: {
     padding: 20,

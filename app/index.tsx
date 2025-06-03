@@ -193,6 +193,15 @@ export default function WelcomeScreen() {
             </Text>
           </TouchableOpacity>
 
+          {/* Test Button for Dev Navigation */} 
+          <TouchableOpacity
+            style={styles.testButton} 
+            onPress={() => router.push('/(onboarding)/card-select')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.testButtonText}>DEV: Go to Card Select</Text>
+          </TouchableOpacity>
+
           <View style={styles.termsContainer}>
             <Text 
               style={[Typography.caption1, styles.termsText]}
@@ -287,6 +296,19 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#ffffff',
+  },
+  testButton: {
+    backgroundColor: '#555555', // Darker gray for a dev button
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 16, // Align with the main button if it has horizontal margins
+    marginBottom: 16, 
+  },
+  testButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   termsContainer: {
     paddingHorizontal: 16, // Multiple of 8 (2x8)
