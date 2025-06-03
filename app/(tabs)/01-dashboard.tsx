@@ -86,7 +86,7 @@ export default function Dashboard() {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
   // Use custom hooks
-  const { userCardsWithPerks, isLoading, error, refreshUserCards } = useUserCards(params.selectedCardIds);
+  const { userCardsWithPerks, isLoading, error, refreshUserCards } = useUserCards();
   const {
     monthlyCreditsRedeemed,
     monthlyCreditsPossible,
@@ -210,10 +210,32 @@ export default function Dashboard() {
   };
 
   const handleTapPerk = async (cardId: string, perkId: string, perk: any) => {
+    if (!user) {
+      Alert.alert(
+        "Authentication Required",
+        "Please log in to track perks.",
+        [
+          { text: "Log In", onPress: () => router.push('/(auth)/login') },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+      return;
+    }
     setPerkStatus(cardId, perkId, 'redeemed'); 
   };
 
   const handleLongPressPerk = (cardId: string, perkId: string, intendedNewStatus: 'available' | 'redeemed') => {
+    if (!user) {
+      Alert.alert(
+        "Authentication Required",
+        "Please log in to track perks.",
+        [
+          { text: "Log In", onPress: () => router.push('/(auth)/login') },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+      return;
+    }
     setPerkStatus(cardId, perkId, intendedNewStatus);
   };
 

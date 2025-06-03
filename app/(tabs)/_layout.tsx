@@ -1,12 +1,13 @@
 // app/_layout.tsx
-import React from 'react';
-import { Alert } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Tabs } from 'expo-router';
-import { Platform, View, TouchableOpacity } from 'react-native';
+import { Tabs, useRouter, useSegments } from 'expo-router';
+import { Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuth } from '@/contexts/AuthContext'; // Assuming path is correct
 
 // Header Right Component for Insights Tab
 const InsightsHeaderRight = () => {
@@ -25,12 +26,56 @@ const InsightsHeaderRight = () => {
   );
 };
 
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    // If loading, wait until auth state is resolved.
+    if (loading) {
+      return;
+    }
+
+    // If not loading and no user, redirect to login.
+    // This guard is for the (tabs) group.
+    // Other groups like (auth) or (onboarding) handle their own logic or are public.
+    if (!user) {
+      console.log('[TabLayout AuthGuard] User not authenticated, redirecting to login.');
+      router.replace('/(auth)/login');
+    }
+  }, [user, loading, router]);
+
+  // While loading auth state, show a loading indicator.
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.tint} />
+      </View>
+    );
+  }
+
+  // If there's no user and we haven't redirected yet (effect will handle redirect),
+  // show loading to prevent flash of content. Or, if user is null and effect already ran,
+  // this might prevent rendering children until redirect happens.
+  if (!user) {
+     return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.tint} />
+      </View>
+    );
+  }
+
+  // If user is authenticated, render the children (the Tabs navigator).
+  return <>{children}</>;
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
 
   return (
-    <>
+    <AuthGuard>
       <StatusBar style={barStyle} />
       <Tabs
         initialRouteName="01-dashboard"
@@ -95,6 +140,15 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </>
+    </AuthGuard>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff', // Or your app's default background
+  },
+});

@@ -14,7 +14,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/Colors';
 
-const ONBOARDING_PREFS_KEY = '@onboarding_preferences';
+const NOTIFICATION_PREFS_KEY = '@notification_preferences';
 
 export default function OnboardingNotificationPrefsScreen() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function OnboardingNotificationPrefsScreen() {
     };
 
     try {
-      await AsyncStorage.setItem(ONBOARDING_PREFS_KEY, JSON.stringify(onboardingPrefs));
+      await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(onboardingPrefs));
       // Navigate to the new success screen
       router.push('/(onboarding)/onboarding-complete'); 
     } catch (e) {
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
-    color: Colors.light.textSecondary, // Assuming a secondary text color from your Colors constants
+    color: Colors.light.icon,
     textAlign: 'center',
     marginBottom: 12,
     lineHeight: 22,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   defaultSettingsItem: {
     fontSize: 14,
-    color: Colors.light.textSecondary,
+    color: Colors.light.icon,
     marginBottom: 4,
     lineHeight: 20,
   },

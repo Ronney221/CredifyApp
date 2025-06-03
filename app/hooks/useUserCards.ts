@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { Card, allCards } from '../../src/data/card-data';
 import { getUserCards } from '../../lib/database';
@@ -12,42 +11,38 @@ interface UserCardsHookResult {
   refreshUserCards: () => Promise<void>;
 }
 
-export function useUserCards(selectedCardIds?: string): UserCardsHookResult {
+export function useUserCards(): UserCardsHookResult {
   const [userCardsWithPerks, setUserCardsWithPerks] = useState<{ card: Card; perks: CardPerk[] }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const router = useRouter();
 
   const loadUserCards = useCallback(async () => {
     try {
       setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) {
-        router.replace('/(auth)/login');
+        console.log('[useUserCards] No authenticated user. Returning empty cards.');
+        setUserCardsWithPerks([]);
         setIsLoading(false);
         return;
       }
 
-      let finalSelectedIds: string[] = [];
+      console.log('[useUserCards] Authenticated user, fetching from DB for user:', user.id);
+      const { data: userCardsFromDb, error: dbError } = await getUserCards(user.id);
+      if (dbError) {
+        throw dbError;
+      }
 
-      if (selectedCardIds && selectedCardIds.length > 0) {
-        console.log('[useUserCards] Using selectedCardIds from prop:', selectedCardIds);
-        finalSelectedIds = selectedCardIds.split(',');
+      let finalSelectedIds: string[] = [];
+      if (userCardsFromDb && userCardsFromDb.length > 0) {
+        finalSelectedIds = allCards
+          .filter(card => userCardsFromDb.some(uc => uc.card_name === card.name))
+          .map(card => card.id);
+        console.log('[useUserCards] Fetched card IDs from DB for authenticated user:', finalSelectedIds);
       } else {
-        console.log('[useUserCards] No selectedCardIds prop, fetching from DB for user:', user.id);
-        const { data: userCardsFromDb, error: dbError } = await getUserCards(user.id);
-        if (dbError) {
-          throw dbError;
-        }
-        if (userCardsFromDb && userCardsFromDb.length > 0) {
-          finalSelectedIds = allCards
-            .filter(card => userCardsFromDb.some(uc => uc.card_name === card.name))
-            .map(card => card.id);
-          console.log('[useUserCards] Fetched card IDs from DB:', finalSelectedIds);
-        } else {
-          console.log('[useUserCards] No cards found in DB for user.');
-        }
+        console.log('[useUserCards] No cards found in DB for authenticated user.');
       }
 
       if (finalSelectedIds.length === 0) {
@@ -76,18 +71,17 @@ export function useUserCards(selectedCardIds?: string): UserCardsHookResult {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCardIds, router]);
+  }, []);
 
   useEffect(() => {
-    console.log(`[useUserCards] useEffect triggered. refreshKey: ${refreshKey}, selectedCardIds prop: ${selectedCardIds}`);
+    console.log(`[useUserCards] useEffect triggered. refreshKey: ${refreshKey}`);
     loadUserCards();
   }, [loadUserCards, refreshKey]);
 
   const refreshUserCards = useCallback(async () => {
     console.log('[useUserCards] refreshUserCards called, incrementing refreshKey.');
     setRefreshKey(prevKey => prevKey + 1);
-    loadUserCards();
-  }, [loadUserCards]);
+  }, []);
 
   return {
     userCardsWithPerks,

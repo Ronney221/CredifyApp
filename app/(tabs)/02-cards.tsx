@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -22,10 +23,12 @@ import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { getUserCards, saveUserCards } from '../../lib/database';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Cards() {
   const router = useRouter();
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [initialSelectedCards, setInitialSelectedCards] = useState<string[]>([]);
   const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
@@ -183,7 +186,6 @@ export default function Cards() {
   useEffect(() => {
     const loadExistingCards = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           router.replace('/(auth)/login');
           return;
@@ -214,7 +216,7 @@ export default function Cards() {
       }
     };
     loadExistingCards();
-  }, [router]);
+  }, [router, user]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -276,13 +278,19 @@ export default function Cards() {
   );
 
   const handleSaveChanges = async () => {
+    if (!user) {
+      Alert.alert(
+        "Authentication Required",
+        "Please log in to save your card changes.",
+        [
+          { text: "Log In", onPress: () => router.push('/(auth)/login') },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+      return;
+    }
     try {
       setIsSaving(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace('/(auth)/login');
-        return;
-      }
       const { error } = await saveUserCards(user.id, selectedCardObjects, renewalDates);
       if (error) {
         console.error('Error saving cards:', error);

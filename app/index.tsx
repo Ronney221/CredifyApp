@@ -74,10 +74,10 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (!loading && user) {
-      console.log('User authenticated, redirecting to card selection');
-      // Navigate to card selection after authentication for new onboarding flow
-      router.replace('/(onboarding)/card-select');
+      console.log('User session found, redirecting to dashboard.');
+      router.replace('/(tabs)/01-dashboard'); // Always to dashboard if session exists
     }
+    // If !loading && !user, the WelcomeScreen UI (auth options) is shown.
   }, [user, loading, router]);
 
   useEffect(() => {
@@ -97,52 +97,35 @@ export default function WelcomeScreen() {
       'Sign in with Apple (Coming Soon)',
       'Sign in with Google',
       'Sign in with Email',
-      'Skip for now',
       'Cancel',
     ];
-    const destructiveButtonIndex = undefined; // No destructive action
-    const cancelButtonIndex = 4;
-    const disabledButtonIndices = [0, 2]; // Apple and Email sign-in
+    const destructiveButtonIndex = undefined;
+    const cancelButtonIndex = 3; // Adjusted due to removal of 'Skip for now'
 
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: options,
           cancelButtonIndex: cancelButtonIndex,
-          // No direct disabled option, text indicates "Coming Soon"
-          // title: "Continue", // Optional title for the action sheet
         },
         (buttonIndex) => {
           if (buttonIndex === 0) {
             Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.');
-            // console.log('Apple Sign-In selected (not implemented)');
           } else if (buttonIndex === 1) {
-            signInGoogle();
+            signInGoogle(); // This will lead to onboarding via login.tsx/signup.tsx logic
           } else if (buttonIndex === 2) {
-            // Navigate to login screen for email auth
-            router.push('/(auth)/login');
-          } else if (buttonIndex === 3) {
-            console.log('Skip for now selected');
-            router.push('/(onboarding)/card-select');
+            router.push('/(auth)/login'); // This will lead to onboarding via login.tsx/signup.tsx logic
           }
         }
       );
     } else {
-      // Android specific alert or custom bottom sheet
-      // For simplicity, using Alert. Otherwise, a custom modal/bottom-sheet component would be better.
       Alert.alert(
         "Continue",
         "Choose an option to continue:",
         [
           { text: "Sign in with Apple (Coming Soon)", onPress: () => Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.') },
-          { text: "Sign in with Google", onPress: () => signInGoogle() },
-          // Navigate to login screen for email auth
-          { text: "Sign in with Email", onPress: () => router.push('/(auth)/login') },
-          { text: "Skip for now", onPress: () => {
-              console.log('Skip for now selected');
-              router.push('/(onboarding)/card-select');
-            }
-          },
+          { text: "Sign in with Google", onPress: () => signInGoogle() }, // Leads to onboarding
+          { text: "Sign in with Email", onPress: () => router.push('/(auth)/login') }, // Leads to onboarding
           { text: "Cancel", style: "cancel" },
         ],
         { cancelable: true }
@@ -206,7 +189,7 @@ export default function WelcomeScreen() {
             activeOpacity={0.8}
           >
             <Text style={[Typography.headline, styles.continueButtonText]}>
-              Continue
+              Get Started
             </Text>
           </TouchableOpacity>
 
