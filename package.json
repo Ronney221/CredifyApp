@@ -70,7 +70,6 @@
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
     "supabase": "^2.23.4",
-    "undefined": "\\",
     "util": "^0.12.5",
     "vm-browserify": "^1.1.2"
   },
@@ -81,5 +80,8 @@
     "eslint-config-expo": "~9.2.0",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@lottiefiles/dotlottie-react": "^0.13.5"
+  }
 }
