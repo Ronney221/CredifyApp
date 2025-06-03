@@ -17,7 +17,7 @@ import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons'; // For icons in mini-cards
 import { MotiView } from 'moti'; // Added MotiView
 
-const NOTIFICATION_PREFS_KEY = '@notification_preferences';
+const NOTIFICATION_PREFS_KEY = '@notification_preferences_v2'; // Consider versioning if structure changes
 const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Updated Offset for transparent header
 
 interface ToggleProps {
@@ -90,8 +90,11 @@ const NotificationSettingItem: React.FC<NotificationSettingItemProps> = ({
 
 export default function OnboardingNotificationPrefsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedCardIds?: string }>();
+  // Expect selectedCardIds and renewalDates from renewal-dates screen
+  const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string }>();
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
+  // Parsed renewal dates: Record<cardId, isoDateString | null>
+  const [parsedRenewalDates, setParsedRenewalDates] = useState<Record<string, string | null>>({});
 
   // State for individual perk expiry toggles
   const [remind1DayBefore, setRemind1DayBefore] = useState(true);
@@ -99,17 +102,31 @@ export default function OnboardingNotificationPrefsScreen() {
   const [remind7DaysBefore, setRemind7DaysBefore] = useState(true);
 
   useEffect(() => {
+    let hasError = false;
     if (params.selectedCardIds) {
       try {
         const ids = JSON.parse(params.selectedCardIds);
         setSelectedCardIds(ids);
       } catch (e) {
         console.error("Failed to parse selectedCardIds from params:", e);
-        Alert.alert("Error", "Could not load selected card data. Please go back and try again.");
+        Alert.alert("Error", "Could not load selected card data.");
+        hasError = true;
       }
     }
-    // Could potentially load saved toggle states from AsyncStorage here if resuming onboarding
-  }, [params.selectedCardIds]);
+    if (params.renewalDates) {
+      try {
+        const dates = JSON.parse(params.renewalDates);
+        setParsedRenewalDates(dates);
+      } catch (e) {
+        console.error("Failed to parse renewalDates from params:", e);
+        Alert.alert("Error", "Could not load renewal date data.");
+        hasError = true;
+      }
+    }
+    if (hasError) {
+      // router.back(); // Consider navigating back if essential data is missing
+    }
+  }, [params.selectedCardIds, params.renewalDates]);
 
   const handleNext = async () => {
     const monthlyPerkExpiryReminderDays: number[] = [];
@@ -117,19 +134,20 @@ export default function OnboardingNotificationPrefsScreen() {
     if (remind3DaysBefore) monthlyPerkExpiryReminderDays.push(3);
     if (remind7DaysBefore) monthlyPerkExpiryReminderDays.push(7);
 
-    const defaultNotificationPreferences = {
-      perkExpiryRemindersEnabled: monthlyPerkExpiryReminderDays.length > 0, // Enabled if any day is selected
-      renewalRemindersEnabled: true, // Assuming this remains a general default
-      perkResetConfirmationEnabled: true, // Assuming this remains a general default
+    const notificationPreferences = {
+      perkExpiryRemindersEnabled: monthlyPerkExpiryReminderDays.length > 0,
+      renewalRemindersEnabled: Object.values(parsedRenewalDates).some(date => date !== null), // True if any card has a renewal date
+      perkResetConfirmationEnabled: true, 
       monthlyPerkExpiryReminderDays,
-      remind1DayBeforeMonthly: remind1DayBefore, // Save individual states for potential future UI hydration
+      remind1DayBeforeMonthly: remind1DayBefore,
       remind3DaysBeforeMonthly: remind3DaysBefore,
       remind7DaysBeforeMonthly: remind7DaysBefore,
     };
 
     const onboardingPrefs = {
       selectedCardIds,
-      notificationPreferences: defaultNotificationPreferences,
+      renewalDates: parsedRenewalDates, // Store the renewal dates as well
+      notificationPreferences,
     };
 
     try {
@@ -147,14 +165,25 @@ export default function OnboardingNotificationPrefsScreen() {
     { label: "7 days before", value: remind7DaysBefore, onValueChange: setRemind7DaysBefore },
   ];
 
-  const allNotificationItems = [
+  const baseNotificationItems = [
     { iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, title: "Perk Expiry Reminders", toggles: perkExpiryToggles, iconColor: "#FF9500" },
-    { iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap, title: "Card Renewal Reminder", details: ["7 days before your anniversary"], iconColor: "#34C759" },
     { iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, title: "Monthly Reset Alerts", details: ["1st of every month"], iconColor: "#007AFF" },
   ];
-  const contentSlideInDelay = 200; // Delay for the main card slide-in
+
+  const showCardRenewalReminder = Object.values(parsedRenewalDates).some(date => date !== null);
+
+  const allNotificationItems = showCardRenewalReminder
+    ? [
+        ...baseNotificationItems.slice(0, 1), // Perk Expiry
+        { iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap, title: "Card Renewal Reminder", details: ["For cards with set anniversary dates"], iconColor: "#34C759" },
+        ...baseNotificationItems.slice(1), // Monthly Reset
+      ]
+    : baseNotificationItems;
+  
+  // Animation timings
+  const contentSlideInDelay = 200;
   const itemStagger = 50;
-  const ctaBaseDelay = contentSlideInDelay + 150; // Base for CTA after card appears
+  const ctaBaseDelay = contentSlideInDelay + 150;
   const ctaDelay = ctaBaseDelay + (allNotificationItems.length * itemStagger) + 100;
 
   return (
@@ -166,10 +195,10 @@ export default function OnboardingNotificationPrefsScreen() {
         <MotiView
           from={{ opacity: 0, translateY: 50 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 200 }}
+          transition={{ type: 'timing', duration: contentSlideInDelay }}
           style={styles.mainCardContainer}
         >
-          <Text style={styles.mainCardTitle}>Your Reminders Are Set</Text>
+          <Text style={styles.mainCardTitle}>Configure Your Reminders</Text>
           <Text style={styles.mainCardInfoText}>
             We've enabled recommended reminders. You can tweak them below or change them anytime in <Text style={styles.boldText}>Settings &gt; Notifications</Text>.
           </Text>
@@ -191,7 +220,7 @@ export default function OnboardingNotificationPrefsScreen() {
         style={styles.footer}
         from={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ type: 'timing', duration: 200, delay: 1000 }} // Adjusted delay if needed
+        transition={{ type: 'timing', duration: 200, delay: ctaDelay }}
       >
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
           <Text style={styles.nextButtonText}>All Set—Let's Go!</Text>

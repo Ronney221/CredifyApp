@@ -1,4 +1,5 @@
 import { Stack, useSegments } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import Dots from 'react-native-dots-pagination';
@@ -7,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const onboardingSteps = [
   'card-select',
+  'renewal-dates',
   'notification-prefs',
   'onboarding-complete',
 ];
@@ -15,24 +17,28 @@ const ACTIVE_DOT_BASE_SIZE = 8;
 const PASSIVE_DOT_SIZE = 8;
 const ACTIVE_DOT_POP_WIDTH = 12;
 const ANIMATION_DURATION = 150;
+const HEADER_BACK_BUTTON_WIDTH_APPROX = 30; // Approximate width for balance
 
 function OnboardingHeaderTitle() {
-  const segments = useSegments();
-  const currentScreen = segments[segments.length - 1];
+  const route = useRoute();
+  const currentScreen = route.name;
   const activeDotIndex = onboardingSteps.indexOf(currentScreen);
   const insets = useSafeAreaInsets();
 
   const [currentActiveDotWidth, setCurrentActiveDotWidth] = useState(ACTIVE_DOT_BASE_SIZE);
 
   useEffect(() => {
-    setCurrentActiveDotWidth(ACTIVE_DOT_POP_WIDTH);
-    const timer = setTimeout(() => {
-      setCurrentActiveDotWidth(ACTIVE_DOT_BASE_SIZE);
-    }, ANIMATION_DURATION);
-    return () => clearTimeout(timer);
+    if (activeDotIndex !== -1) {
+      setCurrentActiveDotWidth(ACTIVE_DOT_POP_WIDTH);
+      const timer = setTimeout(() => {
+        setCurrentActiveDotWidth(ACTIVE_DOT_BASE_SIZE);
+      }, ANIMATION_DURATION);
+      return () => clearTimeout(timer);
+    }
   }, [activeDotIndex]);
   
   if (activeDotIndex === -1) {
+    console.warn(`OnboardingHeaderTitle: currentScreen "${currentScreen}" not in onboardingSteps. Dots will not render.`);
     return <View style={[styles.headerTitleContainer, {paddingTop: insets.top + 10, minHeight: insets.top + 50}]} />;
   }
 
@@ -81,22 +87,34 @@ export default function OnboardingLayout() {
       <Stack.Screen
         name="card-select"
         options={{
-          title: 'Add Your Cards',
           headerBackVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="renewal-dates"
+        options={{
+          headerBackVisible: true,
+          headerRight: () => (
+            <View style={{ width: HEADER_BACK_BUTTON_WIDTH_APPROX }} />
+          ),
         }}
       />
       <Stack.Screen
         name="notification-prefs"
         options={{
-          title: 'Notifications',
-          headerBackVisible: false,
+          headerBackVisible: true,
+          headerRight: () => (
+            <View style={{ width: HEADER_BACK_BUTTON_WIDTH_APPROX }} />
+          ),
         }}
       />
       <Stack.Screen
         name="onboarding-complete"
         options={{
-          title: 'Setup Complete',
-          headerBackVisible: false,
+          headerBackVisible: true,
+          headerRight: () => (
+            <View style={{ width: HEADER_BACK_BUTTON_WIDTH_APPROX }} />
+          ),
           gestureEnabled: false,
         }}
       />
@@ -110,19 +128,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'column',
     width: '100%',
-    // backgroundColor: 'rgba(0, 255, 0, 0.1)', // DEBUG REMOVED
     paddingBottom: 10,
   },
   stepText: {
     fontSize: 14,
-    color: Colors.light.icon, // Reverted to original color
-    fontWeight: '500', // Reverted from bold, 500 is a good semi-bold
+    color: Colors.light.icon,
+    fontWeight: '500',
     marginBottom: Platform.OS === 'ios' ? 8 : 6,
     textAlign: 'center',
-    // backgroundColor: 'rgba(255, 255, 0, 0.2)', // DEBUG REMOVED
   },
   dotsWrapper: {
-    // backgroundColor: 'rgba(255, 0, 255, 0.2)', // DEBUG REMOVED
-    // paddingVertical: 5, // Keep padding if it helps layout, or remove if not needed
+    // paddingVertical: 5, // If needed for spacing
   },
 }); 

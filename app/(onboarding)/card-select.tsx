@@ -84,7 +84,7 @@ export default function OnboardingCardSelectScreen() {
   const handleNext = () => {
     const idsArray = Array.from(selectedCardIds);
     router.push({
-      pathname: '/(onboarding)/notification-prefs',
+      pathname: '/(onboarding)/renewal-dates',
       params: { selectedCardIds: JSON.stringify(idsArray) }, 
     });
   };
