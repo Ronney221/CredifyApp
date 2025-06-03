@@ -115,7 +115,7 @@ export default function WelcomeScreen() {
         styles.content,
         {
           // Adjust top padding to follow 8-point grid
-          paddingTop: Math.max(32 - insets.top, 16), // Either 4x8 or 2x8
+          paddingTop: Math.max(168 - insets.top, 24), // Increased padding: 21x8 or 3x8
         }
       ]}>
         <View style={styles.topSection}>
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   continueButton: {
     backgroundColor: '#007aff',
     paddingVertical: 16, // Multiple of 8 (2x8)
-    borderRadius: 16, // Multiple of 8 (2x8)
+    borderRadius: 12, // Multiple of 8 (1.5x8) -> 12
     alignItems: 'center',
     marginBottom: 16, // Multiple of 8 (2x8)
     shadowColor: '#007aff',
@@ -245,6 +245,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8, // Base unit
     elevation: 4,
+    alignSelf: 'stretch', // Make button full-width
+    marginHorizontal: 16, // 16pt side margins
   },
   continueButtonText: {
     color: '#ffffff',
