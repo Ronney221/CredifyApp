@@ -49,7 +49,7 @@ export default function LoginScreen() {
           Alert.alert('Login Failed', error.message);
         }
       } else {
-        router.replace('/(tabs)/cards');
+        router.replace('/(onboarding)/card-select');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');
@@ -70,7 +70,7 @@ export default function LoginScreen() {
         Alert.alert('Google Login Failed', error.message);
       } else if (data?.user) {
         console.log('Google login successful, user:', data.user.email);
-        router.replace('/(tabs)/cards');
+        router.replace('/(onboarding)/card-select');
       } else {
         console.log('Google login completed but no user data');
         Alert.alert('Login Failed', 'Unable to get user data');
@@ -89,7 +89,7 @@ export default function LoginScreen() {
       if (error) {
         Alert.alert('Apple Sign In Failed', error.message);
       } else {
-        router.replace('/(tabs)/cards');
+        router.replace('/(onboarding)/card-select');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');

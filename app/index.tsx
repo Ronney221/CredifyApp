@@ -75,7 +75,8 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (!loading && user) {
       console.log('User authenticated, redirecting to card selection');
-      router.replace('/(tabs)/01-dashboard');
+      // Navigate to card selection after authentication for new onboarding flow
+      router.replace('/(onboarding)/card-select');
     }
   }, [user, loading, router]);
 
@@ -92,8 +93,61 @@ export default function WelcomeScreen() {
   }, []);
 
   const handleContinue = () => {
-    // Navigate directly to the first onboarding screen
-    router.push('/(onboarding)/card-select');
+    const options = [
+      'Sign in with Apple (Coming Soon)',
+      'Sign in with Google',
+      'Sign in with Email',
+      'Skip for now',
+      'Cancel',
+    ];
+    const destructiveButtonIndex = undefined; // No destructive action
+    const cancelButtonIndex = 4;
+    const disabledButtonIndices = [0, 2]; // Apple and Email sign-in
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: options,
+          cancelButtonIndex: cancelButtonIndex,
+          // No direct disabled option, text indicates "Coming Soon"
+          // title: "Continue", // Optional title for the action sheet
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.');
+            // console.log('Apple Sign-In selected (not implemented)');
+          } else if (buttonIndex === 1) {
+            signInGoogle();
+          } else if (buttonIndex === 2) {
+            // Navigate to login screen for email auth
+            router.push('/(auth)/login');
+          } else if (buttonIndex === 3) {
+            console.log('Skip for now selected');
+            router.push('/(onboarding)/card-select');
+          }
+        }
+      );
+    } else {
+      // Android specific alert or custom bottom sheet
+      // For simplicity, using Alert. Otherwise, a custom modal/bottom-sheet component would be better.
+      Alert.alert(
+        "Continue",
+        "Choose an option to continue:",
+        [
+          { text: "Sign in with Apple (Coming Soon)", onPress: () => Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.') },
+          { text: "Sign in with Google", onPress: () => signInGoogle() },
+          // Navigate to login screen for email auth
+          { text: "Sign in with Email", onPress: () => router.push('/(auth)/login') },
+          { text: "Skip for now", onPress: () => {
+              console.log('Skip for now selected');
+              router.push('/(onboarding)/card-select');
+            }
+          },
+          { text: "Cancel", style: "cancel" },
+        ],
+        { cancelable: true }
+      );
+    }
   };
 
   if (loading) {
@@ -152,7 +206,7 @@ export default function WelcomeScreen() {
             activeOpacity={0.8}
           >
             <Text style={[Typography.headline, styles.continueButtonText]}>
-              Get Started
+              Continue
             </Text>
           </TouchableOpacity>
 

@@ -114,7 +114,7 @@ export default function SignUpScreen() {
           'Account created! Please check your email to verify your account.',
           [{ 
             text: 'OK', 
-            onPress: () => router.replace('/(tabs)/cards')
+            onPress: () => router.replace('/(onboarding)/card-select')
           }]
         );
       }
@@ -133,7 +133,7 @@ export default function SignUpScreen() {
       if (error) {
         Alert.alert('Google Sign Up Failed', error.message);
       } else {
-        router.replace('/card-selection');
+        router.replace('/(onboarding)/card-select');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');
@@ -148,7 +148,7 @@ export default function SignUpScreen() {
       if (error) {
         Alert.alert('Apple Sign In Failed', error.message);
       } else {
-        router.replace('/card-selection');
+        router.replace('/(onboarding)/card-select');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');
