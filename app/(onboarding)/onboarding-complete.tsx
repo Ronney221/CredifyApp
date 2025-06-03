@@ -14,6 +14,8 @@ import { useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { Colors } from '../../constants/Colors';
 
+const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Updated Offset for transparent header
+
 export default function OnboardingCompleteScreen() {
   const router = useRouter();
   const lottieRef = useRef<LottieView>(null);
@@ -74,9 +76,9 @@ export default function OnboardingCompleteScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <Animated.View style={[styles.lottieContainer, { opacity: confettiOpacityAnim }]}>
+      <Animated.View style={[styles.lottieContainer, { opacity: confettiOpacityAnim, top: HEADER_OFFSET }]}>
         <LottieView
           ref={lottieRef}
           source={require('../../assets/animations/celebration.json')}
@@ -127,7 +129,6 @@ const styles = StyleSheet.create({
   },
   lottieContainer: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     height: '40%',

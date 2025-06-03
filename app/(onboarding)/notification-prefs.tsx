@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons'; // For icons in mini-cards
 import { MotiView } from 'moti'; // Added MotiView
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences';
+const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Updated Offset for transparent header
 
 interface ToggleProps {
   label: string;
@@ -157,16 +158,15 @@ export default function OnboardingNotificationPrefsScreen() {
   const ctaDelay = ctaBaseDelay + (allNotificationItems.length * itemStagger) + 100;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       {/* Header area is now minimal as title/dots are in _layout.tsx */}
-      <View style={styles.headerPlaceholder} /> 
-
+      
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
         <MotiView
           from={{ opacity: 0, translateY: 50 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: contentSlideInDelay }}
+          transition={{ type: 'timing', duration: 200 }}
           style={styles.mainCardContainer}
         >
           <Text style={styles.mainCardTitle}>Your Reminders Are Set</Text>
@@ -191,7 +191,7 @@ export default function OnboardingNotificationPrefsScreen() {
         style={styles.footer}
         from={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ type: 'timing', duration: 200, delay: ctaDelay }} // CTA fade-in (G)
+        transition={{ type: 'timing', duration: 200, delay: 1000 }} // Adjusted delay if needed
       >
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
           <Text style={styles.nextButtonText}>All Set—Let's Go!</Text>
@@ -205,12 +205,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f2f2f7', // Page background
-  },
-  headerPlaceholder: { // Minimal space if header content is handled by navigator
-    height: Platform.OS === 'ios' ? 20 : 10, // Adjust as needed based on _layout header
-    backgroundColor: '#ffffff', 
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#c7c7cc',
   },
   scrollContentContainer: { // Styles for the ScrollView's content
     flexGrow: 1,

@@ -19,6 +19,8 @@ import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 
+const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Offset for transparent header
+
 // Helper to get card network color (can be moved to a utility if used elsewhere)
 const getCardNetworkColor = (card: Card) => {
   switch (card.network?.toLowerCase()) {
@@ -132,7 +134,7 @@ export default function OnboardingCardSelectScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Select Your Cards</Text>
