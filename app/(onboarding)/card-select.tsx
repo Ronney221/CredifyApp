@@ -65,7 +65,7 @@ export default function OnboardingCardSelectScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Select Your Cards</Text>
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 20 : StatusBar.currentHeight || 20 + 10,
+    paddingTop: 16,
     paddingBottom: 15,
     backgroundColor: '#ffffff',
     borderBottomWidth: StyleSheet.hairlineWidth,
