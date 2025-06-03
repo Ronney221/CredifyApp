@@ -7,13 +7,21 @@ export default function OnboardingLayout() {
       <Stack.Screen 
         name="card-select" 
         options={{
-          title: 'Add your first card (1 of 3)',
+          title: 'Add Your Cards (1 of 3)',
         }} 
       />
       <Stack.Screen 
         name="notification-prefs" 
         options={{
-          title: 'Notification Preferences (2 of 3)',
+          title: 'Notifications (2 of 3)',
+        }} 
+      />
+      <Stack.Screen 
+        name="onboarding-complete" 
+        options={{
+          title: 'Setup Complete (3 of 3)',
+          headerBackVisible: false,
+          gestureEnabled: false,
         }} 
       />
       {/* Add other onboarding screens here as needed */}
