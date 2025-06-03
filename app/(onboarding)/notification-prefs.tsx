@@ -8,18 +8,94 @@ import {
   Platform,
   StatusBar,
   Alert,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/Colors';
+import { Ionicons } from '@expo/vector-icons'; // For icons in mini-cards
+import { MotiView } from 'moti'; // Added MotiView
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences';
+
+interface ToggleProps {
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}
+
+interface NotificationSettingItemProps { // Renamed from MiniCardProps for clarity
+  iconName: keyof typeof Ionicons.glyphMap;
+  title: string;
+  details?: string[];
+  iconColor?: string;
+  toggles?: ToggleProps[];
+  index?: number;
+  isLastItem?: boolean; // Added to conditionally add bottom margin
+}
+
+// Renamed from MiniCard to NotificationSettingItem for clarity in new context
+const NotificationSettingItem: React.FC<NotificationSettingItemProps> = ({
+  iconName,
+  title,
+  details,
+  iconColor = Colors.light.tint,
+  toggles,
+  index = 0,
+  isLastItem = false,
+}) => {
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{
+        type: 'timing',
+        duration: 250,
+        delay: 150 + (index * 100),
+      }}
+      style={[styles.notificationItemContainer, isLastItem && { borderBottomWidth: 0 }]}
+    >
+      <View style={styles.notificationItemHeader}>
+        <Ionicons name={iconName} size={22} color={iconColor} style={styles.notificationItemIcon} />
+        <Text style={styles.notificationItemTitle}>{title}</Text>
+      </View>
+      {details && details.length > 0 && (
+        <View style={styles.notificationItemBody}>
+          {details.map((detail, idx) => (
+            <Text key={idx} style={styles.notificationItemDetailText}>• {detail}</Text>
+          ))}
+        </View>
+      )}
+      {toggles && toggles.length > 0 && (
+        <View style={styles.togglesContainer}>
+          {toggles.map((toggle, idx) => (
+            <View key={idx} style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>{toggle.label}</Text>
+              <Switch
+                trackColor={{ false: "#767577", true: Colors.light.tint }}
+                thumbColor={toggle.value ? "#ffffff" : "#f4f3f4"}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={toggle.onValueChange}
+                value={toggle.value}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </MotiView>
+  );
+};
 
 export default function OnboardingNotificationPrefsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string }>();
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
+
+  // State for individual perk expiry toggles
+  const [remind1DayBefore, setRemind1DayBefore] = useState(true);
+  const [remind3DaysBefore, setRemind3DaysBefore] = useState(true);
+  const [remind7DaysBefore, setRemind7DaysBefore] = useState(true);
 
   useEffect(() => {
     if (params.selectedCardIds) {
@@ -31,19 +107,23 @@ export default function OnboardingNotificationPrefsScreen() {
         Alert.alert("Error", "Could not load selected card data. Please go back and try again.");
       }
     }
+    // Could potentially load saved toggle states from AsyncStorage here if resuming onboarding
   }, [params.selectedCardIds]);
 
   const handleNext = async () => {
-    // Define default notification preferences
+    const monthlyPerkExpiryReminderDays: number[] = [];
+    if (remind1DayBefore) monthlyPerkExpiryReminderDays.push(1);
+    if (remind3DaysBefore) monthlyPerkExpiryReminderDays.push(3);
+    if (remind7DaysBefore) monthlyPerkExpiryReminderDays.push(7);
+
     const defaultNotificationPreferences = {
-      perkExpiryRemindersEnabled: true,
-      renewalRemindersEnabled: true,
-      perkResetConfirmationEnabled: true,
-      monthlyPerkExpiryReminderDays: [1, 3, 7],
-      // Keep UI state flags for potential future re-hydration if needed, though UI is removed
-      remind1DayBeforeMonthly: true,
-      remind3DaysBeforeMonthly: true,
-      remind7DaysBeforeMonthly: true,
+      perkExpiryRemindersEnabled: monthlyPerkExpiryReminderDays.length > 0, // Enabled if any day is selected
+      renewalRemindersEnabled: true, // Assuming this remains a general default
+      perkResetConfirmationEnabled: true, // Assuming this remains a general default
+      monthlyPerkExpiryReminderDays,
+      remind1DayBeforeMonthly: remind1DayBefore, // Save individual states for potential future UI hydration
+      remind3DaysBeforeMonthly: remind3DaysBefore,
+      remind7DaysBeforeMonthly: remind7DaysBefore,
     };
 
     const onboardingPrefs = {
@@ -53,7 +133,6 @@ export default function OnboardingNotificationPrefsScreen() {
 
     try {
       await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(onboardingPrefs));
-      // Navigate to the new success screen
       router.push('/(onboarding)/onboarding-complete'); 
     } catch (e) {
       console.error("Failed to save onboarding prefs:", e);
@@ -61,38 +140,63 @@ export default function OnboardingNotificationPrefsScreen() {
     }
   };
 
+  const perkExpiryToggles: ToggleProps[] = [
+    { label: "1 day before", value: remind1DayBefore, onValueChange: setRemind1DayBefore },
+    { label: "3 days before", value: remind3DaysBefore, onValueChange: setRemind3DaysBefore },
+    { label: "7 days before", value: remind7DaysBefore, onValueChange: setRemind7DaysBefore },
+  ];
+
+  const allNotificationItems = [
+    { iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, title: "Perk Expiry Reminders", toggles: perkExpiryToggles, iconColor: "#FF9500" },
+    { iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap, title: "Card Renewal Reminder", details: ["7 days before your anniversary"], iconColor: "#34C759" },
+    { iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, title: "Monthly Reset Alerts", details: ["1st of every month"], iconColor: "#007AFF" },
+  ];
+  const contentSlideInDelay = 200; // Delay for the main card slide-in
+  const itemStagger = 50;
+  const ctaBaseDelay = contentSlideInDelay + 150; // Base for CTA after card appears
+  const ctaDelay = ctaBaseDelay + (allNotificationItems.length * itemStagger) + 100;
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.headerContainer}>
-        {/* Title is now handled by Stack Navigator, this can be simplified or removed if not needed */}
-        {/* <Text style={styles.title}>Notification Settings</Text> */}
-        {/* <Text style={styles.subtitle}>Customize how you'd like to be reminded.</Text> */}
-      </View>
+      {/* Header area is now minimal as title/dots are in _layout.tsx */}
+      <View style={styles.headerPlaceholder} /> 
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.contentContainer}>
-          <Text style={styles.infoTitle}>Sensible Reminders Enabled</Text>
-          <Text style={styles.infoText}>
-            We've enabled recommended reminders to help you get the most out of your cards.
+      <ScrollView contentContainerStyle={styles.scrollContentContainer}>
+        <MotiView
+          from={{ opacity: 0, translateY: 50 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: contentSlideInDelay }}
+          style={styles.mainCardContainer}
+        >
+          <Text style={styles.mainCardTitle}>Your Reminders Are Set</Text>
+          <Text style={styles.mainCardInfoText}>
+            We've enabled recommended reminders. You can tweak them below or change them anytime in <Text style={styles.boldText}>Settings &gt; Notifications</Text>.
           </Text>
-          <Text style={styles.infoText}>
-            You can customize these anytime in <Text style={styles.boldText}>Settings &gt; Notifications</Text>.
-          </Text>
-          <View style={styles.defaultSettingsBox}>
-            <Text style={styles.defaultSettingsHeader}>Defaults We've Set For You:</Text>
-            <Text style={styles.defaultSettingsItem}>• Perk Expiry Reminders (1, 3, 7 days before)</Text>
-            <Text style={styles.defaultSettingsItem}>• Card Renewal Reminders (7 days before)</Text>
-            <Text style={styles.defaultSettingsItem}>• Monthly Perk Reset Confirmations</Text>
+          
+          <View style={styles.notificationItemsSection}>
+            {allNotificationItems.map((itemProps, index) => (
+              <NotificationSettingItem 
+                key={itemProps.title}
+                {...itemProps}
+                index={index}
+                isLastItem={index === allNotificationItems.length - 1}
+              />
+            ))}
           </View>
-        </View>
+        </MotiView>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <MotiView 
+        style={styles.footer}
+        from={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ type: 'timing', duration: 200, delay: ctaDelay }} // CTA fade-in (G)
+      >
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>Finish Setup</Text>
+          <Text style={styles.nextButtonText}>All Set—Let's Go!</Text>
         </TouchableOpacity>
-      </View>
+      </MotiView>
     </SafeAreaView>
   );
 }
@@ -102,34 +206,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f2f2f7', // Page background
   },
-  headerContainer: { // This container can be slimmed down or removed if header is fully managed by navigator
-    paddingHorizontal: 20,
-    paddingTop: 16, // Adjusted as per previous step
-    paddingBottom: 15,
-    backgroundColor: '#ffffff', // Header area background
+  headerPlaceholder: { // Minimal space if header content is handled by navigator
+    height: Platform.OS === 'ios' ? 20 : 10, // Adjust as needed based on _layout header
+    backgroundColor: '#ffffff', 
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#c7c7cc',
   },
-  // title: {
-  //   fontSize: 28,
-  //   fontWeight: 'bold',
-  //   color: Colors.light.text,
-  //   textAlign: 'center',
-  //   marginBottom: 5,
-  // },
-  // subtitle: {
-  //   fontSize: 16,
-  //   color: Colors.light.icon,
-  //   textAlign: 'center',
-  // },
-  scrollContent: {
+  scrollContentContainer: { // Styles for the ScrollView's content
     flexGrow: 1,
     justifyContent: 'center', // Center content vertically
-    paddingHorizontal: 24,
+    paddingHorizontal: 16, // Adjusted horizontal padding for the scroll view
+    paddingVertical: 24,   // Added some vertical padding for the scroll view
   },
-  contentContainer: {
+  mainCardContainer: { // Styles for the single large white card
     alignItems: 'center', // Center content horizontally
-    paddingVertical: 32, // Add some vertical padding
+    paddingHorizontal: 20, // Internal padding for the card content
+    paddingVertical: 24,
     backgroundColor: '#ffffff', // White card for content
     borderRadius: 12,
     shadowColor: "#000",
@@ -141,42 +233,77 @@ const styles = StyleSheet.create({
     shadowRadius: 3.00,
     elevation: 2,
   },
-  infoTitle: {
+  mainCardTitle: { // Renamed from infoTitle
     fontSize: 22,
     fontWeight: '600',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 12, // Reduced margin as items follow directly
   },
-  infoText: {
+  mainCardInfoText: { // Renamed from infoText
     fontSize: 16,
-    color: Colors.light.icon,
+    color: Colors.light.icon, // Using icon color as a secondary text color
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 24, // Margin before the list of items
     lineHeight: 22,
+    paddingHorizontal: 8, // Slight horizontal padding for better readability
   },
   boldText: {
     fontWeight: '600',
     color: Colors.light.text,
   },
-  defaultSettingsBox: {
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: '#f9f9f9', // A slightly different background for the box
-    borderRadius: 8,
+  notificationItemsSection: { // Container for all notification settings items
     width: '100%',
+    marginTop: 0, // No extra margin as it's part of the card flow
   },
-  defaultSettingsHeader: {
-    fontSize: 15,
+  notificationItemContainer: {
+    backgroundColor: 'transparent', // No separate background for the item itself
+    borderRadius: 0, // No border radius for the item itself
+    paddingVertical: 12, // Vertical padding for each item
+    paddingHorizontal: 0, // Horizontal padding handled by mainCardContainer
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#EDEDED',
+  },
+  notificationItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  notificationItemIcon: {
+    marginRight: 12, // Slightly increased for better spacing
+  },
+  notificationItemTitle: {
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 8,
   },
-  defaultSettingsItem: {
-    fontSize: 14,
+  notificationItemBody: {
+    paddingLeft: 34, // Align with title text (icon width + margin)
+  },
+  notificationItemDetailText: {
+    fontSize: 15,
     color: Colors.light.icon,
     marginBottom: 4,
     lineHeight: 20,
+  },
+  togglesContainer: {
+    marginTop: 12, // Space above toggles
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F9F9FB', // Slightly different background for visual grouping
+    paddingVertical: 12,
+    paddingHorizontal: 12, // Padding within the toggle row
+    borderRadius: 8, // Rounded corners for each toggle group row
+    marginTop: 4, // Small margin between toggle rows if multiple
+  },
+  toggleLabel: {
+    fontSize: 15,
+    color: Colors.light.text,
+    flexShrink: 1, // Allow label to shrink if needed
+    marginRight: 8, // Space between label and switch
   },
   footer: {
     padding: 20,
@@ -189,6 +316,11 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center',
+    shadowColor: '#000', // Added shadow (G)
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: {width:0, height:2},
+    elevation: 4, // for Android shadow
   },
   nextButtonText: {
     color: '#ffffff',

@@ -27,9 +27,11 @@ function OnboardingHeaderTitle() {
         active={activeDotIndex} 
         activeColor={Platform.OS === 'ios' ? Colors.light.tint : Colors.light.text} // iOS often uses tint for active, Android more muted
         passiveColor={Platform.OS === 'ios' ? '#D1D1D6' : '#BDBDBD'} // Standard passive dot colors
-        passiveDotWidth={8}
-        activeDotWidth={8}
-        // Other props like paddingHorizontal, paddingVertical can be adjusted
+        passiveDotWidth={6}
+        activeDotWidth={6}
+        // For spacing between dots, react-native-dots-pagination uses padding on its internal View.
+        // If more control is needed, a different library or custom implementation might be necessary.
+        // The default spacing is usually acceptable.
       />
     </View>
   );
@@ -41,6 +43,10 @@ export default function OnboardingLayout() {
       screenOptions={{
         headerTitleAlign: 'center', // Center the custom title view
         headerTitle: () => <OnboardingHeaderTitle />,
+        // The header height itself can be controlled by headerStyle: { height: ... }
+        // Reducing the top margin above the dots is more about the content inset of the screen
+        // or the internal padding of the header component if it's custom.
+        // The `headerPlaceholder` in `notification-prefs.tsx` can be adjusted if there's too much space *below* the actual header.
       }}
     >
       <Stack.Screen 
@@ -74,7 +80,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    // backgroundColor: 'red', // For debugging layout
-    // width: '100%', // Ensure it takes space if needed
+    // backgroundColor: 'rgba(0,255,0,0.1)', // For debugging layout and height
+    // height: 30, // Example: If you need to control the height of the container for the dots
   },
 }); 
