@@ -38,9 +38,8 @@ export default function OnboardingCardSelectScreen() {
   const router = useRouter();
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [firstCardAdded, setFirstCardAdded] = useState(false);
-
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
-  const lottieRefs = useRef(new Map<string, LottieView | null>()).current;
+  // Lottie refs map is no longer needed with autoPlay
 
   const getScaleValue = (cardId: string) => {
     if (!scaleValues.has(cardId)) {
@@ -52,26 +51,19 @@ export default function OnboardingCardSelectScreen() {
   const handleToggleCard = (cardId: string) => {
     const newSelectedCardIds = new Set(selectedCardIds);
     const cardScale = getScaleValue(cardId);
-    const lottieRef = lottieRefs.get(cardId);
 
     if (newSelectedCardIds.has(cardId)) {
       newSelectedCardIds.delete(cardId);
-      Animated.timing(cardScale, {
-        toValue: 1,
-        duration: 200,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
     } else {
       newSelectedCardIds.add(cardId);
       if (!firstCardAdded) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setFirstCardAdded(true);
       }
-
+      // Pop animation for the card thumbnail itself
       Animated.sequence([
         Animated.timing(cardScale, {
-          toValue: 1.05,
+          toValue: 1.05, 
           duration: 100,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
@@ -83,19 +75,12 @@ export default function OnboardingCardSelectScreen() {
           useNativeDriver: true,
         }),
       ]).start();
-      
-      // Play Lottie animation from the beginning
-      lottieRef?.play(0); // Play from frame 0 to end
     }
     setSelectedCardIds(newSelectedCardIds);
   };
 
   const handleNext = () => {
     const idsArray = Array.from(selectedCardIds);
-    if (idsArray.length === 0) {
-        // Optionally, show an alert or message if no cards are selected
-        // For now, we allow proceeding without cards.
-    }
     router.push({
       pathname: '/(onboarding)/notification-prefs',
       params: { selectedCardIds: JSON.stringify(idsArray) }, 
@@ -122,25 +107,26 @@ export default function OnboardingCardSelectScreen() {
       >
         <Animated.View style={[styles.cardImageWrapper, { backgroundColor: networkColor, transform: [{ scale: cardScaleAnim }] }]}>
           <Image source={card.image} style={styles.cardImage} />
-          {isSelected && (
-            <LottieView
-              ref={r => { lottieRefs.set(card.id, r); }}
-              source={require('../../assets/animations/checkmark.json')}
-              autoPlay={false}
-              loop={false}
-              style={styles.lottieCheckmark}
-              speed={1.5}
-            />
-          )}
         </Animated.View>
         <Text style={styles.cardName}>{card.name}</Text>
-        {!isSelected && (
-          <Ionicons 
-            name={'ellipse-outline'} 
-            size={24} 
-            color={'#c7c7cc'} 
-          />
-        )}
+        <View style={styles.checkboxContainer}>
+          {isSelected ? (
+            <LottieView
+              source={require('../../assets/animations/checkmark.json')}
+              autoPlay={true}
+              loop={false}
+              style={styles.lottieCheckmarkOnRight}
+              speed={1.5} 
+            />
+          ) : (
+            <Ionicons 
+              name="square-outline" 
+              size={26} // Slightly larger for a better tap target feel
+              color={Colors.light.icon} 
+              style={styles.checkboxIcon}
+            />
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -198,22 +184,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 16, // Applied 16px horizontal padding
+    paddingVertical: 12,   // Adjusted vertical padding
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#c7c7cc',
   },
   cardRowSelected: {
-    backgroundColor: '#eef7ff', // A light blue tint for selected rows
+    backgroundColor: '#eef7ff', 
   },
   cardImageWrapper: {
-    width: 50, // Slightly larger for better visibility
-    height: 32, // Maintain aspect ratio
-    borderRadius: 4,
-    marginRight: 15,
+    width: 64,  
+    height: 40, 
+    borderRadius: 5, 
+    marginRight: 12, // Adjusted margin
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'visible',
+    // overflow: 'visible', // Not strictly needed if Lottie is not overlapping here
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -221,22 +207,29 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   cardImage: {
-    width: '90%',
-    height: '90%',
+    width: '90%', 
+    height: '90%', 
     resizeMode: 'contain',
   },
   cardName: {
-    flex: 1,
+    flex: 1, // Allows text to take available space and wrap
     fontSize: 17,
     color: Colors.light.text,
+    marginRight: 8, // Padding between text and checkbox area
   },
-  lottieCheckmark: {
-    position: 'absolute',
-    width: 36,
+  checkboxContainer: {
+    width: 28, // Fixed width for consistent alignment
+    height: 28, // Fixed height
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lottieCheckmarkOnRight: {
+    width: 36, // Adjust size as needed for visual balance with checkbox
     height: 36,
-    right: -8,
-    top: -8,
     backgroundColor: 'transparent',
+  },
+  checkboxIcon: {
+    // Additional styling for the Ionicons square if needed
   },
   footer: {
     padding: 20,
