@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 4,
     paddingBottom: 15,
     backgroundColor: '#ffffff',
     borderBottomWidth: StyleSheet.hairlineWidth,
