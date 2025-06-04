@@ -142,23 +142,23 @@ export async function trackPerkRedemption(
     });
 
     // First, find the perk definition
-    console.log('Looking up perk definition for:', perk.name);
+    console.log('Looking up perk definition for perk ID:', perk.definition_id);
     const { data: perkDef, error: perkDefError } = await supabase
       .from('perk_definitions')
       .select('id, name')
-      .eq('name', perk.name)
+      .eq('id', perk.definition_id)
       .single();
 
     if (perkDefError || !perkDef) {
-      console.error('Error finding perk definition:', { 
+      console.error('Error finding perk definition by ID:', { 
         error: perkDefError, 
-        perkName: perk.name,
-        searchedName: perk.name
+        perkDefinitionId: perk.definition_id,
+        perkName: perk.name
       });
-      return { error: new Error(`Perk definition not found for: ${perk.name}`) };
+      return { error: new Error(`Perk definition not found for ID: ${perk.definition_id} (Name: ${perk.name})`) };
     }
 
-    console.log('Found perk definition:', {
+    console.log('Found perk definition by ID:', {
       id: perkDef.id,
       name: perkDef.name,
       matches: perkDef.name === perk.name
