@@ -30,9 +30,11 @@ export const useCardManagement = (userId: string | undefined) => {
     if (!date) return 'Set renewal date ›';
     
     const now = new Date();
+    // Ensure date is a Date object
+    const renewalDateObj = typeof date === 'string' ? new Date(date) : date;
     const currentYear = now.getFullYear();
-    const renewalMonth = date.getMonth();
-    const renewalDay = date.getDate();
+    const renewalMonth = renewalDateObj.getMonth();
+    const renewalDay = renewalDateObj.getDate();
     
     // Create next renewal date (could be this year or next year)
     let nextRenewal = new Date(currentYear, renewalMonth, renewalDay);
@@ -55,37 +57,36 @@ export const useCardManagement = (userId: string | undefined) => {
   const hasChanges = useMemo(() => {
     const selectedCardsSorted = [...selectedCards].sort();
     const initialSelectedCardsSorted = [...initialSelectedCards].sort();
+
+    if (JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted)) {
+      return true;
+    }
+
+    // If card lists are the same, check renewal dates for these cards
+    for (const cardId of selectedCards) { // Iterates over the current selection
+      const currentDate = renewalDates[cardId] ? new Date(renewalDates[cardId]).toISOString() : undefined;
+      const initialDate = initialRenewalDates[cardId] ? new Date(initialRenewalDates[cardId]).toISOString() : undefined;
+      if (currentDate !== initialDate) {
+        return true;
+      }
+    }
     
-    const selectedCardsChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
-    
-    // Only include renewal date changes for cards that are being added/removed, not for existing cards
-    const currentSelectedRenewalDates = Object.fromEntries(
-      Object.entries(renewalDates).filter(([cardId]) => selectedCards.includes(cardId))
-    );
-    const initialSelectedRenewalDates = Object.fromEntries(
-      Object.entries(initialRenewalDates).filter(([cardId]) => initialSelectedCards.includes(cardId))
-    );
-    
-    // Only consider renewal date changes for cards that are also being added/removed
-    const renewalDatesForChangedCards = Object.fromEntries(
-      Object.entries(currentSelectedRenewalDates).filter(([cardId]) => {
-        const wasInitiallySelected = initialSelectedCards.includes(cardId);
-        const isCurrentlySelected = selectedCards.includes(cardId);
-        return wasInitiallySelected !== isCurrentlySelected; // Only if card selection changed
-      })
-    );
-    
-    const initialRenewalDatesForChangedCards = Object.fromEntries(
-      Object.entries(initialSelectedRenewalDates).filter(([cardId]) => {
-        const wasInitiallySelected = initialSelectedCards.includes(cardId);
-        const isCurrentlySelected = selectedCards.includes(cardId);
-        return wasInitiallySelected !== isCurrentlySelected; // Only if card selection changed
-      })
-    );
-    
-    const renewalDatesChanged = JSON.stringify(renewalDatesForChangedCards) !== JSON.stringify(initialRenewalDatesForChangedCards);
-    
-    return selectedCardsChanged || renewalDatesChanged || deletedCard !== null;
+    // This explicitly checks if a card that was meant to be deleted is still pending.
+    // If handleRemoveCard correctly updates selectedCards, this might be redundant
+    // but provides an explicit check for the deletedCard state affecting 'hasChanges'.
+    if (deletedCard !== null) {
+        // Check if the deletion is the *only* change.
+        // If selectedCards (after deletion) + renewalDates (after deletion) match initial state (pre-deletion state for other cards)
+        // then only the deletion is the change. This is complex.
+        // Simpler: if deletedCard is set, it's a change until saved/undone.
+        // The previous logic already updates selectedCards, so that should trigger hasChanges.
+        // This line is to ensure that if deletedCard is set, it's always considered a change.
+        // However, the above checks on selectedCards and renewalDates should cover states modified by deletion.
+        // Let's rely on selectedCards and renewalDates comparison.
+        // If deletedCard is not null, selectedCards should be different from initialSelectedCards.
+    }
+
+    return false;
   }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates, deletedCard]);
 
   const selectedCardObjects = useMemo(() => 
@@ -163,11 +164,14 @@ export const useCardManagement = (userId: string | undefined) => {
       const { error } = await saveUserCards(userId, selectedCardObjects, renewalDates);
       if (error) {
         console.error('Error saving cards:', error);
-        return;
+        Alert.alert("Save Failed", "Could not save your changes. Please try again.");
+        // Do NOT update initial states if save failed, so 'hasChanges' remains true
+        return; 
       }
-      setInitialSelectedCards(selectedCards);
-      setInitialRenewalDates(renewalDates);
+      setInitialSelectedCards([...selectedCards]); // Create new references
+      setInitialRenewalDates({...renewalDates}); // Create new reference
       setDeletedCard(null); // Clear deleted card after successful save
+      setShowUndoSnackbar(false);
       
       if (Platform.OS === 'ios') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -219,30 +223,45 @@ export const useCardManagement = (userId: string | undefined) => {
 
   // Auto-save renewal dates when they change (without triggering modal)
   useEffect(() => {
-    if (!userId) return;
-    
-    // Check if only renewal dates changed (not card selection)
-    const selectedCardsSorted = [...selectedCards].sort();
-    const initialSelectedCardsSorted = [...initialSelectedCards].sort();
-    const cardSelectionChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
+    if (!userId || isLoading) return; // Prevent auto-save during initial load or if no user
+
+    const selectedCardsSortedJSON = JSON.stringify([...selectedCards].sort());
+    const initialSelectedCardsSortedJSON = JSON.stringify([...initialSelectedCards].sort());
+    const cardSelectionChanged = selectedCardsSortedJSON !== initialSelectedCardsSortedJSON;
     
     if (!cardSelectionChanged && !deletedCard) {
-      // Only renewal dates changed, auto-save them
-      const timeoutId = setTimeout(async () => {
-        try {
-          console.log('[CardManagement] Auto-saving renewal dates');
-          const { error } = await saveUserCards(userId, selectedCardObjects, renewalDates);
-          if (!error) {
-            setInitialRenewalDates(renewalDates);
-          }
-        } catch (error) {
-          console.error('Error auto-saving renewal dates:', error);
+      let actualRenewalDatesChanged = false;
+      // Check only renewal dates for cards that are in selectedCards (which is same as initialSelectedCards here)
+      for (const cardId of selectedCards) {
+        const currentDate = renewalDates[cardId] ? new Date(renewalDates[cardId]).toISOString() : undefined;
+        const initialDate = initialRenewalDates[cardId] ? new Date(initialRenewalDates[cardId]).toISOString() : undefined;
+        if (currentDate !== initialDate) {
+          actualRenewalDatesChanged = true;
+          break;
         }
-      }, 1000); // Save after 1 second of no changes
-      
-      return () => clearTimeout(timeoutId);
+      }
+
+      if (actualRenewalDatesChanged) {
+        const timeoutId = setTimeout(async () => {
+          try {
+            console.log('[CardManagement] Auto-saving renewal dates');
+            // selectedCardObjects is memoized and will use the current selectedCards
+            const { error } = await saveUserCards(userId, selectedCardObjects, renewalDates);
+            if (!error) {
+              setInitialRenewalDates({...renewalDates}); // Update initial state on successful auto-save
+            } else {
+              console.error('Error auto-saving renewal dates:', error);
+              // Optionally show a subtle error to the user or log
+            }
+          } catch (error) {
+            console.error('Error auto-saving renewal dates:', error);
+          }
+        }, 1000); // Save after 1 second of no changes
+        
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [renewalDates, userId, selectedCards, initialSelectedCards, selectedCardObjects, deletedCard]);
+  }, [renewalDates, selectedCards, initialSelectedCards, initialRenewalDates, userId, isLoading, deletedCard, selectedCardObjects]); // Added dependencies
 
   return {
     selectedCards,

@@ -602,6 +602,7 @@ export default function Dashboard() {
                 onTapPerk={handleTapPerk}
                 onExpandChange={handleCardExpandChange}
                 onPerkStatusChange={handlePerkStatusChange}
+                setPerkStatus={setPerkStatus}
               />
             ) : (
               <View style={styles.noCardsContainer}>

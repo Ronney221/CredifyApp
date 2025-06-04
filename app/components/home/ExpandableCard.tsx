@@ -28,6 +28,7 @@ export interface ExpandableCardProps {
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
   onExpandChange?: (cardId: string, isExpanded: boolean) => void;
   onPerkStatusChange?: () => void;
+  setPerkStatus?: (cardId: string, perkId: string, status: 'available' | 'redeemed') => void;
   isActive?: boolean;
   sortIndex: number;
 }
@@ -73,6 +74,7 @@ export default function ExpandableCard({
   onTapPerk,
   onExpandChange,
   onPerkStatusChange,
+  setPerkStatus,
   isActive,
   sortIndex,
 }: ExpandableCardProps) {
@@ -161,19 +163,35 @@ export default function ExpandableCard({
 
     const isCurrentlyRedeemed = perk.status === 'redeemed';
 
+    console.log(`[ExpandableCard] Perk status check:`, {
+      perkName: perk.name,
+      currentStatus: perk.status,
+      isCurrentlyRedeemed,
+      requestedAction: action,
+      shouldProceed: !((action === 'redeemed' && isCurrentlyRedeemed) || (action === 'available' && !isCurrentlyRedeemed))
+    });
+
     if ((action === 'redeemed' && isCurrentlyRedeemed) || (action === 'available' && !isCurrentlyRedeemed)) {
         console.log(`[ExpandableCard] Perk ${perk.name} is already in the desired state of '${action}' according to global state.`);
         return;
     }
 
+    // Optimistic UI update - immediate feedback
+    console.log(`[ExpandableCard] Calling setPerkStatus with:`, { cardId: card.id, perkId: perk.id, action });
+    setPerkStatus?.(card.id, perk.id, action);
+    onPerkStatusChange?.();
+
     if (action === 'redeemed') {
       console.log(`[ExpandableCard] Proceeding with redeemed for ${perk.name}`);
-      console.log(`[ExpandableCard] Attempting to trackPerkRedemption for ${perk.name}`);
       try {
         const result = await trackPerkRedemption(user.id, card.id, perk, perk.value);
         console.log(`[ExpandableCard] trackPerkRedemption result for ${perk.name}:`, result.error ? result.error : 'success');
         
         if (result.error) {
+          // Revert optimistic update on error
+          setPerkStatus?.(card.id, perk.id, 'available');
+          onPerkStatusChange?.();
+          
           if (typeof result.error === 'object' && result.error !== null && 'message' in result.error && (result.error as any).message === 'Perk already redeemed this period') {
             Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
           } else {
@@ -182,51 +200,69 @@ export default function ExpandableCard({
           return;
         }
         
-        // Call global state update for other components
-        onPerkStatusChange?.();
-        
         showToast(
           `${perk.name} marked as redeemed`,
           async () => {
             try {
+              // Optimistic undo
+              setPerkStatus?.(card.id, perk.id, 'available');
+              onPerkStatusChange?.();
+              
               const { error: undoError } = await deletePerkRedemption(user.id, perk.definition_id);
               if (undoError) {
+                // Revert undo if database fails
+                setPerkStatus?.(card.id, perk.id, 'redeemed');
+                onPerkStatusChange?.();
                 console.error('Error undoing redemption:', undoError);
                 showToast('Error undoing redemption');
-              } else {
-                console.log(`[ExpandableCard] Undoing action for ${perk.name}. New action: available`);
-                onPerkStatusChange?.();
-                // Trigger immediate refresh for consistency
-                setTimeout(() => onPerkStatusChange?.(), 50);
               }
             } catch (error) {
+              // Revert undo if unexpected error
+              setPerkStatus?.(card.id, perk.id, 'redeemed');
+              onPerkStatusChange?.();
               console.error('Error undoing redemption:', error);
               showToast('Error undoing redemption');
             }
           }
         );
       } catch (error) {
+        // Revert optimistic update on error
+        setPerkStatus?.(card.id, perk.id, 'available');
+        onPerkStatusChange?.();
         console.error('Error tracking redemption:', error);
         Alert.alert('Error', 'Failed to track perk redemption.');
       }
     } else {
       console.log(`[ExpandableCard] Proceeding with available for ${perk.name}`);
+      console.log(`[ExpandableCard] Perk details for available action:`, {
+        perkId: perk.id,
+        perkName: perk.name,
+        definition_id: perk.definition_id,
+        userId: user.id,
+        cardId: card.id
+      });
+      
       try {
+        console.log(`[ExpandableCard] Calling deletePerkRedemption with userId: ${user.id}, definition_id: ${perk.definition_id}`);
         const { error } = await deletePerkRedemption(user.id, perk.definition_id);
+        console.log(`[ExpandableCard] deletePerkRedemption result:`, error ? { error } : 'success');
+        
         if (error) {
-          console.error('Error deleting redemption:', error);
+          // Revert optimistic update on error
+          console.error(`[ExpandableCard] Error deleting redemption for ${perk.name}:`, error);
+          setPerkStatus?.(card.id, perk.id, 'redeemed');
+          onPerkStatusChange?.();
           Alert.alert('Error', 'Failed to undo perk redemption.');
           return;
         }
         
-        // Call global state update for other components
-        onPerkStatusChange?.();
-        
+        console.log(`[ExpandableCard] Successfully marked ${perk.name} as available`);
         showToast(`${perk.name} marked as available`);
-        // Trigger immediate refresh for consistency
-        setTimeout(() => onPerkStatusChange?.(), 50);
       } catch (error) {
-        console.error('Error deleting redemption:', error);
+        // Revert optimistic update on error
+        console.error(`[ExpandableCard] Unexpected error deleting redemption for ${perk.name}:`, error);
+        setPerkStatus?.(card.id, perk.id, 'redeemed');
+        onPerkStatusChange?.();
         Alert.alert('Error', 'Failed to undo perk redemption.');
       }
     }

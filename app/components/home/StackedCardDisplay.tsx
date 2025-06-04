@@ -10,7 +10,8 @@ interface StackedCardDisplayProps {
   activeCardId: string | null;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
   onExpandChange: (cardId: string, isExpanded: boolean) => void;
-  onPerkStatusChange: () => void; 
+  onPerkStatusChange: () => void;
+  setPerkStatus?: (cardId: string, perkId: string, status: 'available' | 'redeemed') => void;
 }
 
 const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
@@ -20,6 +21,7 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
   onTapPerk,
   onExpandChange,
   onPerkStatusChange,
+  setPerkStatus,
 }) => {
   const [isStackExpanded, setIsStackExpanded] = useState(false);
 
@@ -43,6 +45,7 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
           onTapPerk={onTapPerk}
           onExpandChange={onExpandChange}
           onPerkStatusChange={onPerkStatusChange}
+          setPerkStatus={setPerkStatus}
           isActive={card.id === activeCardId}
           sortIndex={index} // Or pass the original index if needed for other logic
         />

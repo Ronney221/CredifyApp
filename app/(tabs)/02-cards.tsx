@@ -11,6 +11,7 @@ import {
   Animated,
   Easing,
   LayoutChangeEvent,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -51,6 +52,7 @@ export default function Cards() {
   const [scrollY, setScrollY] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList<Card>>(null);
   const [newlyAddedCardIdForScroll, setNewlyAddedCardIdForScroll] = useState<string | null>(null);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
@@ -90,32 +92,6 @@ export default function Cards() {
     
     return allCardsHaveRenewalDates && allNotificationsEnabled && selectedCards.length >= 2;
   }, [selectedCards, renewalDates, notificationPreferences]);
-
-  // Check if there are changes other than deleted card
-  const hasOtherChanges = useMemo(() => {
-    if (!deletedCard) return hasChanges;
-    
-    // Temporarily restore deleted card to check if there would still be changes
-    const cardsWithDeletedRestored = [...selectedCards, deletedCard.card.id];
-    const datesWithDeletedRestored = { ...renewalDates };
-    if (deletedCard.renewalDate) {
-      datesWithDeletedRestored[deletedCard.card.id] = deletedCard.renewalDate;
-    }
-    
-    const selectedCardsSorted = [...cardsWithDeletedRestored].sort();
-    const initialSelectedCardsSorted = [...initialSelectedCards].sort();
-    const selectedCardsChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
-    
-    const currentSelectedRenewalDates = Object.fromEntries(
-      Object.entries(datesWithDeletedRestored).filter(([cardId]) => cardsWithDeletedRestored.includes(cardId))
-    );
-    const initialSelectedRenewalDates = Object.fromEntries(
-      Object.entries(initialRenewalDates).filter(([cardId]) => initialSelectedCards.includes(cardId))
-    );
-    const renewalDatesChanged = JSON.stringify(currentSelectedRenewalDates) !== JSON.stringify(initialSelectedRenewalDates);
-    
-    return selectedCardsChanged || renewalDatesChanged;
-  }, [selectedCards, renewalDates, initialSelectedCards, initialRenewalDates, deletedCard, hasChanges]);
 
   // Debug logging
   useEffect(() => {
@@ -269,24 +245,15 @@ export default function Cards() {
 
   // useEffect for scrolling to new card
   useEffect(() => {
-    if (newlyAddedCardIdForScroll && scrollViewRef.current && selectedCardObjects.length > 0 && scrollViewHeight > 0) {
+    if (newlyAddedCardIdForScroll && flatListRef.current && selectedCardObjects.length > 0 && scrollViewHeight > 0) {
       const cardIndex = selectedCardObjects.findIndex(card => card.id === newlyAddedCardIdForScroll);
 
       if (cardIndex !== -1) {
-        const estimatedCardHeight = 80; // Approximate height of CardRow
-        const cardOffsetTop = cardIndex * estimatedCardHeight;
-        
-        // Calculate scroll position to bring bottom of card to bottom of viewport
-        let newScrollPosition = cardOffsetTop + estimatedCardHeight - scrollViewHeight;
-        
-        // Ensure scroll position isn't negative (e.g., if card is already fully visible at top)
-        newScrollPosition = Math.max(0, newScrollPosition);
-        
-        // If the total content is shorter than the scrollview, scroll to top (0) or specific position if it makes sense
-        // This part might need refinement based on exact desired behavior with short content
-        scrollViewRef.current?.scrollTo({
-          y: newScrollPosition,
-          animated: true,
+        // For FlatList, use scrollToIndex or scrollToOffset
+        flatListRef.current?.scrollToIndex({ 
+          index: cardIndex, 
+          animated: true, 
+          viewPosition: 0.5, // 0 for top, 0.5 for center, 1 for bottom
         });
       }
 
@@ -350,98 +317,93 @@ export default function Cards() {
           subtitle="Update your card collection and notification preferences"
         />
 
-        <ScrollView 
+        <FlatList
+          data={selectedCardObjects}
+          renderItem={({ item: card }) => (
+            isEditMode ? (
+              <CardRow
+                key={card.id}
+                card={card}
+                isSelected={false}
+                onPress={() => {}}
+                mode="manage"
+                subtitle={formatDate(renewalDates[card.id])}
+                subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                showRemoveButton={true}
+                onRemove={handleRemoveCard}
+              />
+            ) : (
+              <CardRow
+                key={card.id}
+                card={card}
+                isSelected={false}
+                onPress={handleCardPress}
+                mode="manage"
+                subtitle={formatDate(renewalDates[card.id])}
+                subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                showRemoveButton={false}
+              />
+            )
+          )}
+          keyExtractor={(card) => card.id}
+          ListHeaderComponent={
+            <>
+              {/* Celebratory Growth Hook */}
+              {isMaximizingPerks && (
+                <TouchableOpacity style={styles.celebratoryRibbon} onPress={handleShareSavings}>
+                  <Text style={styles.celebratoryText}>
+                    🚀 You&apos;re maximizing every perk - share your savings!
+                  </Text>
+                  <Ionicons name="share-outline" size={16} color="#ffffff" />
+                </TouchableOpacity>
+              )}
+
+              {/* Cards Section Header */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Your Cards</Text>
+                  {selectedCards.length > 0 && (
+                    <TouchableOpacity 
+                      onPress={handleEditModeToggle} 
+                      style={styles.editButton}
+                    >
+                      <Text style={styles.editButtonText}>
+                        {isEditMode ? 'Done' : 'Edit'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {selectedCardObjects.length === 0 && (
+                  <EmptyState onAddCard={handleOpenAddCardModal} />
+                )}
+              </View>
+            </>
+          }
+          ListFooterComponent={
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Notification Preferences</Text>
+              </View>
+              
+              {notificationItems.map((itemProps, index) => (
+                <ReminderToggleGroup
+                  key={itemProps.title}
+                  {...itemProps}
+                  mode="manage"
+                  index={index}
+                  isLastItem={index === notificationItems.length - 1}
+                />
+              ))}
+            </View>
+          }
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
-          ref={scrollViewRef}
+          ref={flatListRef}
           onLayout={handleScrollViewLayout}
-        >
-          {/* Celebratory Growth Hook */}
-          {isMaximizingPerks && (
-            <TouchableOpacity style={styles.celebratoryRibbon} onPress={handleShareSavings}>
-              <Text style={styles.celebratoryText}>
-                🚀 You&apos;re maximizing every perk - share your savings!
-              </Text>
-              <Ionicons name="share-outline" size={16} color="#ffffff" />
-            </TouchableOpacity>
-          )}
-
-          {/* Cards Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Cards</Text>
-              {selectedCards.length > 0 && (
-                <TouchableOpacity 
-                  onPress={handleEditModeToggle} 
-                  style={styles.editButton}
-                >
-                  <Text style={styles.editButtonText}>
-                    {isEditMode ? 'Done' : 'Edit'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {isEditMode ? (
-              <View style={styles.cardsList}>
-                {selectedCardObjects.map((card) => (
-                  <CardRow
-                    key={card.id}
-                    card={card}
-                    isSelected={false}
-                    onPress={() => {}} // No action in edit mode except remove
-                    mode="manage"
-                    subtitle={formatDate(renewalDates[card.id])}
-                    subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                    showRemoveButton={true}
-                    onRemove={handleRemoveCard}
-                  />
-                ))}
-                {selectedCardObjects.length === 0 && (
-                  <EmptyState onAddCard={handleOpenAddCardModal} />
-                )}
-              </View>
-            ) : (
-              <View style={styles.cardsList}>
-                {selectedCardObjects.map((card) => (
-                  <CardRow
-                    key={card.id}
-                    card={card}
-                    isSelected={false}
-                    onPress={handleCardPress}
-                    mode="manage"
-                    subtitle={formatDate(renewalDates[card.id])}
-                    subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                    showRemoveButton={false}
-                  />
-                ))}
-                {selectedCardObjects.length === 0 && (
-                  <EmptyState onAddCard={handleOpenAddCardModal} />
-                )}
-              </View>
-            )}
-          </View>
-
-          {/* Notification Preferences Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Notification Preferences</Text>
-            </View>
-            
-            {notificationItems.map((itemProps, index) => (
-              <ReminderToggleGroup
-                key={itemProps.title}
-                {...itemProps}
-                mode="manage"
-                index={index}
-                isLastItem={index === notificationItems.length - 1}
-              />
-            ))}
-          </View>
-        </ScrollView>
+        />
 
         {/* Floating Add Button */}
         <MotiView
@@ -471,7 +433,7 @@ export default function Cards() {
           onDiscard={handleDiscardChanges}
           isSaving={isSaving}
           deletedCard={deletedCard}
-          hasOtherChanges={hasOtherChanges}
+          hasOtherChanges={hasChanges && deletedCard !== null}
         />
       </SafeAreaView>
 
