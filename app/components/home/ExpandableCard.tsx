@@ -223,21 +223,6 @@ export default function ExpandableCard({
     Object.values(swipeableRefs.current).forEach(ref => ref?.close());
   };
 
-  const handlePerkTap = async (perk: CardPerk) => {
-    if (!user) return;
-    Object.values(swipeableRefs.current).forEach(ref => {
-      if (swipeableRefs.current[perk.id] !== ref) {
-        ref?.close();
-      }
-    });
-    try {
-      await openPerkTarget(perk);
-    } catch (error) {
-      console.error('Error opening perk target:', error);
-      Alert.alert('Error', 'Could not open the link for this perk.');
-    }
-  };
-
   const executePerkAction = async (perk: CardPerk, action: 'redeemed' | 'available') => {
     console.log(`[ExpandableCard] executePerkAction called for ${perk.name}, action: ${action}`);
     if (!user) {
@@ -427,7 +412,7 @@ export default function ExpandableCard({
         >
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => handlePerkTap(perk)}
+            onPress={() => onTapPerk(card.id, perk.id, perk)}
             onLongPress={() => onLongPressPerk(card.id, perk)}
           >
             <View style={[styles.perkContainer, isRedeemed && styles.perkContainerRedeemed]}>

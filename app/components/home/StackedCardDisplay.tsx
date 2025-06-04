@@ -10,7 +10,7 @@ interface StackedCardDisplayProps {
   cumulativeValueSavedPerCard: Record<string, number>;
   activeCardId: string | null;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
-  onLongPressPerk: (cardId: string, perkId: string, intendedNewStatus: 'available' | 'redeemed') => void;
+  onLongPressPerk: (cardId: string, perk: CardPerk) => void;
   onExpandChange: (cardId: string, isExpanded: boolean) => void;
   onPerkStatusChange: () => void; 
 }

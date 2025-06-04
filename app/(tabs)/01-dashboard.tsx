@@ -22,12 +22,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import Toast from 'react-native-root-toast';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import PerkDonutDisplayManager from '../components/home/PerkDonutDisplayManager';
 import ExpandableCard from '../components/home/ExpandableCard';
+import PerkActionModal from '../components/home/PerkActionModal';
 import { useUserCards } from '../hooks/useUserCards';
 import { usePerkStatus } from '../hooks/usePerkStatus';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
@@ -78,6 +81,40 @@ type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> }
 
 const SWIPE_HINT_STORAGE_KEY = '@user_seen_swipe_hint';
 
+const showToast = (message: string, onUndo?: () => void) => {
+  const toastMessage = onUndo 
+    ? `${message}\nTap to undo`
+    : message;
+
+  const toast = Toast.show(toastMessage, {
+    duration: onUndo ? 4000 : 2000,
+    position: Toast.positions.BOTTOM,
+    shadow: true,
+    animation: true,
+    hideOnPress: true,
+    delay: 0,
+    containerStyle: {
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 64,
+      backgroundColor: '#1c1c1e',
+    },
+    textStyle: {
+      fontSize: 14,
+      fontWeight: '500',
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    onPress: () => {
+      if (onUndo) {
+        Toast.hide(toast);
+        onUndo();
+      }
+    },
+  });
+};
+
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
@@ -89,6 +126,11 @@ export default function Dashboard() {
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
   const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+
+  // Modal state for perk action
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
+  const [selectedCardIdForModal, setSelectedCardIdForModal] = useState<string | null>(null);
 
   // Coach Mark State
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
@@ -262,7 +304,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleTapPerk = async (cardId: string, perkId: string, perk: any) => {
+  const handleTapPerk = async (cardId: string, perkId: string, perk: CardPerk) => {
     if (!user) {
       Alert.alert(
         "Authentication Required",
@@ -274,7 +316,67 @@ export default function Dashboard() {
       );
       return;
     }
-    setPerkStatus(cardId, perkId, 'redeemed'); 
+
+    // Show the modal instead of immediately opening the app
+    setSelectedPerk(perk);
+    setSelectedCardIdForModal(cardId);
+    setModalVisible(true);
+  };
+
+  const handleModalDismiss = () => {
+    setModalVisible(false);
+    setSelectedPerk(null);
+    setSelectedCardIdForModal(null);
+  };
+
+  const handleOpenApp = async () => {
+    if (!selectedPerk) return;
+
+    // Close modal first
+    handleModalDismiss();
+
+    try {
+      // Open the app
+      await openPerkTarget(selectedPerk);
+      
+      // Trigger haptic feedback
+      if (Platform.OS === 'ios') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Automatically mark as redeemed with undo option
+      if (selectedCardIdForModal) {
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+        
+        showToast(
+          `${selectedPerk.name} marked as redeemed`,
+          async () => {
+            // Undo the redemption
+            if (selectedCardIdForModal) {
+              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Error opening perk target:', error);
+      Alert.alert('Error', 'Could not open the link for this perk.');
+    }
+  };
+
+  const handleMarkRedeemed = () => {
+    if (!selectedPerk || !selectedCardIdForModal) return;
+
+    // Close modal first
+    handleModalDismiss();
+
+    // Mark as redeemed
+    setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+    
+    // Trigger haptic feedback
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   const handleLongPressPerk = (cardId: string, perk: CardPerk) => {
@@ -344,17 +446,6 @@ export default function Dashboard() {
         style: 'cancel',
       });
       Alert.alert(perk.name, perk.description, alertButtons);
-    }
-  };
-
-  // Adapter function for StackedCardDisplay's expected interface
-  const handleLongPressPerkAdapter = (cardId: string, perkId: string, intendedNewStatus: 'available' | 'redeemed') => {
-    // Find the perk object from the processedCardsFromPerkStatus
-    const cardData = processedCardsFromPerkStatus.find(c => c.card.id === cardId);
-    const perk = cardData?.perks.find(p => p.id === perkId);
-    
-    if (perk) {
-      handleLongPressPerk(cardId, perk);
     }
   };
 
@@ -484,7 +575,7 @@ export default function Dashboard() {
                 cumulativeValueSavedPerCard={cumulativeValueSavedPerCard}
                 activeCardId={activeCardId}
                 onTapPerk={handleTapPerk}
-                onLongPressPerk={handleLongPressPerkAdapter}
+                onLongPressPerk={handleLongPressPerk}
                 onExpandChange={handleCardExpandChange}
                 onPerkStatusChange={handlePerkStatusChange}
               />
@@ -548,6 +639,15 @@ export default function Dashboard() {
             style={styles.lottieCelebration}
           />
         )}
+
+        {/* Perk Action Modal */}
+        <PerkActionModal
+          visible={modalVisible}
+          perk={selectedPerk}
+          onDismiss={handleModalDismiss}
+          onOpenApp={handleOpenApp}
+          onMarkRedeemed={handleMarkRedeemed}
+        />
       </View>
     </SafeAreaView>
   );

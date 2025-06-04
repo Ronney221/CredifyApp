@@ -7,7 +7,10 @@ import Animated, {
   Easing,
   useSharedValue,
   withSpring,
+  useAnimatedStyle,
+  runOnJS,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 interface ProgressDonutProps {
   progress: number; // 0 to 1
@@ -23,6 +26,7 @@ interface ProgressDonutProps {
 }
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 export default function ProgressDonut({
   progress,
@@ -43,6 +47,17 @@ export default function ProgressDonut({
   // Use shared value for animation
   const progressValue = useSharedValue(progress);
   
+  // Shared value for amount text animation
+  const amountScale = useSharedValue(1);
+  const previousAmount = React.useRef<string>(amount);
+
+  // Trigger haptic feedback
+  const triggerHapticFeedback = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+    }
+  };
+  
   // Update progress value when prop changes
   React.useEffect(() => {
     progressValue.value = withTiming(progress, {
@@ -50,6 +65,27 @@ export default function ProgressDonut({
       easing: Easing.bezier(0.4, 0, 0.2, 1), // ease-in-out cubic
     });
   }, [progress]);
+
+  // Animate amount text when it changes
+  React.useEffect(() => {
+    if (previousAmount.current !== amount) {
+      // Spring animation: scale 1 → 1.06 → 1
+      amountScale.value = withSpring(1.06, {
+        duration: 150,
+        dampingRatio: 0.6,
+      }, () => {
+        // Trigger haptic feedback on animation start
+        runOnJS(triggerHapticFeedback)();
+        
+        amountScale.value = withSpring(1, {
+          duration: 200,
+          dampingRatio: 0.8,
+        });
+      });
+      
+      previousAmount.current = amount;
+    }
+  }, [amount]);
 
   const animatedProps = useAnimatedProps(() => {
     // Calculate the offset - note that we subtract from circumference
@@ -60,9 +96,15 @@ export default function ProgressDonut({
     };
   });
 
+  const animatedAmountStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: amountScale.value }],
+    };
+  });
+
   return (
     <View style={styles.container}>
-      <Text style={styles.amount}>{amount}</Text>
+      <AnimatedText style={[styles.amount, animatedAmountStyle]}>{amount}</AnimatedText>
       <Text style={styles.label}>{label}</Text>
       
       <View style={styles.donutContainer}>
