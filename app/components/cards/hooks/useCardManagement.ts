@@ -5,6 +5,9 @@ import { Alert } from 'react-native';
 import { Card, allCards } from '../../../../src/data/card-data';
 import { getUserCards, saveUserCards } from '../../../../lib/database';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
 
 export const useCardManagement = (userId: string | undefined) => {
   const router = useRouter();
@@ -165,19 +168,40 @@ export const useCardManagement = (userId: string | undefined) => {
       if (error) {
         console.error('Error saving cards:', error);
         Alert.alert("Save Failed", "Could not save your changes. Please try again.");
-        // Do NOT update initial states if save failed, so 'hasChanges' remains true
         return; 
       }
-      setInitialSelectedCards([...selectedCards]); // Create new references
-      setInitialRenewalDates({...renewalDates}); // Create new reference
-      setDeletedCard(null); // Clear deleted card after successful save
+      setInitialSelectedCards([...selectedCards]);
+      setInitialRenewalDates({...renewalDates});
+      setDeletedCard(null);
       setShowUndoSnackbar(false);
+
+      // --- BEGIN: Logic to store unique perk periods ---
+      try {
+        const uniquePeriodsSet = new Set<number>();
+        selectedCardObjects.forEach(card => {
+          card.benefits.forEach(perk => {
+            if (perk.periodMonths) {
+              uniquePeriodsSet.add(perk.periodMonths);
+            }
+          });
+        });
+        const uniquePeriodsArray = Array.from(uniquePeriodsSet).sort((a, b) => a - b);
+        console.log('[useCardManagement] Saving unique perk periods to AsyncStorage:', uniquePeriodsArray);
+        await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(uniquePeriodsArray));
+      } catch (storageError) {
+        console.error('[useCardManagement] Failed to save unique perk periods to AsyncStorage:', storageError);
+        // Not a critical error, so don't alert the user, just log it.
+      }
+      // --- END: Logic to store unique perk periods ---
       
       if (Platform.OS === 'ios') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } catch (error) {
       console.error('Error in save handler:', error);
+      // Check if the error is from saveUserCards or AsyncStorage, handle appropriately if needed
+      // For now, generic alert, but could be more specific if we distinguish errors.
+      Alert.alert("Save Operation Failed", "An unexpected error occurred during the save operation.");
     } finally {
       setIsSaving(false);
     }
@@ -223,7 +247,7 @@ export const useCardManagement = (userId: string | undefined) => {
 
   // Auto-save renewal dates when they change (without triggering modal)
   useEffect(() => {
-    if (!userId || isLoading) return; // Prevent auto-save during initial load or if no user
+    if (!userId || isLoading) return;
 
     const selectedCardsSortedJSON = JSON.stringify([...selectedCards].sort());
     const initialSelectedCardsSortedJSON = JSON.stringify([...initialSelectedCards].sort());
@@ -231,7 +255,6 @@ export const useCardManagement = (userId: string | undefined) => {
     
     if (!cardSelectionChanged && !deletedCard) {
       let actualRenewalDatesChanged = false;
-      // Check only renewal dates for cards that are in selectedCards (which is same as initialSelectedCards here)
       for (const cardId of selectedCards) {
         const currentDate = renewalDates[cardId] ? new Date(renewalDates[cardId]).toISOString() : undefined;
         const initialDate = initialRenewalDates[cardId] ? new Date(initialRenewalDates[cardId]).toISOString() : undefined;
@@ -245,23 +268,39 @@ export const useCardManagement = (userId: string | undefined) => {
         const timeoutId = setTimeout(async () => {
           try {
             console.log('[CardManagement] Auto-saving renewal dates');
-            // selectedCardObjects is memoized and will use the current selectedCards
-            const { error } = await saveUserCards(userId, selectedCardObjects, renewalDates);
+            const currentSelectedObjects = selectedCards.map(id => allCards.find(card => card.id === id)).filter(Boolean) as Card[];
+            const { error } = await saveUserCards(userId, currentSelectedObjects, renewalDates);
             if (!error) {
-              setInitialRenewalDates({...renewalDates}); // Update initial state on successful auto-save
+              setInitialRenewalDates({...renewalDates}); // Update initial dates after successful auto-save
+              // --- BEGIN: Logic to store unique perk periods on auto-save ---
+              try {
+                const uniquePeriodsSet = new Set<number>();
+                currentSelectedObjects.forEach(card => {
+                  card.benefits.forEach(perk => {
+                    if (perk.periodMonths) {
+                      uniquePeriodsSet.add(perk.periodMonths);
+                    }
+                  });
+                });
+                const uniquePeriodsArray = Array.from(uniquePeriodsSet).sort((a, b) => a - b);
+                console.log('[useCardManagement] Auto-saving: Updating unique perk periods:', uniquePeriodsArray);
+                await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(uniquePeriodsArray));
+              } catch (storageError) {
+                console.error('[useCardManagement] Auto-saving: Failed to update unique perk periods:', storageError);
+              }
+              // --- END: Logic to store unique perk periods on auto-save ---
             } else {
-              console.error('Error auto-saving renewal dates:', error);
-              // Optionally show a subtle error to the user or log
+              console.warn('[CardManagement] Auto-save for renewal dates failed:', error);
+              // Optionally notify user or revert, for now just logging
             }
-          } catch (error) {
-            console.error('Error auto-saving renewal dates:', error);
+          } catch (e) {
+            console.error('[CardManagement] Error in auto-save renewal dates:', e);
           }
-        }, 1000); // Save after 1 second of no changes
-        
+        }, 3000); // Auto-save after 3 seconds of inactivity
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [renewalDates, selectedCards, initialSelectedCards, initialRenewalDates, userId, isLoading, deletedCard, selectedCardObjects]); // Added dependencies
+  }, [renewalDates, selectedCards, initialSelectedCards, userId, isLoading, deletedCard]); // Added dependencies
 
   return {
     selectedCards,

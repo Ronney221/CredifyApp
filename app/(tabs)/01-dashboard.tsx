@@ -34,7 +34,7 @@ import PerkActionModal from '../components/home/PerkActionModal';
 import { useUserCards } from '../hooks/useUserCards';
 import { usePerkStatus } from '../hooks/usePerkStatus';
 import { useAutoRedemptions } from '../hooks/useAutoRedemptions';
-import { format, differenceInDays, endOfMonth } from 'date-fns';
+import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
 import AccountButton from '../components/home/AccountButton';
@@ -82,6 +82,7 @@ const getStatusColor = (daysRemaining: number) => {
 type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> };
 
 const SWIPE_HINT_STORAGE_KEY = '@user_seen_swipe_hint';
+const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
 
 const showToast = (message: string, onUndo?: () => void) => {
   const toastMessage = onUndo 
@@ -117,6 +118,53 @@ const showToast = (message: string, onUndo?: () => void) => {
   });
 };
 
+// Helper function to calculate perk cycle end date and days remaining
+const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEndDate: Date; daysRemaining: number } => {
+  if (!perk.periodMonths) {
+    // Should not happen for perks we are considering for cycles
+    return { cycleEndDate: endOfYear(addMonths(currentDate, 24)), daysRemaining: 365 * 2 }; // Far future
+  }
+
+  const currentMonth = getMonth(currentDate); // 0-11
+  const currentYear = getYear(currentDate);
+  let cycleEndDate: Date;
+
+  switch (perk.periodMonths) {
+    case 1: // Monthly
+      cycleEndDate = endOfMonth(currentDate);
+      break;
+    case 3: // Quarterly
+      const quarter = Math.floor(currentMonth / 3);
+      const endMonthOfQuarter = quarter * 3 + 2; // Q1 (0) -> 2 (Mar), Q2 (1) -> 5 (Jun), etc.
+      cycleEndDate = endOfMonth(new Date(currentYear, endMonthOfQuarter, 1));
+      break;
+    case 6: // Bi-Annually
+      const half = Math.floor(currentMonth / 6);
+      const endMonthOfHalf = half * 6 + 5; // H1 (0) -> 5 (Jun), H2 (1) -> 11 (Dec)
+      cycleEndDate = endOfMonth(new Date(currentYear, endMonthOfHalf, 1));
+      break;
+    case 12: // Annually
+      cycleEndDate = endOfYear(currentDate);
+      break;
+    default:
+      // For other uncommon periods, estimate as end of month after periodMonths from start of current month
+      // This is a fallback and might need refinement based on specific perk rules
+      const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+      cycleEndDate = endOfMonth(addMonths(startOfCurrentMonth, perk.periodMonths -1));
+      // If this calculation results in a date in the past for the current cycle, advance it by periodMonths
+      if (cycleEndDate < currentDate) {
+         cycleEndDate = endOfMonth(addMonths(cycleEndDate, perk.periodMonths));
+      }
+      break;
+  }
+
+  let daysRemaining = differenceInDays(cycleEndDate, currentDate);
+  // Ensure daysRemaining is not negative if cycleEndDate is slightly in the past due to timing.
+  daysRemaining = Math.max(0, daysRemaining);
+
+  return { cycleEndDate, daysRemaining };
+};
+
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
@@ -138,13 +186,13 @@ export default function Dashboard() {
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
   const [shouldShowSwipeCoachMark, setShouldShowSwipeCoachMark] = useState(false);
 
+  // State for unique perk periods, default to monthly and annual if not found
+  const [uniquePerkPeriods, setUniquePerkPeriods] = useState<number[]>([1, 12]);
+
   // Use custom hooks
-  const { userCardsWithPerks, isLoading, error, refreshUserCards } = useUserCards();
+  const { userCardsWithPerks, isLoading, error: userCardsError, refreshUserCards } = useUserCards();
   const {
-    monthlyCreditsRedeemed,
-    monthlyCreditsPossible,
-    yearlyCreditsRedeemed,
-    yearlyCreditsPossible,
+    periodAggregates,
     cumulativeValueSavedPerCard,
     userCardsWithPerks: processedCardsFromPerkStatus,
     setPerkStatus,
@@ -160,40 +208,70 @@ export default function Dashboard() {
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
 
-  const nextActionablePerk = useMemo(() => {
-    let actionablePerk: (CardPerk & { cardId: string; cardName: string }) | null = null;
-    let highestValue = 0;
+  // Determine the single next actionable perk to highlight
+  const nextActionablePerkToHighlight = useMemo(() => {
+    const currentDate = new Date();
+    const allActionablePerks: (CardPerk & { cardId: string; cardName: string; cycleEndDate: Date; daysRemaining: number })[] = [];
 
     processedCardsFromPerkStatus.forEach(cardData => {
       cardData.perks.forEach(perk => {
-        if (perk.status === 'available' && perk.periodMonths === 1) {
-          if (perk.value > highestValue) {
-            highestValue = perk.value;
-            actionablePerk = { 
-              ...perk, 
+        if (perk.status === 'available') {
+          const { cycleEndDate, daysRemaining } = calculatePerkCycleDetails(perk, currentDate);
+          // Only consider perks whose cycle hasn't technically passed based on our calculation
+          if (daysRemaining >= 0) { 
+            allActionablePerks.push({
+              ...perk,
               cardId: cardData.card.id,
-              cardName: cardData.card.name 
-            };
+              cardName: cardData.card.name,
+              cycleEndDate,
+              daysRemaining,
+            });
           }
         }
       });
     });
-    return actionablePerk;
+
+    // Sort by daysRemaining (asc), then by value (desc)
+    allActionablePerks.sort((a, b) => {
+      if (a.daysRemaining !== b.daysRemaining) {
+        return a.daysRemaining - b.daysRemaining;
+      }
+      return b.value - a.value; // Higher value first if daysRemaining is the same
+    });
+    
+    console.log('[Dashboard] Top actionable perk to highlight:', allActionablePerks.length > 0 ? allActionablePerks[0] : 'None');
+    return allActionablePerks.length > 0 ? allActionablePerks[0] : null;
   }, [processedCardsFromPerkStatus]);
 
-  // Load swipe hint status from AsyncStorage
+  // Load swipe hint status and unique perk periods from AsyncStorage
   useEffect(() => {
-    const loadHintStatus = async () => {
+    const loadAsyncData = async () => {
       try {
-        const seen = await AsyncStorage.getItem(SWIPE_HINT_STORAGE_KEY);
-        if (seen !== null) {
-          setUserHasSeenSwipeHint(JSON.parse(seen));
+        const seenHint = await AsyncStorage.getItem(SWIPE_HINT_STORAGE_KEY);
+        if (seenHint !== null) {
+          setUserHasSeenSwipeHint(JSON.parse(seenHint));
+        }
+
+        const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
+        if (storedPeriods !== null) {
+          const parsedPeriods = JSON.parse(storedPeriods);
+          if (Array.isArray(parsedPeriods) && parsedPeriods.length > 0) {
+            console.log('[Dashboard] Loaded unique perk periods from AsyncStorage:', parsedPeriods);
+            setUniquePerkPeriods(parsedPeriods);
+          } else {
+            console.log('[Dashboard] No valid unique perk periods in AsyncStorage, using default [1, 12].');
+            setUniquePerkPeriods([1, 12]); // Default if empty or invalid
+          }
+        } else {
+          console.log('[Dashboard] No unique perk periods found in AsyncStorage, using default [1, 12].');
+          setUniquePerkPeriods([1, 12]); // Default if not found
         }
       } catch (e) {
-        console.error("Failed to load swipe hint status.", e);
+        console.error("[Dashboard] Failed to load data from AsyncStorage.", e);
+        setUniquePerkPeriods([1, 12]); // Default on error
       }
     };
-    loadHintStatus();
+    loadAsyncData();
   }, []);
 
   // Determine if coach mark should be shown
@@ -220,14 +298,10 @@ export default function Dashboard() {
   };
 
   // Handler for the action hint pill press
-  const handleActionHintPress = (perkToActivate: (CardPerk & { cardId: string; cardName: string }) | null) => {
+  const handleActionHintPress = (perkToActivate: (CardPerk & { cardId: string; cardName: string; daysRemaining: number }) | null) => {
     if (perkToActivate) {
-      // Set the card as active. This will trigger its expansion via ExpandableCard's useEffect.
-      // The existing handleCardExpandChange (called by ExpandableCard) will handle scrolling.
       setActiveCardId(perkToActivate.cardId);
-      console.log('ActionHintPill tapped, setting active card:', perkToActivate.cardId);
-      // Potentially, also directly call openPerkTarget if desired, though user might want to see context first
-      // openPerkTarget(perkToActivate);
+      console.log('ActionHintPill tapped, setting active card:', perkToActivate.cardId, 'for perk:', perkToActivate.name);
     }
   };
 
@@ -240,17 +314,28 @@ export default function Dashboard() {
         StatusBar.setTranslucent(true);
       }
       
-      // Always refresh data when focusing on dashboard with error handling
       const refreshData = async () => {
         try {
-          console.log('[Dashboard] Focus effect - refreshing user cards and savings');
+          console.log('[Dashboard] Focus effect - refreshing user cards, savings, and async storage data');
+          // Load unique periods again on focus in case they changed via 02-cards and came back
+          const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
+          if (storedPeriods !== null) {
+            const parsedPeriods = JSON.parse(storedPeriods);
+            if (Array.isArray(parsedPeriods) && parsedPeriods.length > 0) {
+              setUniquePerkPeriods(parsedPeriods);
+            } else {
+              setUniquePerkPeriods([1, 12]); 
+            }
+          } else {
+            setUniquePerkPeriods([1, 12]);
+          }
+
           await refreshUserCards();
           await refreshSavings();
           donutDisplayRef.current?.refresh();
           await setupNotifications();
         } catch (error) {
-          console.warn('[Dashboard] Focus effect refresh failed (network issue):', error);
-          // Don't show error to user for focus effect failures - just log it
+          console.warn('[Dashboard] Focus effect refresh failed:', error);
         }
       };
       
@@ -556,27 +641,36 @@ export default function Dashboard() {
 
   const sortedCards = sortCardsByUnredeemedPerks(processedCardsFromPerkStatus);
 
-  // Log sortedCards before passing to StackedCardDisplay
-  console.log('[Dashboard] Data for StackedCardDisplay:', sortedCards.map(c => ({
-    cardName: c.card.name,
-    cardId: c.card.id,
-    isActiveInSort: c.card.id === activeCardId, // Add this to see if activeCardId logic affects this
-    perks: c.perks.map(p => ({ name: p.name, id: p.id, status: p.status, periodMonths: p.periodMonths }))
-  })));
+  // Log for debugging, ensure it's called when sortedCards is defined
+  if (!isLoading) {
+    console.log('[Dashboard] Data for StackedCardDisplay (length):', sortedCards.length);
+    // The more detailed log can be added here if needed, once stable
+    // console.log('[Dashboard] Data for StackedCardDisplay (full):', sortedCards.map(c => ({ cardName: c.card.name, cardId: c.card.id, isActiveInSort: c.card.id === activeCardId, perks: c.perks.map(p => ({ name: p.name, id: p.id, status: p.status, periodMonths: p.periodMonths })) })));
+  }
 
-  if (error) {
+  // Enhanced loading state check
+  const isOverallLoading = isLoading || isCalculatingSavings;
+
+  if (userCardsError) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Error loading cards. Please try again.</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Error loading cards. Please try again.</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  if (isLoading) {
+  // Consolidated loading view
+  if (isOverallLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.light.tint} />
+          {isLoading && <Text style={styles.loadingText}>Loading card data...</Text>}
+          {isCalculatingSavings && <Text style={styles.loadingText}>Calculating perk savings...</Text>}
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -591,12 +685,13 @@ export default function Dashboard() {
           contentContainerStyle={styles.scrollContent}
           scrollEventThrottle={16}
         >
-          {/* Primary Action Card - Most Important */}
-          {nextActionablePerk && (
+          {/* Render a single ActionHintPill for the most relevant perk */}
+          {nextActionablePerkToHighlight && (
             <ActionHintPill 
-              perk={nextActionablePerk} 
-              daysRemaining={daysRemaining} 
-              onPress={() => handleActionHintPress(nextActionablePerk)}
+              key={`action-hint-${nextActionablePerkToHighlight.id}`}
+              perk={nextActionablePerkToHighlight} // Pass the full augmented perk object
+              daysRemaining={nextActionablePerkToHighlight.daysRemaining}
+              onPress={() => handleActionHintPress(nextActionablePerkToHighlight)}
             />
           )}
 
@@ -605,11 +700,9 @@ export default function Dashboard() {
             <PerkDonutDisplayManager
               ref={donutDisplayRef}
               userCardsWithPerks={userCardsWithPerks}
-              monthlyCreditsRedeemed={monthlyCreditsRedeemed}
-              monthlyCreditsPossible={monthlyCreditsPossible}
-              yearlyCreditsRedeemed={yearlyCreditsRedeemed}
-              yearlyCreditsPossible={yearlyCreditsPossible}
+              periodAggregates={periodAggregates}
               redeemedInCurrentCycle={redeemedInCurrentCycle}
+              uniquePerkPeriods={uniquePerkPeriods}
             />
           </View>
 

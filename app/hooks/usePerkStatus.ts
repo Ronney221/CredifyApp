@@ -9,19 +9,19 @@ interface PerkDefinition {
   value: number;
 }
 
-interface YearlyRedemption { 
-  perk_id: string; 
-  redemption_date: string;
+// New interface for period-based aggregates
+interface PeriodAggregate {
+  redeemedValue: number;
+  possibleValue: number;
+  redeemedCount: number;
+  totalCount: number;
 }
 
 interface PerkStatusHookResult {
   isLoading: boolean;
   arePerkDefinitionsLoading: boolean;
   perkDefinitions: PerkDefinition[];
-  monthlyCreditsRedeemed: number;
-  monthlyCreditsPossible: number;
-  yearlyCreditsRedeemed: number;
-  yearlyCreditsPossible: number;
+  periodAggregates: Record<number, PeriodAggregate>; // Replaces old monthly/yearly specific states
   cumulativeValueSavedPerCard: Record<string, number>;
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
   setPerkStatus: (cardId: string, perkId: string, newStatus: 'redeemed' | 'available') => void;
@@ -39,10 +39,8 @@ export function usePerkStatus(
 ): PerkStatusHookResult {
   const { user } = useAuth();
   const [isLoadingHook, setIsLoadingHook] = useState(true);
-  const [monthlyCreditsRedeemed, setMonthlyCreditsRedeemed] = useState(0);
-  const [monthlyCreditsPossible, setMonthlyCreditsPossible] = useState(0);
-  const [yearlyCreditsRedeemed, setYearlyCreditsRedeemed] = useState(0);
-  const [yearlyCreditsPossible, setYearlyCreditsPossible] = useState(0);
+  // Removed old monthly/yearly specific states
+  const [periodAggregates, setPeriodAggregates] = useState<Record<number, PeriodAggregate>>({});
   const [cumulativeValueSavedPerCard, setCumulativeValueSavedPerCard] = useState<Record<string, number>>({});
   const [redeemedInCurrentCycle, setRedeemedInCurrentCycle] = useState<Record<string, boolean>>({});
   const [currentCycleIdentifier, setCurrentCycleIdentifier] = useState<string>(
@@ -52,12 +50,9 @@ export function usePerkStatus(
   const [perkDefinitions, setPerkDefinitions] = useState<PerkDefinition[]>([]);
   const [arePerkDefinitionsLoading, setArePerkDefinitionsLoading] = useState(true);
   const [processedCardsWithPerks, setProcessedCardsWithPerks] = useState<{ card: Card; perks: CardPerk[] }[]>([]);
-  const yearlyRedemptionsRef = useRef<YearlyRedemption[]>([]);
   const [isCalculatingSavings, setIsCalculatingSavings] = useState(false);
 
-  const isPerkRedeemedAnnually = (perkId: string, periodMonths: number, yearlyRedemptions: YearlyRedemption[]): boolean => {
-    return false;
-  };
+  // Removed isPerkRedeemedAnnually and yearlyRedemptionsRef as logic is now more generic
 
   useEffect(() => {
     const fetchPerkDefinitions = async () => {
@@ -95,55 +90,36 @@ export function usePerkStatus(
     
     const calculateSavings = async () => {
       setIsCalculatingSavings(true);
-      // Keep setIsLoadingHook(true) at the beginning if you want a loading state for the whole process
-      // setIsLoadingHook(true); 
       
       if (!initialUserCardsWithPerks.length || !user || arePerkDefinitionsLoading || perkDefinitions.length === 0) {
-        console.log('Skipping savings calculation: No cards, user not authenticated, perk definitions loading, or no perk definitions found.');
-        // Reset all relevant states
-        setMonthlyCreditsRedeemed(0);
-        setMonthlyCreditsPossible(0);
-        setYearlyCreditsRedeemed(0);
-        setYearlyCreditsPossible(0);
+        console.log('Skipping savings calculation: Conditions not met.');
+        setPeriodAggregates({}); // Reset aggregates
         setCumulativeValueSavedPerCard({});
         setRedeemedInCurrentCycle({});
-        setProcessedCardsWithPerks(initialUserCardsWithPerks); // Show cards even if no savings data
+        setProcessedCardsWithPerks(initialUserCardsWithPerks);
         setIsCalculatingSavings(false);
-        setIsLoadingHook(false); // Ensure loading is false if skipped
+        setIsLoadingHook(false);
         return;
       }
 
-      console.log('========= DEBUG: Starting Comprehensive Savings Calculation =========');
-      console.log('User ID:', user.id);
-      console.log('Number of initial cards:', initialUserCardsWithPerks.length);
-      console.log('Perk definitions count:', perkDefinitions.length);
-
       try {
-        // Fetch all user redemptions once
         const { data: allUserRedemptions, error: allRedemptionsError } = await supabase
           .from('perk_redemptions')
           .select('perk_id, redemption_date, reset_date, value_redeemed')
           .eq('user_id', user.id)
-          .order('redemption_date', { ascending: false }); // Ensure latest redemptions are processed correctly
+          .order('redemption_date', { ascending: false });
 
         if (allRedemptionsError) {
           console.error('Error fetching all user redemptions:', allRedemptionsError);
-          // Handle error appropriately, maybe set an error state or retry
           setIsCalculatingSavings(false);
           setIsLoadingHook(false);
           return;
         }
 
-        console.log('Fetched all redemptions from DB:', allUserRedemptions?.length || 0);
-
-        let newMonthlyRedeemedValue = 0;
-        let newMonthlyPossibleValue = 0;
-        let newYearlyRedeemedValue = 0; // For non-monthly perks currently active
-        let newYearlyPossibleValue = 0;
+        const newPeriodAggregates: Record<number, PeriodAggregate> = {};
         const newCumulative: Record<string, number> = {};
         const newRedeemedInCycle: Record<string, boolean> = {};
         
-        // Store latest redemptions per perk_definition_id for quick lookup
         const latestRedemptionsMap = new Map<string, { reset_date: string; redemption_date: string }>();
         if (allUserRedemptions) {
           allUserRedemptions.forEach(r => {
@@ -156,6 +132,16 @@ export function usePerkStatus(
 
         const processedCards = initialUserCardsWithPerks.map(cardData => {
           const processedPerks = cardData.perks.map(perk => {
+            if (!perk.periodMonths) {
+              console.warn(`Perk ${perk.name} (ID: ${perk.id}) has no periodMonths defined. Skipping for period aggregation.`);
+              return { ...perk, status: 'available' as 'available' }; // Default to available, or handle as error
+            }
+
+            // Initialize aggregate for this perk's period if not already done
+            if (!newPeriodAggregates[perk.periodMonths]) {
+              newPeriodAggregates[perk.periodMonths] = { redeemedValue: 0, possibleValue: 0, redeemedCount: 0, totalCount: 0 };
+            }
+
             let isRedeemedThisCycle = false;
             const latestRedemption = latestRedemptionsMap.get(perk.definition_id);
 
@@ -166,23 +152,17 @@ export function usePerkStatus(
 
             if (isRedeemedThisCycle) {
               newCumulative[cardData.card.id] = (newCumulative[cardData.card.id] || 0) + perk.value;
-              if (perk.periodMonths === 1) {
-                newMonthlyRedeemedValue += perk.value;
-              } else {
-                newYearlyRedeemedValue += perk.value; // Value of non-monthly perks currently active
-              }
+              newPeriodAggregates[perk.periodMonths].redeemedValue += perk.value;
+              newPeriodAggregates[perk.periodMonths].redeemedCount++;
             }
             
-            // Update perk status directly on the cloned perk object
             return { ...perk, status: (isRedeemedThisCycle ? 'redeemed' : 'available') as 'redeemed' | 'available' };
           });
           
-          // Calculate possible values once across all cards
           cardData.perks.forEach(p => {
-            if (p.periodMonths === 1) {
-              newMonthlyPossibleValue += p.value;
-            } else {
-              newYearlyPossibleValue += p.value;
+            if (p.periodMonths && newPeriodAggregates[p.periodMonths]) { // Check again for safety
+              newPeriodAggregates[p.periodMonths].possibleValue += p.value;
+              newPeriodAggregates[p.periodMonths].totalCount++;
             }
           });
           
@@ -192,19 +172,13 @@ export function usePerkStatus(
         setProcessedCardsWithPerks(processedCards);
         setRedeemedInCurrentCycle(newRedeemedInCycle);
         setCumulativeValueSavedPerCard(newCumulative);
-        setMonthlyCreditsRedeemed(newMonthlyRedeemedValue);
-        setMonthlyCreditsPossible(newMonthlyPossibleValue); // Total possible, not average
-        setYearlyCreditsRedeemed(newYearlyRedeemedValue);
-        setYearlyCreditsPossible(newYearlyPossibleValue); // Total possible, not average
+        setPeriodAggregates(newPeriodAggregates); // Set the new aggregates
 
         console.log('Final Processed Data for UI:', {
           processedCardsPerks: processedCards.map(c => ({ card: c.card.id, perks: c.perks.map(p => ({id: p.id, status: p.status})) })),
           redeemedInCycle: newRedeemedInCycle,
           cumulative: newCumulative,
-          monthlyRedeemed: newMonthlyRedeemedValue,
-          monthlyPossible: newMonthlyPossibleValue, 
-          yearlyRedeemed: newYearlyRedeemedValue,
-          yearlyPossible: newYearlyPossibleValue,
+          periodAggregates: newPeriodAggregates,
         });
 
       } catch (error) {
@@ -217,160 +191,129 @@ export function usePerkStatus(
 
     if (user && initialUserCardsWithPerks.length > 0 && perkDefinitions.length > 0) {
       calculateSavings();
-    } else if (!arePerkDefinitionsLoading) { // Only set loading to false if defs are not loading
+    } else if (!arePerkDefinitionsLoading) {
       setIsLoadingHook(false);
-      setProcessedCardsWithPerks(initialUserCardsWithPerks); // Update to show cards
+      setProcessedCardsWithPerks(initialUserCardsWithPerks);
     }
-    // Dependencies: user, initialUserCardsWithPerks, perkDefinitions, arePerkDefinitionsLoading
   }, [user, initialUserCardsWithPerks, perkDefinitions, arePerkDefinitionsLoading]);
 
   const setPerkStatus = useCallback((cardId: string, perkId: string, newStatus: 'redeemed' | 'available') => {
     console.log('========= [usePerkStatus] setPerkStatus called =========');
     console.log('Input parameters:', { cardId, perkId, newStatus });
 
+    let perkValue = 0;
+    let periodMonths = 0;
+    let definitionId = '';
+    let originalStatusIsRedeemed = false;
+
     setProcessedCardsWithPerks(prevUserCards =>
       prevUserCards.map(cardData => {
         if (cardData.card.id === cardId) {
-          let perkValue = 0;
-          let periodMonths = 0;
           const updatedPerks = cardData.perks.map(p => {
             if (p.id === perkId) {
               perkValue = p.value;
-              periodMonths = p.periodMonths;
+              periodMonths = p.periodMonths || 1; // Default to 1 if undefined, though it should be defined
+              definitionId = p.definition_id;
+              originalStatusIsRedeemed = p.status === 'redeemed';
               console.log('Found perk for status change:', { 
-                perkName: p.name, 
-                currentStatus: p.status, 
-                newStatusRequested: newStatus, 
-                value: perkValue,
-                definition_id: p.definition_id,
-                isMonthly: periodMonths === 1
+                perkName: p.name, currentStatus: p.status, newStatusRequested: newStatus, value: perkValue, definition_id: definitionId, periodMonths 
               });
               return { ...p, status: newStatus };
             }
             return p;
           });
-
-          setRedeemedInCurrentCycle(prev => {
-            const currentRedeemedState = { ...prev };
-            console.log('Current redeemedInCurrentCycle state:', currentRedeemedState);
-            const isCurrentlyRedeemed = prev[perkId] === true;
-            let shouldAddToRedeemed = false;
-            let shouldRemoveFromRedeemed = false;
-
-            if (newStatus === 'redeemed' && !isCurrentlyRedeemed) {
-              shouldAddToRedeemed = true;
-            } else if (newStatus === 'available' && isCurrentlyRedeemed) {
-              shouldRemoveFromRedeemed = true;
-            }
-            
-            console.log('Status change analysis:', {
-              perkId,
-              isCurrentlyRedeemed,
-              newStatus,
-              shouldAddToRedeemed,
-              shouldRemoveFromRedeemed
-            });
-
-            if (shouldAddToRedeemed) {
-              currentRedeemedState[perkId] = true;
-              setCumulativeValueSavedPerCard(curr => ({
-                ...curr,
-                [cardId]: (curr[cardId] || 0) + perkValue,
-              }));
-              if (periodMonths === 1) {
-                setMonthlyCreditsRedeemed(prevM => {
-                  console.log('[usePerkStatus] Updating monthly credits:', prevM, '+', perkValue, '=', prevM + perkValue);
-                  return prevM + perkValue;
-                });
-              } else {
-                setYearlyCreditsRedeemed(prevY => {
-                  console.log('[usePerkStatus] Updating yearly credits:', prevY, '+', perkValue, '=', prevY + perkValue);
-                  return prevY + perkValue;
-                });
-              }
-              console.log(`[usePerkStatus] Marked ${perkId} as redeemed, added $${perkValue}`);
-            } else if (shouldRemoveFromRedeemed) {
-              currentRedeemedState[perkId] = false;
-              setCumulativeValueSavedPerCard(curr => ({
-                ...curr,
-                [cardId]: Math.max(0, (curr[cardId] || 0) - perkValue),
-              }));
-              if (periodMonths === 1) {
-                setMonthlyCreditsRedeemed(prevM => {
-                  console.log('[usePerkStatus] Updating monthly credits:', prevM, '-', perkValue, '=', Math.max(0, prevM - perkValue));
-                  return Math.max(0, prevM - perkValue);
-                });
-              } else {
-                setYearlyCreditsRedeemed(prevY => {
-                  console.log('[usePerkStatus] Updating yearly credits:', prevY, '-', perkValue, '=', Math.max(0, prevY - perkValue));
-                  return Math.max(0, prevY - perkValue);
-                });
-              }
-              console.log(`[usePerkStatus] Marked ${perkId} as available, subtracted $${perkValue}`);
-            }
-            console.log('New redeemedInCurrentCycle state:', currentRedeemedState);
-            return currentRedeemedState;
-          });
-          // Ensure cumulative savings are also updated correctly when changing status
-          setCumulativeValueSavedPerCard(prevCumulative => {
-            const currentCardSavings = prevCumulative[cardId] || 0;
-            let newCardSavings = currentCardSavings;
-            if (newStatus === 'redeemed' && !prevCumulative[perkId]) { // Check against a hypothetical prevCumulative[perkId] if that's how you track individual perk redemption for cumulative
-               // This part of cumulative logic might need adjustment based on how it's meant to work with redeemedInCurrentCycle
-            } else if (newStatus === 'available' && prevCumulative[perkId]) {
-              // Similar adjustment here
-            }
-            // Fallback: recalculate from scratch or use the logic within setRedeemedInCurrentCycle for cumulative
-            console.log(`[usePerkStatus] Updated cumulative savings for ${cardId}:`, prevCumulative[cardId]);
-            return { ...prevCumulative }; // This might need direct update like above
-          });
-
-
           return { ...cardData, perks: updatedPerks };
         }
         return cardData;
       })
     );
+
+    // Optimistic update for redeemedInCurrentCycle
+    setRedeemedInCurrentCycle(prev => ({ ...prev, [perkId]: newStatus === 'redeemed' }));
+
+    // Optimistic update for cumulativeValueSavedPerCard
+    setCumulativeValueSavedPerCard(prevCumulative => {
+      const newCumulative = { ...prevCumulative };
+      const currentCardValue = newCumulative[cardId] || 0;
+      if (newStatus === 'redeemed' && !originalStatusIsRedeemed) {
+        newCumulative[cardId] = currentCardValue + perkValue;
+      } else if (newStatus === 'available' && originalStatusIsRedeemed) {
+        newCumulative[cardId] = Math.max(0, currentCardValue - perkValue);
+      }
+      return newCumulative;
+    });
+
+    // Optimistic update for periodAggregates
+    if (periodMonths > 0) { // Ensure periodMonths is valid
+      setPeriodAggregates(prevAggregates => {
+        const newAggregates = JSON.parse(JSON.stringify(prevAggregates)); // Deep copy
+        if (!newAggregates[periodMonths]) {
+          newAggregates[periodMonths] = { redeemedValue: 0, possibleValue: 0, redeemedCount: 0, totalCount: 0 };
+        }
+        const aggregate = newAggregates[periodMonths];
+
+        if (newStatus === 'redeemed' && !originalStatusIsRedeemed) {
+          aggregate.redeemedValue += perkValue;
+          aggregate.redeemedCount++;
+        } else if (newStatus === 'available' && originalStatusIsRedeemed) {
+          aggregate.redeemedValue = Math.max(0, aggregate.redeemedValue - perkValue);
+          aggregate.redeemedCount = Math.max(0, aggregate.redeemedCount - 1);
+        }
+        console.log(`[usePerkStatus] Optimistic update for period ${periodMonths}:`, aggregate);
+        return newAggregates;
+      });
+    }
+
+    // Log analysis of the status change
+    const shouldAddToRedeemed = newStatus === 'redeemed' && !originalStatusIsRedeemed;
+    const shouldRemoveFromRedeemed = newStatus === 'available' && originalStatusIsRedeemed;
+    console.log('Status change analysis:', { 
+      perkId, 
+      newStatus, 
+      isCurrentlyRedeemed: originalStatusIsRedeemed, 
+      shouldAddToRedeemed, 
+      shouldRemoveFromRedeemed 
+    });
+
+    if (shouldAddToRedeemed) {
+      console.log(`[usePerkStatus] Marked ${perkId} as redeemed, added $${perkValue}`);
+    } else if (shouldRemoveFromRedeemed) {
+      console.log(`[usePerkStatus] Marked ${perkId} as available, removed $${perkValue}`);
+    }
+
+    console.log('New redeemedInCurrentCycle state:', redeemedInCurrentCycle); // This will log the state before this update cycle finishes
     console.log('========= [usePerkStatus] setPerkStatus complete =========');
-    // Call refreshSavings directly IF you want an immediate DB re-fetch after optimistic update.
-    // However, the DB call usually happens in the calling component (e.g., ExpandableCard) after its own DB operation.
-    // For now, this function primarily handles the optimistic UI update.
-    // refreshSavings(); // Consider if this is needed here or should remain in the component triggering the DB write.
-  }, [setProcessedCardsWithPerks, setRedeemedInCurrentCycle, setCumulativeValueSavedPerCard, setMonthlyCreditsRedeemed, setYearlyCreditsRedeemed]);
-  
-  // Refresh function to re-trigger the main effect
+  }, []); // Removed dependencies to avoid stale closures; values are derived within the function
+
   const refreshSavings = useCallback(() => {
-    console.log('refreshSavings called in usePerkStatus');
-    // This will re-trigger the main useEffect if initialUserCardsWithPerks or perkDefinitions change.
-    // If you need to force a re-fetch without those changing, you might need a dedicated refresh trigger state.
-    // For now, we assume the main dependencies will cover refreshes from parent components.
-    // To force re-calculation, you'd typically ensure `initialUserCardsWithPerks` is a new reference from the parent.
-    // Or, add a new state like `refreshKey` and increment it here.
-    // Forcing calculateSavings directly:
-    // calculateSavings(); // This bypasses dependency checks, use with caution.
-    // The most React-idiomatic way is to have the parent component (useUserCards) provide a fresh `initialUserCardsWithPerks` array.
-  }, [/* calculateSavings (if stable) or its dependencies if you were to call it directly */]);
+    console.log('========= [usePerkStatus] refreshSavings called =========');
+    // This will re-trigger the useEffect that calls calculateSavings
+    // by changing the reference of initialUserCardsWithPerks, or by adding a new trigger state.
+    // For simplicity, we can rely on the parent component re-providing initialUserCardsWithPerks if it changes,
+    // or we can add a manual trigger.
+    // For now, let's assume calculateSavings will be re-run by its existing dependencies.
+    // Or, more directly, force a re-calculation by briefly setting loading states.
+    setIsLoadingHook(true); // This will trigger the useEffect to recalculate if other conditions are met
+    // The useEffect will then call calculateSavings which sets isLoadingHook back to false.
+  }, []);
 
   const processNewMonth = useCallback((forcedDate?: Date) => {
     const now = forcedDate || new Date();
-    const newCycleId = `${now.getFullYear()}-${now.getMonth()}`;
-    if (newCycleId !== currentCycleIdentifier) {
-      console.log('[usePerkStatus] New month detected or forced. Processing...', { oldCycle: currentCycleIdentifier, newCycle: newCycleId });
-      setCurrentCycleIdentifier(newCycleId);
-      // Potentially reset monthly specific states here if needed, 
-      // but calculateSavings should correctly rebuild them based on new dates.
-      refreshSavings(); // This will trigger re-calculation if its dependencies make it do so.
+    const newIdentifier = `${now.getFullYear()}-${now.getMonth()}`;
+    if (newIdentifier !== currentCycleIdentifier) {
+      console.log(`New month detected: ${newIdentifier}. Resetting monthly perks and showing celebration.`);
+      setCurrentCycleIdentifier(newIdentifier);
+      setShowCelebration(true);
+      // Re-calculate savings which will naturally reset statuses for the new month based on DB
+      refreshSavings(); 
     }
-  }, [currentCycleIdentifier, refreshSavings, setCurrentCycleIdentifier]);
+  }, [currentCycleIdentifier, refreshSavings]);
 
   return {
-    isLoading: isLoadingHook || arePerkDefinitionsLoading,
+    isLoading: isLoadingHook,
     arePerkDefinitionsLoading,
     perkDefinitions,
-    monthlyCreditsRedeemed,
-    monthlyCreditsPossible,
-    yearlyCreditsRedeemed,
-    yearlyCreditsPossible,
+    periodAggregates, // Return the new aggregates
     cumulativeValueSavedPerCard,
     userCardsWithPerks: processedCardsWithPerks,
     setPerkStatus,
