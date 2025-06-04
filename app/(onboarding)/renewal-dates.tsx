@@ -17,8 +17,11 @@ import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import LottieView from 'lottie-react-native';
+import { MotiView } from 'moti';
 
 const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90;
+const CARD_ANIMATION_DELAY = 60;
 
 // Helper to format date as MM/DD/YYYY or return placeholder
 const formatDate = (date: Date | null) => {
@@ -31,7 +34,7 @@ const formatDate = (date: Date | null) => {
 
 interface RenewalDateInfo {
   date: Date | null;
-  // status is no longer needed as per new logic
+  skipped: boolean;
 }
 
 export default function OnboardingRenewalDatesScreen() {
@@ -48,12 +51,14 @@ export default function OnboardingRenewalDatesScreen() {
     if (params.selectedCardIds) {
       try {
         const ids: string[] = JSON.parse(params.selectedCardIds);
-        const filteredCards = allCards.filter(card => ids.includes(card.id));
+        const filteredCards = allCards
+          .filter(card => ids.includes(card.id))
+          .sort((a, b) => a.name.localeCompare(b.name));
         setSelectedCards(filteredCards);
         
         const initialRenewalDates = new Map<string, RenewalDateInfo>();
         filteredCards.forEach(card => {
-          initialRenewalDates.set(card.id, { date: null }); // Simplified
+          initialRenewalDates.set(card.id, { date: null, skipped: false });
         });
         setRenewalDates(initialRenewalDates);
       } catch (e) {
@@ -76,32 +81,57 @@ export default function OnboardingRenewalDatesScreen() {
   const handleConfirmDate = (date: Date) => {
     if (currentCardIdForPicker) {
       const newDates = new Map(renewalDates);
-      newDates.set(currentCardIdForPicker, { date: date });
+      newDates.set(currentCardIdForPicker, { date: date, skipped: false });
       setRenewalDates(newDates);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     hideDatePicker();
   };
+
+  const handleSkipCard = (cardId: string) => {
+    const newDates = new Map(renewalDates);
+    newDates.set(cardId, { date: null, skipped: true });
+    setRenewalDates(newDates);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
   
   const handleNext = () => {
+    let datesActuallySetCount = 0;
     const renewalDataForNextScreen: Record<string, string | null> = {};
-    selectedCards.forEach(card => { // Iterate over selectedCards to ensure all are included
+    
+    selectedCards.forEach(card => {
       const cardId = card.id;
       const info = renewalDates.get(cardId);
-      if (info && info.date) {
+      if (info && info.date && !info.skipped) {
         renewalDataForNextScreen[cardId] = info.date.toISOString();
+        datesActuallySetCount++;
       } else {
         renewalDataForNextScreen[cardId] = null;
       }
     });
 
-    router.push({
-      pathname: '/(onboarding)/notification-prefs',
-      params: { 
-        selectedCardIds: params.selectedCardIds,
-        renewalDates: JSON.stringify(renewalDataForNextScreen) 
-      },
-    });
+    const navigateToNextScreen = () => {
+      router.push({
+        pathname: '/(onboarding)/notification-prefs',
+        params: { 
+          selectedCardIds: params.selectedCardIds,
+          renewalDates: JSON.stringify(renewalDataForNextScreen) 
+        },
+      });
+    };
+
+    if (datesActuallySetCount === 0 && selectedCards.length > 0) { // Only show if cards were present but no dates set
+      Alert.alert(
+        "No Renewal Dates Set",
+        "No renewal dates yet – we'll remind you after you add them in Settings.",
+        [
+          { text: "OK", onPress: navigateToNextScreen } // Proceed after dismissal
+        ],
+        { cancelable: false } // User must tap OK
+      );
+    } else {
+      navigateToNextScreen(); // Proceed directly if dates were set or no cards
+    }
   };
 
   const getCardNetworkColor = (card: Card) => {
@@ -134,8 +164,8 @@ export default function OnboardingRenewalDatesScreen() {
         mode="date"
         onConfirm={handleConfirmDate}
         onCancel={hideDatePicker}
-        date={currentCardIdForPicker ? renewalDates.get(currentCardIdForPicker)?.date || new Date() : new Date()} // Set initial date for picker
-        maximumDate={new Date()} // Optional: users typically set past/current renewal dates
+        date={currentCardIdForPicker ? renewalDates.get(currentCardIdForPicker)?.date || new Date() : new Date()}
+        maximumDate={new Date()}
       />
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -144,12 +174,22 @@ export default function OnboardingRenewalDatesScreen() {
           <Text style={styles.subtitle}>Choose your billing anniversary for each card. You can update these anytime in card settings.</Text>
         </View>
 
-        {selectedCards.map((card) => {
+        {selectedCards.map((card, index) => {
           const cardInfo = renewalDates.get(card.id);
           const networkColor = getCardNetworkColor(card);
 
           return (
-            <View key={card.id} style={styles.cardEntryRow}>
+            <MotiView
+              key={card.id}
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{
+                type: 'timing',
+                duration: 300,
+                delay: index * CARD_ANIMATION_DELAY,
+              }}
+              style={styles.cardEntryRow}
+            >
               <View style={[styles.cardImageWrapper, { backgroundColor: networkColor }]}>
                  <Image source={card.image} style={styles.cardImage} />
               </View>
@@ -158,25 +198,47 @@ export default function OnboardingRenewalDatesScreen() {
                 <TouchableOpacity 
                   style={styles.dateDisplayButton} 
                   onPress={() => showDatePicker(card.id)}
-                  // No longer disabled based on status, always pressable
+                  activeOpacity={0.7}
                 >
-                  <Text style={[styles.dateText, cardInfo?.date && styles.dateTextSet]}>
-                    {cardInfo?.date ? formatDate(cardInfo.date) : 'MM/DD/YYYY'}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.light.tint} />
+                  {cardInfo?.date && !cardInfo.skipped ? (
+                    <>
+                      <Text style={[styles.dateText, styles.dateTextSet]}>{formatDate(cardInfo.date)}</Text>
+                      <LottieView 
+                        source={require('../../assets/animations/checkmark.json')} 
+                        autoPlay 
+                        loop={false} 
+                        style={styles.lottieCheckmark} 
+                        speed={1.5}
+                      />
+                    </>
+                  ) : cardInfo?.skipped ? (
+                    <>
+                      <Text style={[styles.dateText, styles.dateSkippedText]}>Date Skipped</Text>
+                      <Ionicons name="create-outline" size={20} color={Colors.light.icon} style={styles.editIcon} />
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.dateTextPlaceholder}>MM/DD/YYYY</Text>
+                      <TouchableOpacity 
+                        onPress={(e) => { e.stopPropagation(); handleSkipCard(card.id); }} 
+                        style={styles.skipButton}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Text style={styles.skipButtonText}>Skip</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </TouchableOpacity>
-                {/* "Ask me later" and "skippedText" removed */}
               </View>
-            </View>
+            </MotiView>
           );
         })}
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={styles.nextButton} // nextButtonDisabled style removed
+          style={styles.nextButton}
           onPress={handleNext}
-          // disabled prop removed
         >
           <Text style={styles.nextButtonText}>Next: Set Notifications ›</Text>
         </TouchableOpacity>
@@ -249,7 +311,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 8, // Reduced slightly as "ask me later" is gone
+    marginBottom: 8,
   },
   dateDisplayButton: {
     flexDirection: 'row',
@@ -261,12 +323,39 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    minHeight: 44,
   },
   dateText: {
     fontSize: 16,
     color: Colors.light.text,
   },
+  dateTextPlaceholder: {
+    fontSize: 16,
+    color: Colors.light.icon,
+  },
   dateTextSet: {
+    color: Colors.light.tint,
+    fontWeight: '500',
+  },
+  dateSkippedText: {
+    fontSize: 16,
+    color: Colors.light.icon,
+    fontStyle: 'italic',
+  },
+  lottieCheckmark: {
+    width: 24,
+    height: 24,
+    marginLeft: 8,
+  },
+  editIcon: {
+    marginLeft: 8,
+  },
+  skipButton: {
+    paddingHorizontal: 8, 
+    paddingVertical: 4,
+  },
+  skipButtonText: {
+    fontSize: 15,
     color: Colors.light.tint,
     fontWeight: '500',
   },
@@ -279,8 +368,13 @@ const styles = StyleSheet.create({
   nextButton: {
     backgroundColor: Colors.light.tint,
     paddingVertical: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: {width:0, height:2},
+    elevation: 4,
   },
   nextButtonText: {
     color: '#ffffff',

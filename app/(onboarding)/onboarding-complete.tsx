@@ -10,18 +10,20 @@ import {
   Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import { Colors } from '../../constants/Colors';
+import * as Haptics from 'expo-haptics';
 
 const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Updated Offset for transparent header
 
 export default function OnboardingCompleteScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const lottieRef = useRef<LottieView>(null);
   const confettiOpacityAnim = useRef(new Animated.Value(1)).current;
   const summaryOpacityAnim = useRef(new Animated.Value(0)).current;
-  const buttonScaleAnim = useRef(new Animated.Value(0.8)).current;
+  const buttonScaleAnim = useRef(new Animated.Value(0.8)).current; // Initial scale for spring-in
 
   useEffect(() => {
     // Initial Lottie play
@@ -47,31 +49,40 @@ export default function OnboardingCompleteScreen() {
       }).start();
     }, 900); // After confetti burst (700ms) + slight delay
 
-    // Button bounce in
+    // Button spring-in animation
     Animated.spring(buttonScaleAnim, {
-      toValue: 1,
+      toValue: 1, // Spring to final resting scale of 1
       friction: 5,
       tension: 140,
       useNativeDriver: true,
     }).start();
 
-    // Optional button pulsation
-    const pulsationTimer = setTimeout(() => {
+    // New button pulse animation after 1.5 seconds
+    const pulseTimer = setTimeout(() => {
       Animated.sequence([
-        Animated.timing(buttonScaleAnim, { toValue: 1.02, duration: 50, useNativeDriver: true, easing: Easing.ease }),
-        Animated.timing(buttonScaleAnim, { toValue: 1, duration: 50, useNativeDriver: true, easing: Easing.ease }),
+        Animated.timing(buttonScaleAnim, { toValue: 1.03, duration: 150, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(buttonScaleAnim, { toValue: 1, duration: 200, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
       ]).start();
-    }, 1000 + 250); // 1 second after landing + initial bounce duration
+    }, 1500); // Start pulse 1.5 seconds after component mounts
+
+    // Hide header elements after 1 second
+    const hideHeaderTimer = setTimeout(() => {
+      navigation.setOptions({
+        headerTitle: () => null, // Hide step/dots
+        headerLeft: () => null,   // Hide back arrow
+      });
+    }, 1000); // 1 second delay
 
     return () => {
       clearTimeout(lottieFadeOutTimer);
       clearTimeout(summaryFadeInTimer);
-      clearTimeout(pulsationTimer);
+      clearTimeout(pulseTimer); // Clear the new pulse timer
+      clearTimeout(hideHeaderTimer); // Clear the header hide timer
     };
-  }, [confettiOpacityAnim, summaryOpacityAnim, buttonScaleAnim]);
+  }, [confettiOpacityAnim, summaryOpacityAnim, buttonScaleAnim, navigation]);
 
   const handleGoToDashboard = () => {
-    // Replace the entire stack with the dashboard to prevent going back to onboarding
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.replace('/(tabs)/01-dashboard');
   };
 
@@ -200,9 +211,14 @@ const styles = StyleSheet.create({
   },
   dashboardButton: {
     backgroundColor: Colors.light.tint,
-    paddingVertical: 16,
+    paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: {width:0, height:2},
+    elevation: 4,
   },
   dashboardButtonText: {
     color: '#ffffff',

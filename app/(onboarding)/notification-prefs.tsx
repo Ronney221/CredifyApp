@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ interface NotificationSettingItemProps { // Renamed from MiniCardProps for clari
   toggles?: ToggleProps[];
   index?: number;
   isLastItem?: boolean; // Added to conditionally add bottom margin
+  dimmed?: boolean; // Added for dynamic description
 }
 
 // Renamed from MiniCard to NotificationSettingItem for clarity in new context
@@ -45,6 +46,7 @@ const NotificationSettingItem: React.FC<NotificationSettingItemProps> = ({
   toggles,
   index = 0,
   isLastItem = false,
+  dimmed = false, // Added for dynamic description
 }) => {
   return (
     <MotiView
@@ -55,30 +57,35 @@ const NotificationSettingItem: React.FC<NotificationSettingItemProps> = ({
         duration: 250,
         delay: 150 + (index * 100),
       }}
-      style={[styles.notificationItemContainer, isLastItem && { borderBottomWidth: 0 }]}
+      style={[
+        styles.notificationItemContainer, 
+        isLastItem && { borderBottomWidth: 0 },
+        dimmed && styles.dimmedItem, // Apply dimming style
+      ]}
     >
       <View style={styles.notificationItemHeader}>
-        <Ionicons name={iconName} size={22} color={iconColor} style={styles.notificationItemIcon} />
-        <Text style={styles.notificationItemTitle}>{title}</Text>
+        <Ionicons name={iconName} size={22} color={dimmed ? Colors.light.icon : iconColor} style={styles.notificationItemIcon} />
+        <Text style={[styles.notificationItemTitle, dimmed && styles.dimmedText]}>{title}</Text>
       </View>
       {details && details.length > 0 && (
         <View style={styles.notificationItemBody}>
           {details.map((detail, idx) => (
-            <Text key={idx} style={styles.notificationItemDetailText}>• {detail}</Text>
+            <Text key={idx} style={[styles.notificationItemDetailText, dimmed && styles.dimmedText]}>• {detail}</Text>
           ))}
         </View>
       )}
       {toggles && toggles.length > 0 && (
-        <View style={styles.togglesContainer}>
+        <View style={[styles.togglesContainer, dimmed && styles.dimmedItemChildren]}> 
           {toggles.map((toggle, idx) => (
             <View key={idx} style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>{toggle.label}</Text>
+              <Text style={[styles.toggleLabel, dimmed && styles.dimmedText]}>{toggle.label}</Text>
               <Switch
-                trackColor={{ false: "#767577", true: Colors.light.tint }}
+                trackColor={{ false: "#767577", true: dimmed ? Colors.light.icon : Colors.light.tint }}
                 thumbColor={toggle.value ? "#ffffff" : "#f4f3f4"}
                 ios_backgroundColor="#3e3e3e"
                 onValueChange={toggle.onValueChange}
                 value={toggle.value}
+                disabled={dimmed} // Disable switch if section is dimmed
               />
             </View>
           ))}
@@ -128,6 +135,11 @@ export default function OnboardingNotificationPrefsScreen() {
     }
   }, [params.selectedCardIds, params.renewalDates]);
 
+  // Derived state to check if any card actually has a renewal date set
+  const anyRenewalDateActuallySet = useMemo(() => {
+    return Object.values(parsedRenewalDates).some(date => date !== null);
+  }, [parsedRenewalDates]);
+
   const handleNext = async () => {
     const monthlyPerkExpiryReminderDays: number[] = [];
     if (remind1DayBefore) monthlyPerkExpiryReminderDays.push(1);
@@ -136,7 +148,7 @@ export default function OnboardingNotificationPrefsScreen() {
 
     const notificationPreferences = {
       perkExpiryRemindersEnabled: monthlyPerkExpiryReminderDays.length > 0,
-      renewalRemindersEnabled: Object.values(parsedRenewalDates).some(date => date !== null), // True if any card has a renewal date
+      renewalRemindersEnabled: anyRenewalDateActuallySet, 
       perkResetConfirmationEnabled: true, 
       monthlyPerkExpiryReminderDays,
       remind1DayBeforeMonthly: remind1DayBefore,
@@ -165,20 +177,33 @@ export default function OnboardingNotificationPrefsScreen() {
     { label: "7 days before", value: remind7DaysBefore, onValueChange: setRemind7DaysBefore },
   ];
 
-  const baseNotificationItems = [
-    { iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, title: "Perk Expiry Reminders", toggles: perkExpiryToggles, iconColor: "#FF9500" },
-    { iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, title: "Monthly Reset Alerts", details: ["1st of every month"], iconColor: "#007AFF" },
-  ];
+  const showCardRenewalSection = selectedCardIds.length > 0; // Show if any cards were selected at all
 
-  const showCardRenewalReminder = Object.values(parsedRenewalDates).some(date => date !== null);
+  const allNotificationItems = useMemo(() => {
+    const baseItems = [
+      { iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, title: "Perk Expiry Reminders", toggles: perkExpiryToggles, iconColor: "#FF9500" },
+      { iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, title: "Monthly Reset Alerts", details: ["1st of every month"], iconColor: "#007AFF" },
+    ];
 
-  const allNotificationItems = showCardRenewalReminder
-    ? [
-        ...baseNotificationItems.slice(0, 1), // Perk Expiry
-        { iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap, title: "Card Renewal Reminder", details: ["For cards with set anniversary dates"], iconColor: "#34C759" },
-        ...baseNotificationItems.slice(1), // Monthly Reset
-      ]
-    : baseNotificationItems;
+    if (showCardRenewalSection) {
+      const renewalItem = {
+        iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap,
+        title: "Card Renewal Reminder",
+        details: anyRenewalDateActuallySet 
+          ? ["For cards with set anniversary dates"] 
+          : ["Set a card's renewal date to enable this reminder."],
+        iconColor: anyRenewalDateActuallySet ? "#34C759" : Colors.light.icon, // Dim icon if not enabled
+        dimmed: !anyRenewalDateActuallySet, // Pass dimmed prop
+      };
+      // Insert renewal item before Monthly Reset Alerts
+      return [
+        baseItems[0], // Perk Expiry
+        renewalItem,  // Card Renewal
+        baseItems[1], // Monthly Reset
+      ];
+    }
+    return baseItems;
+  }, [anyRenewalDateActuallySet, perkExpiryToggles, showCardRenewalSection]);
   
   // Animation timings
   const contentSlideInDelay = 200;
@@ -280,12 +305,22 @@ const styles = StyleSheet.create({
     marginTop: 0, // No extra margin as it's part of the card flow
   },
   notificationItemContainer: {
-    backgroundColor: 'transparent', // No separate background for the item itself
-    borderRadius: 0, // No border radius for the item itself
-    paddingVertical: 12, // Vertical padding for each item
-    paddingHorizontal: 0, // Horizontal padding handled by mainCardContainer
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EDEDED',
+  },
+  dimmedItem: { 
+    // Marker style, specific dimming applied to children elements or via props directly.
+  },
+  dimmedItemChildren: { 
+    opacity: 0.5, // Dim the container of toggles/other interactive children
+  },
+  dimmedText: { 
+    color: Colors.light.icon, 
+    opacity: 0.7,
   },
   notificationItemHeader: {
     flexDirection: 'row',
@@ -337,13 +372,13 @@ const styles = StyleSheet.create({
   nextButton: {
     backgroundColor: Colors.light.tint,
     paddingVertical: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000', // Added shadow (G)
+    shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: {width:0, height:2},
-    elevation: 4, // for Android shadow
+    elevation: 4,
   },
   nextButtonText: {
     color: '#ffffff',

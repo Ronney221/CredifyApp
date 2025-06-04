@@ -15,8 +15,9 @@ const onboardingSteps = [
 
 const ACTIVE_DOT_BASE_SIZE = 8;
 const PASSIVE_DOT_SIZE = 8;
-const ACTIVE_DOT_POP_WIDTH = 12;
-const ANIMATION_DURATION = 150;
+const ACTIVE_DOT_POP_SCALE_FACTOR = 1.2;
+const ACTIVE_DOT_POP_WIDTH = ACTIVE_DOT_BASE_SIZE * ACTIVE_DOT_POP_SCALE_FACTOR;
+const ANIMATION_DURATION = 200;
 const HEADER_BACK_BUTTON_WIDTH_APPROX = 30; // Approximate width for balance
 
 function OnboardingHeaderTitle() {
