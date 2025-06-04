@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { Card, allCards } from '../../src/data/card-data';
 import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,6 +48,7 @@ export default function Cards() {
   const [currentEditingCardId, setCurrentEditingCardId] = useState<string | null>(null);
   const [showFloatingAdd, setShowFloatingAdd] = useState(true);
   const [scrollY, setScrollY] = useState(0);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const {
     selectedCards,
@@ -66,6 +66,8 @@ export default function Cards() {
     hasChanges,
     selectedCardObjects,
     anyRenewalDateSet,
+    initialSelectedCards,
+    initialRenewalDates,
     handleRemoveCard,
     handleUndoDelete,
     handleDiscardChanges,
@@ -86,6 +88,49 @@ export default function Cards() {
     
     return allCardsHaveRenewalDates && allNotificationsEnabled && selectedCards.length >= 2;
   }, [selectedCards, renewalDates, notificationPreferences]);
+
+  // Check if there are changes other than deleted card
+  const hasOtherChanges = useMemo(() => {
+    if (!deletedCard) return hasChanges;
+    
+    // Temporarily restore deleted card to check if there would still be changes
+    const cardsWithDeletedRestored = [...selectedCards, deletedCard.card.id];
+    const datesWithDeletedRestored = { ...renewalDates };
+    if (deletedCard.renewalDate) {
+      datesWithDeletedRestored[deletedCard.card.id] = deletedCard.renewalDate;
+    }
+    
+    const selectedCardsSorted = [...cardsWithDeletedRestored].sort();
+    const initialSelectedCardsSorted = [...initialSelectedCards].sort();
+    const selectedCardsChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
+    
+    const currentSelectedRenewalDates = Object.fromEntries(
+      Object.entries(datesWithDeletedRestored).filter(([cardId]) => cardsWithDeletedRestored.includes(cardId))
+    );
+    const initialSelectedRenewalDates = Object.fromEntries(
+      Object.entries(initialRenewalDates).filter(([cardId]) => initialSelectedCards.includes(cardId))
+    );
+    const renewalDatesChanged = JSON.stringify(currentSelectedRenewalDates) !== JSON.stringify(initialSelectedRenewalDates);
+    
+    return selectedCardsChanged || renewalDatesChanged;
+  }, [selectedCards, renewalDates, initialSelectedCards, initialRenewalDates, deletedCard, hasChanges]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Debug - hasChanges:', hasChanges);
+    console.log('Debug - isEditMode:', isEditMode);
+    console.log('Debug - selectedCards.length:', selectedCards.length);
+    console.log('Debug - initialSelectedCards.length:', initialSelectedCards.length);
+    console.log('Debug - deletedCard:', deletedCard?.card.name || 'null');
+    console.log('Debug - modal should show:', hasChanges && !isEditMode);
+  }, [hasChanges, isEditMode, selectedCards.length, initialSelectedCards.length, deletedCard]);
+
+  // Auto-exit edit mode when no cards remain
+  useEffect(() => {
+    if (isEditMode && selectedCards.length === 0) {
+      setIsEditMode(false);
+    }
+  }, [isEditMode, selectedCards.length]);
 
   const handleShareSavings = () => {
     // Estimate savings based on number of cards (simplified)
@@ -211,15 +256,22 @@ export default function Cards() {
 
   const handleScroll = (event: any) => {
     const currentScrollY = event.nativeEvent.contentOffset.y;
+    const contentHeight = event.nativeEvent.contentSize.height;
+    const layoutHeight = event.nativeEvent.layoutMeasurement.height;
     const scrollDirection = currentScrollY > scrollY ? 'down' : 'up';
     
     setScrollY(currentScrollY);
     
     // Hide floating add button when scrolling down, show when scrolling up
+    // Also hide when near the bottom of the page
+    const isNearBottom = currentScrollY + layoutHeight >= contentHeight - 50;
+    
     if (scrollDirection === 'down' && currentScrollY > 100) {
       setShowFloatingAdd(false);
-    } else if (scrollDirection === 'up' || currentScrollY < 50) {
+    } else if ((scrollDirection === 'up' || currentScrollY < 50) && !isNearBottom) {
       setShowFloatingAdd(true);
+    } else if (isNearBottom) {
+      setShowFloatingAdd(false);
     }
   };
 
@@ -269,33 +321,58 @@ export default function Cards() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Your Cards</Text>
+              {selectedCards.length > 0 && (
+                <TouchableOpacity 
+                  onPress={() => setIsEditMode(!isEditMode)} 
+                  style={styles.editButton}
+                >
+                  <Text style={styles.editButtonText}>
+                    {isEditMode ? 'Done' : 'Edit'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            <DraggableFlatList
-              data={selectedCardObjects}
-              renderItem={({ item: card, drag }: RenderItemParams<Card>) => (
-                <CardRow
-                  key={card.id}
-                  card={card}
-                  isSelected={false}
-                  onPress={handleCardPress}
-                  mode="manage"
-                  subtitle={formatDate(renewalDates[card.id])}
-                  subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                  showDragHandle={true}
-                  onDrag={drag}
-                  onRemove={handleRemoveCard}
-                  flashAnimation={flashingCardId === card.id}
-                />
-              )}
-              keyExtractor={(item) => item.id}
-              onDragEnd={({ data }) => {
-                const newSelectedCardIds = data.map(card => card.id);
-                setSelectedCards(newSelectedCardIds);
-              }}
-              style={styles.cardsList}
-              ListEmptyComponent={<EmptyState onAddCard={handleOpenAddCardModal} />}
-            />
+            {isEditMode ? (
+              <View style={styles.cardsList}>
+                {selectedCardObjects.map((card) => (
+                  <CardRow
+                    key={card.id}
+                    card={card}
+                    isSelected={false}
+                    onPress={() => {}} // No action in edit mode except remove
+                    mode="manage"
+                    subtitle={formatDate(renewalDates[card.id])}
+                    subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                    showRemoveButton={true}
+                    onRemove={handleRemoveCard}
+                    flashAnimation={flashingCardId === card.id}
+                  />
+                ))}
+                {selectedCardObjects.length === 0 && (
+                  <EmptyState onAddCard={handleOpenAddCardModal} />
+                )}
+              </View>
+            ) : (
+              <View style={styles.cardsList}>
+                {selectedCardObjects.map((card) => (
+                  <CardRow
+                    key={card.id}
+                    card={card}
+                    isSelected={false}
+                    onPress={handleCardPress}
+                    mode="manage"
+                    subtitle={formatDate(renewalDates[card.id])}
+                    subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                    showRemoveButton={false}
+                    flashAnimation={flashingCardId === card.id}
+                  />
+                ))}
+                {selectedCardObjects.length === 0 && (
+                  <EmptyState onAddCard={handleOpenAddCardModal} />
+                )}
+              </View>
+            )}
           </View>
 
           {/* Notification Preferences Section */}
@@ -339,13 +416,12 @@ export default function Cards() {
         </MotiView>
 
         <SaveChangesModal 
-          visible={hasChanges}
+          visible={hasChanges && !isEditMode}
           onSave={handleSaveChanges}
           onDiscard={handleDiscardChanges}
-          onUndo={handleUndoDelete}
           isSaving={isSaving}
           deletedCard={deletedCard}
-          hasOtherChanges={hasChanges && !deletedCard}
+          hasOtherChanges={hasOtherChanges}
         />
       </SafeAreaView>
 
@@ -455,5 +531,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     marginRight: 8,
+  },
+  editButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#f2f2f7',
+  },
+  editButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007aff',
   },
 });

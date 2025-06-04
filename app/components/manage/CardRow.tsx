@@ -36,8 +36,7 @@ interface CardRowProps {
   disabled?: boolean;
   subtitle?: string;
   subtitleStyle?: 'normal' | 'placeholder';
-  showDragHandle?: boolean;
-  onDrag?: () => void;
+  showRemoveButton?: boolean;
   onRemove?: (cardId: string) => void;
   flashAnimation?: boolean;
 }
@@ -51,8 +50,7 @@ export const CardRow: React.FC<CardRowProps> = ({
   disabled = false,
   subtitle,
   subtitleStyle = 'normal',
-  showDragHandle = false,
-  onDrag,
+  showRemoveButton = false,
   onRemove,
   flashAnimation = false,
 }) => {
@@ -83,7 +81,7 @@ export const CardRow: React.FC<CardRowProps> = ({
     }
 
     if (mode === 'manage') {
-      if (showDragHandle) {
+      if (showRemoveButton) {
         return (
           <View style={styles.manageControls}>
             {onRemove && (
@@ -128,12 +126,6 @@ export const CardRow: React.FC<CardRowProps> = ({
         activeOpacity={0.7}
         disabled={disabled}
       >
-        {showDragHandle && onDrag && (
-          <TouchableOpacity onPressIn={onDrag} style={styles.dragHandle}>
-            <Ionicons name="reorder-three-outline" size={24} color="#c7c7cc" />
-          </TouchableOpacity>
-        )}
-        
         <Animated.View 
           style={[
             styles.cardImageWrapper, 
@@ -183,10 +175,6 @@ const styles = StyleSheet.create({
   },
   cardRowDisabled: {
     opacity: 0.5,
-  },
-  dragHandle: {
-    paddingRight: 12,
-    paddingVertical: 4,
   },
   cardImageWrapper: {
     width: 64,

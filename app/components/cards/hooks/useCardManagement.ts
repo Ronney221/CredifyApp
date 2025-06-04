@@ -65,8 +65,8 @@ export const useCardManagement = (userId: string | undefined) => {
     );
     const renewalDatesChanged = JSON.stringify(currentSelectedRenewalDates) !== JSON.stringify(initialSelectedRenewalDates);
     
-    return selectedCardsChanged || renewalDatesChanged;
-  }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates]);
+    return selectedCardsChanged || renewalDatesChanged || deletedCard !== null;
+  }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates, deletedCard]);
 
   const selectedCardObjects = useMemo(() => 
     selectedCards.map(id => allCards.find(card => card.id === id)).filter(card => card !== undefined) as Card[],
@@ -82,7 +82,6 @@ export const useCardManagement = (userId: string | undefined) => {
     if (cardToRemove) {
       const renewalDate = renewalDates[cardId];
       setDeletedCard({ card: cardToRemove, renewalDate });
-      setShowUndoSnackbar(true);
     }
     
     setSelectedCards(prev => prev.filter(id => id !== cardId));
@@ -148,6 +147,13 @@ export const useCardManagement = (userId: string | undefined) => {
       }
       setInitialSelectedCards(selectedCards);
       setInitialRenewalDates(renewalDates);
+      setDeletedCard(null); // Clear deleted card after successful save
+      
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
+      // Navigate to dashboard with refresh parameter to trigger data reload
       router.replace({
         pathname: '/(tabs)/01-dashboard',
         params: { refresh: Date.now().toString() }
@@ -213,6 +219,8 @@ export const useCardManagement = (userId: string | undefined) => {
     hasChanges,
     selectedCardObjects,
     anyRenewalDateSet,
+    initialSelectedCards,
+    initialRenewalDates,
     handleRemoveCard,
     handleUndoDelete,
     handleDiscardChanges,

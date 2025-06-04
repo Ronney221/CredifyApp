@@ -66,7 +66,12 @@ export const useNotificationPreferences = () => {
 
   // Auto-save preferences when they change
   useEffect(() => { 
-    saveNotificationPreferences(); 
+    // Add a small delay to ensure all state updates are complete
+    const timeoutId = setTimeout(() => {
+      saveNotificationPreferences(); 
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [
     perkExpiryRemindersEnabled,
     renewalRemindersEnabled, 
@@ -77,7 +82,16 @@ export const useNotificationPreferences = () => {
   ]);
 
   const handlePerkExpiryMasterToggle = (value: boolean) => {
-    setPerkExpiryRemindersEnabled(value);
+    if (value) {
+      // When re-enabling, reset all states in a batch to avoid race conditions
+      setPerkExpiryRemindersEnabled(true);
+      setRemind1DayBeforeMonthly(true);
+      setRemind3DaysBeforeMonthly(true);
+      setRemind7DaysBeforeMonthly(true);
+    } else {
+      setPerkExpiryRemindersEnabled(false);
+    }
+    
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
