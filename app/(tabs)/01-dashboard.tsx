@@ -17,6 +17,7 @@ import {
   ScrollViewProps,
   ActionSheetIOS,
   AlertButton,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -38,7 +39,6 @@ import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, g
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
 import AccountButton from '../components/home/AccountButton';
-import Header from '../components/home/Header';
 import StackedCardDisplay from '../components/home/StackedCardDisplay';
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -165,12 +165,18 @@ const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEn
   return { cycleEndDate, daysRemaining };
 };
 
+// Header Animation Constants
+const INITIAL_HEADER_HEIGHT = 80; // Reduced from 90
+const COLLAPSED_HEADER_HEIGHT = 50;
+const HEADER_SCROLL_DISTANCE = INITIAL_HEADER_HEIGHT - COLLAPSED_HEADER_HEIGHT;
+
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
   const { user } = useAuth();
   const donutDisplayRef = useRef<{ refresh: () => void }>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   // State for DEV date picker
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
@@ -207,6 +213,39 @@ export default function Dashboard() {
 
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
+
+  // Dynamic text for collapsed header
+  const currentMonthName = useMemo(() => format(new Date(), 'MMMM'), []);
+  const collapsedHeaderText = `${currentMonthName} Summary`;
+  const userName = user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User';
+
+  // Animated values for header styles
+  const animatedHeaderHeight = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [INITIAL_HEADER_HEIGHT, COLLAPSED_HEADER_HEIGHT],
+    extrapolate: 'clamp',
+  });
+
+  // Opacity for the expanded content (greeting)
+  const expandedContentOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.5], 
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  // Translate Y for the expanded content (greeting)
+  const expandedContentTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.5],
+    outputRange: [0, -15], // Slight upward movement
+    extrapolate: 'clamp',
+  });
+
+  // Opacity for the collapsed content (summary title & account button container)
+  const collapsedContentOpacity = scrollY.interpolate({
+    inputRange: [HEADER_SCROLL_DISTANCE * 0.5, HEADER_SCROLL_DISTANCE], 
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   // Determine the single next actionable perk to highlight
   const nextActionablePerkToHighlight = useMemo(() => {
@@ -428,91 +467,93 @@ export default function Dashboard() {
   const handleOpenApp = async (targetPerkName?: string) => {
     if (!selectedPerk || !selectedCardIdForModal || !user) return;
 
-    const perkToRedeem = targetPerkName 
+    const perkToOpenAppFor = targetPerkName
       ? { ...selectedPerk, name: targetPerkName }
       : selectedPerk;
-
-    const originalStatus = selectedPerk.status; // Store original status
 
     // Close modal first
     handleModalDismiss();
 
     try {
-      // Open the app target
-      const didOpen = await openPerkTarget(perkToRedeem);
-      
+      // Always attempt to open the app target
+      const didOpen = await openPerkTarget(perkToOpenAppFor);
       if (didOpen && Platform.OS === 'ios') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      // Optimistic update: immediately update global UI state
-      console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to redeemed for card', selectedCardIdForModal);
-      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-      // No immediate refresh here, wait for DB confirmation or failure
+      // Only track redemption if the perk is currently available
+      if (selectedPerk.status === 'available') {
+        const originalStatus = selectedPerk.status; 
 
-      // Background database operation
-      const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
-      
-      if (error) {
-        console.error('Error tracking redemption in DB:', error);
-        // Revert optimistic update on error
-        console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
-        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-        handlePerkStatusChange(); // Refresh UI with reverted state
+        // Optimistic update for redemption
+        console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to redeemed for card', selectedCardIdForModal);
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+        
+        // Background database operation
+        const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
+        
+        if (error) {
+          console.error('Error tracking redemption in DB:', error);
+          // Revert optimistic update on error
+          console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
+          setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+          handlePerkStatusChange(); 
 
-        if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
-          Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
-        } else {
-          Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
-        }
-        return;
-      }
-
-      // DB operation successful
-      console.log('[Dashboard] DB trackPerkRedemption successful for', selectedPerk.id);
-      handlePerkStatusChange(); // Refresh UI with new state
-      
-      showToast(
-        `${selectedPerk.name} marked as redeemed`,
-        async () => {
-          console.log('[Dashboard] Undo initiated for perk:', selectedPerk.id);
-          // Optimistically set to available for undo
-          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-          // No immediate refresh, wait for DB
-          try {
-            const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
-            if (undoError) {
-              console.error('Error undoing redemption in DB:', undoError);
-              // Revert optimistic undo
-              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); // Back to redeemed
-              handlePerkStatusChange(); // Refresh UI
-              showToast('Error undoing redemption');
-            } else {
-              console.log('[Dashboard] DB deletePerkRedemption successful for undo of', selectedPerk.id);
-              // UI is already 'available', now confirm with refresh
-              handlePerkStatusChange(); // Refresh UI with 'available' state
-              showToast(`${selectedPerk.name} redemption undone.`);
-            }
-          } catch (undoCatchError) {
-            console.error('Unexpected error during undo redemption:', undoCatchError);
-            // Revert optimistic undo
-            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); // Back to redeemed
-            handlePerkStatusChange(); // Refresh UI
-            showToast('Error undoing redemption');
+          if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+            Alert.alert('Already Redeemed', 'This perk was already marked as redeemed.');
+          } else {
+            Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
           }
+          return;
         }
-      );
-    } catch (openError) {
-      console.error('Error in perk redemption flow:', openError);
 
-      // Attempt to revert optimistic UI update if it might have occurred before this error.
-      // selectedPerk, selectedCardIdForModal, and originalStatus are available from the function scope.
-      if (selectedPerk && selectedCardIdForModal && typeof originalStatus !== 'undefined') {
-        console.log(`[Dashboard] Caught error in handleOpenApp. Attempting to revert UI for perk ${selectedPerk.id} (name: ${selectedPerk.name}) to original status: ${originalStatus}.`);
-        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-        handlePerkStatusChange(); // Refresh UI with reverted state
+        // DB operation successful
+        console.log('[Dashboard] DB trackPerkRedemption successful for', selectedPerk.id);
+        handlePerkStatusChange(); 
+        
+        showToast(
+          `${selectedPerk.name} marked as redeemed`,
+          async () => {
+            console.log('[Dashboard] Undo initiated for perk:', selectedPerk.id);
+            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+            try {
+              const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+              if (undoError) {
+                console.error('Error undoing redemption in DB:', undoError);
+                setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
+                handlePerkStatusChange(); 
+                showToast('Error undoing redemption');
+              } else {
+                console.log('[Dashboard] DB deletePerkRedemption successful for undo of', selectedPerk.id);
+                handlePerkStatusChange(); 
+                showToast(`${selectedPerk.name} redemption undone.`);
+              }
+            } catch (undoCatchError) {
+              console.error('Unexpected error during undo redemption:', undoCatchError);
+              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
+              handlePerkStatusChange(); 
+              showToast('Error undoing redemption');
+            }
+          }
+        );
+      } else if (selectedPerk.status === 'redeemed') {
+        // Perk is already redeemed, we just opened the app.
+        console.log(`[Dashboard] Opened app for already redeemed perk: ${selectedPerk.name}`);
+        // Optionally, show a toast, e.g.,
+        // showToast(`${getAppName(perkToOpenAppFor)} opened.`); // getAppName would need to be accessible or simplified
       }
-      Alert.alert('Operation Failed', 'An error occurred while processing the perk. The UI has been reset where possible.');
+    } catch (openErrorOrDbError) {
+      console.error('Error in perk action flow:', openErrorOrDbError);
+      // If an error occurs, ensure the modal is dismissed if it wasn't already.
+      handleModalDismiss(); 
+
+      // Attempt to revert optimistic UI update if it was an 'available' perk that failed redemption.
+      // Check if selectedPerk is still defined and if its status was 'available' before this error.
+      // This part is tricky because originalStatus is scoped inside the 'if (available)' block.
+      // A more robust way would be to rely on the `setPerkStatus` calls within the error handling
+      // of the `trackPerkRedemption` block.
+      // For now, a generic error alert is shown.
+      Alert.alert('Operation Failed', 'An error occurred while processing the perk. Please check its status.');
     }
   };
 
@@ -566,6 +607,53 @@ export default function Dashboard() {
       setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
       handlePerkStatusChange(); // Refresh UI with reverted state
       Alert.alert('Error', 'An unexpected error occurred while marking perk as redeemed.');
+    }
+  };
+
+  // New function to handle marking a perk as available
+  const handleMarkAvailable = async () => {
+    if (!selectedPerk || !selectedCardIdForModal || !user) return;
+
+    const originalStatus = selectedPerk.status;
+
+    // Close modal first
+    handleModalDismiss();
+
+    // Trigger haptic feedback
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    // Optimistic update: set perk to 'available'
+    console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to available for card', selectedCardIdForModal);
+    setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+
+    try {
+      // Background database operation to delete the redemption
+      const { error } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+
+      if (error) {
+        console.error('Error deleting redemption in DB:', error);
+        // Revert optimistic update on error
+        console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+        handlePerkStatusChange(); // Refresh UI with reverted state
+        Alert.alert('Error', 'Failed to mark perk as available in the database.');
+        return;
+      }
+
+      // DB operation successful
+      console.log('[Dashboard] DB deletePerkRedemption successful for', selectedPerk.id);
+      handlePerkStatusChange(); // Refresh UI with new 'available' state
+      showToast(`${selectedPerk.name} marked as available.`);
+
+    } catch (dbError) {
+      console.error('Unexpected error marking perk as available:', dbError);
+      // Revert optimistic update on error
+      console.log('[Dashboard] Catch block, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
+      setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+      handlePerkStatusChange(); // Refresh UI with reverted state
+      Alert.alert('Error', 'An unexpected error occurred while marking perk as available.');
     }
   };
 
@@ -676,15 +764,56 @@ export default function Dashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* <StatusBar barStyle="dark-content" backgroundColor="#ffffff" /> */}
       <View style={styles.mainContainer}>
-        <Header /> 
+        <Animated.View style={[styles.animatedHeaderContainer, { height: animatedHeaderHeight }]}>
+          {/* Expanded Header Content (Greeting) */}
+          <Animated.View 
+            style={[
+              styles.expandedHeaderContent,
+              { 
+                opacity: expandedContentOpacity, 
+                transform: [{ translateY: expandedContentTranslateY }] 
+              }
+            ]}
+          >
+            <View style={styles.greetingTextContainer}>
+              <Text style={styles.welcomeText}>Good morning,</Text>
+              <Text style={styles.userNameText}>{userName}</Text>
+            </View>
+            {/* Account button is also part of expanded view for consistent positioning before collapse */}
+            <View style={styles.headerAccountButtonWrapper}>
+                <AccountButton />
+            </View>
+          </Animated.View>
 
-        <ScrollView 
+          {/* Collapsed Header Content (Summary Title & Account Button) */}
+          <Animated.View 
+            style={[
+              styles.collapsedHeaderElementsContainer, 
+              { opacity: collapsedContentOpacity }
+            ]}
+          >
+            <View style={styles.collapsedTitleContainer}>
+              <Text style={styles.collapsedHeaderText}>{collapsedHeaderText}</Text>
+            </View>
+            <View style={styles.headerAccountButtonWrapper}> 
+              <AccountButton />
+            </View>
+          </Animated.View>
+        </Animated.View>
+
+        <ScrollView
           ref={scrollViewRef}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scrollContent} // This will have paddingTop
           scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          showsVerticalScrollIndicator={false}
         >
+          {/* NO Spacer View needed here if scrollContent has paddingTop */}
+          
           {/* Render a single ActionHintPill for the most relevant perk */}
           {nextActionablePerkToHighlight && (
             <ActionHintPill 
@@ -790,6 +919,7 @@ export default function Dashboard() {
           onDismiss={handleModalDismiss}
           onOpenApp={handleOpenApp}
           onMarkRedeemed={handleMarkRedeemed}
+          onMarkAvailable={handleMarkAvailable}
         />
       </View>
     </SafeAreaView>
@@ -804,58 +934,76 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
+  animatedHeaderContainer: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    paddingHorizontal: 16, 
+    position: 'absolute', 
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    // overflow: 'hidden', // Avoid if it causes clipping, ensure children are managed
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
-    paddingBottom: 12,
-    backgroundColor: '#ffffff',
-  },
-  headerContent: {
+  expandedHeaderContent: {
+    height: INITIAL_HEADER_HEIGHT,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'center', // Vertically center items in expanded state
+    // paddingBottom: 10, // Adjust as needed for spacing
+    // backgroundColor: 'lightpink', // For debugging
+  },
+  greetingTextContainer: {
+    flex: 1, // Allow greeting to take available space
   },
   welcomeText: {
     fontSize: 16,
     color: '#666',
     fontWeight: '500',
   },
-  userName: {
+  userNameText: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1c1c1e',
     marginTop: 2,
   },
-  profileButton: {
-    height: 40,
-    width: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#ff8c00',
-    justifyContent: 'center',
+  collapsedHeaderElementsContainer: {
+    height: COLLAPSED_HEADER_HEIGHT,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    position: 'absolute', // Position it to overlay correctly during transition
+    top: 0, // Align to the top of parent when parent is collapsed
+    left: 16, 
+    right: 16,
+    // bottom: 0, // Removed, top: 0 with parent height COLLAPSED_HEADER_HEIGHT controls it
+    // backgroundColor: 'lightblue', // For debugging
   },
-  profileImage: {
-    height: 40,
-    width: 40,
-    borderRadius: 20,
+  collapsedTitleContainer: {
+    flex: 1, 
+    // alignItems: 'center', // If you want text centered within this flex:1 container
+    // justifyContent: 'center',
   },
-  profileImagePlaceholder: {
-    height: 40,
-    width: 40,
-    borderRadius: 20,
-    backgroundColor: '#ff8c00',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileInitial: {
-    fontSize: 18,
+  collapsedHeaderText: {
+    fontSize: 17,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#1c1c1e',
+    textAlign: 'center', // Center text if container is flex:1
+  },
+  // Wrapper for AccountButton to be used in both expanded and collapsed states if needed for layout
+  headerAccountButtonWrapper: {
+    // Styles for positioning or sizing the button wrapper if needed
+    // e.g., to ensure it aligns correctly with flexbox
+    // width: 40, // If AccountButton needs explicit sizing for layout
+    // height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: INITIAL_HEADER_HEIGHT, // Content starts below the absolute positioned header
+    paddingBottom: 80, // Added padding for the tab navigation menu
   },
   summarySection: {
     alignItems: 'center',
