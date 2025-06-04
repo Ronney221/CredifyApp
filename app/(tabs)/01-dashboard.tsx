@@ -35,7 +35,7 @@ import { useUserCards } from '../hooks/useUserCards';
 import { usePerkStatus } from '../hooks/usePerkStatus';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
-import { trackPerkRedemption, deletePerkRedemption } from '../../lib/database';
+import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemption } from '../../lib/database';
 import AccountButton from '../components/home/AccountButton';
 import Header from '../components/home/Header';
 import StackedCardDisplay from '../components/home/StackedCardDisplay';
@@ -376,6 +376,7 @@ export default function Dashboard() {
           // Update local state and refresh data
           setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
           refreshSavings();
+          handlePerkStatusChange();
           
           showToast(
             `${selectedPerk.name} marked as redeemed`,
@@ -390,6 +391,7 @@ export default function Dashboard() {
                   // Update local state
                   setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
                   refreshSavings();
+                  handlePerkStatusChange();
                 }
               } catch (undoError) {
                 console.error('Unexpected error undoing redemption:', undoError);
@@ -431,6 +433,7 @@ export default function Dashboard() {
       // Update local state and refresh data
       setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
       refreshSavings();
+      handlePerkStatusChange();
       
       // Trigger haptic feedback
       if (Platform.OS === 'ios') {
@@ -442,7 +445,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleLongPressPerk = (cardId: string, perk: CardPerk) => {
+  const handleLongPressPerk = async (cardId: string, perk: CardPerk) => {
     if (!user) {
       Alert.alert(
         "Authentication Required",
@@ -463,12 +466,108 @@ export default function Dashboard() {
     const options = [];
     const actions: (() => void)[] = [];
 
+    // Only show auto-redemption option for monthly perks
+    if (perk.periodMonths === 1) {
+      try {
+        // Check if perk is already set for auto-redemption
+        const { data: isAutoRedemption, error } = await checkAutoRedemption(
+          user.id, 
+          perk.definition_id, 
+          cardId // We'll need to map this to actual user_card_id
+        );
+        
+        if (error) {
+          console.error('Error checking auto-redemption status:', error);
+        }
+        
+        if (isAutoRedemption) {
+          options.push('Disable Auto-Redemption');
+          actions.push(async () => {
+            try {
+              const { error } = await setAutoRedemption(user.id, cardId, perk, false);
+              if (error) {
+                Alert.alert('Error', 'Failed to disable auto-redemption.');
+              } else {
+                Alert.alert('Success', `Auto-redemption disabled for "${perk.name}".`);
+              }
+            } catch (err) {
+              Alert.alert('Error', 'Failed to disable auto-redemption.');
+            }
+          });
+        } else {
+          options.push('Set to Auto-Redeem Monthly');
+          actions.push(async () => {
+            Alert.alert(
+              'Auto-Redemption',
+              `Enable auto-redemption for "${perk.name}"?\n\nThis perk will be automatically marked as redeemed each month so you don't have to track it manually. Perfect for perks that get used automatically (like streaming credits).`,
+              [
+                {
+                  text: 'Enable',
+                  onPress: async () => {
+                    try {
+                      const { error } = await setAutoRedemption(user.id, cardId, perk, true);
+                      if (error) {
+                        Alert.alert('Error', 'Failed to enable auto-redemption.');
+                      } else {
+                        Alert.alert('Success', `Auto-redemption enabled for "${perk.name}"!\n\nIt will be automatically marked as redeemed each month.`);
+                      }
+                    } catch (err) {
+                      Alert.alert('Error', 'Failed to enable auto-redemption.');
+                    }
+                  }
+                },
+                { text: 'Cancel', style: 'cancel' }
+              ]
+            );
+          });
+        }
+      } catch (err) {
+        console.error('Error in auto-redemption check:', err);
+        // Fallback to show the option anyway
+        options.push('Set to Auto-Redeem Monthly');
+        actions.push(async () => {
+          Alert.alert('Feature Coming Soon', 'Auto-redemption is being implemented.');
+        });
+      }
+    }
+
+    // Manual redemption toggle options
     if (isCurrentlyRedeemed) {
       options.push('Mark Available');
-      actions.push(() => setPerkStatus(cardId, perk.id, 'available'));
+      actions.push(async () => {
+        try {
+          const { error } = await deletePerkRedemption(user.id, perk.definition_id);
+          if (error) {
+            Alert.alert('Error', 'Failed to mark perk as available.');
+          } else {
+            setPerkStatus(cardId, perk.id, 'available');
+            refreshSavings();
+            handlePerkStatusChange();
+          }
+        } catch (err) {
+          Alert.alert('Error', 'Failed to mark perk as available.');
+        }
+      });
     } else {
       options.push('Mark Redeemed');
-      actions.push(() => setPerkStatus(cardId, perk.id, 'redeemed'));
+      actions.push(async () => {
+        try {
+          const { error } = await trackPerkRedemption(user.id, cardId, perk, perk.value);
+          if (error) {
+            if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+              Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+            } else {
+              Alert.alert('Error', 'Failed to mark perk as redeemed.');
+            }
+          } else {
+            setPerkStatus(cardId, perk.id, 'redeemed');
+            refreshSavings();
+            handlePerkStatusChange();
+          }
+        } catch (err) {
+          Alert.alert('Error', 'Failed to mark perk as redeemed.');
+        }
+      });
     }
 
     options.push('Open App/Link');
