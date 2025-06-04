@@ -57,13 +57,33 @@ export const useCardManagement = (userId: string | undefined) => {
     const initialSelectedCardsSorted = [...initialSelectedCards].sort();
     
     const selectedCardsChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
+    
+    // Only include renewal date changes for cards that are being added/removed, not for existing cards
     const currentSelectedRenewalDates = Object.fromEntries(
       Object.entries(renewalDates).filter(([cardId]) => selectedCards.includes(cardId))
     );
     const initialSelectedRenewalDates = Object.fromEntries(
       Object.entries(initialRenewalDates).filter(([cardId]) => initialSelectedCards.includes(cardId))
     );
-    const renewalDatesChanged = JSON.stringify(currentSelectedRenewalDates) !== JSON.stringify(initialSelectedRenewalDates);
+    
+    // Only consider renewal date changes for cards that are also being added/removed
+    const renewalDatesForChangedCards = Object.fromEntries(
+      Object.entries(currentSelectedRenewalDates).filter(([cardId]) => {
+        const wasInitiallySelected = initialSelectedCards.includes(cardId);
+        const isCurrentlySelected = selectedCards.includes(cardId);
+        return wasInitiallySelected !== isCurrentlySelected; // Only if card selection changed
+      })
+    );
+    
+    const initialRenewalDatesForChangedCards = Object.fromEntries(
+      Object.entries(initialSelectedRenewalDates).filter(([cardId]) => {
+        const wasInitiallySelected = initialSelectedCards.includes(cardId);
+        const isCurrentlySelected = selectedCards.includes(cardId);
+        return wasInitiallySelected !== isCurrentlySelected; // Only if card selection changed
+      })
+    );
+    
+    const renewalDatesChanged = JSON.stringify(renewalDatesForChangedCards) !== JSON.stringify(initialRenewalDatesForChangedCards);
     
     return selectedCardsChanged || renewalDatesChanged || deletedCard !== null;
   }, [selectedCards, initialSelectedCards, renewalDates, initialRenewalDates, deletedCard]);
@@ -152,12 +172,6 @@ export const useCardManagement = (userId: string | undefined) => {
       if (Platform.OS === 'ios') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-
-      // Navigate to dashboard with refresh parameter to trigger data reload
-      router.replace({
-        pathname: '/(tabs)/01-dashboard',
-        params: { refresh: Date.now().toString() }
-      });
     } catch (error) {
       console.error('Error in save handler:', error);
     } finally {
@@ -202,6 +216,33 @@ export const useCardManagement = (userId: string | undefined) => {
       loadExistingCards();
     }
   }, [userId]);
+
+  // Auto-save renewal dates when they change (without triggering modal)
+  useEffect(() => {
+    if (!userId) return;
+    
+    // Check if only renewal dates changed (not card selection)
+    const selectedCardsSorted = [...selectedCards].sort();
+    const initialSelectedCardsSorted = [...initialSelectedCards].sort();
+    const cardSelectionChanged = JSON.stringify(selectedCardsSorted) !== JSON.stringify(initialSelectedCardsSorted);
+    
+    if (!cardSelectionChanged && !deletedCard) {
+      // Only renewal dates changed, auto-save them
+      const timeoutId = setTimeout(async () => {
+        try {
+          console.log('[CardManagement] Auto-saving renewal dates');
+          const { error } = await saveUserCards(userId, selectedCardObjects, renewalDates);
+          if (!error) {
+            setInitialRenewalDates(renewalDates);
+          }
+        } catch (error) {
+          console.error('Error auto-saving renewal dates:', error);
+        }
+      }, 1000); // Save after 1 second of no changes
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [renewalDates, userId, selectedCards, initialSelectedCards, selectedCardObjects, deletedCard]);
 
   return {
     selectedCards,

@@ -147,9 +147,15 @@ export default function Dashboard() {
         StatusBar.setBackgroundColor('transparent');
         StatusBar.setTranslucent(true);
       }
+      
+      // Always refresh data when focusing on dashboard
+      console.log('[Dashboard] Focus effect - refreshing user cards and savings');
+      refreshUserCards();
+      refreshSavings();
+      
       setupNotifications();
       donutDisplayRef.current?.refresh();
-    }, [refreshUserCards])
+    }, [refreshUserCards, refreshSavings])
   );
 
   // Effect to refresh data when params.refresh changes (e.g., after saving cards)

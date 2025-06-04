@@ -174,11 +174,13 @@ export default function Cards() {
 
   const handleConfirmDate = (date: Date) => {
     if (currentEditingCardId) {
+      console.log(`[Cards] Setting renewal date for card ${currentEditingCardId}:`, date.toISOString());
       setRenewalDates((prevDates) => ({
         ...prevDates,
         [currentEditingCardId]: date,
       }));
       if (!selectedCards.includes(currentEditingCardId)) {
+        console.log(`[Cards] Adding card ${currentEditingCardId} to selected cards`);
         setSelectedCards(prev => [...prev, currentEditingCardId!]);
       }
     }

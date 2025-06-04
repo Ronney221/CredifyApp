@@ -66,12 +66,18 @@ export const useNotificationPreferences = () => {
 
   // Auto-save preferences when they change
   useEffect(() => { 
+    console.log(`[NotificationPrefs] Effect triggered - master: ${perkExpiryRemindersEnabled}, 1day: ${remind1DayBeforeMonthly}, 3day: ${remind3DaysBeforeMonthly}, 7day: ${remind7DaysBeforeMonthly}`);
+    
     // Add a small delay to ensure all state updates are complete
     const timeoutId = setTimeout(() => {
+      console.log('[NotificationPrefs] Saving preferences after delay');
       saveNotificationPreferences(); 
-    }, 100);
+    }, 200); // Increased delay
     
-    return () => clearTimeout(timeoutId);
+    return () => {
+      console.log('[NotificationPrefs] Clearing save timeout');
+      clearTimeout(timeoutId);
+    };
   }, [
     perkExpiryRemindersEnabled,
     renewalRemindersEnabled, 
@@ -82,13 +88,22 @@ export const useNotificationPreferences = () => {
   ]);
 
   const handlePerkExpiryMasterToggle = (value: boolean) => {
+    console.log(`[NotificationPrefs] Master toggle called with value: ${value}`);
+    console.log(`[NotificationPrefs] Current state - master: ${perkExpiryRemindersEnabled}, 1day: ${remind1DayBeforeMonthly}, 3day: ${remind3DaysBeforeMonthly}, 7day: ${remind7DaysBeforeMonthly}`);
+    
     if (value) {
-      // When re-enabling, reset all states in a batch to avoid race conditions
+      // When enabling, set all to true immediately
+      console.log('[NotificationPrefs] Enabling - setting all toggles to true');
       setPerkExpiryRemindersEnabled(true);
-      setRemind1DayBeforeMonthly(true);
-      setRemind3DaysBeforeMonthly(true);
-      setRemind7DaysBeforeMonthly(true);
+      
+      // Use setTimeout to ensure master toggle is set first
+      setTimeout(() => {
+        setRemind1DayBeforeMonthly(true);
+        setRemind3DaysBeforeMonthly(true);
+        setRemind7DaysBeforeMonthly(true);
+      }, 10);
     } else {
+      console.log('[NotificationPrefs] Disabling master toggle');
       setPerkExpiryRemindersEnabled(false);
     }
     
