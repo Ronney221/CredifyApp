@@ -1,302 +1,151 @@
 import React, { useState, useMemo, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, Text } from 'react-native';
 import { PerksToggle } from './PerksToggle';
 import ProgressDonut from './ProgressDonut';
 import { Card, CardPerk } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
-import { getCurrentMonthRedemptions, getAnnualRedemptions } from '../../../lib/database';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { Colors } from '../../constants/Colors';
 
-type SegmentKey = 'monthly' | 'annualFees';
+type SegmentKey = 'monthly' | 'annual';
 
 interface PerkDonutDisplayManagerProps {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
   monthlyCreditsRedeemed: number;
   monthlyCreditsPossible: number;
+  yearlyCreditsRedeemed: number;
+  yearlyCreditsPossible: number;
   redeemedInCurrentCycle: Record<string, boolean>;
 }
 
-const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDisplayManagerProps>(({
-  userCardsWithPerks,
-  monthlyCreditsRedeemed,
-  monthlyCreditsPossible,
-  redeemedInCurrentCycle,
-}, ref) => {
+const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDisplayManagerProps>((
+  {
+    userCardsWithPerks,
+    monthlyCreditsRedeemed,
+    monthlyCreditsPossible,
+    yearlyCreditsRedeemed,
+    yearlyCreditsPossible,
+    redeemedInCurrentCycle,
+  },
+  ref
+) => {
   const { user } = useAuth();
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>('monthly');
-  const [monthlyRedemptions, setMonthlyRedemptions] = useState<number>(monthlyCreditsRedeemed);
-  const [annualRedemptions, setAnnualRedemptions] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
   const navigation = useNavigation();
 
-  // Function to trigger a refresh
+  const [calculatedTotalMonthlyPerks, setCalculatedTotalMonthlyPerks] = useState(0);
+  const [calculatedRedeemedMonthlyPerks, setCalculatedRedeemedMonthlyPerks] = useState(0);
+  const [calculatedTotalNonMonthlyPerks, setCalculatedTotalNonMonthlyPerks] = useState(0);
+  const [calculatedRedeemedNonMonthlyPerks, setCalculatedRedeemedNonMonthlyPerks] = useState(0);
+  const [calculatedTotalAnnualFees, setCalculatedTotalAnnualFees] = useState(0);
+
   const refreshData = useCallback(() => {
     setLastRefresh(Date.now());
   }, []);
 
-  // Add to component props
   useImperativeHandle(ref, () => ({
     refresh: refreshData
   }));
 
-  // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refreshData();
     }, [refreshData])
   );
 
-  // Calculate total possible monthly credits (only monthly perks)
-  const monthlyPossibleTotal = useMemo(() => {
-    return userCardsWithPerks.reduce((acc, { perks }) => {
-      const monthlyPerks = perks.filter(perk => perk.periodMonths === 1);
-      return acc + monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
-    }, 0);
-  }, [userCardsWithPerks]);
-
-  // Calculate total annual fees
-  const totalAnnualFees = useMemo(() => {
-    return userCardsWithPerks.reduce((acc, { card }) => 
-      acc + (card.annualFee || 0), 0);
-  }, [userCardsWithPerks]);
-
   useEffect(() => {
     if (!user) return;
+    setIsRefreshing(true);
+    
+    let fees = 0;
+    let currentTotalMonthly = 0;
+    let currentRedeemedMonthly = 0;
+    let currentTotalNonMonthly = 0;
+    let currentRedeemedNonMonthly = 0;
 
-    let isMounted = true;
-    let retryCount = 0;
-    const maxRetries = 3;
-    const retryDelay = 1000; // 1 second
-
-    const loadRedemptions = async () => {
-      if (!isMounted) return;
-      setIsRefreshing(true);
-      
-      try {
-        // Get current month's redemptions
-        const { data: monthlyData, error: monthlyError } = await getCurrentMonthRedemptions(user.id);
-        if (!isMounted) return;
-
-        if (monthlyError) {
-          // Only log and retry if it's not a network error during app resume
-          const errorMessage = monthlyError instanceof Error ? monthlyError.message : 
-            typeof monthlyError === 'object' && monthlyError !== null && 'message' in monthlyError ? 
-            monthlyError.message : '';
-            
-          if (errorMessage !== 'Network request failed') {
-            console.error('Error fetching monthly redemptions:', monthlyError);
-            if (retryCount < maxRetries) {
-              retryCount++;
-              setTimeout(loadRedemptions, retryDelay);
-              return;
-            }
+    userCardsWithPerks.forEach(cardData => {
+      fees += (cardData.card.annualFee || 0);
+      cardData.perks.forEach(perk => {
+        if (perk.periodMonths === 1) {
+          currentTotalMonthly++;
+          if (redeemedInCurrentCycle[perk.id]) {
+            currentRedeemedMonthly++;
           }
-          return;
-        }
-
-        // Calculate monthly redemptions total (only for monthly perks)
-        const monthlySum = monthlyData?.reduce((sum, redemption) => {
-          const redemptionDate = new Date(redemption.redemption_date);
-          const resetDate = new Date(redemption.reset_date);
-          const monthDiff = (resetDate.getTime() - redemptionDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-          
-          if (monthDiff <= 1.1) {
-            return sum + redemption.value_redeemed;
-          }
-          return sum;
-        }, 0) ?? monthlyRedemptions;
-
-        if (isMounted) {
-          setMonthlyRedemptions(monthlySum);
-        }
-
-        // Get annual redemptions
-        const { data: annualData, error: annualError } = await getAnnualRedemptions(user.id);
-        if (!isMounted) return;
-
-        if (annualError) {
-          // Only log and retry if it's not a network error during app resume
-          const errorMessage = annualError instanceof Error ? annualError.message : 
-            typeof annualError === 'object' && annualError !== null && 'message' in annualError ? 
-            annualError.message : '';
-            
-          if (errorMessage !== 'Network request failed') {
-            console.error('Error fetching annual redemptions:', annualError);
-            if (retryCount < maxRetries) {
-              retryCount++;
-              setTimeout(loadRedemptions, retryDelay);
-              return;
-            }
-          }
-          return;
-        }
-
-        const annualSum = annualData?.reduce((sum, redemption) => 
-          sum + redemption.value_redeemed, 0) ?? annualRedemptions;
-        
-        if (isMounted) {
-          setAnnualRedemptions(annualSum);
-        }
-        
-        // Reset retry count on success
-        retryCount = 0;
-      } catch (error: unknown) {
-        // Only log and retry if it's not a network error during app resume
-        const errorMessage = error instanceof Error ? error.message :
-          typeof error === 'object' && error !== null && 'message' in error ?
-          error.message : '';
-          
-        if (errorMessage !== 'Network request failed') {
-          console.error('Error loading redemptions:', error);
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(loadRedemptions, retryDelay);
+        } else if (perk.periodMonths > 1) {
+          currentTotalNonMonthly++;
+          if (redeemedInCurrentCycle[perk.id]) {
+            currentRedeemedNonMonthly++;
           }
         }
-      } finally {
-        if (isMounted) {
-          setIsRefreshing(false);
-        }
-      }
-    };
-
-    // Add a small delay before loading to allow network to stabilize
-    const timeoutId = setTimeout(() => {
-      loadRedemptions();
-    }, 500);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-      setIsRefreshing(false);
-    };
-  }, [user, lastRefresh, monthlyRedemptions, annualRedemptions]);
-
-  const monthlyPerkData = useMemo(() => {
-    console.log('========= Debug Monthly Perk Calculations =========');
-    console.log('Props received:', { monthlyRedemptions, monthlyCreditsPossible });
-    console.log('Number of cards:', userCardsWithPerks.length);
-
-    // Count total monthly perks
-    const totalMonthlyPerks = userCardsWithPerks.reduce((total, { perks, card }) => {
-      const monthlyPerksForCard = perks.filter(perk => perk.periodMonths === 1);
-      // console.log(`Card ${card.name}:`, { // Keep this log if you find it useful
-      //   totalMonthlyPerks: monthlyPerksForCard.length,
-      //   perks: monthlyPerksForCard.map(p => ({ id: p.id, status: p.status }))
-      // });
-      return total + monthlyPerksForCard.length;
-    }, 0);
-    console.log('Total monthly perks across all cards:', totalMonthlyPerks);
-
-    // Calculate actual count of redeemed monthly perks
-    const actualRedeemedMonthlyPerksCount = userCardsWithPerks.reduce((count, { perks }) => {
-      const redeemedOnThisCard = perks.filter(p => p.periodMonths === 1 && redeemedInCurrentCycle[p.id] === true).length;
-      return count + redeemedOnThisCard;
-    }, 0);
-    console.log('Actual redeemed monthly perks count:', actualRedeemedMonthlyPerksCount);
-
-
-    // Instead of using local state, calculate redeemed count based on monthlyRedemptions
-    // Assuming average perk value is monthlyPossibleTotal / totalMonthlyPerks
-    // const avgPerkValue = totalMonthlyPerks > 0 ? monthlyCreditsPossible / totalMonthlyPerks : 0; // Old estimation logic
-    // const estimatedRedeemedCount = avgPerkValue > 0 ? Math.round(monthlyRedemptions / avgPerkValue) : 0; // Old estimation logic
-    
-    // console.log('Redemption calculation (old estimation):', { // Old log
-    //   avgPerkValue,
-    //   monthlyRedemptions,
-    //   estimatedRedeemedCount
-    // });
-
-    // Log progress calculation for debugging
-    const monthlyProgress = monthlyPossibleTotal > 0 ? monthlyRedemptions / monthlyPossibleTotal : 0;
-    console.log('Monthly Progress Calculation:', {
-      monthlyRedemptions,
-      monthlyPossibleTotal,
-      progress: monthlyProgress,
+      });
     });
 
-    // Log final metrics
-    const metrics = {
-      actualRedeemedMonthlyPerksCount, // Use new actual count
-      totalMonthlyPerks,
-      monthlyRedemptions,
-      monthlyCreditsPossible,
-      progress: monthlyProgress,
-    };
-    console.log('Final metrics:', metrics);
-    console.log('===============================================');
+    setCalculatedTotalAnnualFees(fees);
+    setCalculatedTotalMonthlyPerks(currentTotalMonthly);
+    setCalculatedRedeemedMonthlyPerks(currentRedeemedMonthly);
+    setCalculatedTotalNonMonthlyPerks(currentTotalNonMonthly);
+    setCalculatedRedeemedNonMonthlyPerks(currentRedeemedNonMonthly);
+    
+    setIsRefreshing(false);
+  }, [user, lastRefresh, userCardsWithPerks, redeemedInCurrentCycle]);
 
-    return {
-      value: monthlyRedemptions,
-      total: monthlyPossibleTotal,
-      progress: monthlyProgress,
-      amount: monthlyRedemptions.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-      }),
-      label: 'Monthly Perks Redeemed',
-      detailLineOne: `${monthlyRedemptions.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} redeemed`,
-      detailLineTwo: `${monthlyPossibleTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} available`,
-      perksCount: `${actualRedeemedMonthlyPerksCount} of ${totalMonthlyPerks}`, // Use actual count here
-      color: Platform.OS === 'ios' ? '#007AFF' : 'dodgerblue',
-    };
-  }, [userCardsWithPerks, monthlyRedemptions, monthlyCreditsPossible, monthlyPossibleTotal, redeemedInCurrentCycle]);
-
-  const annualFeesData = useMemo(() => {
-    const formattedFees = totalAnnualFees.toLocaleString('en-US', { 
-      style: 'currency', 
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
-    const formattedRedeemedValue = annualRedemptions.toLocaleString('en-US', { 
-      style: 'currency', 
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    });
-    
-    const breakEvenPercent = totalAnnualFees > 0 
-      ? Math.round((annualRedemptions / totalAnnualFees) * 100)
-      : 0;
-    
-    // Log progress calculation for debugging
-    const annualProgress = totalAnnualFees > 0 ? annualRedemptions / totalAnnualFees : 0;
-    console.log('Annual Progress Calculation:', {
-      annualRedemptions,
-      totalAnnualFees,
-      progress: annualProgress,
-    });
-    
-    return {
-      value: annualRedemptions,
-      total: totalAnnualFees,
-      progress: annualProgress,
-      amount: formattedRedeemedValue,
-      label: 'Annual Value Redeemed',
-      detailLineOne: `${formattedRedeemedValue} redeemed value`,
-      detailLineTwo: `${formattedFees} total annual fees`,
-      perksCount: `${breakEvenPercent}% of fees`,
-      color: '#5856d6',
-    };
-  }, [annualRedemptions, totalAnnualFees]);
+  const activeData = useMemo(() => {
+    if (activeSegmentKey === 'monthly') {
+      const progress = monthlyCreditsPossible > 0 ? monthlyCreditsRedeemed / monthlyCreditsPossible : 0;
+      return {
+        value: monthlyCreditsRedeemed,
+        total: monthlyCreditsPossible,
+        progress: progress,
+        amount: monthlyCreditsRedeemed.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+        label: 'MONTHLY VALUE',
+        detailLineOne: `$${monthlyCreditsRedeemed.toFixed(0)} redeemed`,
+        detailLineTwo: `$${monthlyCreditsPossible.toFixed(0)} available`,
+        perksCount: `${calculatedRedeemedMonthlyPerks} of ${calculatedTotalMonthlyPerks}`,
+        color: Colors.light.tint,
+      };
+    } else {
+      const progress = yearlyCreditsPossible > 0 ? yearlyCreditsRedeemed / yearlyCreditsPossible : 0;
+      return {
+        value: yearlyCreditsRedeemed,
+        total: yearlyCreditsPossible,
+        progress: progress,
+        amount: yearlyCreditsRedeemed.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+        label: 'ANNUAL VALUE',
+        detailLineOne: `$${yearlyCreditsRedeemed.toFixed(0)} redeemed (non-monthly)`,
+        detailLineTwo: `$${yearlyCreditsPossible.toFixed(0)} available (non-monthly)`,
+        perksCount: `${calculatedRedeemedNonMonthlyPerks} of ${calculatedTotalNonMonthlyPerks}`,
+        color: '#FFC107',
+      };
+    }
+  }, [
+    activeSegmentKey, 
+    monthlyCreditsRedeemed, monthlyCreditsPossible, calculatedRedeemedMonthlyPerks, calculatedTotalMonthlyPerks,
+    yearlyCreditsRedeemed, yearlyCreditsPossible, calculatedRedeemedNonMonthlyPerks, calculatedTotalNonMonthlyPerks,
+    Colors.light.tint
+  ]);
 
   if (!user) {
-    return <View style={styles.container} />;
+    return <View style={styles.metricsContainer} />;
   }
-
-  const activeData = activeSegmentKey === 'monthly' ? monthlyPerkData : annualFeesData;
+  
+  const toggleSegments = [
+    { key: 'monthly', title: 'Monthly Value' },
+    { key: 'annual', title: 'Annual Value' }
+  ];
 
   return (
     <View style={[styles.metricsContainer, { opacity: isRefreshing ? 0.6 : 1 }]}>
       <PerksToggle
+        segments={toggleSegments}
         selectedMode={activeSegmentKey}
-        onModeChange={setActiveSegmentKey}
+        onModeChange={(key: string) => setActiveSegmentKey(key as SegmentKey)}
       />
 
       <ProgressDonut
         size={120}
-        strokeWidth={6}
+        strokeWidth={10}
         progress={activeData.progress}
         amount={activeData.amount}
         label={activeData.label}
@@ -304,8 +153,9 @@ const PerkDonutDisplayManager = forwardRef<{ refresh: () => void }, PerkDonutDis
         detailLineTwo={activeData.detailLineTwo}
         perksCount={activeData.perksCount}
         color={activeData.color}
-        backgroundColor="#ECECEC"
+        backgroundColor={Platform.OS === 'android' ? '#f0f0f0' : '#ECECEC'}
       />
+      <Text style={styles.annualFeesText}>Total Annual Card Fees: ${calculatedTotalAnnualFees.toFixed(0)}</Text>
     </View>
   );
 });
@@ -316,26 +166,22 @@ const styles = StyleSheet.create({
   metricsContainer: {
     alignItems: 'center',
     width: '100%',
-    paddingTop: 8,
-  },
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    padding: 16,
-  },
-  perksUsedContainer: {
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  perksUsedText: {
-    fontSize: 15,
+  annualFeesText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: '#4A4A4A',
     fontWeight: '500',
-    color: '#3C3C4399',
-    textAlign: 'center',
   },
 });
 

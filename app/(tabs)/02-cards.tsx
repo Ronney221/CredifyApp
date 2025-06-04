@@ -56,6 +56,8 @@ export default function Cards() {
   const [newlyAddedCardIdForScroll, setNewlyAddedCardIdForScroll] = useState<string | null>(null);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
+  const ESTIMATED_CARD_ROW_HEIGHT = 80; // Define an estimated height for CardRow
+
   const {
     selectedCards,
     setSelectedCards,
@@ -300,6 +302,18 @@ export default function Cards() {
 
   const notificationItems = buildNotificationItems(anyRenewalDateSet);
 
+  const getItemLayout = (data: any, index: number) => ({
+    length: ESTIMATED_CARD_ROW_HEIGHT,
+    offset: ESTIMATED_CARD_ROW_HEIGHT * index,
+    index,
+  });
+
+  const handleScrollToIndexFailed = (info: { index: number, highestMeasuredFrameIndex: number, averageItemLength: number }) => {
+    console.warn('FlatList: scrollToIndex failed. Info:', info);
+    // Optionally, you could try to scroll to offset as a fallback:
+    // flatListRef.current?.scrollToOffset({ offset: info.index * ESTIMATED_CARD_ROW_HEIGHT, animated: true });
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -403,6 +417,8 @@ export default function Cards() {
           scrollEventThrottle={16}
           ref={flatListRef}
           onLayout={handleScrollViewLayout}
+          getItemLayout={getItemLayout}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
         />
 
         {/* Floating Add Button */}

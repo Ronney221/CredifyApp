@@ -85,6 +85,12 @@ export default function ExpandableCard({
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const router = useRouter();
   
+  // Log incoming perks prop
+  console.log(`[ExpandableCard] Received props for ${card.name} (${card.id}):`, {
+    isActiveProp: isActive,
+    perks: perks.map(p => ({ name: p.name, id: p.id, status: p.status, periodMonths: p.periodMonths, definition_id: p.definition_id }))
+  });
+  
   // When card becomes active (e.g. from action hint pill), ensure it expands
   React.useEffect(() => {
     if (isActive && !isExpanded) {
@@ -125,17 +131,13 @@ export default function ExpandableCard({
     sortIndex
   });
   
-  // Only count monthly perks for the unredeemed count
-  const unredeemedPerks = perks.filter(p => {
-    const isMonthly = p.periodMonths === 1;
-    const isRedeemed = p.status === 'redeemed';
-    return isMonthly && !isRedeemed;
-  });
+  // Corrected: Count all types of unredeemed perks
+  const unredeemedPerks = perks.filter(p => p.status === 'available');
 
-  console.log(`${card.name} status:`, {
-    unredeemedPerks: unredeemedPerks.length,
-    totalPerks: perks.length,
-    redeemedPerks: perks.filter(p => p.status === 'redeemed').map(p => p.id),
+  console.log(`${card.name} status (LOG POINT EC-1):`, {
+    unredeemedPerksCount: unredeemedPerks.length,
+    totalPerksCount: perks.length,
+    perksDetails: perks.map(p => ({ id: p.id, name: p.name, status: p.status, periodMonths: p.periodMonths })),
     cumulativeSavedValue
   });
   

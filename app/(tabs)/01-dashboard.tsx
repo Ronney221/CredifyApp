@@ -418,11 +418,16 @@ export default function Dashboard() {
         }
       );
     } catch (openError) {
-      console.error('Error opening perk target or during redemption flow:', openError);
-      // If optimistic update happened before this catch, it needs reversal.
-      // However, setPerkStatus was called inside the try for DB op.
-      // If openPerkTarget itself fails, status isn't changed yet.
-      Alert.alert('Error', 'Could not open the link for this perk or process redemption.');
+      console.error('Error in perk redemption flow:', openError);
+
+      // Attempt to revert optimistic UI update if it might have occurred before this error.
+      // selectedPerk, selectedCardIdForModal, and originalStatus are available from the function scope.
+      if (selectedPerk && selectedCardIdForModal && typeof originalStatus !== 'undefined') {
+        console.log(`[Dashboard] Caught error in handleOpenApp. Attempting to revert UI for perk ${selectedPerk.id} (name: ${selectedPerk.name}) to original status: ${originalStatus}.`);
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+        handlePerkStatusChange(); // Refresh UI with reverted state
+      }
+      Alert.alert('Operation Failed', 'An error occurred while processing the perk. The UI has been reset where possible.');
     }
   };
 
@@ -551,6 +556,14 @@ export default function Dashboard() {
 
   const sortedCards = sortCardsByUnredeemedPerks(processedCardsFromPerkStatus);
 
+  // Log sortedCards before passing to StackedCardDisplay
+  console.log('[Dashboard] Data for StackedCardDisplay:', sortedCards.map(c => ({
+    cardName: c.card.name,
+    cardId: c.card.id,
+    isActiveInSort: c.card.id === activeCardId, // Add this to see if activeCardId logic affects this
+    perks: c.perks.map(p => ({ name: p.name, id: p.id, status: p.status, periodMonths: p.periodMonths }))
+  })));
+
   if (error) {
     return (
       <View style={styles.loadingContainer}>
@@ -594,6 +607,8 @@ export default function Dashboard() {
               userCardsWithPerks={userCardsWithPerks}
               monthlyCreditsRedeemed={monthlyCreditsRedeemed}
               monthlyCreditsPossible={monthlyCreditsPossible}
+              yearlyCreditsRedeemed={yearlyCreditsRedeemed}
+              yearlyCreditsPossible={yearlyCreditsPossible}
               redeemedInCurrentCycle={redeemedInCurrentCycle}
             />
           </View>
