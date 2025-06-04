@@ -35,6 +35,7 @@ import { useUserCards } from '../hooks/useUserCards';
 import { usePerkStatus } from '../hooks/usePerkStatus';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
+import { trackPerkRedemption, deletePerkRedemption } from '../../lib/database';
 import AccountButton from '../components/home/AccountButton';
 import Header from '../components/home/Header';
 import StackedCardDisplay from '../components/home/StackedCardDisplay';
@@ -329,34 +330,77 @@ export default function Dashboard() {
     setSelectedCardIdForModal(null);
   };
 
-  const handleOpenApp = async () => {
-    if (!selectedPerk) return;
+  const handleOpenApp = async (targetPerkName?: string) => {
+    if (!selectedPerk || !selectedCardIdForModal) return;
 
     // Close modal first
     handleModalDismiss();
 
     try {
-      // Open the app
-      await openPerkTarget(selectedPerk);
+      let success = false;
+      
+      if (targetPerkName) {
+        // Multi-choice perk - create a temporary perk object with the target name
+        const targetPerk = { ...selectedPerk, name: targetPerkName };
+        success = await openPerkTarget(targetPerk);
+      } else {
+        // Single choice perk
+        success = await openPerkTarget(selectedPerk);
+      }
+      
+      if (!success) {
+        Alert.alert('Error', 'Could not open the link for this perk.');
+        return;
+      }
       
       // Trigger haptic feedback
       if (Platform.OS === 'ios') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      // Automatically mark as redeemed with undo option
-      if (selectedCardIdForModal) {
-        setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-        
-        showToast(
-          `${selectedPerk.name} marked as redeemed`,
-          async () => {
-            // Undo the redemption
-            if (selectedCardIdForModal) {
-              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+      // Automatically mark as redeemed using actual database functions with undo option
+      if (user) {
+        try {
+          const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
+          
+          if (error) {
+            if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+              Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+            } else {
+              console.error('Error tracking redemption:', error);
+              Alert.alert('Error', 'Failed to mark perk as redeemed.');
             }
+            return;
           }
-        );
+
+          // Update local state and refresh data
+          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+          refreshSavings();
+          
+          showToast(
+            `${selectedPerk.name} marked as redeemed`,
+            async () => {
+              // Undo the redemption using database function
+              try {
+                const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+                if (undoError) {
+                  console.error('Error undoing redemption:', undoError);
+                  showToast('Error undoing redemption');
+                } else {
+                  // Update local state
+                  setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+                  refreshSavings();
+                }
+              } catch (undoError) {
+                console.error('Unexpected error undoing redemption:', undoError);
+                showToast('Error undoing redemption');
+              }
+            }
+          );
+        } catch (dbError) {
+          console.error('Unexpected error in auto-redemption:', dbError);
+          Alert.alert('Error', 'Failed to track redemption.');
+        }
       }
     } catch (error) {
       console.error('Error opening perk target:', error);
@@ -364,18 +408,37 @@ export default function Dashboard() {
     }
   };
 
-  const handleMarkRedeemed = () => {
-    if (!selectedPerk || !selectedCardIdForModal) return;
+  const handleMarkRedeemed = async () => {
+    if (!selectedPerk || !selectedCardIdForModal || !user) return;
 
     // Close modal first
     handleModalDismiss();
 
-    // Mark as redeemed
-    setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-    
-    // Trigger haptic feedback
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      // Use actual database function
+      const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
+      
+      if (error) {
+        if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+          Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+        } else {
+          console.error('Error tracking redemption:', error);
+          Alert.alert('Error', 'Failed to mark perk as redeemed.');
+        }
+        return;
+      }
+
+      // Update local state and refresh data
+      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+      refreshSavings();
+      
+      // Trigger haptic feedback
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    } catch (dbError) {
+      console.error('Unexpected error marking perk as redeemed:', dbError);
+      Alert.alert('Error', 'Failed to mark perk as redeemed.');
     }
   };
 

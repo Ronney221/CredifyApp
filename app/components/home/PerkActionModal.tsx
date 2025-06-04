@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,21 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { CardPerk, APP_SCHEMES } from '../../../src/data/card-data';
+import { PanGestureHandler } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedGestureHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../../src/data/card-data';
 
 interface PerkActionModalProps {
   visible: boolean;
   perk: CardPerk | null;
   onDismiss: () => void;
-  onOpenApp: () => void;
+  onOpenApp: (targetPerkName?: string) => void;
   onMarkRedeemed: () => void;
 }
 
@@ -27,12 +35,53 @@ export default function PerkActionModal({
   onOpenApp,
   onMarkRedeemed,
 }: PerkActionModalProps) {
+  const [showChoices, setShowChoices] = useState(false);
+  const translateY = useSharedValue(0);
+  
+  const handlePanGesture = useAnimatedGestureHandler({
+    onStart: (_, context: { startY: number }) => {
+      context.startY = translateY.value;
+    },
+    onActive: (event, context: { startY: number }) => {
+      translateY.value = Math.max(0, context.startY + event.translationY);
+    },
+    onEnd: (event) => {
+      const shouldDismiss = event.translationY > 150 || event.velocityY > 1000;
+      
+      if (shouldDismiss) {
+        translateY.value = withSpring(500, {}, () => {
+          runOnJS(onDismiss)();
+          translateY.value = 0;
+        });
+      } else {
+        translateY.value = withSpring(0);
+      }
+    },
+  });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
+  
+  useEffect(() => {
+    if (visible) {
+      setShowChoices(false);
+      translateY.value = 0;
+    }
+  }, [visible]);
+  
   if (!perk) return null;
 
   const formattedValue = perk.value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
   });
+
+  // Check if this is a multi-choice perk
+  const choices = multiChoicePerksConfig[perk.name];
+  const isMultiChoice = choices && choices.length > 0;
 
   // Get the app name for the CTA button
   const getAppName = (perk: CardPerk): string => {
@@ -76,6 +125,18 @@ export default function PerkActionModal({
 
   const appName = getAppName(perk);
 
+  const handlePrimaryAction = () => {
+    if (isMultiChoice && !showChoices) {
+      setShowChoices(true);
+    } else {
+      onOpenApp();
+    }
+  };
+
+  const handleChoiceSelect = (choice: { label: string; targetPerkName: string }) => {
+    onOpenApp(choice.targetPerkName);
+  };
+
   return (
     <Modal
       visible={visible}
@@ -87,46 +148,76 @@ export default function PerkActionModal({
         <BlurView intensity={20} style={styles.blurOverlay} />
       </Pressable>
       
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          {/* Handle bar */}
-          <View style={styles.handleBar} />
-          
-          {/* Perk details */}
-          <View style={styles.perkHeader}>
-            <View style={styles.perkIconContainer}>
-              <Ionicons name="pricetag" size={28} color="#007AFF" />
+      <PanGestureHandler onGestureEvent={handlePanGesture}>
+        <Animated.View style={[styles.modalContainer, animatedStyle]}>
+          <View style={styles.modalContent}>
+            {/* Handle bar */}
+            <View style={styles.handleBar} />
+            
+            {/* Perk details */}
+            <View style={styles.perkHeader}>
+              <View style={styles.perkIconContainer}>
+                <Ionicons name="pricetag" size={28} color="#007AFF" />
+              </View>
+              <View style={styles.perkTextContainer}>
+                <Text style={styles.perkName}>{perk.name}</Text>
+                <Text style={styles.perkValue}>{formattedValue} remaining value</Text>
+              </View>
             </View>
-            <View style={styles.perkTextContainer}>
-              <Text style={styles.perkName}>{perk.name}</Text>
-              <Text style={styles.perkValue}>{formattedValue} remaining value</Text>
-            </View>
+
+            <Text style={styles.perkDescription}>{perk.description}</Text>
+
+            {/* Show choices if it's a multi-choice perk and user clicked the primary button */}
+            {isMultiChoice && showChoices && choices ? (
+              <View style={styles.choicesContainer}>
+                <Text style={styles.choicesTitle}>Choose an option:</Text>
+                {choices.map((choice, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.choiceButton}
+                    onPress={() => handleChoiceSelect(choice)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="open-outline" size={20} color="#007AFF" style={styles.buttonIcon} />
+                    <Text style={styles.choiceButtonText}>{choice.label}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => setShowChoices(false)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back-outline" size={20} color="#666" style={styles.buttonIcon} />
+                  <Text style={styles.backButtonText}>Back</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* Standard action buttons */
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={handlePrimaryAction}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="open-outline" size={20} color="white" style={styles.buttonIcon} />
+                  <Text style={styles.primaryButtonText}>
+                    {isMultiChoice ? 'Choose App' : `Open in ${appName}`}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={onMarkRedeemed}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#007AFF" style={styles.buttonIcon} />
+                  <Text style={styles.secondaryButtonText}>Mark as Redeemed</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-
-          <Text style={styles.perkDescription}>{perk.description}</Text>
-
-          {/* Action buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={onOpenApp}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="open-outline" size={20} color="white" style={styles.buttonIcon} />
-              <Text style={styles.primaryButtonText}>Open in {appName}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={onMarkRedeemed}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="checkmark-circle-outline" size={18} color="#007AFF" style={styles.buttonIcon} />
-              <Text style={styles.secondaryButtonText}>Mark as Redeemed</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+        </Animated.View>
+      </PanGestureHandler>
     </Modal>
   );
 }
@@ -239,5 +330,44 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginRight: 8,
+  },
+  choicesContainer: {
+    marginTop: 20,
+  },
+  choicesTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 12,
+  },
+  choiceButton: {
+    backgroundColor: '#F0F7FF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  choiceButtonText: {
+    color: '#007AFF',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  backButton: {
+    backgroundColor: '#F0F7FF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  backButtonText: {
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '500',
   },
 }); 
