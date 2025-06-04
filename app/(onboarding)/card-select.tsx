@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,15 +11,16 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter, useNavigation } from 'expo-router';
 import { Card, allCards } from '../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
+import { MotiView } from 'moti';
 
-const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Offset for transparent header
+const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90;
 
 // Helper to get card network color (can be moved to a utility if used elsewhere)
 const getCardNetworkColor = (card: Card) => {
@@ -38,10 +39,10 @@ const getCardNetworkColor = (card: Card) => {
 
 export default function OnboardingCardSelectScreen() {
   const router = useRouter();
+  const navigation = useNavigation(); 
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [firstCardAdded, setFirstCardAdded] = useState(false);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
-  // Lottie refs map is no longer needed with autoPlay
 
   const getScaleValue = (cardId: string) => {
     if (!scaleValues.has(cardId)) {
@@ -82,6 +83,7 @@ export default function OnboardingCardSelectScreen() {
   };
 
   const handleNext = () => {
+    if (selectedCardIds.size === 0) return; // Guard against accidental press if somehow enabled
     const idsArray = Array.from(selectedCardIds);
     router.push({
       pathname: '/(onboarding)/renewal-dates',
@@ -133,20 +135,52 @@ export default function OnboardingCardSelectScreen() {
     );
   };
 
+  const titleAnimationDelay = 50; // Main title (now with count) will animate
+  const subtitleAnimationDelay = titleAnimationDelay + 100;
+  const listAnimationDelay = subtitleAnimationDelay + 100;
+
   return (
     <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.headerContainer}>
-        <Text style={styles.title}>Select Your Cards</Text>
-        <Text style={styles.subtitle}>Choose the credit cards you own. You can add more later.</Text>
+      <View style={styles.headerContentContainer}> 
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 150, delay: titleAnimationDelay }}
+        >
+          <Text style={styles.title}>
+            Select Your Cards 
+            {selectedCardIds.size > 0 && (
+              <Text style={styles.selectedCountText}> ({selectedCardIds.size} selected)</Text>
+            )}
+          </Text>
+        </MotiView>
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 150, delay: subtitleAnimationDelay }}
+        >
+          <Text style={styles.subtitle}>Choose the credit cards you own. You can add more later.</Text>
+        </MotiView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {sortedAllCards.map((card) => renderCardItem({ item: card }))}
-      </ScrollView>
+      <MotiView
+        from={{ opacity: 0, translateY: 12 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 200, delay: listAnimationDelay }}
+        style={{flex: 1}}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {sortedAllCards.map((card) => renderCardItem({ item: card }))}
+        </ScrollView>
+      </MotiView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        <TouchableOpacity 
+          style={[styles.nextButton, selectedCardIds.size === 0 && styles.nextButtonDisabled]} 
+          onPress={handleNext}
+          disabled={selectedCardIds.size === 0} // Ensure this is correctly set
+        >
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
       </View>
@@ -159,13 +193,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f2f2f7',
   },
-  headerContainer: {
+  headerContentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 4,
     paddingBottom: 15,
     backgroundColor: '#ffffff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#c7c7cc',
+    paddingTop: Platform.OS === 'ios' ? 4 : 20, // Adjust paddingTop as needed
   },
   title: {
     fontSize: 28,
@@ -173,6 +207,12 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     textAlign: 'center',
     marginBottom: 5,
+  },
+  selectedCountText: {
+    fontSize: 20,
+    fontWeight: 'normal',
+    color: Colors.light.icon,
+    marginLeft: 8,
   },
   subtitle: {
     fontSize: 16,
@@ -186,8 +226,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 16, // Applied 16px horizontal padding
-    paddingVertical: 12,   // Adjusted vertical padding
+    paddingHorizontal: 16,
+    paddingVertical: 12,   
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#c7c7cc',
   },
@@ -198,10 +238,9 @@ const styles = StyleSheet.create({
     width: 64,  
     height: 40, 
     borderRadius: 5, 
-    marginRight: 12, // Adjusted margin
+    marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    // overflow: 'visible', // Not strictly needed if Lottie is not overlapping here
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -214,24 +253,23 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   cardName: {
-    flex: 1, // Allows text to take available space and wrap
+    flex: 1, 
     fontSize: 17,
     color: Colors.light.text,
-    marginRight: 8, // Padding between text and checkbox area
+    marginRight: 8, 
   },
   checkboxContainer: {
-    width: 28, // Fixed width for consistent alignment
-    height: 28, // Fixed height
+    width: 28, 
+    height: 28, 
     justifyContent: 'center',
     alignItems: 'center',
   },
   lottieCheckmarkOnRight: {
-    width: 36, // Adjust size as needed for visual balance with checkbox
+    width: 36, 
     height: 36,
     backgroundColor: 'transparent',
   },
   checkboxIcon: {
-    // Additional styling for the Ionicons square if needed
   },
   footer: {
     padding: 20,
@@ -244,6 +282,10 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  nextButtonDisabled: {
+    backgroundColor: Colors.light.icon,
+    opacity: 0.5,
   },
   nextButtonText: {
     color: '#ffffff',

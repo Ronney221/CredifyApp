@@ -1,6 +1,6 @@
-import { Stack, useSegments } from 'expo-router';
-import { useRoute } from '@react-navigation/native';
-import React, { useEffect, useState, useRef } from 'react';
+import { Stack } from 'expo-router';
+import { useRoute, useIsFocused } from '@react-navigation/native';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import Dots from 'react-native-dots-pagination';
 import { Colors } from '../../constants/Colors';
@@ -21,12 +21,38 @@ const HEADER_BACK_BUTTON_WIDTH_APPROX = 30; // Approximate width for balance
 
 function OnboardingHeaderTitle() {
   const route = useRoute();
-  const currentScreen = route.name;
-  const activeDotIndex = onboardingSteps.indexOf(currentScreen);
+  const isFocused = useIsFocused();
+  
+  // Initialize to -1, effect will set it.
+  const [activeDotIndex, setActiveDotIndex] = useState(-1);
   const insets = useSafeAreaInsets();
-
   const [currentActiveDotWidth, setCurrentActiveDotWidth] = useState(ACTIVE_DOT_BASE_SIZE);
 
+  useEffect(() => {
+    const currentScreenName = route.name;
+    // console.log(`[OnboardingHeaderTitle Effect] Attempting update. isFocused: ${isFocused}, route.name: ${currentScreenName}`);
+
+    if (isFocused) {
+      const newIndex = onboardingSteps.indexOf(currentScreenName);
+      if (newIndex !== -1) {
+        // console.log(`[OnboardingHeaderTitle Effect] Screen is focused and found: "${currentScreenName}". Setting activeDotIndex to ${newIndex}`);
+        setActiveDotIndex(newIndex);
+      } else {
+        // console.warn(`[OnboardingHeaderTitle Effect] Screen is focused but "${currentScreenName}" not in onboardingSteps. Setting to -1.`);
+        setActiveDotIndex(-1); // Explicitly set to -1 if focused but not a recognized step
+      }
+    } else {
+      // When screen is not focused, we don't necessarily want to change the index immediately to -1,
+      // as it might be a transition. The activeDotIndex will reflect the last focused known step.
+      // However, if the goal is for dots to *only* show for the *absolutely* focused screen, then:
+      // setActiveDotIndex(-1);
+      // For now, let's allow it to persist briefly to avoid flicker during push/pop animations
+      // if this header is somehow involved in those too.
+      // The key is that when a *new* screen *becomes* focused, this effect will run for it and set the correct index.
+    }
+  }, [isFocused, route.name]); // Re-run when focus status or route name changes.
+  
+  // Animation for the active dot
   useEffect(() => {
     if (activeDotIndex !== -1) {
       setCurrentActiveDotWidth(ACTIVE_DOT_POP_WIDTH);
@@ -34,15 +60,18 @@ function OnboardingHeaderTitle() {
         setCurrentActiveDotWidth(ACTIVE_DOT_BASE_SIZE);
       }, ANIMATION_DURATION);
       return () => clearTimeout(timer);
+    } else {
+      setCurrentActiveDotWidth(ACTIVE_DOT_BASE_SIZE); // Reset if dots are hidden
     }
   }, [activeDotIndex]);
   
   if (activeDotIndex === -1) {
-    console.warn(`OnboardingHeaderTitle: currentScreen "${currentScreen}" not in onboardingSteps. Dots will not render.`);
+    // console.log(`[OnboardingHeaderTitle Render] activeDotIndex is -1. Hiding dots. Current route.name: ${route.name}, isFocused: ${isFocused}`);
     return <View style={[styles.headerTitleContainer, {paddingTop: insets.top + 10, minHeight: insets.top + 50}]} />;
   }
 
   const stepText = `Step ${activeDotIndex + 1} of ${onboardingSteps.length}`;
+  // console.log(`[OnboardingHeaderTitle Render] Rendering step text: "${stepText}" for index ${activeDotIndex}`);
 
   return (
     <View style={[styles.headerTitleContainer, {paddingTop: insets.top + 10, minHeight: insets.top + 50}]}>
@@ -71,6 +100,8 @@ export default function OnboardingLayout() {
         headerTitleAlign: 'center',
         headerTransparent: true,
         animation: 'none',
+        // For screens other than card-select, OnboardingHeaderTitle will be used.
+        // card-select will override this in its options.
         headerTitle: () => <OnboardingHeaderTitle />,
         headerStyle: {
           // @ts-ignore
@@ -85,9 +116,11 @@ export default function OnboardingLayout() {
       }}
     >
       <Stack.Screen
-        name="card-select"
+        name="Step 1 of 4" // This will get a custom headerTitle in the next step
         options={{
           headerBackVisible: false,
+          // headerTitle will be set dynamically from card-select.tsx screen itself
+          headerTitle: () => null, // Explicitly hide the shared header title content for this screen
         }}
       />
       <Stack.Screen
@@ -138,6 +171,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   dotsWrapper: {
-    // paddingVertical: 5, // If needed for spacing
   },
 }); 
