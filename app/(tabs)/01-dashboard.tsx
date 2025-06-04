@@ -568,6 +568,15 @@ export default function Dashboard() {
           contentContainerStyle={styles.scrollContent}
           scrollEventThrottle={16}
         >
+          {/* Primary Action Card - Most Important */}
+          {nextActionablePerk && (
+            <ActionHintPill 
+              perk={nextActionablePerk} 
+              daysRemaining={daysRemaining} 
+              onPress={() => handleActionHintPress(nextActionablePerk)}
+            />
+          )}
+
           {/* Summary Section with Donut Chart */}
           <View style={[styles.summarySection, { paddingTop: 0 }]}>
             <PerkDonutDisplayManager
@@ -578,15 +587,6 @@ export default function Dashboard() {
               redeemedInCurrentCycle={redeemedInCurrentCycle}
             />
           </View>
-
-          {/* Action Hint Pill */}
-          {nextActionablePerk && (
-            <ActionHintPill 
-              perk={nextActionablePerk} 
-              daysRemaining={daysRemaining} 
-              onPress={() => handleActionHintPress(nextActionablePerk)}
-            />
-          )}
 
           {/* Cards Section */}
           <View style={styles.cardsSection}>

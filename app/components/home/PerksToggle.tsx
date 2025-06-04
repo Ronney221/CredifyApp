@@ -12,19 +12,32 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
   onModeChange 
 }) => {
   const [containerWidth, setContainerWidth] = React.useState(0);
+  const [isFirstRender, setIsFirstRender] = React.useState(true);
   const slideAnim = React.useRef(new Animated.Value(selectedMode === 'monthly' ? 0 : 1)).current;
 
   React.useEffect(() => {
+    const animationDuration = isFirstRender ? 400 : 200; // Longer for first launch
+    
     Animated.timing(slideAnim, {
       toValue: selectedMode === 'monthly' ? 0 : 1,
-      duration: 200,
+      duration: animationDuration,
       useNativeDriver: true,
     }).start();
-  }, [selectedMode]);
+    
+    if (isFirstRender) {
+      setIsFirstRender(false);
+    }
+  }, [selectedMode, isFirstRender]);
 
   const translateX = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [2, (containerWidth / 2) - 2],
+  });
+
+  // Animated opacity for slider to match inactive text
+  const sliderOpacity = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1], // Keep slider at full opacity when active
   });
 
   return (
@@ -42,6 +55,7 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
             {
               width: containerWidth ? (containerWidth / 2) - 4 : 0,
               transform: [{ translateX }],
+              opacity: sliderOpacity,
             }
           ]} 
         />
@@ -54,7 +68,7 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
           >
             <Text style={[
               styles.buttonText,
-              selectedMode === 'monthly' && styles.activeText
+              selectedMode === 'monthly' ? styles.activeText : styles.inactiveText
             ]}>
               Monthly
             </Text>
@@ -67,7 +81,7 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
           >
             <Text style={[
               styles.buttonText,
-              selectedMode === 'annualFees' && styles.activeText
+              selectedMode === 'annualFees' ? styles.activeText : styles.inactiveText
             ]}>
               Annual
             </Text>
@@ -116,20 +130,31 @@ const styles = StyleSheet.create({
     color: Platform.OS === 'ios' ? '#007AFF' : '#1a73e8',
     fontWeight: '600',
   },
+  inactiveText: {
+    color: '#8E8E93',
+    fontWeight: '500',
+    opacity: 0.35,
+  },
   slider: {
     position: 'absolute',
     top: 2,
     bottom: 2,
     backgroundColor: '#FFFFFF',
     borderRadius: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   divider: {
     height: 1,

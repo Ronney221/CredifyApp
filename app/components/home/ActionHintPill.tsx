@@ -33,19 +33,25 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
   }
 
   return (
-    <TouchableOpacity style={[styles.container, { borderColor: urgencyColor }]} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={[styles.container, { borderColor: urgencyColor, backgroundColor: '#ffffff' }]} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.iconContainer}>
-        <Ionicons name={iconName} size={26} color={urgencyColor} />
+        <Ionicons name={iconName} size={32} color={urgencyColor} />
       </View>
       <View style={styles.textContainer}>
         <Text style={styles.titleText}>
-          Use your <Text style={{ fontWeight: 'bold' }}>{formattedValue} {perk.name}</Text>
+          <Text style={styles.actionText}>Use your </Text>
+          <Text style={[styles.valueText, { color: urgencyColor }]}>{formattedValue} {perk.name}</Text>
         </Text>
         <Text style={styles.subtitleText}>
-          from {perk.cardName} by {format(expiryDate, 'M/d')}
+          from {perk.cardName} • <Text style={[styles.urgencyText, { color: urgencyColor }]}>
+            {daysRemaining <= 3 ? 'Expires soon!' : `${daysRemaining} days left`}
+          </Text>
         </Text>
       </View>
-      <Ionicons name="chevron-forward-outline" size={20} color={Colors.light.icon} style={styles.chevronIcon} />
+      <View style={styles.actionButtonContainer}>
+        <Text style={[styles.actionButtonText, { color: urgencyColor }]}>Use Now</Text>
+        <Ionicons name="chevron-forward" size={18} color={urgencyColor} style={styles.chevronIcon} />
+      </View>
     </TouchableOpacity>
   );
 };
@@ -55,21 +61,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     marginHorizontal: 16,
-    marginVertical: 10,
-    borderWidth: 1.5,
+    marginVertical: 12,
+    borderWidth: 2,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 3,
+        elevation: 6,
       },
     }),
   },
@@ -93,6 +99,29 @@ const styles = StyleSheet.create({
   },
   chevronIcon: {
     marginLeft: 8,
+  },
+  actionText: {
+    fontSize: 15,
+    color: Colors.light.text,
+    fontWeight: '500',
+  },
+  valueText: {
+    fontSize: 15,
+    color: Colors.light.text,
+    fontWeight: 'bold',
+  },
+  urgencyText: {
+    fontSize: 13,
+    color: Colors.light.icon,
+  },
+  actionButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    fontSize: 15,
+    color: Colors.light.text,
+    fontWeight: 'bold',
   },
 });
 
