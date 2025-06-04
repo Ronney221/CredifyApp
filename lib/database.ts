@@ -425,19 +425,49 @@ export async function setAutoRedemption(
     });
 
     // Get the user's card ID from the database
-    const { data: userCards, error: cardError } = await supabase
+    const { data: userCardsResult, error: cardError } = await supabase
       .from('user_credit_cards')
-      .select('id')
+      .select('id, card_name, card_brand')
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
       .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
-      .eq('is_active', true)
-      .single();
+      .eq('is_active', true);
 
-    if (cardError || !userCards) {
-      console.error('Error finding user card:', cardError);
-      return { error: cardError || new Error('User card not found') };
+    if (cardError) {
+      console.error('Error querying user card for auto-redemption:', {
+        error: cardError,
+        cardId,
+        brand: cardId.split('_')[0],
+        name: allCards.find(c => c.id === cardId)?.name
+      });
+      return { error: cardError };
     }
+
+    if (!userCardsResult || userCardsResult.length === 0) {
+      console.error('User card not found for auto-redemption:', {
+        cardId,
+        brand: cardId.split('_')[0],
+        name: allCards.find(c => c.id === cardId)?.name
+      });
+      return { error: new Error('User card not found for auto-redemption setup') };
+    }
+
+    let userCardToUse;
+    if (userCardsResult.length > 1) {
+      console.warn('Multiple active cards found for auto-redemption, proceeding with the first one:', {
+        userId,
+        cardId,
+        brand: cardId.split('_')[0],
+        name: allCards.find(c => c.id === cardId)?.name,
+        count: userCardsResult.length,
+        foundCards: userCardsResult.map(c => ({ id: c.id, name: c.card_name }))
+      });
+      userCardToUse = userCardsResult[0];
+    } else {
+      userCardToUse = userCardsResult[0];
+    }
+    
+    console.log('Using user_card_id for auto-redemption:', userCardToUse.id);
 
     if (enabled) {
       // Insert/update the auto-redemption preference
@@ -446,7 +476,7 @@ export async function setAutoRedemption(
         .upsert({
           user_id: userId,
           perk_id: perkDef.id,
-          user_card_id: userCards.id,
+          user_card_id: userCardToUse.id,
           is_enabled: true,
           updated_at: new Date().toISOString()
         }, {

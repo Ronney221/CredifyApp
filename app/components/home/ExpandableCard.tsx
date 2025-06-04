@@ -181,7 +181,7 @@ export default function ExpandableCard({
     // Optimistic UI update - immediate feedback
     console.log(`[ExpandableCard] Calling setPerkStatus with:`, { cardId: card.id, perkId: perk.id, action });
     setPerkStatus?.(card.id, perk.id, action);
-    onPerkStatusChange?.();
+    // DO NOT call onPerkStatusChange here immediately.
 
     if (action === 'redeemed') {
       console.log(`[ExpandableCard] Proceeding with redeemed for ${perk.name}`);
@@ -192,7 +192,7 @@ export default function ExpandableCard({
         if (result.error) {
           // Revert optimistic update on error
           setPerkStatus?.(card.id, perk.id, 'available');
-          onPerkStatusChange?.();
+          onPerkStatusChange?.(); // Call after revert
           
           if (typeof result.error === 'object' && result.error !== null && 'message' in result.error && (result.error as any).message === 'Perk already redeemed this period') {
             Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
@@ -202,26 +202,32 @@ export default function ExpandableCard({
           return;
         }
         
+        // Call onPerkStatusChange on successful DB operation
+        onPerkStatusChange?.(); 
+
         showToast(
           `${perk.name} marked as redeemed`,
           async () => {
             try {
               // Optimistic undo
               setPerkStatus?.(card.id, perk.id, 'available');
-              onPerkStatusChange?.();
-              
+              // DB call for undo
               const { error: undoError } = await deletePerkRedemption(user.id, perk.definition_id);
+              
               if (undoError) {
                 // Revert undo if database fails
                 setPerkStatus?.(card.id, perk.id, 'redeemed');
-                onPerkStatusChange?.();
+                onPerkStatusChange?.(); // Call after revert
                 console.error('Error undoing redemption:', undoError);
                 showToast('Error undoing redemption');
+              } else {
+                // Successful undo
+                onPerkStatusChange?.(); // Call after successful undo DB op
               }
             } catch (error) {
               // Revert undo if unexpected error
               setPerkStatus?.(card.id, perk.id, 'redeemed');
-              onPerkStatusChange?.();
+              onPerkStatusChange?.(); // Call after revert
               console.error('Error undoing redemption:', error);
               showToast('Error undoing redemption');
             }
@@ -230,42 +236,32 @@ export default function ExpandableCard({
       } catch (error) {
         // Revert optimistic update on error
         setPerkStatus?.(card.id, perk.id, 'available');
-        onPerkStatusChange?.();
+        onPerkStatusChange?.(); // Call after revert
         console.error('Error tracking redemption:', error);
         Alert.alert('Error', 'Failed to track perk redemption.');
       }
-    } else {
+    } else { // action === 'available'
       console.log(`[ExpandableCard] Proceeding with available for ${perk.name}`);
-      console.log(`[ExpandableCard] Perk details for available action:`, {
-        perkId: perk.id,
-        perkName: perk.name,
-        definition_id: perk.definition_id,
-        userId: user.id,
-        cardId: card.id
-      });
-      
       try {
-        console.log(`[ExpandableCard] Calling deletePerkRedemption with userId: ${user.id}, definition_id: ${perk.definition_id}`);
         const { error } = await deletePerkRedemption(user.id, perk.definition_id);
         console.log(`[ExpandableCard] deletePerkRedemption result:`, error ? { error } : 'success');
-        
+
         if (error) {
           // Revert optimistic update on error
-          console.error(`[ExpandableCard] Error deleting redemption for ${perk.name}:`, error);
           setPerkStatus?.(card.id, perk.id, 'redeemed');
-          onPerkStatusChange?.();
-          Alert.alert('Error', 'Failed to undo perk redemption.');
+          onPerkStatusChange?.(); // Call after revert
+          Alert.alert('Error', 'Failed to mark perk as available.');
           return;
         }
-        
-        console.log(`[ExpandableCard] Successfully marked ${perk.name} as available`);
-        showToast(`${perk.name} marked as available`);
+        // Call onPerkStatusChange on successful DB operation
+        onPerkStatusChange?.();
+        showToast(`${perk.name} marked as available.`);
       } catch (error) {
         // Revert optimistic update on error
-        console.error(`[ExpandableCard] Unexpected error deleting redemption for ${perk.name}:`, error);
         setPerkStatus?.(card.id, perk.id, 'redeemed');
-        onPerkStatusChange?.();
-        Alert.alert('Error', 'Failed to undo perk redemption.');
+        onPerkStatusChange?.(); // Call after revert
+        console.error('Error deleting redemption:', error);
+        Alert.alert('Error', 'Failed to mark perk as available.');
       }
     }
   };
