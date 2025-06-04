@@ -15,6 +15,8 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   ScrollViewProps,
+  ActionSheetIOS,
+  AlertButton,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -29,12 +31,13 @@ import ExpandableCard from '../components/home/ExpandableCard';
 import { useUserCards } from '../hooks/useUserCards';
 import { usePerkStatus } from '../hooks/usePerkStatus';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
-import { Card, CardPerk } from '../../src/data/card-data';
+import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import AccountButton from '../components/home/AccountButton';
 import Header from '../components/home/Header';
 import StackedCardDisplay from '../components/home/StackedCardDisplay';
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SwipeCoachMark from '../components/home/SwipeCoachMark';
 
 // Import notification functions
 import {
@@ -73,6 +76,8 @@ const getStatusColor = (daysRemaining: number) => {
 // Add type for ScrollView ref
 type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> };
 
+const SWIPE_HINT_STORAGE_KEY = '@user_seen_swipe_hint';
+
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
@@ -84,6 +89,10 @@ export default function Dashboard() {
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
   const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+
+  // Coach Mark State
+  const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
+  const [shouldShowSwipeCoachMark, setShouldShowSwipeCoachMark] = useState(false);
 
   // Use custom hooks
   const { userCardsWithPerks, isLoading, error, refreshUserCards } = useUserCards();
@@ -126,6 +135,44 @@ export default function Dashboard() {
     });
     return actionablePerk;
   }, [processedCardsFromPerkStatus]);
+
+  // Load swipe hint status from AsyncStorage
+  useEffect(() => {
+    const loadHintStatus = async () => {
+      try {
+        const seen = await AsyncStorage.getItem(SWIPE_HINT_STORAGE_KEY);
+        if (seen !== null) {
+          setUserHasSeenSwipeHint(JSON.parse(seen));
+        }
+      } catch (e) {
+        console.error("Failed to load swipe hint status.", e);
+      }
+    };
+    loadHintStatus();
+  }, []);
+
+  // Determine if coach mark should be shown
+  useEffect(() => {
+    const hasActionableMonthlyPerks = processedCardsFromPerkStatus.some(cardData => 
+      cardData.perks.some(perk => perk.status === 'available' && perk.periodMonths === 1)
+    );
+
+    if (!isLoading && !userHasSeenSwipeHint && hasActionableMonthlyPerks) {
+      setShouldShowSwipeCoachMark(true);
+    } else {
+      setShouldShowSwipeCoachMark(false);
+    }
+  }, [isLoading, userHasSeenSwipeHint, processedCardsFromPerkStatus]);
+
+  const handleDismissSwipeCoachMark = async () => {
+    try {
+      await AsyncStorage.setItem(SWIPE_HINT_STORAGE_KEY, JSON.stringify(true));
+      setUserHasSeenSwipeHint(true);
+      setShouldShowSwipeCoachMark(false);
+    } catch (e) {
+      console.error("Failed to save swipe hint status.", e);
+    }
+  };
 
   // Handler for the action hint pill press
   const handleActionHintPress = (perkToActivate: (CardPerk & { cardId: string; cardName: string }) | null) => {
@@ -230,7 +277,7 @@ export default function Dashboard() {
     setPerkStatus(cardId, perkId, 'redeemed'); 
   };
 
-  const handleLongPressPerk = (cardId: string, perkId: string, intendedNewStatus: 'available' | 'redeemed') => {
+  const handleLongPressPerk = (cardId: string, perk: CardPerk) => {
     if (!user) {
       Alert.alert(
         "Authentication Required",
@@ -242,7 +289,73 @@ export default function Dashboard() {
       );
       return;
     }
-    setPerkStatus(cardId, perkId, intendedNewStatus);
+
+    // Get the current status from processedCardsFromPerkStatus instead of the prop
+    const cardData = processedCardsFromPerkStatus.find(c => c.card.id === cardId);
+    const currentPerk = cardData?.perks.find(p => p.id === perk.id);
+    const isCurrentlyRedeemed = currentPerk?.status === 'redeemed';
+    
+    const options = [];
+    const actions: (() => void)[] = [];
+
+    if (isCurrentlyRedeemed) {
+      options.push('Mark Available');
+      actions.push(() => setPerkStatus(cardId, perk.id, 'available'));
+    } else {
+      options.push('Mark Redeemed');
+      actions.push(() => setPerkStatus(cardId, perk.id, 'redeemed'));
+    }
+
+    options.push('Open App/Link');
+    actions.push(async () => {
+      try {
+        await openPerkTarget(perk);
+      } catch (error) {
+        console.error('Error opening perk target from ActionSheet:', error);
+        Alert.alert('Error', 'Could not open the link for this perk.');
+      }
+    });
+
+    options.push('Cancel');
+    const cancelButtonIndex = options.length - 1;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: options,
+          cancelButtonIndex: cancelButtonIndex,
+          title: perk.name,
+          message: perk.description, 
+        },
+        (buttonIndex) => {
+          if (buttonIndex !== cancelButtonIndex && actions[buttonIndex]) {
+            actions[buttonIndex]();
+          }
+        }
+      );
+    } else {
+      // Basic Alert fallback for Android or other platforms
+      const alertButtons: AlertButton[] = options.slice(0, -1).map((opt, index) => ({
+        text: opt,
+        onPress: actions[index],
+      }));
+      alertButtons.push({
+        text: 'Cancel',
+        style: 'cancel',
+      });
+      Alert.alert(perk.name, perk.description, alertButtons);
+    }
+  };
+
+  // Adapter function for StackedCardDisplay's expected interface
+  const handleLongPressPerkAdapter = (cardId: string, perkId: string, intendedNewStatus: 'available' | 'redeemed') => {
+    // Find the perk object from the processedCardsFromPerkStatus
+    const cardData = processedCardsFromPerkStatus.find(c => c.card.id === cardId);
+    const perk = cardData?.perks.find(p => p.id === perkId);
+    
+    if (perk) {
+      handleLongPressPerk(cardId, perk);
+    }
   };
 
   // DEV Date Picker Handler
@@ -251,6 +364,19 @@ export default function Dashboard() {
     if (event.type === 'set' && selectedDate) {
       setDevSelectedDate(selectedDate);
       processNewMonth(selectedDate); 
+    }
+  };
+
+  // DEV function to reset swipe hint for testing
+  const handleResetSwipeHint = async () => {
+    try {
+      await AsyncStorage.removeItem(SWIPE_HINT_STORAGE_KEY);
+      setUserHasSeenSwipeHint(false);
+      setShouldShowSwipeCoachMark(true);
+      Alert.alert('Success', 'Swipe hint reset. Coach mark will show again.');
+    } catch (e) {
+      console.error("Failed to reset swipe hint.", e);
+      Alert.alert('Error', 'Failed to reset swipe hint.');
     }
   };
 
@@ -316,105 +442,124 @@ export default function Dashboard() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        ref={scrollViewRef}
-        scrollEventThrottle={16}
-      >
-        <Header />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* <StatusBar barStyle="dark-content" backgroundColor="#ffffff" /> */}
+      <View style={styles.mainContainer}>
+        <Header /> 
 
-        {/* Summary Section with Donut Chart */}
-        <View style={[styles.summarySection, { paddingTop: 0 }]}>
-          <PerkDonutDisplayManager
-            ref={donutDisplayRef}
-            userCardsWithPerks={userCardsWithPerks}
-            monthlyCreditsRedeemed={monthlyCreditsRedeemed}
-            monthlyCreditsPossible={monthlyCreditsPossible}
-            redeemedInCurrentCycle={redeemedInCurrentCycle}
-          />
-        </View>
-
-        {/* Action Hint Pill */}
-        {nextActionablePerk && (
-          <ActionHintPill 
-            perk={nextActionablePerk} 
-            daysRemaining={daysRemaining} 
-            onPress={() => handleActionHintPress(nextActionablePerk)}
-          />
-        )}
-
-        {/* Cards Section */}
-        <View style={styles.cardsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your Cards</Text>
+        <ScrollView 
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          scrollEventThrottle={16}
+        >
+          {/* Summary Section with Donut Chart */}
+          <View style={[styles.summarySection, { paddingTop: 0 }]}>
+            <PerkDonutDisplayManager
+              ref={donutDisplayRef}
+              userCardsWithPerks={userCardsWithPerks}
+              monthlyCreditsRedeemed={monthlyCreditsRedeemed}
+              monthlyCreditsPossible={monthlyCreditsPossible}
+              redeemedInCurrentCycle={redeemedInCurrentCycle}
+            />
           </View>
 
-          {sortedCards.length > 0 ? (
-            <StackedCardDisplay
-              sortedCards={sortedCards}
-              cumulativeValueSavedPerCard={cumulativeValueSavedPerCard}
-              activeCardId={activeCardId}
-              onTapPerk={handleTapPerk}
-              onLongPressPerk={handleLongPressPerk}
-              onExpandChange={handleCardExpandChange}
-              onPerkStatusChange={handlePerkStatusChange}
+          {/* Action Hint Pill */}
+          {nextActionablePerk && (
+            <ActionHintPill 
+              perk={nextActionablePerk} 
+              daysRemaining={daysRemaining} 
+              onPress={() => handleActionHintPress(nextActionablePerk)}
             />
-          ) : (
-            <View style={styles.noCardsContainer}>
-              <Ionicons name="card-outline" size={48} color="#8e8e93" />
-              <Text style={styles.noCardsText}>
-                No cards selected. Add your first card to start tracking rewards!
-              </Text>
-              <TouchableOpacity
-                style={styles.addFirstCardButton}
-                onPress={() => router.push("/(tabs)/02-cards")}
-              >
-                <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
-              </TouchableOpacity>
+          )}
+
+          {/* Cards Section */}
+          <View style={styles.cardsSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Cards</Text>
             </View>
-          )}
-        </View>
 
-        {/* DEV Date Picker */}
-        <View style={styles.devSection}>
-          <TouchableOpacity
-            onPress={() => setShowDatePickerForDev(true)}
-            style={styles.devButton}
-          >
-            <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
-          </TouchableOpacity>
+            {sortedCards.length > 0 ? (
+              <StackedCardDisplay
+                sortedCards={sortedCards}
+                cumulativeValueSavedPerCard={cumulativeValueSavedPerCard}
+                activeCardId={activeCardId}
+                onTapPerk={handleTapPerk}
+                onLongPressPerk={handleLongPressPerkAdapter}
+                onExpandChange={handleCardExpandChange}
+                onPerkStatusChange={handlePerkStatusChange}
+              />
+            ) : (
+              <View style={styles.noCardsContainer}>
+                <Ionicons name="card-outline" size={48} color="#8e8e93" />
+                <Text style={styles.noCardsText}>
+                  No cards selected. Add your first card to start tracking rewards!
+                </Text>
+                <TouchableOpacity
+                  style={styles.addFirstCardButton}
+                  onPress={() => router.push("/(tabs)/02-cards")}
+                >
+                  <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
 
-          {showDatePickerForDev && (
-            <DateTimePicker
-              testID="dateTimePickerForDev"
-              value={devSelectedDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleDevDateChange}
-              {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
-            />
-          )}
-        </View>
-      </ScrollView>
+          {/* Swipe Coach Mark */}
+          <SwipeCoachMark 
+            visible={shouldShowSwipeCoachMark}
+            onDismiss={handleDismissSwipeCoachMark}
+          />
 
-      {showCelebration && (
-        <LottieView 
-          source={require('../../assets/animations/celebration.json')}
-          autoPlay 
-          loop={false} 
-          onAnimationFinish={() => setShowCelebration(false)}
-          style={styles.lottieCelebration}
-        />
-      )}
+          {/* DEV Date Picker */}
+          <View style={styles.devSection}>
+            <TouchableOpacity
+              onPress={() => setShowDatePickerForDev(true)}
+              style={styles.devButton}
+            >
+              <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleResetSwipeHint}
+              style={[styles.devButton, { marginTop: 8 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: Reset Swipe Coach Mark</Text>
+            </TouchableOpacity>
+
+            {showDatePickerForDev && (
+              <DateTimePicker
+                testID="dateTimePickerForDev"
+                value={devSelectedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDevDateChange}
+                {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
+              />
+            )}
+          </View>
+        </ScrollView>
+
+        {showCelebration && (
+          <LottieView 
+            source={require('../../assets/animations/celebration.json')}
+            autoPlay 
+            loop={false} 
+            onAnimationFinish={() => setShowCelebration(false)}
+            style={styles.lottieCelebration}
+          />
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  mainContainer: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
