@@ -164,50 +164,75 @@ export async function trackPerkRedemption(
       matches: perkDef.name === perk.name
     });
 
-    // Check for existing redemption in the current period
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const startOfNextMonth = new Date(startOfMonth);
-    startOfNextMonth.setMonth(startOfMonth.getMonth() + 1);
-
-    const { data: existingRedemptions } = await supabase
+    // Revised check for existing redemption in the current period
+    const { data: latestRedemption, error: latestRedemptionError } = await supabase
       .from('perk_redemptions')
-      .select('id')
+      .select('id, redemption_date, reset_date')
       .eq('user_id', userId)
       .eq('perk_id', perkDef.id)
-      .gte('redemption_date', startOfMonth.toISOString())
-      .lt('redemption_date', startOfNextMonth.toISOString());
+      .order('redemption_date', { ascending: false })
+      .limit(1)
+      .maybeSingle(); // Use maybeSingle to handle no prior redemptions gracefully
 
-    if (existingRedemptions && existingRedemptions.length > 0) {
-      console.log('Perk already redeemed this period:', {
+    if (latestRedemptionError) {
+      console.error('Error fetching latest redemption:', latestRedemptionError);
+      return { error: latestRedemptionError };
+    }
+
+    if (latestRedemption && new Date(latestRedemption.reset_date) > new Date()) {
+      console.log('Perk already redeemed this cycle (reset_date in future):', {
         perkName: perk.name,
-        perkId: perkDef.id,
-        existingRedemptions: existingRedemptions.length
+        perkDefinitionId: perkDef.id,
+        redemptionDate: latestRedemption.redemption_date,
+        resetDate: latestRedemption.reset_date,
       });
       return { error: new Error('Perk already redeemed this period') };
     }
 
     // Get the user's card ID from the database
-    const { data: userCards, error: cardError } = await supabase
+    const { data: userCardsResult, error: cardError } = await supabase
       .from('user_credit_cards')
       .select('id, card_name, card_brand')
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
       .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
-      .eq('is_active', true)
-      .single();
+      .eq('is_active', true);
 
-    if (cardError || !userCards) {
-      console.error('Error finding user card:', {
+    if (cardError) {
+      console.error('Error querying user card:', {
         error: cardError,
         cardId,
         brand: cardId.split('_')[0],
         name: allCards.find(c => c.id === cardId)?.name
       });
-      return { error: cardError || new Error('User card not found') };
+      return { error: cardError };
     }
+
+    if (!userCardsResult || userCardsResult.length === 0) {
+      console.error('User card not found:', {
+        cardId,
+        brand: cardId.split('_')[0],
+        name: allCards.find(c => c.id === cardId)?.name
+      });
+      return { error: new Error('User card not found') };
+    }
+
+    let userCardToUse;
+    if (userCardsResult.length > 1) {
+      console.warn('Multiple active cards found for the same type, proceeding with the first one:', {
+        userId,
+        cardId,
+        brand: cardId.split('_')[0],
+        name: allCards.find(c => c.id === cardId)?.name,
+        count: userCardsResult.length,
+        foundCards: userCardsResult.map(c => c.id)
+      });
+      userCardToUse = userCardsResult[0];
+    } else {
+      userCardToUse = userCardsResult[0];
+    }
+    
+    console.log('Using user_card_id:', userCardToUse.id);
 
     // Calculate reset date based on period and type
     const now = new Date();
@@ -238,7 +263,7 @@ export async function trackPerkRedemption(
       .from('perk_redemptions')
       .insert({
         user_id: userId,
-        user_card_id: userCards.id,
+        user_card_id: userCardToUse.id,
         perk_id: perkDef.id,
         redemption_date: now.toISOString(),
         reset_date: resetDate.toISOString(),

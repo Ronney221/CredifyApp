@@ -347,6 +347,8 @@ export default function Dashboard() {
       ? { ...selectedPerk, name: targetPerkName }
       : selectedPerk;
 
+    const originalStatus = selectedPerk.status; // Store original status
+
     // Close modal first
     handleModalDismiss();
 
@@ -358,114 +360,122 @@ export default function Dashboard() {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      // Automatically mark as redeemed
-      if (user) {
-        try {
-          // Optimistic update: immediately update global UI state
-          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-          handlePerkStatusChange();
-          
-          // Background database operation
-          const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
-          
-          if (error) {
-            // Revert optimistic update on error
-            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-            handlePerkStatusChange();
-            
-            if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
-              Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
-            } else {
-              console.error('Error tracking redemption:', error);
-              Alert.alert('Error', 'Failed to mark perk as redeemed.');
-            }
-            return;
-          }
+      // Optimistic update: immediately update global UI state
+      console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to redeemed for card', selectedCardIdForModal);
+      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+      // No immediate refresh here, wait for DB confirmation or failure
 
-          // Force refresh both global state and local ExpandableCard state
-          await refreshUserCards();
-          await refreshSavings();
-          handlePerkStatusChange();
-          
-          showToast(
-            `${selectedPerk.name} marked as redeemed`,
-            async () => {
-              try {
-                // Undo the redemption
-                const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
-                if (undoError) {
-                  console.error('Error undoing redemption:', undoError);
-                  showToast('Error undoing redemption');
-                } else {
-                  // Force refresh after undo
-                  await refreshUserCards();
-                  await refreshSavings();
-                  handlePerkStatusChange();
-                }
-              } catch (undoError) {
-                console.error('Unexpected error undoing redemption:', undoError);
-                showToast('Error undoing redemption');
-              }
-            }
-          );
-        } catch (dbError) {
-          // Revert optimistic update on error
-          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-          handlePerkStatusChange();
-          console.error('Unexpected error in auto-redemption:', dbError);
-          Alert.alert('Error', 'Failed to track redemption.');
+      // Background database operation
+      const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
+      
+      if (error) {
+        console.error('Error tracking redemption in DB:', error);
+        // Revert optimistic update on error
+        console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+        handlePerkStatusChange(); // Refresh UI with reverted state
+
+        if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+          Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+        } else {
+          Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
         }
+        return;
       }
-    } catch (error) {
-      console.error('Error opening perk target:', error);
-      Alert.alert('Error', 'Could not open the link for this perk.');
+
+      // DB operation successful
+      console.log('[Dashboard] DB trackPerkRedemption successful for', selectedPerk.id);
+      handlePerkStatusChange(); // Refresh UI with new state
+      
+      showToast(
+        `${selectedPerk.name} marked as redeemed`,
+        async () => {
+          console.log('[Dashboard] Undo initiated for perk:', selectedPerk.id);
+          // Optimistically set to available for undo
+          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+          // No immediate refresh, wait for DB
+          try {
+            const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+            if (undoError) {
+              console.error('Error undoing redemption in DB:', undoError);
+              // Revert optimistic undo
+              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); // Back to redeemed
+              handlePerkStatusChange(); // Refresh UI
+              showToast('Error undoing redemption');
+            } else {
+              console.log('[Dashboard] DB deletePerkRedemption successful for undo of', selectedPerk.id);
+              // UI is already 'available', now confirm with refresh
+              handlePerkStatusChange(); // Refresh UI with 'available' state
+              showToast(`${selectedPerk.name} redemption undone.`);
+            }
+          } catch (undoCatchError) {
+            console.error('Unexpected error during undo redemption:', undoCatchError);
+            // Revert optimistic undo
+            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); // Back to redeemed
+            handlePerkStatusChange(); // Refresh UI
+            showToast('Error undoing redemption');
+          }
+        }
+      );
+    } catch (openError) {
+      console.error('Error opening perk target or during redemption flow:', openError);
+      // If optimistic update happened before this catch, it needs reversal.
+      // However, setPerkStatus was called inside the try for DB op.
+      // If openPerkTarget itself fails, status isn't changed yet.
+      Alert.alert('Error', 'Could not open the link for this perk or process redemption.');
     }
   };
 
   const handleMarkRedeemed = async () => {
     if (!selectedPerk || !selectedCardIdForModal || !user) return;
 
+    const originalStatus = selectedPerk.status; // Store original status
+
     // Close modal first
     handleModalDismiss();
 
-    try {
-      // Optimistic update: immediately update global UI state
-      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-      handlePerkStatusChange();
-      
-      // Trigger haptic feedback immediately
-      if (Platform.OS === 'ios') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+    // Trigger haptic feedback immediately
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    // Optimistic update: immediately update global UI state
+    console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to redeemed for card', selectedCardIdForModal);
+    setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+    // No immediate refresh here, wait for DB confirmation or failure
 
+    try {
       // Background database operation
       const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
       
       if (error) {
+        console.error('Error tracking redemption in DB:', error);
         // Revert optimistic update on error
-        setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-        handlePerkStatusChange();
+        console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+        handlePerkStatusChange(); // Refresh UI with reverted state
         
-        if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+        if (typeof error === 'object' && error !== null && 'message'in error && (error as any).message === 'Perk already redeemed this period') {
           Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
         } else {
-          console.error('Error tracking redemption:', error);
-          Alert.alert('Error', 'Failed to mark perk as redeemed.');
+          Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
         }
         return;
       }
 
-      // Force refresh both global state and local ExpandableCard state
-      await refreshUserCards();
-      await refreshSavings();
-      handlePerkStatusChange();
+      // DB operation successful
+      console.log('[Dashboard] DB trackPerkRedemption successful for', selectedPerk.id);
+      handlePerkStatusChange(); // Refresh UI with new state
+      showToast(`${selectedPerk.name} marked as redeemed.`); // Simple toast, no undo here
       
     } catch (dbError) {
-      // Revert optimistic update on error  
-      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-      handlePerkStatusChange();
+      // Catch any unexpected errors from trackPerkRedemption or subsequent logic
       console.error('Unexpected error marking perk as redeemed:', dbError);
-      Alert.alert('Error', 'Failed to mark perk as redeemed.');
+      // Revert optimistic update on error  
+      console.log('[Dashboard] Catch block, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
+      setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+      handlePerkStatusChange(); // Refresh UI with reverted state
+      Alert.alert('Error', 'An unexpected error occurred while marking perk as redeemed.');
     }
   };
 
