@@ -142,31 +142,27 @@ export async function trackPerkRedemption(
     });
 
     // First, find the perk definition
+    console.log('Looking up perk definition for:', perk.name);
     const { data: perkDef, error: perkDefError } = await supabase
       .from('perk_definitions')
       .select('id, name')
       .eq('name', perk.name)
       .single();
 
-    if (perkDefError) {
+    if (perkDefError || !perkDef) {
       console.error('Error finding perk definition:', { 
         error: perkDefError, 
-        perkName: perk.name 
+        perkName: perk.name,
+        searchedName: perk.name
       });
       return { error: new Error(`Perk definition not found for: ${perk.name}`) };
     }
 
-    if (!perkDef) {
-      console.error('Perk definition missing:', { 
-        perkName: perk.name,
-        perkDetails: {
-          value: perk.value,
-          periodMonths: perk.periodMonths,
-          resetType: perk.resetType
-        }
-      });
-      return { error: new Error(`Perk definition not found: ${perk.name}`) };
-    }
+    console.log('Found perk definition:', {
+      id: perkDef.id,
+      name: perkDef.name,
+      matches: perkDef.name === perk.name
+    });
 
     // Check for existing redemption in the current period
     const startOfMonth = new Date();
@@ -278,6 +274,10 @@ export async function getPerkRedemptions(
       .from('perk_redemptions')
       .select(`
         *,
+        perk_definitions (
+          name,
+          value
+        ),
         user_credit_cards (
           card_name,
           card_brand
@@ -377,16 +377,27 @@ export async function setAutoRedemption(
     });
 
     // First, find the perk definition
+    console.log('Looking up perk definition for:', perk.name);
     const { data: perkDef, error: perkDefError } = await supabase
       .from('perk_definitions')
-      .select('id')
+      .select('id, name')
       .eq('name', perk.name)
       .single();
 
     if (perkDefError || !perkDef) {
-      console.error('Error finding perk definition:', perkDefError);
+      console.error('Error finding perk definition:', { 
+        error: perkDefError, 
+        perkName: perk.name,
+        searchedName: perk.name
+      });
       return { error: new Error(`Perk definition not found for: ${perk.name}`) };
     }
+
+    console.log('Found perk definition:', {
+      id: perkDef.id,
+      name: perkDef.name,
+      matches: perkDef.name === perk.name
+    });
 
     // Get the user's card ID from the database
     const { data: userCards, error: cardError } = await supabase
@@ -403,28 +414,68 @@ export async function setAutoRedemption(
       return { error: cardError || new Error('User card not found') };
     }
 
-    // Upsert the auto-redemption preference
-    const { data, error } = await supabase
-      .from('perk_auto_redemptions')
-      .upsert({
-        user_id: userId,
-        perk_id: perkDef.id,
-        user_card_id: userCards.id,
-        is_enabled: enabled,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,perk_id,user_card_id'
-      })
-      .select()
-      .single();
+    if (enabled) {
+      // Insert/update the auto-redemption preference
+      const { data, error } = await supabase
+        .from('perk_auto_redemptions')
+        .upsert({
+          user_id: userId,
+          perk_id: perkDef.id,
+          user_card_id: userCards.id,
+          is_enabled: true,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,perk_id,user_card_id'
+        })
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error setting auto-redemption:', error);
-      return { error };
+      if (error) {
+        console.error('Error setting auto-redemption:', error);
+        return { error };
+      }
+
+      console.log('Successfully set auto-redemption:', data);
+      return { data, error: null };
+    } else {
+      // Delete ALL auto-redemption rows for this user and perk, regardless of user_card_id
+      // This handles cases where there might be multiple user_card_id entries for the same user
+      console.log('Attempting to delete ALL auto-redemptions for user and perk:', {
+        userId,
+        perkId: perkDef.id,
+        perkName: perk.name
+      });
+
+      const { error } = await supabase
+        .from('perk_auto_redemptions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('perk_id', perkDef.id);
+
+      if (error) {
+        console.error('Error deleting auto-redemptions:', error);
+        return { error };
+      }
+
+      // Verify the deletion by checking if any rows still exist
+      const { data: verificationData, error: verificationError } = await supabase
+        .from('perk_auto_redemptions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('perk_id', perkDef.id);
+
+      if (verificationError) {
+        console.warn('Could not verify deletion, but delete operation succeeded:', verificationError);
+      } else {
+        console.log('Verification check:', {
+          remainingRows: verificationData?.length || 0,
+          data: verificationData
+        });
+      }
+
+      console.log('Successfully deleted auto-redemption preference(s)');
+      return { data: null, error: null };
     }
-
-    console.log('Successfully set auto-redemption:', data);
-    return { data, error: null };
   } catch (error) {
     console.error('Unexpected error setting auto-redemption:', error);
     return { error };
@@ -486,6 +537,66 @@ export async function checkAutoRedemption(
     return { data: data?.is_enabled || false, error: null };
   } catch (error) {
     console.error('Unexpected error checking auto-redemption:', error);
+    return { error };
+  }
+}
+
+export async function checkAutoRedemptionByCardId(
+  userId: string,
+  perkDefinitionId: string,
+  cardId: string
+) {
+  try {
+    // First, get the user's card ID from the database
+    const { data: userCards, error: cardError } = await supabase
+      .from('user_credit_cards')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('card_brand', cardId.split('_')[0])
+      .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
+      .eq('is_active', true)
+      .single();
+
+    if (cardError || !userCards) {
+      console.error('Error finding user card for auto-redemption check:', cardError);
+      return { data: false, error: null }; // Return false if card not found
+    }
+
+    // Now check auto-redemption with the actual user_card_id
+    return await checkAutoRedemption(userId, perkDefinitionId, userCards.id);
+  } catch (error) {
+    console.error('Unexpected error checking auto-redemption by card ID:', error);
+    return { data: false, error: null };
+  }
+}
+
+export async function debugAutoRedemptions(userId: string) {
+  try {
+    console.log('=== DEBUG: All auto-redemptions for user ===');
+    const { data, error } = await supabase
+      .from('perk_auto_redemptions')
+      .select(`
+        *,
+        perk_definitions (
+          name,
+          value
+        ),
+        user_credit_cards (
+          card_name,
+          card_brand
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching debug auto-redemptions:', error);
+      return { error };
+    }
+
+    console.log(`Found ${data?.length || 0} auto-redemption records:`, data);
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error in debug function:', error);
     return { error };
   }
 } 

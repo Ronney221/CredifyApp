@@ -10,7 +10,6 @@ interface StackedCardDisplayProps {
   cumulativeValueSavedPerCard: Record<string, number>;
   activeCardId: string | null;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
-  onLongPressPerk: (cardId: string, perk: CardPerk) => void;
   onExpandChange: (cardId: string, isExpanded: boolean) => void;
   onPerkStatusChange: () => void; 
 }
@@ -20,7 +19,6 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
   cumulativeValueSavedPerCard,
   activeCardId,
   onTapPerk,
-  onLongPressPerk,
   onExpandChange,
   onPerkStatusChange,
 }) => {
@@ -44,7 +42,6 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
           perks={perks}
           cumulativeSavedValue={cumulativeValueSavedPerCard[card.id] || 0}
           onTapPerk={onTapPerk}
-          onLongPressPerk={onLongPressPerk}
           onExpandChange={onExpandChange}
           onPerkStatusChange={onPerkStatusChange}
           isActive={card.id === activeCardId}

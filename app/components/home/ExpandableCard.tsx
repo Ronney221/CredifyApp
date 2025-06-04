@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Image,
   Platform,
   Alert,
+  ActionSheetIOS,
+  AlertButton,
 } from 'react-native';
 import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,14 +17,15 @@ import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
-import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase } from '../../../lib/database';
+import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
+import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase, setAutoRedemption, debugAutoRedemptions } from '../../../lib/database';
+import { useRouter } from 'expo-router';
 
 export interface ExpandableCardProps {
   card: Card;
   perks: CardPerk[];
   cumulativeSavedValue: number;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
-  onLongPressPerk: (cardId: string, perk: CardPerk) => void;
   onExpandChange?: (cardId: string, isExpanded: boolean) => void;
   onPerkStatusChange?: () => void;
   isActive?: boolean;
@@ -68,27 +71,24 @@ export default function ExpandableCard({
   perks,
   cumulativeSavedValue,
   onTapPerk,
-  onLongPressPerk,
   onExpandChange,
   onPerkStatusChange,
   isActive,
   sortIndex,
 }: ExpandableCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [redeemedPerkIds, setRedeemedPerkIds] = useState<Set<string>>(new Set());
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const { user } = useAuth();
+  const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
+  const router = useRouter();
   
   // When card becomes active (e.g. from action hint pill), ensure it expands
-  useEffect(() => {
+  React.useEffect(() => {
     if (isActive && !isExpanded) {
       setIsExpanded(true);
       onExpandChange?.(card.id, true);
     }
-    // We don't want to collapse it if isActive becomes false, 
-    // as it might be active but user manually collapsed it, or another card became active.
-    // Expansion is user-driven or driven by becoming the single active card.
   }, [isActive, isExpanded, card.id, onExpandChange]);
 
   const cardNetworkColor = useMemo(() => {
@@ -110,9 +110,9 @@ export default function ExpandableCard({
   const monthlyPerkStats = useMemo(() => {
     const monthlyPerks = perks.filter(p => p.periodMonths === 1);
     const total = monthlyPerks.length;
-    const redeemed = monthlyPerks.filter(p => redeemedPerkIds.has(p.id)).length;
+    const redeemed = monthlyPerks.filter(p => p.status === 'redeemed').length;
     return { total, redeemed };
-  }, [perks, redeemedPerkIds]);
+  }, [perks]);
 
   console.log(`========= ExpandableCard ${card.name} - Props & State =========`);
   console.log('Props:', {
@@ -123,93 +123,17 @@ export default function ExpandableCard({
     sortIndex
   });
   
-  const loadRedeemedPerks = async () => {
-    if (!user) return;
-    
-    try {
-      console.log(`\nLoading redeemed perks for ${card.name}...`);
-      
-      // First get perk definitions to map names to IDs
-      const { data: perkDefs } = await supabase
-        .from('perk_definitions')
-        .select('id, name, value');
-
-      if (!perkDefs) {
-        console.log('No perk definitions found');
-        return;
-      }
-
-      console.log('Perk definitions loaded:', {
-        count: perkDefs.length,
-        perks: perkDefs.map(p => ({ name: p.name, value: p.value }))
-      });
-
-      // Create a map of perk names to their database IDs and values
-      const perkNameToDetails = new Map(
-        perkDefs.map((p: { name: string; id: string; value: number }) => [
-          p.name, 
-          { id: p.id, value: p.value }
-        ])
-      );
-      
-      // Get current month's redemptions
-      const { data: monthlyData, error } = await getCurrentMonthRedemptions(user.id);
-      if (error) {
-        console.error('Error fetching redemptions:', error);
-        return;
-      }
-
-      console.log('Monthly redemptions loaded:', {
-        total: monthlyData?.length || 0,
-        redemptions: monthlyData?.map(r => ({
-          perkId: r.perk_id,
-          value: r.value_redeemed
-        }))
-      });
-
-      // Create a set of redeemed perk IDs
-      const redeemedIds = new Set(monthlyData?.map(redemption => redemption.perk_id) || []);
-      
-      // Map our local perk IDs to database IDs and check if they're redeemed
-      const redeemedLocalIds = new Set(
-        perks
-          .filter(perk => {
-            const dbPerkDetails = perkNameToDetails.get(perk.name);
-            return dbPerkDetails && redeemedIds.has(dbPerkDetails.id);
-          })
-          .map(perk => perk.id)
-      );
-
-      console.log(`${card.name} redemption status:`, {
-        redeemedLocalIds: Array.from(redeemedLocalIds),
-        redeemedPerks: perks
-          .filter(p => redeemedLocalIds.has(p.id))
-          .map(p => ({ id: p.id, name: p.name, value: p.value }))
-      });
-
-      setRedeemedPerkIds(redeemedLocalIds);
-    } catch (error) {
-      console.error('Error loading redeemed perks:', error);
-    }
-  };
-  
-  // Load redeemed perks from database
-  useEffect(() => {
-    console.log(`${card.name} useEffect triggered - Loading redeemed perks`);
-    loadRedeemedPerks();
-  }, [user, card.id]);
-
   // Only count monthly perks for the unredeemed count
   const unredeemedPerks = perks.filter(p => {
     const isMonthly = p.periodMonths === 1;
-    const isRedeemed = redeemedPerkIds.has(p.id);
+    const isRedeemed = p.status === 'redeemed';
     return isMonthly && !isRedeemed;
   });
 
   console.log(`${card.name} status:`, {
     unredeemedPerks: unredeemedPerks.length,
     totalPerks: perks.length,
-    redeemedPerkIds: Array.from(redeemedPerkIds),
+    redeemedPerks: perks.filter(p => p.status === 'redeemed').map(p => p.id),
     cumulativeSavedValue
   });
   
@@ -235,85 +159,207 @@ export default function ExpandableCard({
     
     swipeableRefs.current[perk.id]?.close();
 
-    const isCurrentlyRedeemedInState = redeemedPerkIds.has(perk.id);
+    const isCurrentlyRedeemed = perk.status === 'redeemed';
 
-    if ((action === 'redeemed' && isCurrentlyRedeemedInState) || (action === 'available' && !isCurrentlyRedeemedInState)) {
-        console.log(`[ExpandableCard] Perk ${perk.name} is already in the desired state of '${action}' according to local UI.`);
+    if ((action === 'redeemed' && isCurrentlyRedeemed) || (action === 'available' && !isCurrentlyRedeemed)) {
+        console.log(`[ExpandableCard] Perk ${perk.name} is already in the desired state of '${action}' according to global state.`);
+        return;
     }
 
-    console.log(`[ExpandableCard] Proceeding with ${action} for ${perk.name}`);
-
-    try {
-      if (action === 'redeemed') {
-        console.log(`[ExpandableCard] Attempting to trackPerkRedemption for ${perk.name}`);
-        const { error } = await trackPerkRedemption(user.id, card.id, perk, perk.value);
-        console.log(`[ExpandableCard] trackPerkRedemption result for ${perk.name}:`, error ? error : 'success');
-        if (error) {
-          if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+    if (action === 'redeemed') {
+      console.log(`[ExpandableCard] Proceeding with redeemed for ${perk.name}`);
+      console.log(`[ExpandableCard] Attempting to trackPerkRedemption for ${perk.name}`);
+      try {
+        const result = await trackPerkRedemption(user.id, card.id, perk, perk.value);
+        console.log(`[ExpandableCard] trackPerkRedemption result for ${perk.name}:`, result.error ? result.error : 'success');
+        
+        if (result.error) {
+          if (typeof result.error === 'object' && result.error !== null && 'message' in result.error && (result.error as any).message === 'Perk already redeemed this period') {
             Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
           } else {
-            console.error('Error tracking redemption:', error);
-            Alert.alert('Error', 'Failed to mark perk as redeemed.');
+            Alert.alert('Error', 'Failed to track perk redemption.');
           }
           return;
         }
-      } else {
-        console.log(`[ExpandableCard] Attempting to deletePerkRedemption for ${perk.name}`);
+        
+        // Call global state update for other components
+        onPerkStatusChange?.();
+        
+        showToast(
+          `${perk.name} marked as redeemed`,
+          async () => {
+            try {
+              const { error: undoError } = await deletePerkRedemption(user.id, perk.definition_id);
+              if (undoError) {
+                console.error('Error undoing redemption:', undoError);
+                showToast('Error undoing redemption');
+              } else {
+                console.log(`[ExpandableCard] Undoing action for ${perk.name}. New action: available`);
+                onPerkStatusChange?.();
+                // Trigger immediate refresh for consistency
+                setTimeout(() => onPerkStatusChange?.(), 50);
+              }
+            } catch (error) {
+              console.error('Error undoing redemption:', error);
+              showToast('Error undoing redemption');
+            }
+          }
+        );
+      } catch (error) {
+        console.error('Error tracking redemption:', error);
+        Alert.alert('Error', 'Failed to track perk redemption.');
+      }
+    } else {
+      console.log(`[ExpandableCard] Proceeding with available for ${perk.name}`);
+      try {
         const { error } = await deletePerkRedemption(user.id, perk.definition_id);
-        console.log(`[ExpandableCard] deletePerkRedemption result for ${perk.name}:`, error ? error : 'success');
         if (error) {
           console.error('Error deleting redemption:', error);
-          Alert.alert('Error', 'Failed to mark perk as available.');
+          Alert.alert('Error', 'Failed to undo perk redemption.');
           return;
         }
+        
+        // Call global state update for other components
+        onPerkStatusChange?.();
+        
+        showToast(`${perk.name} marked as available`);
+        // Trigger immediate refresh for consistency
+        setTimeout(() => onPerkStatusChange?.(), 50);
+      } catch (error) {
+        console.error('Error deleting redemption:', error);
+        Alert.alert('Error', 'Failed to undo perk redemption.');
       }
+    }
+  };
 
-      await loadRedeemedPerks();
-      onPerkStatusChange?.();
+  const handleLongPressPerk = async (cardId: string, perk: CardPerk) => {
+    if (!user) {
+      Alert.alert(
+        "Authentication Required",
+        "Please log in to track perks.",
+        [
+          { text: "Log In", onPress: () => router.push('/(auth)/login') },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+      return;
+    }
 
-      showToast(
-        `${perk.name} marked as ${action}`,
-        async () => {
-          console.log(`[ExpandableCard] Undoing action for ${perk.name}. New action: ${action === 'redeemed' ? 'available' : 'redeemed'}`);
-          const undoAction = action === 'redeemed' ? 'available' : 'redeemed';
-          
-          // Revert optimistic update for undo
-          setRedeemedPerkIds(prev => {
-            const newSet = new Set(prev);
-            if (undoAction === 'redeemed') newSet.add(perk.id);
-            else newSet.delete(perk.id);
-            return newSet;
-          });
+    // Only show auto-redemption options for monthly perks
+    if (perk.periodMonths !== 1) {
+      return; // Don't show any options for non-monthly perks
+    }
 
-          let undoDbError = null;
-          if (undoAction === 'redeemed') {
-            const { error } = await trackPerkRedemption(user.id, card.id, perk, perk.value);
-            undoDbError = error;
-          } else {
-            const { error } = await deletePerkRedemption(user.id, perk.definition_id);
-            undoDbError = error;
+    const options = [];
+    const actions: (() => void)[] = [];
+
+    try {
+      // Check if perk is already set for auto-redemption using the hook
+      const autoRedemption = getAutoRedemptionByPerkName(perk.name);
+      const isAutoRedemption = !!autoRedemption;
+      
+      if (isAutoRedemption) {
+        options.push('Cancel Monthly Auto-Redemption');
+        actions.push(async () => {
+          try {
+            console.log(`[ExpandableCard] Attempting to cancel auto-redemption for ${perk.name}`);
+            
+            const { error } = await setAutoRedemption(user.id, cardId, perk, false);
+            if (error) {
+              console.error(`[ExpandableCard] Failed to disable auto-redemption for ${perk.name}:`, error);
+              Alert.alert('Error', `Failed to disable auto-redemption: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            } else {
+              console.log(`[ExpandableCard] Successfully cancelled auto-redemption for ${perk.name}`);
+              
+              await refreshAutoRedemptions(); // Refresh the hook data
+              onPerkStatusChange?.(); // Refresh dashboard
+              Alert.alert('Success', `Auto-redemption cancelled for "${perk.name}".`);
+            }
+          } catch (err) {
+            console.error(`[ExpandableCard] Unexpected error cancelling auto-redemption for ${perk.name}:`, err);
+            Alert.alert('Error', `Failed to disable auto-redemption: ${err instanceof Error ? err.message : 'Unknown error'}`);
           }
+        });
+      } else {
+        options.push('Set to Auto-Redeem Monthly');
+        actions.push(async () => {
+          Alert.alert(
+            'Auto-Redemption',
+            `Enable auto-redemption for "${perk.name}"?\n\nThis perk will be automatically marked as redeemed each month so you don't have to track it manually. Perfect for perks that get used automatically (like streaming credits).\n\nThis will also mark the perk as redeemed for this month.`,
+            [
+              {
+                text: 'Enable',
+                onPress: async () => {
+                  try {
+                    // First set auto-redemption
+                    const { error: autoError } = await setAutoRedemption(user.id, cardId, perk, true);
+                    if (autoError) {
+                      Alert.alert('Error', 'Failed to enable auto-redemption.');
+                      return;
+                    }
 
-          if (undoDbError) {
-            console.error(`[ExpandableCard] Error undoing ${action} for ${perk.name}:`, undoDbError);
-             setRedeemedPerkIds(prev => {
-              const newSet = new Set(prev);
-              if (undoAction === 'redeemed') newSet.delete(perk.id); 
-              else newSet.add(perk.id); 
-              return newSet;
-            });
-            showToast(`Error undoing action for ${perk.name}.`);
-          } else {
-            // Correct: onLongPressPerk should NOT be here.
+                    // Then mark as redeemed for current month
+                    const { error: redeemError } = await trackPerkRedemption(user.id, cardId, perk, perk.value);
+                    if (redeemError) {
+                      console.log('Note: Auto-redemption set but current month redemption may already exist');
+                    }
+
+                    // Refresh all relevant data
+                    await refreshAutoRedemptions();
+                    onPerkStatusChange?.();
+                    
+                    Alert.alert('Success', `Auto-redemption enabled for "${perk.name}"!\n\nIt has been marked as redeemed for this month and will be automatically redeemed each month going forward.`);
+                  } catch (err) {
+                    Alert.alert('Error', 'Failed to enable auto-redemption.');
+                  }
+                }
+              },
+              { text: 'Cancel', style: 'cancel' }
+            ]
+          );
+        });
+      }
+    } catch (err) {
+      console.error('Error in auto-redemption check:', err);
+      // Fallback to show the option anyway
+      options.push('Set to Auto-Redeem Monthly');
+      actions.push(async () => {
+        Alert.alert('Feature Coming Soon', 'Auto-redemption is being implemented.');
+      });
+    }
+
+    if (options.length === 0) {
+      return; // No options to show
+    }
+
+    options.push('Cancel');
+    const cancelButtonIndex = options.length - 1;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: options,
+          cancelButtonIndex: cancelButtonIndex,
+          title: perk.name,
+          message: perk.description, 
+        },
+        (buttonIndex) => {
+          if (buttonIndex !== cancelButtonIndex && actions[buttonIndex]) {
+            actions[buttonIndex]();
           }
-          await loadRedeemedPerks();
-          onPerkStatusChange?.(); 
         }
       );
-
-    } catch (error) {
-      console.error(`Error executing perk action (${action}):`, error);
-      Alert.alert('Error', 'An unexpected error occurred.');
+    } else {
+      // Basic Alert fallback for Android or other platforms
+      const alertButtons: AlertButton[] = options.slice(0, -1).map((opt, index) => ({
+        text: opt,
+        onPress: actions[index],
+      }));
+      alertButtons.push({
+        text: 'Cancel',
+        style: 'cancel',
+      });
+      Alert.alert(perk.name, perk.description, alertButtons);
     }
   };
 
@@ -344,8 +390,9 @@ export default function ExpandableCard({
   };
 
   const renderPerk = (perk: CardPerk) => {
-    const isRedeemed = redeemedPerkIds.has(perk.id);
-    const showSwipeHint = perk.periodMonths === 1 && !interactedPerkIdsThisSession.has(perk.id);
+    const isRedeemed = perk.status === 'redeemed';
+    const isAutoRedeemed = perk.periodMonths === 1 && getAutoRedemptionByPerkName(perk.name);
+    const showSwipeHint = perk.periodMonths === 1 && !interactedPerkIdsThisSession.has(perk.id) && !isAutoRedeemed;
     const formattedValue = perk.value.toLocaleString('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -368,6 +415,14 @@ export default function ExpandableCard({
         break;
       default:
         periodText = `Every ${perk.periodMonths} months`;
+    }
+
+    // Determine container style based on status
+    let containerStyle: any = styles.perkContainer;
+    if (isRedeemed && isAutoRedeemed) {
+      containerStyle = [styles.perkContainer, styles.perkContainerAutoRedeemed];
+    } else if (isRedeemed) {
+      containerStyle = [styles.perkContainer, styles.perkContainerRedeemed];
     }
 
     return (
@@ -413,9 +468,9 @@ export default function ExpandableCard({
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => onTapPerk(card.id, perk.id, perk)}
-            onLongPress={() => onLongPressPerk(card.id, perk)}
+            onLongPress={() => handleLongPressPerk(card.id, perk)}
           >
-            <View style={[styles.perkContainer, isRedeemed && styles.perkContainerRedeemed]}>
+            <View style={containerStyle}>
               {showSwipeHint && (
                 <View style={styles.swipeHintContainer}>
                   <Ionicons name="chevron-back-outline" size={16} color="#888888" />
@@ -424,28 +479,40 @@ export default function ExpandableCard({
               )}
               <View style={styles.perkIconContainer}>
                 <Ionicons 
-                  name={isRedeemed ? 'checkmark-circle-outline' : 'pricetag-outline'}
+                  name={isRedeemed ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline') : isAutoRedeemed ? 'sync-circle-outline' : 'pricetag-outline'}
                   size={26} 
-                  color={isRedeemed ? '#8E8E93' : '#007AFF'}
+                  color={isRedeemed ? (isAutoRedeemed ? '#FF9500' : '#8E8E93') : isAutoRedeemed ? '#FF9500' : '#007AFF'}
                 />
               </View>
               <View style={styles.perkTextContainer}>
-                <Text style={[styles.perkName, isRedeemed && styles.perkNameRedeemed]}>
+                <Text style={[
+                  styles.perkName, 
+                  isRedeemed && !isAutoRedeemed && styles.perkNameRedeemed,
+                  isRedeemed && isAutoRedeemed && styles.perkNameAutoRedeemed
+                ]}>
                   {perk.name}
                 </Text>
-                <Text style={[styles.perkDescription, isRedeemed && styles.perkDescriptionRedeemed]}>
-                  {isRedeemed ? 'Used this month' : perk.description}
+                <Text style={[
+                  styles.perkDescription, 
+                  isRedeemed && !isAutoRedeemed && styles.perkDescriptionRedeemed,
+                  isRedeemed && isAutoRedeemed && styles.perkDescriptionAutoRedeemed
+                ]}>
+                  {isRedeemed ? (isAutoRedeemed ? 'Auto-redeemed monthly' : 'Used this month') : isAutoRedeemed ? 'Auto-redeemed monthly' : perk.description}
                 </Text>
               </View>
               <View style={styles.perkValueContainer}>
-                <Text style={[styles.perkValue, isRedeemed && styles.perkValueRedeemed]}>
+                <Text style={[
+                  styles.perkValue, 
+                  isRedeemed && !isAutoRedeemed && styles.perkValueRedeemed,
+                  isRedeemed && isAutoRedeemed && styles.perkValueAutoRedeemed
+                ]}>
                   {formattedValue}
                 </Text>
               </View>
               <Ionicons 
                 name="chevron-forward" 
                 size={20} 
-                color={isRedeemed ? '#C7C7CC' : '#B0B0B0'} 
+                color={isRedeemed ? (isAutoRedeemed ? '#CC7A00' : '#C7C7CC') : '#B0B0B0'} 
                 style={styles.perkChevron}
               />
             </View>
@@ -539,16 +606,16 @@ export default function ExpandableCard({
           style={styles.perksListContainer} 
           layout={Layout.springify().duration(300)}
         >
-          {perks.filter(p => !redeemedPerkIds.has(p.id)).length > 0 && (
+          {perks.filter(p => p.status === 'available').length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Available Perks</Text>
-              {perks.filter(p => !redeemedPerkIds.has(p.id)).map(renderPerk)}
+              {perks.filter(p => p.status === 'available').map(renderPerk)}
             </>
           )}
-          {Array.from(redeemedPerkIds).length > 0 && (
+          {perks.filter(p => p.status === 'redeemed').length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-              {perks.filter(p => redeemedPerkIds.has(p.id)).map(renderPerk)}
+              {perks.filter(p => p.status === 'redeemed').map(renderPerk)}
             </>
           )}
         </Reanimated.View>
@@ -876,5 +943,17 @@ const styles = StyleSheet.create({
   },
   perkChevron: {
     marginLeft: 8,
+  },
+  perkContainerAutoRedeemed: {
+    backgroundColor: '#FFF8E1',
+  },
+  perkNameAutoRedeemed: {
+    color: '#FF9500',
+  },
+  perkDescriptionAutoRedeemed: {
+    color: '#FF9500',
+  },
+  perkValueAutoRedeemed: {
+    color: '#FF9500',
   },
 }); 

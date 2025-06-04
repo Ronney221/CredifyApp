@@ -9,7 +9,6 @@ interface UserCardItemProps {
   perks: CardPerk[];
   cumulativeSavedValue: number;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
-  onLongPressPerk: (cardId: string, perkId: string, perk: CardPerk) => void;
   cardDetailItemStyle?: object;
 }
 
@@ -18,7 +17,6 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
   perks,
   cumulativeSavedValue,
   onTapPerk,
-  onLongPressPerk,
   cardDetailItemStyle,
 }) => {
   return (
@@ -28,7 +26,6 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
         perks={perks}
         cumulativeSavedValue={cumulativeSavedValue}
         onTapPerk={onTapPerk}
-        onLongPressPerk={onLongPressPerk}
         sortIndex={0}
       />
     </View>

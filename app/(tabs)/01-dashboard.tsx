@@ -33,9 +33,10 @@ import ExpandableCard from '../components/home/ExpandableCard';
 import PerkActionModal from '../components/home/PerkActionModal';
 import { useUserCards } from '../hooks/useUserCards';
 import { usePerkStatus } from '../hooks/usePerkStatus';
+import { useAutoRedemptions } from '../hooks/useAutoRedemptions';
 import { format, differenceInDays, endOfMonth } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
-import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemption } from '../../lib/database';
+import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
 import AccountButton from '../components/home/AccountButton';
 import Header from '../components/home/Header';
 import StackedCardDisplay from '../components/home/StackedCardDisplay';
@@ -154,6 +155,7 @@ export default function Dashboard() {
     setShowCelebration,
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
+  const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
 
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
@@ -238,13 +240,21 @@ export default function Dashboard() {
         StatusBar.setTranslucent(true);
       }
       
-      // Always refresh data when focusing on dashboard
-      console.log('[Dashboard] Focus effect - refreshing user cards and savings');
-      refreshUserCards();
-      refreshSavings();
+      // Always refresh data when focusing on dashboard with error handling
+      const refreshData = async () => {
+        try {
+          console.log('[Dashboard] Focus effect - refreshing user cards and savings');
+          await refreshUserCards();
+          await refreshSavings();
+          donutDisplayRef.current?.refresh();
+          await setupNotifications();
+        } catch (error) {
+          console.warn('[Dashboard] Focus effect refresh failed (network issue):', error);
+          // Don't show error to user for focus effect failures - just log it
+        }
+      };
       
-      setupNotifications();
-      donutDisplayRef.current?.refresh();
+      refreshData();
     }, [refreshUserCards, refreshSavings])
   );
 
@@ -331,39 +341,38 @@ export default function Dashboard() {
   };
 
   const handleOpenApp = async (targetPerkName?: string) => {
-    if (!selectedPerk || !selectedCardIdForModal) return;
+    if (!selectedPerk || !selectedCardIdForModal || !user) return;
+
+    const perkToRedeem = targetPerkName 
+      ? { ...selectedPerk, name: targetPerkName }
+      : selectedPerk;
 
     // Close modal first
     handleModalDismiss();
 
     try {
-      let success = false;
+      // Open the app target
+      const didOpen = await openPerkTarget(perkToRedeem);
       
-      if (targetPerkName) {
-        // Multi-choice perk - create a temporary perk object with the target name
-        const targetPerk = { ...selectedPerk, name: targetPerkName };
-        success = await openPerkTarget(targetPerk);
-      } else {
-        // Single choice perk
-        success = await openPerkTarget(selectedPerk);
-      }
-      
-      if (!success) {
-        Alert.alert('Error', 'Could not open the link for this perk.');
-        return;
-      }
-      
-      // Trigger haptic feedback
-      if (Platform.OS === 'ios') {
+      if (didOpen && Platform.OS === 'ios') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      // Automatically mark as redeemed using actual database functions with undo option
+      // Automatically mark as redeemed
       if (user) {
         try {
+          // Optimistic update: immediately update global UI state
+          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+          handlePerkStatusChange();
+          
+          // Background database operation
           const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
           
           if (error) {
+            // Revert optimistic update on error
+            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+            handlePerkStatusChange();
+            
             if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
               Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
             } else {
@@ -373,24 +382,24 @@ export default function Dashboard() {
             return;
           }
 
-          // Update local state and refresh data
-          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-          refreshSavings();
+          // Force refresh both global state and local ExpandableCard state
+          await refreshUserCards();
+          await refreshSavings();
           handlePerkStatusChange();
           
           showToast(
             `${selectedPerk.name} marked as redeemed`,
             async () => {
-              // Undo the redemption using database function
               try {
+                // Undo the redemption
                 const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
                 if (undoError) {
                   console.error('Error undoing redemption:', undoError);
                   showToast('Error undoing redemption');
                 } else {
-                  // Update local state
-                  setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-                  refreshSavings();
+                  // Force refresh after undo
+                  await refreshUserCards();
+                  await refreshSavings();
                   handlePerkStatusChange();
                 }
               } catch (undoError) {
@@ -400,6 +409,9 @@ export default function Dashboard() {
             }
           );
         } catch (dbError) {
+          // Revert optimistic update on error
+          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+          handlePerkStatusChange();
           console.error('Unexpected error in auto-redemption:', dbError);
           Alert.alert('Error', 'Failed to track redemption.');
         }
@@ -417,10 +429,23 @@ export default function Dashboard() {
     handleModalDismiss();
 
     try {
-      // Use actual database function
+      // Optimistic update: immediately update global UI state
+      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+      handlePerkStatusChange();
+      
+      // Trigger haptic feedback immediately
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
+      // Background database operation
       const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
       
       if (error) {
+        // Revert optimistic update on error
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+        handlePerkStatusChange();
+        
         if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
           Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
         } else {
@@ -430,184 +455,17 @@ export default function Dashboard() {
         return;
       }
 
-      // Update local state and refresh data
-      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-      refreshSavings();
+      // Force refresh both global state and local ExpandableCard state
+      await refreshUserCards();
+      await refreshSavings();
       handlePerkStatusChange();
       
-      // Trigger haptic feedback
-      if (Platform.OS === 'ios') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
     } catch (dbError) {
+      // Revert optimistic update on error  
+      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+      handlePerkStatusChange();
       console.error('Unexpected error marking perk as redeemed:', dbError);
       Alert.alert('Error', 'Failed to mark perk as redeemed.');
-    }
-  };
-
-  const handleLongPressPerk = async (cardId: string, perk: CardPerk) => {
-    if (!user) {
-      Alert.alert(
-        "Authentication Required",
-        "Please log in to track perks.",
-        [
-          { text: "Log In", onPress: () => router.push('/(auth)/login') },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
-      return;
-    }
-
-    // Get the current status from processedCardsFromPerkStatus instead of the prop
-    const cardData = processedCardsFromPerkStatus.find(c => c.card.id === cardId);
-    const currentPerk = cardData?.perks.find(p => p.id === perk.id);
-    const isCurrentlyRedeemed = currentPerk?.status === 'redeemed';
-    
-    const options = [];
-    const actions: (() => void)[] = [];
-
-    // Only show auto-redemption option for monthly perks
-    if (perk.periodMonths === 1) {
-      try {
-        // Check if perk is already set for auto-redemption
-        const { data: isAutoRedemption, error } = await checkAutoRedemption(
-          user.id, 
-          perk.definition_id, 
-          cardId // We'll need to map this to actual user_card_id
-        );
-        
-        if (error) {
-          console.error('Error checking auto-redemption status:', error);
-        }
-        
-        if (isAutoRedemption) {
-          options.push('Disable Auto-Redemption');
-          actions.push(async () => {
-            try {
-              const { error } = await setAutoRedemption(user.id, cardId, perk, false);
-              if (error) {
-                Alert.alert('Error', 'Failed to disable auto-redemption.');
-              } else {
-                Alert.alert('Success', `Auto-redemption disabled for "${perk.name}".`);
-              }
-            } catch (err) {
-              Alert.alert('Error', 'Failed to disable auto-redemption.');
-            }
-          });
-        } else {
-          options.push('Set to Auto-Redeem Monthly');
-          actions.push(async () => {
-            Alert.alert(
-              'Auto-Redemption',
-              `Enable auto-redemption for "${perk.name}"?\n\nThis perk will be automatically marked as redeemed each month so you don't have to track it manually. Perfect for perks that get used automatically (like streaming credits).`,
-              [
-                {
-                  text: 'Enable',
-                  onPress: async () => {
-                    try {
-                      const { error } = await setAutoRedemption(user.id, cardId, perk, true);
-                      if (error) {
-                        Alert.alert('Error', 'Failed to enable auto-redemption.');
-                      } else {
-                        Alert.alert('Success', `Auto-redemption enabled for "${perk.name}"!\n\nIt will be automatically marked as redeemed each month.`);
-                      }
-                    } catch (err) {
-                      Alert.alert('Error', 'Failed to enable auto-redemption.');
-                    }
-                  }
-                },
-                { text: 'Cancel', style: 'cancel' }
-              ]
-            );
-          });
-        }
-      } catch (err) {
-        console.error('Error in auto-redemption check:', err);
-        // Fallback to show the option anyway
-        options.push('Set to Auto-Redeem Monthly');
-        actions.push(async () => {
-          Alert.alert('Feature Coming Soon', 'Auto-redemption is being implemented.');
-        });
-      }
-    }
-
-    // Manual redemption toggle options
-    if (isCurrentlyRedeemed) {
-      options.push('Mark Available');
-      actions.push(async () => {
-        try {
-          const { error } = await deletePerkRedemption(user.id, perk.definition_id);
-          if (error) {
-            Alert.alert('Error', 'Failed to mark perk as available.');
-          } else {
-            setPerkStatus(cardId, perk.id, 'available');
-            refreshSavings();
-            handlePerkStatusChange();
-          }
-        } catch (err) {
-          Alert.alert('Error', 'Failed to mark perk as available.');
-        }
-      });
-    } else {
-      options.push('Mark Redeemed');
-      actions.push(async () => {
-        try {
-          const { error } = await trackPerkRedemption(user.id, cardId, perk, perk.value);
-          if (error) {
-            if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
-              Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
-            } else {
-              Alert.alert('Error', 'Failed to mark perk as redeemed.');
-            }
-          } else {
-            setPerkStatus(cardId, perk.id, 'redeemed');
-            refreshSavings();
-            handlePerkStatusChange();
-          }
-        } catch (err) {
-          Alert.alert('Error', 'Failed to mark perk as redeemed.');
-        }
-      });
-    }
-
-    options.push('Open App/Link');
-    actions.push(async () => {
-      try {
-        await openPerkTarget(perk);
-      } catch (error) {
-        console.error('Error opening perk target from ActionSheet:', error);
-        Alert.alert('Error', 'Could not open the link for this perk.');
-      }
-    });
-
-    options.push('Cancel');
-    const cancelButtonIndex = options.length - 1;
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: options,
-          cancelButtonIndex: cancelButtonIndex,
-          title: perk.name,
-          message: perk.description, 
-        },
-        (buttonIndex) => {
-          if (buttonIndex !== cancelButtonIndex && actions[buttonIndex]) {
-            actions[buttonIndex]();
-          }
-        }
-      );
-    } else {
-      // Basic Alert fallback for Android or other platforms
-      const alertButtons: AlertButton[] = options.slice(0, -1).map((opt, index) => ({
-        text: opt,
-        onPress: actions[index],
-      }));
-      alertButtons.push({
-        text: 'Cancel',
-        style: 'cancel',
-      });
-      Alert.alert(perk.name, perk.description, alertButtons);
     }
   };
 
@@ -673,10 +531,15 @@ export default function Dashboard() {
   };
 
   const handlePerkStatusChange = useCallback(() => {
+    // Immediate donut refresh
     donutDisplayRef.current?.refresh();
-  }, []);
+    // Force immediate refresh of global state
+    refreshSavings();
+    // Also refresh user cards to ensure ExpandableCard gets updated data
+    refreshUserCards();
+  }, [refreshSavings, refreshUserCards]);
 
-  const sortedCards = sortCardsByUnredeemedPerks(userCardsWithPerks);
+  const sortedCards = sortCardsByUnredeemedPerks(processedCardsFromPerkStatus);
 
   if (error) {
     return (
@@ -737,7 +600,6 @@ export default function Dashboard() {
                 cumulativeValueSavedPerCard={cumulativeValueSavedPerCard}
                 activeCardId={activeCardId}
                 onTapPerk={handleTapPerk}
-                onLongPressPerk={handleLongPressPerk}
                 onExpandChange={handleCardExpandChange}
                 onPerkStatusChange={handlePerkStatusChange}
               />
