@@ -25,7 +25,8 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
 }) => {
   const [isStackExpanded, setIsStackExpanded] = useState(false);
 
-  const cardsToShow = isStackExpanded ? sortedCards : sortedCards.slice(0, 2);
+  const DEFAULT_CARDS_VISIBLE = 4;
+  const cardsToShow = isStackExpanded ? sortedCards : sortedCards.slice(0, DEFAULT_CARDS_VISIBLE);
   const remainingCardsCount = sortedCards.length - cardsToShow.length;
 
   if (sortedCards.length === 0) {
@@ -52,7 +53,7 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
       ))}
       
       {/* Apple Wallet-style Card Expander Footer */}
-      {sortedCards.length > 2 && (
+      {sortedCards.length > DEFAULT_CARDS_VISIBLE && (
         <CardExpanderFooter
           hiddenCardsCount={remainingCardsCount}
           isExpanded={isStackExpanded}
