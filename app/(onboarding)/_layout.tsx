@@ -46,7 +46,7 @@ export default function OnboardingLayout() {
   return (
     <OnboardingContext.Provider value={contextValue}>
       <SafeAreaProvider> 
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }} edges={['top']}> 
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff', paddingTop: 32 }} edges={['top']}> 
           <WizardHeader />
           <Stack
             screenOptions={{
