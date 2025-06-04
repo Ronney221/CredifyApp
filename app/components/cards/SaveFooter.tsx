@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   Text,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { MotiView } from 'moti';
 
@@ -45,6 +46,7 @@ export const SaveFooter: React.FC<SaveFooterProps> = ({
 const styles = StyleSheet.create({
   footer: {
     padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 54 : 36,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#EDEDED',
   },

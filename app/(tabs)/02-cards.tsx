@@ -8,7 +8,6 @@ import {
   Platform,
   StatusBar,
   ActivityIndicator,
-  ActionSheetIOS,
   Animated,
   Easing,
 } from 'react-native';
@@ -25,13 +24,13 @@ import { CardRow } from '../components/manage/CardRow';
 import { ReminderToggleGroup } from '../components/manage/ReminderToggleGroup';
 import { 
   AddCardModal, 
-  UndoSnackbar, 
   EmptyState, 
-  SaveFooter, 
+  SaveChangesModal,
   PageHeader,
   useCardManagement,
   useNotificationPreferences 
 } from '../components/cards';
+import { MotiView } from 'moti';
 
 export default function Cards() {
   const router = useRouter();
@@ -48,6 +47,8 @@ export default function Cards() {
   const [tempSelectedCardIdsInModal, setTempSelectedCardIdsInModal] = useState<Set<string>>(new Set());
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [currentEditingCardId, setCurrentEditingCardId] = useState<string | null>(null);
+  const [showFloatingAdd, setShowFloatingAdd] = useState(true);
+  const [scrollY, setScrollY] = useState(0);
 
   const {
     selectedCards,
@@ -56,8 +57,6 @@ export default function Cards() {
     setRenewalDates,
     isLoading,
     isSaving,
-    isEditing,
-    setIsEditing,
     deletedCard,
     showUndoSnackbar,
     flashingCardId,
@@ -69,27 +68,43 @@ export default function Cards() {
     anyRenewalDateSet,
     handleRemoveCard,
     handleUndoDelete,
+    handleDiscardChanges,
     handleSaveChanges,
   } = cardManagement;
 
   const { buildNotificationItems } = notificationPreferences;
 
+  // Check if user is maximizing perks for growth hook
+  const isMaximizingPerks = useMemo(() => {
+    // All cards have renewal dates
+    const allCardsHaveRenewalDates = selectedCards.length > 0 && selectedCards.every(cardId => renewalDates[cardId]);
+    
+    // All notification preferences are enabled
+    const allNotificationsEnabled = notificationPreferences.perkExpiryRemindersEnabled && 
+                                   notificationPreferences.renewalRemindersEnabled && 
+                                   notificationPreferences.perkResetConfirmationEnabled;
+    
+    return allCardsHaveRenewalDates && allNotificationsEnabled && selectedCards.length >= 2;
+  }, [selectedCards, renewalDates, notificationPreferences]);
+
+  const handleShareSavings = () => {
+    // Estimate savings based on number of cards (simplified)
+    const estimatedSavings = selectedCards.length * 150; // $150 average savings per card
+    
+    if (Platform.OS === 'ios') {
+      const Share = require('react-native').Share;
+      Share.share({
+        message: `I'm maximizing my credit card perks with Credify! Saved $${estimatedSavings} so far by tracking all my benefits. 💳✨`,
+        url: 'https://credify.app', // Replace with actual app store link
+      });
+    }
+  };
+
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity 
-          onPress={handleHeaderAction} 
-          style={{ marginRight: 15, padding: 5 }}
-        >
-          <Ionicons 
-            name="ellipsis-horizontal" 
-            size={24} 
-            color={Platform.OS === 'ios' ? '#007aff' : '#000000'} 
-          />
-        </TouchableOpacity>
-      ),
+      headerShown: false,
     });
-  }, [navigation, isEditing]);
+  }, [navigation]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -101,24 +116,6 @@ export default function Cards() {
       return () => {};
     }, [])
   );
-
-  const handleHeaderAction = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', isEditing ? 'Done Editing' : 'Edit Cards'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            setIsEditing(!isEditing);
-          }
-        }
-      );
-    } else {
-      setIsEditing(!isEditing);
-    }
-  };
 
   const showDatePicker = (cardId: string) => {
     setCurrentEditingCardId(cardId);
@@ -144,9 +141,6 @@ export default function Cards() {
   };
 
   const handleCardPress = (cardId: string) => {
-    if (isEditing) {
-      return; // Do nothing in edit mode, drag handle will be used
-    }
     showDatePicker(cardId);
   };
 
@@ -215,6 +209,20 @@ export default function Cards() {
     setAddCardModalVisible(false);
   };
 
+  const handleScroll = (event: any) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+    const scrollDirection = currentScrollY > scrollY ? 'down' : 'up';
+    
+    setScrollY(currentScrollY);
+    
+    // Hide floating add button when scrolling down, show when scrolling up
+    if (scrollDirection === 'down' && currentScrollY > 100) {
+      setShowFloatingAdd(false);
+    } else if (scrollDirection === 'up' || currentScrollY < 50) {
+      setShowFloatingAdd(true);
+    }
+  };
+
   const filteredAvailableCardsForModal = useMemo(() => {
     return allCards.filter(card => 
       card.name.toLowerCase().includes(modalSearchQuery.toLowerCase())
@@ -244,63 +252,50 @@ export default function Cards() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
+          {/* Celebratory Growth Hook */}
+          {isMaximizingPerks && (
+            <TouchableOpacity style={styles.celebratoryRibbon} onPress={handleShareSavings}>
+              <Text style={styles.celebratoryText}>
+                🚀 You&apos;re maximizing every perk - share your savings!
+              </Text>
+              <Ionicons name="share-outline" size={16} color="#ffffff" />
+            </TouchableOpacity>
+          )}
+
           {/* Cards Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Your Cards</Text>
-              {isEditing && (
-                <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.addButton}>
-                  <Ionicons name="add-circle-outline" size={24} color="#007aff" />
-                  <Text style={styles.addButtonText}>Add Card</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
-            {isEditing ? (
-              <DraggableFlatList
-                data={selectedCardObjects}
-                renderItem={({ item: card, drag }: RenderItemParams<Card>) => (
-                  <CardRow
-                    key={card.id}
-                    card={card}
-                    isSelected={false}
-                    onPress={handleCardPress}
-                    mode="manage"
-                    subtitle={formatDate(renewalDates[card.id])}
-                    subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                    showDragHandle={true}
-                    onDrag={drag}
-                    onRemove={handleRemoveCard}
-                  />
-                )}
-                keyExtractor={(item) => item.id}
-                onDragEnd={({ data }) => {
-                  const newSelectedCardIds = data.map(card => card.id);
-                  setSelectedCards(newSelectedCardIds);
-                }}
-                style={styles.cardsList}
-              />
-            ) : (
-              <View style={styles.cardsList}>
-                {selectedCardObjects.length > 0 ? (
-                  selectedCardObjects.map((card) => (
-                    <CardRow
-                      key={card.id}
-                      card={card}
-                      isSelected={false}
-                      onPress={handleCardPress}
-                      mode="manage"
-                      subtitle={formatDate(renewalDates[card.id])}
-                      subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                      flashAnimation={flashingCardId === card.id}
-                    />
-                  ))
-                ) : (
-                  <EmptyState isEditing={isEditing} onAddCard={handleOpenAddCardModal} />
-                )}
-              </View>
-            )}
+            <DraggableFlatList
+              data={selectedCardObjects}
+              renderItem={({ item: card, drag }: RenderItemParams<Card>) => (
+                <CardRow
+                  key={card.id}
+                  card={card}
+                  isSelected={false}
+                  onPress={handleCardPress}
+                  mode="manage"
+                  subtitle={formatDate(renewalDates[card.id])}
+                  subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                  showDragHandle={true}
+                  onDrag={drag}
+                  onRemove={handleRemoveCard}
+                  flashAnimation={flashingCardId === card.id}
+                />
+              )}
+              keyExtractor={(item) => item.id}
+              onDragEnd={({ data }) => {
+                const newSelectedCardIds = data.map(card => card.id);
+                setSelectedCards(newSelectedCardIds);
+              }}
+              style={styles.cardsList}
+              ListEmptyComponent={<EmptyState onAddCard={handleOpenAddCardModal} />}
+            />
           </View>
 
           {/* Notification Preferences Section */}
@@ -321,18 +316,38 @@ export default function Cards() {
           </View>
         </ScrollView>
 
-        <SaveFooter 
-          visible={hasChanges && !isEditing}
+        {/* Floating Add Button */}
+        <MotiView
+          animate={{
+            opacity: showFloatingAdd ? 1 : 0,
+            scale: showFloatingAdd ? 1 : 0.8,
+            translateY: showFloatingAdd ? 0 : 20,
+          }}
+          transition={{
+            type: 'timing',
+            duration: 200,
+          }}
+          style={styles.floatingAddButton}
+        >
+          <TouchableOpacity 
+            onPress={handleOpenAddCardModal}
+            activeOpacity={0.8}
+            style={styles.floatingAddButtonTouchable}
+          >
+            <Ionicons name="add-circle" size={56} color="#007aff" />
+          </TouchableOpacity>
+        </MotiView>
+
+        <SaveChangesModal 
+          visible={hasChanges}
           onSave={handleSaveChanges}
+          onDiscard={handleDiscardChanges}
+          onUndo={handleUndoDelete}
           isSaving={isSaving}
+          deletedCard={deletedCard}
+          hasOtherChanges={hasChanges && !deletedCard}
         />
       </SafeAreaView>
-
-      <UndoSnackbar 
-        visible={showUndoSnackbar}
-        deletedCard={deletedCard}
-        onUndo={handleUndoDelete}
-      />
 
       <AddCardModal
         visible={addCardModalVisible}
@@ -400,18 +415,45 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    marginLeft: 6,
-    fontSize: 16,
-    color: '#007aff',
-    fontWeight: '500',
-  },
   cardsList: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EDEDED',
+  },
+  floatingAddButton: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 100 : 72,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingAddButtonTouchable: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  celebratoryRibbon: {
+    backgroundColor: '#007aff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  celebratoryText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginRight: 8,
   },
 });

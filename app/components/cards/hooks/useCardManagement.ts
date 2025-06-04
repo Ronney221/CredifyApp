@@ -14,31 +14,10 @@ export const useCardManagement = (userId: string | undefined) => {
   const [initialRenewalDates, setInitialRenewalDates] = useState<Record<string, Date>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [deletedCard, setDeletedCard] = useState<{card: Card, renewalDate?: Date} | null>(null);
   const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
   const [flashingCardId, setFlashingCardId] = useState<string | null>(null);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
-  const editTimeoutRef = useRef<number | null>(null);
-
-  // Auto-exit edit mode after 10 seconds of inactivity
-  useEffect(() => {
-    if (isEditing) {
-      if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
-      editTimeoutRef.current = setTimeout(() => {
-        setIsEditing(false);
-      }, 10000);
-    } else {
-      if (editTimeoutRef.current) {
-        clearTimeout(editTimeoutRef.current);
-        editTimeoutRef.current = null;
-      }
-    }
-
-    return () => {
-      if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
-    };
-  }, [isEditing]);
 
   const getScaleValue = (cardId: string) => {
     if (!scaleValues.has(cardId)) {
@@ -51,15 +30,25 @@ export const useCardManagement = (userId: string | undefined) => {
     if (!date) return 'Set renewal date ›';
     
     const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
+    const currentYear = now.getFullYear();
+    const renewalMonth = date.getMonth();
+    const renewalDay = date.getDate();
+    
+    // Create next renewal date (could be this year or next year)
+    let nextRenewal = new Date(currentYear, renewalMonth, renewalDay);
+    
+    // If the renewal date has passed this year, set it to next year
+    if (nextRenewal < now) {
+      nextRenewal = new Date(currentYear + 1, renewalMonth, renewalDay);
+    }
+    
+    const diffTime = nextRenewal.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) {
-      return `Renewed ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-    } else if (diffDays <= 30) {
+    if (diffDays <= 30) {
       return `Renews in ${diffDays} day${diffDays !== 1 ? 's' : ''}`;
     } else {
-      return `Renews ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      return `Renews ${nextRenewal.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     }
   };
 
@@ -94,12 +83,6 @@ export const useCardManagement = (userId: string | undefined) => {
       const renewalDate = renewalDates[cardId];
       setDeletedCard({ card: cardToRemove, renewalDate });
       setShowUndoSnackbar(true);
-      
-      // Hide snackbar after 5 seconds
-      setTimeout(() => {
-        setShowUndoSnackbar(false);
-        setDeletedCard(null);
-      }, 5000);
     }
     
     setSelectedCards(prev => prev.filter(id => id !== cardId));
@@ -129,6 +112,18 @@ export const useCardManagement = (userId: string | undefined) => {
       if (Platform.OS === 'ios') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    // Reset to initial state
+    setSelectedCards(initialSelectedCards);
+    setRenewalDates(initialRenewalDates);
+    setDeletedCard(null);
+    setShowUndoSnackbar(false);
+    
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
@@ -209,8 +204,6 @@ export const useCardManagement = (userId: string | undefined) => {
     setRenewalDates,
     isLoading,
     isSaving,
-    isEditing,
-    setIsEditing,
     deletedCard,
     showUndoSnackbar,
     flashingCardId,
@@ -222,6 +215,7 @@ export const useCardManagement = (userId: string | undefined) => {
     anyRenewalDateSet,
     handleRemoveCard,
     handleUndoDelete,
+    handleDiscardChanges,
     handleSaveChanges,
   };
 }; 

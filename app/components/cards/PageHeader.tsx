@@ -26,7 +26,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 const styles = StyleSheet.create({
   headerSection: {
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 62,
     paddingBottom: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EDEDED',

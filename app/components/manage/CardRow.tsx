@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   statusChipOrange: {
-    backgroundColor: '#ff9500',
+    backgroundColor: '#FFB75E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   statusChipTextOrange: {
     fontSize: 12,
-    color: '#ffffff',
+    color: '#8A4600',
     fontWeight: '500',
   },
   statusChipGreen: {

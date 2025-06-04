@@ -104,5 +104,9 @@ alwaysApply: false
 
   Refer to Expo's documentation for detailed information on Views, Blueprints, and Extensions for best practices.
 
+  [_layout.tsx](mdc:app/(tabs)/_layout.tsx) contains our navigation menu configuration, when we're adding elements to the [01-dashboard.tsx](mdc:app/(tabs)/01-dashboard.tsx), [02-cards.tsx](mdc:app/(tabs)/02-cards.tsx), [03-insights.tsx](mdc:app/(tabs)/03-insights.tsx) make sure to take this navigation menu into consideration 
+
+  when generating new code that is over 100 lines of code, create a component in a separate descriptive file so it can be re-used throughout the app and reduce clutter, increase clarity of code.
+
 
     
