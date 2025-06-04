@@ -45,9 +45,11 @@ export const useNotificationPreferences = () => {
   const saveNotificationPreferences = async () => {
     try {
       const monthlyPerkExpiryReminderDays: number[] = [];
-      if (remind1DayBeforeMonthly) monthlyPerkExpiryReminderDays.push(1);
-      if (remind3DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(3);
-      if (remind7DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(7);
+      if (perkExpiryRemindersEnabled) {
+        if (remind1DayBeforeMonthly) monthlyPerkExpiryReminderDays.push(1);
+        if (remind3DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(3);
+        if (remind7DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(7);
+      }
 
       const prefsToSave = {
         perkExpiryRemindersEnabled,
@@ -66,16 +68,10 @@ export const useNotificationPreferences = () => {
 
   // Auto-save preferences when they change
   useEffect(() => { 
-    console.log(`[NotificationPrefs] Effect triggered - master: ${perkExpiryRemindersEnabled}, 1day: ${remind1DayBeforeMonthly}, 3day: ${remind3DaysBeforeMonthly}, 7day: ${remind7DaysBeforeMonthly}`);
-    
-    // Add a small delay to ensure all state updates are complete
     const timeoutId = setTimeout(() => {
-      console.log('[NotificationPrefs] Saving preferences after delay');
       saveNotificationPreferences(); 
-    }, 200); // Increased delay
-    
+    }, 200);
     return () => {
-      console.log('[NotificationPrefs] Clearing save timeout');
       clearTimeout(timeoutId);
     };
   }, [
@@ -88,24 +84,10 @@ export const useNotificationPreferences = () => {
   ]);
 
   const handlePerkExpiryMasterToggle = (value: boolean) => {
-    console.log(`[NotificationPrefs] Master toggle called with value: ${value}`);
-    console.log(`[NotificationPrefs] Current state - master: ${perkExpiryRemindersEnabled}, 1day: ${remind1DayBeforeMonthly}, 3day: ${remind3DaysBeforeMonthly}, 7day: ${remind7DaysBeforeMonthly}`);
-    
-    if (value) {
-      // When enabling, set all to true immediately
-      console.log('[NotificationPrefs] Enabling - setting all toggles to true');
-      setPerkExpiryRemindersEnabled(true);
-      
-      // Use setTimeout to ensure master toggle is set first
-      setTimeout(() => {
-        setRemind1DayBeforeMonthly(true);
-        setRemind3DaysBeforeMonthly(true);
-        setRemind7DaysBeforeMonthly(true);
-      }, 10);
-    } else {
-      console.log('[NotificationPrefs] Disabling master toggle');
-      setPerkExpiryRemindersEnabled(false);
-    }
+    setPerkExpiryRemindersEnabled(value);
+    setRemind1DayBeforeMonthly(value);
+    setRemind3DaysBeforeMonthly(value);
+    setRemind7DaysBeforeMonthly(value);
     
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -128,18 +110,33 @@ export const useNotificationPreferences = () => {
 
   const buildNotificationItems = (anyRenewalDateSet: boolean) => {
     const perkExpiryToggles: ToggleProps[] = perkExpiryRemindersEnabled ? [
-      { label: "1 day before", value: remind1DayBeforeMonthly, onValueChange: setRemind1DayBeforeMonthly },
-      { label: "3 days before", value: remind3DaysBeforeMonthly, onValueChange: setRemind3DaysBeforeMonthly },
-      { label: "7 days before", value: remind7DaysBeforeMonthly, onValueChange: setRemind7DaysBeforeMonthly },
+      { label: "1 day before", value: remind1DayBeforeMonthly, onValueChange: setRemind1DayBeforeMonthly, disabled: false },
+      { label: "3 days before", value: remind3DaysBeforeMonthly, onValueChange: setRemind3DaysBeforeMonthly, disabled: false },
+      { label: "7 days before", value: remind7DaysBeforeMonthly, onValueChange: setRemind7DaysBeforeMonthly, disabled: false },
     ] : [];
+
+    const buildPerkExpiryHelperText = () => {
+      if (!perkExpiryRemindersEnabled) {
+        return ["Turn on to get reminded"];
+      }
+      const activeDays = [];
+      if (remind1DayBeforeMonthly) activeDays.push("1");
+      if (remind3DaysBeforeMonthly) activeDays.push("3");
+      if (remind7DaysBeforeMonthly) activeDays.push("7");
+      if (activeDays.length === 0) {
+        return ["Select reminder days below"];
+      }
+      const daysText = activeDays.length === 1 
+        ? `${activeDays[0]} day before` 
+        : activeDays.join(" / ") + " days before";
+      return [`We'll alert you ${daysText}.`];
+    };
 
     return [
       { 
         iconName: "alarm-outline" as const, 
         title: "Monthly Perk Expiry Reminders", 
-        details: perkExpiryRemindersEnabled 
-          ? ["Choose timing"] 
-          : ["Turn on to get reminded"],
+        details: buildPerkExpiryHelperText(),
         toggles: [
           { 
             label: "Enable perk expiry reminders", 
@@ -192,4 +189,4 @@ export const useNotificationPreferences = () => {
     remind7DaysBeforeMonthly,
     buildNotificationItems,
   };
-}; 
+};

@@ -11,7 +11,6 @@ import { Card } from '../../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
 import LottieView from 'lottie-react-native';
-import { MotiView } from 'moti';
 
 const getCardNetworkColor = (card: Card) => {
   switch (card.network?.toLowerCase()) {
@@ -38,7 +37,6 @@ interface CardRowProps {
   subtitleStyle?: 'normal' | 'placeholder';
   showRemoveButton?: boolean;
   onRemove?: (cardId: string) => void;
-  flashAnimation?: boolean;
 }
 
 export const CardRow: React.FC<CardRowProps> = ({
@@ -52,7 +50,6 @@ export const CardRow: React.FC<CardRowProps> = ({
   subtitleStyle = 'normal',
   showRemoveButton = false,
   onRemove,
-  flashAnimation = false,
 }) => {
   const networkColor = getCardNetworkColor(card);
 
@@ -107,15 +104,7 @@ export const CardRow: React.FC<CardRowProps> = ({
     : [];
 
   return (
-    <MotiView
-      animate={{
-        backgroundColor: flashAnimation ? '#eef7ff' : '#ffffff',
-      }}
-      transition={{
-        type: 'timing',
-        duration: 500,
-      }}
-    >
+    <View>
       <TouchableOpacity
         style={[
           styles.cardRow,
@@ -156,7 +145,7 @@ export const CardRow: React.FC<CardRowProps> = ({
         
         {renderRightElement()}
       </TouchableOpacity>
-    </MotiView>
+    </View>
   );
 };
 
@@ -219,7 +208,7 @@ const styles = StyleSheet.create({
   },
   statusChipTextOrange: {
     fontSize: 12,
-    color: '#8A4600',
+    color: '#ffffff',
     fontWeight: '500',
   },
   statusChipGreen: {

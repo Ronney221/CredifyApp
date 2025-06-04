@@ -32,11 +32,16 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
 const styles = StyleSheet.create({
   headerContainer: {
-    padding: 20,
-    paddingTop: 62,
-    paddingBottom: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#EDEDED',
+    backgroundColor: '#f2f2f7',
+    position: 'relative',
+  },
+  ghostSeparator: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 142 : 122, // Under status bar
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(142, 142, 147, 0.25)', // systemFill at 25% opacity
   },
   headerSection: {
     padding: 20,
@@ -54,13 +59,5 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: Colors.light.icon,
-  },
-  ghostSeparator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: Platform.OS === 'ios' ? StatusBar.currentHeight : 0,
-    backgroundColor: 'transparent',
   },
 }); 

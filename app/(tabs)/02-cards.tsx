@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -49,6 +50,9 @@ export default function Cards() {
   const [showFloatingAdd, setShowFloatingAdd] = useState(true);
   const [scrollY, setScrollY] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [newlyAddedCardIdForScroll, setNewlyAddedCardIdForScroll] = useState<string | null>(null);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
   const {
     selectedCards,
@@ -59,8 +63,6 @@ export default function Cards() {
     isSaving,
     deletedCard,
     showUndoSnackbar,
-    flashingCardId,
-    setFlashingCardId,
     getScaleValue,
     formatDate,
     hasChanges,
@@ -132,6 +134,24 @@ export default function Cards() {
     }
   }, [isEditMode, selectedCards.length]);
 
+  // Handle edit mode exit with smart save modal logic
+  const handleEditModeToggle = () => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    
+    if (isEditMode && hasChanges) {
+      // Exiting edit mode with changes - let the modal show
+      setIsEditMode(false);
+    } else if (isEditMode && !hasChanges) {
+      // Exiting edit mode with no changes - skip modal
+      setIsEditMode(false);
+    } else {
+      // Entering edit mode
+      setIsEditMode(true);
+    }
+  };
+
   const handleShareSavings = () => {
     // Estimate savings based on number of cards (simplified)
     const estimatedSavings = selectedCards.length * 150; // $150 average savings per card
@@ -194,16 +214,13 @@ export default function Cards() {
   const handleAddCard = (cardId: string) => {
     const cardScale = getScaleValue(cardId);
     
-    // Toggle selection instead of just adding
     if (tempSelectedCardIdsInModal.has(cardId)) {
-      // Deselect
       setTempSelectedCardIdsInModal(prev => {
         const newSet = new Set(prev);
         newSet.delete(cardId);
         return newSet;
       });
     } else {
-      // Select
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       Animated.sequence([
@@ -238,22 +255,53 @@ export default function Cards() {
   const handleDoneAddCardModal = () => {
     const newCardIds = Array.from(tempSelectedCardIdsInModal);
     if (newCardIds.length > 0) {
-      setSelectedCards(prev => {
-        const combined = new Set([...prev, ...tempSelectedCardIdsInModal]);
-        return Array.from(combined);
-      });
-      
-      // Flash the first newly added card
       const firstNewCardId = newCardIds[0];
-      setFlashingCardId(firstNewCardId);
-      
-      // Clear flash after animation
-      setTimeout(() => {
-        setFlashingCardId(null);
-      }, 800);
+      setSelectedCards(prev => {
+        const currentIds = new Set(prev);
+        newCardIds.forEach(id => currentIds.add(id));
+        return Array.from(currentIds);
+      });
+      setNewlyAddedCardIdForScroll(firstNewCardId); 
     }
-    
     setAddCardModalVisible(false);
+    setTempSelectedCardIdsInModal(new Set());
+  };
+
+  // useEffect for scrolling to new card
+  useEffect(() => {
+    if (newlyAddedCardIdForScroll && scrollViewRef.current && selectedCardObjects.length > 0 && scrollViewHeight > 0) {
+      const cardIndex = selectedCardObjects.findIndex(card => card.id === newlyAddedCardIdForScroll);
+
+      if (cardIndex !== -1) {
+        const estimatedCardHeight = 80; // Approximate height of CardRow
+        const cardOffsetTop = cardIndex * estimatedCardHeight;
+        
+        // Calculate scroll position to bring bottom of card to bottom of viewport
+        let newScrollPosition = cardOffsetTop + estimatedCardHeight - scrollViewHeight;
+        
+        // Ensure scroll position isn't negative (e.g., if card is already fully visible at top)
+        newScrollPosition = Math.max(0, newScrollPosition);
+        
+        // If the total content is shorter than the scrollview, scroll to top (0) or specific position if it makes sense
+        // This part might need refinement based on exact desired behavior with short content
+        scrollViewRef.current?.scrollTo({
+          y: newScrollPosition,
+          animated: true,
+        });
+      }
+
+      const scrollFinishDelay = 500; 
+      const timer = setTimeout(() => {
+        setNewlyAddedCardIdForScroll(null);
+      }, scrollFinishDelay);
+
+      return () => clearTimeout(timer);
+    }
+  }, [newlyAddedCardIdForScroll, selectedCardObjects, scrollViewHeight]);
+
+  const handleScrollViewLayout = (event: LayoutChangeEvent) => {
+    const { height } = event.nativeEvent.layout;
+    setScrollViewHeight(height);
   };
 
   const handleScroll = (event: any) => {
@@ -308,6 +356,8 @@ export default function Cards() {
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          ref={scrollViewRef}
+          onLayout={handleScrollViewLayout}
         >
           {/* Celebratory Growth Hook */}
           {isMaximizingPerks && (
@@ -325,7 +375,7 @@ export default function Cards() {
               <Text style={styles.sectionTitle}>Your Cards</Text>
               {selectedCards.length > 0 && (
                 <TouchableOpacity 
-                  onPress={() => setIsEditMode(!isEditMode)} 
+                  onPress={handleEditModeToggle} 
                   style={styles.editButton}
                 >
                   <Text style={styles.editButtonText}>
@@ -348,7 +398,6 @@ export default function Cards() {
                     subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
                     showRemoveButton={true}
                     onRemove={handleRemoveCard}
-                    flashAnimation={flashingCardId === card.id}
                   />
                 ))}
                 {selectedCardObjects.length === 0 && (
@@ -367,7 +416,6 @@ export default function Cards() {
                     subtitle={formatDate(renewalDates[card.id])}
                     subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
                     showRemoveButton={false}
-                    flashAnimation={flashingCardId === card.id}
                   />
                 ))}
                 {selectedCardObjects.length === 0 && (
@@ -474,6 +522,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 80, // Added padding to ensure last item is scrollable above floating button / modal
   },
   section: {
     marginBottom: 20,
@@ -543,6 +592,6 @@ const styles = StyleSheet.create({
   editButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#007aff',
+    color: '#20B2AA',
   },
 });

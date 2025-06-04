@@ -7,6 +7,8 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  PanResponder,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,31 +32,66 @@ export const SaveChangesModal: React.FC<SaveChangesModalProps> = ({
   deletedCard,
   hasOtherChanges,
 }) => {
+  const [dragY, setDragY] = React.useState(0);
+
+  const panResponder = React.useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      const { dy, dx } = gestureState;
+      const shouldSet = dy > 8 && dy > Math.abs(dx) * 1.5;
+      return shouldSet;
+    },
+    onPanResponderGrant: (evt, gestureState) => {
+    },
+    onPanResponderMove: (evt, gestureState) => {
+      if (gestureState.dy > 0) {
+        setDragY(gestureState.dy);
+      } else {
+        setDragY(0);
+      }
+    },
+    onPanResponderRelease: (evt, gestureState) => {
+      const { dy, vy } = gestureState;
+      if (dy > 75 || (dy > 40 && vy > 0.3)) {
+        onDiscard();
+      }
+      setDragY(0);
+    },
+    onPanResponderTerminate: (evt, gestureState) => {
+      setDragY(0);
+    },
+  }), [onDiscard]); 
+
+  const handleOverlayPress = () => {
+    onDiscard();
+  };
+
   return (
     <Modal
       animationType="none"
       transparent={true}
       visible={visible}
-      onRequestClose={onDiscard}
+      onRequestClose={onDiscard} 
     >
-      <View style={styles.modalOverlay}>
+      <Pressable style={styles.modalOverlay} onPress={handleOverlayPress}>
         <MotiView
           style={styles.modalSlideContainer}
           animate={{
-            translateY: visible ? 0 : 300,
+            translateY: visible ? dragY : 300,
           }}
           transition={{
             type: 'timing',
-            duration: 300,
+            duration: dragY > 0 ? 0 : 250, 
           }}
+          {...panResponder.panHandlers}
+          onStartShouldSetResponder={() => true}
         >
           <SafeAreaView style={styles.modalContainer} edges={['bottom']}>
             <View style={styles.modalContent}>
+              <View style={styles.swipeIndicator} />
               <View style={styles.modalHeader}>
                 <Ionicons name="warning-outline" size={24} color="#FF9500" />
                 <Text style={styles.modalTitle}>Save Changes?</Text>
               </View>
-              
               <Text style={styles.modalDescription}>
                 {deletedCard && hasOtherChanges
                   ? `You removed "${deletedCard.card.name}" and made other changes to your card collection.`
@@ -63,7 +100,6 @@ export const SaveChangesModal: React.FC<SaveChangesModalProps> = ({
                   : "You've made changes to your card collection."
                 }
               </Text>
-              
               <View style={styles.buttonContainer}>
                 <TouchableOpacity 
                   style={styles.discardButton}
@@ -74,7 +110,6 @@ export const SaveChangesModal: React.FC<SaveChangesModalProps> = ({
                     Discard Changes
                   </Text>
                 </TouchableOpacity>
-                
                 <TouchableOpacity 
                   style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
                   onPress={onSave}
@@ -92,7 +127,7 @@ export const SaveChangesModal: React.FC<SaveChangesModalProps> = ({
             </View>
           </SafeAreaView>
         </MotiView>
-      </View>
+      </Pressable>
     </Modal>
   );
 };
@@ -113,7 +148,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24, 
   },
   modalHeader: {
     flexDirection: 'row',
@@ -159,5 +194,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ffffff',
     fontWeight: '600',
+  },
+  swipeIndicator: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#c7c7cc',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
 }); 
