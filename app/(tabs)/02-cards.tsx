@@ -15,6 +15,7 @@ import {
   Alert,
   Animated,
   Easing,
+  ActionSheetIOS,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -58,7 +59,12 @@ export default function Cards() {
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [tempSelectedCardIdsInModal, setTempSelectedCardIdsInModal] = useState<Set<string>>(new Set());
   const [isEditing, setIsEditing] = useState(false);
+  const [deletedCard, setDeletedCard] = useState<{card: Card, renewalDate?: Date} | null>(null);
+  const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
+  const [flashingCardId, setFlashingCardId] = useState<string | null>(null);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const editTimeoutRef = useRef<number | null>(null);
 
   // Notification preferences state
   const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(true);
@@ -149,16 +155,37 @@ export default function Cards() {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity 
-          onPress={() => setIsEditing(!isEditing)} 
+          onPress={handleHeaderAction} 
           style={{ marginRight: 15, padding: 5 }}
         >
-          <Text style={{ color: Platform.OS === 'ios' ? '#007aff' : '#000000', fontSize: 17 }}>
-            {isEditing ? 'Done' : 'Edit'}
-          </Text>
+          <Ionicons 
+            name="ellipsis-horizontal" 
+            size={24} 
+            color={Platform.OS === 'ios' ? '#007aff' : '#000000'} 
+          />
         </TouchableOpacity>
       ),
     });
   }, [navigation, isEditing]);
+
+  const handleHeaderAction = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', isEditing ? 'Done Editing' : 'Edit Cards'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            setIsEditing(!isEditing);
+          }
+        }
+      );
+    } else {
+      // For Android, show a simple toggle for now
+      setIsEditing(!isEditing);
+    }
+  };
 
   useEffect(() => {
     const loadExistingCards = async () => {
@@ -237,18 +264,62 @@ export default function Cards() {
   };
 
   const handleRemoveCard = (cardId: string) => {
+    const cardToRemove = allCards.find(card => card.id === cardId);
+    if (cardToRemove) {
+      const renewalDate = renewalDates[cardId];
+      setDeletedCard({ card: cardToRemove, renewalDate });
+      setShowUndoSnackbar(true);
+      
+      // Hide snackbar after 5 seconds
+      setTimeout(() => {
+        setShowUndoSnackbar(false);
+        setDeletedCard(null);
+      }, 5000);
+    }
+    
     setSelectedCards(prev => prev.filter(id => id !== cardId));
     setRenewalDates(prevDates => {
       const newDates = {...prevDates};
       delete newDates[cardId];
       return newDates;
     });
+    
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
+  const handleUndoDelete = () => {
+    if (deletedCard) {
+      setSelectedCards(prev => [...prev, deletedCard.card.id]);
+      if (deletedCard.renewalDate) {
+        setRenewalDates(prev => ({
+          ...prev,
+          [deletedCard.card.id]: deletedCard.renewalDate!
+        }));
+      }
+      setShowUndoSnackbar(false);
+      setDeletedCard(null);
+      
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
   };
 
   const handleAddCard = (cardId: string) => {
     const cardScale = getScaleValue(cardId);
     
-    if (!selectedCards.includes(cardId)) {
+    // Toggle selection instead of just adding
+    if (tempSelectedCardIdsInModal.has(cardId)) {
+      // Deselect
+      setTempSelectedCardIdsInModal(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cardId);
+        return newSet;
+      });
+    } else {
+      // Select
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       Animated.sequence([
@@ -275,8 +346,19 @@ export default function Cards() {
   };
 
   const formatDate = (date: Date | undefined): string => {
-    if (!date) return 'Set Renewal Date';
-    return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    if (!date) return 'Set renewal date ›';
+    
+    const now = new Date();
+    const diffTime = date.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return `Renewed ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    } else if (diffDays <= 30) {
+      return `Renews in ${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+    } else {
+      return `Renews ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    }
   };
 
   const selectedCardObjects = React.useMemo(() => 
@@ -323,10 +405,30 @@ export default function Cards() {
   };
 
   const handleDoneAddCardModal = () => {
-    setSelectedCards(prev => {
-      const combined = new Set([...prev, ...tempSelectedCardIdsInModal]);
-      return Array.from(combined);
-    });
+    const newCardIds = Array.from(tempSelectedCardIdsInModal);
+    if (newCardIds.length > 0) {
+      setSelectedCards(prev => {
+        const combined = new Set([...prev, ...tempSelectedCardIdsInModal]);
+        return Array.from(combined);
+      });
+      
+      // Flash the first newly added card
+      const firstNewCardId = newCardIds[0];
+      setFlashingCardId(firstNewCardId);
+      
+      // Clear flash after animation
+      setTimeout(() => {
+        setFlashingCardId(null);
+      }, 800);
+      
+      // Auto-scroll to show the new card (with a small delay to let the modal close)
+      setTimeout(() => {
+        if (scrollViewRef.current && !isEditing) {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
+      }, 300);
+    }
+    
     setAddCardModalVisible(false);
   };
 
@@ -341,51 +443,76 @@ export default function Cards() {
   }, [renewalDates]);
 
   // Notification toggle configurations
-  const perkExpiryToggles: ToggleProps[] = [
+  const perkExpiryToggles: ToggleProps[] = perkExpiryRemindersEnabled ? [
     { label: "1 day before", value: remind1DayBeforeMonthly, onValueChange: setRemind1DayBeforeMonthly },
     { label: "3 days before", value: remind3DaysBeforeMonthly, onValueChange: setRemind3DaysBeforeMonthly },
     { label: "7 days before", value: remind7DaysBeforeMonthly, onValueChange: setRemind7DaysBeforeMonthly },
-  ];
+  ] : [];
+
+  const handlePerkExpiryMasterToggle = (value: boolean) => {
+    setPerkExpiryRemindersEnabled(value);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleRenewalReminderToggle = (value: boolean) => {
+    setRenewalRemindersEnabled(value);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleResetConfirmationToggle = (value: boolean) => {
+    setPerkResetConfirmationEnabled(value);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
 
   const notificationItems = React.useMemo(() => [
     { 
       iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, 
       title: "Monthly Perk Expiry Reminders", 
-      toggles: perkExpiryRemindersEnabled ? perkExpiryToggles : [
+      details: perkExpiryRemindersEnabled 
+        ? ["Choose when to remind you before perks expire"] 
+        : ["Turn on to get reminded before perks expire"],
+      toggles: [
         { 
           label: "Enable perk expiry reminders", 
           value: perkExpiryRemindersEnabled, 
-          onValueChange: setPerkExpiryRemindersEnabled 
-        }
+          onValueChange: handlePerkExpiryMasterToggle 
+        },
+        ...perkExpiryToggles
       ],
-      iconColor: "#FF9500" 
+      iconColor: "#FF9500",
     },
     { 
       iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap,
       title: "Card Renewal Reminders", 
       details: anyRenewalDateSet 
-        ? ["For cards with set anniversary dates"] 
-        : ["Set renewal dates to enable reminders"],
+        ? ["We'll remind you 7 days before renewal dates"] 
+        : ["Add renewal dates to enable reminders"],
       toggles: anyRenewalDateSet ? [
         { 
           label: "Enable renewal reminders", 
           value: renewalRemindersEnabled, 
-          onValueChange: setRenewalRemindersEnabled 
+          onValueChange: handleRenewalReminderToggle 
         }
       ] : undefined,
       iconColor: anyRenewalDateSet ? "#34C759" : Colors.light.icon,
       dimmed: !anyRenewalDateSet,
-      disabledReason: !anyRenewalDateSet ? "Set a card's renewal date to enable this reminder." : undefined,
+      disabledReason: !anyRenewalDateSet ? "Set renewal dates to enable this reminder." : undefined,
     },
     { 
       iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, 
       title: "Perk Reset Confirmations", 
-      details: ["1st of every month"],
+      details: ["We'll confirm when monthly perks reset on the 1st"],
       toggles: [
         { 
           label: "Enable reset confirmations", 
           value: perkResetConfirmationEnabled, 
-          onValueChange: setPerkResetConfirmationEnabled 
+          onValueChange: handleResetConfirmationToggle 
         }
       ],
       iconColor: "#007AFF" 
@@ -397,6 +524,31 @@ export default function Cards() {
     anyRenewalDateSet,
     perkExpiryToggles
   ]);
+
+  // Auto-exit edit mode after 10 seconds of inactivity
+  useEffect(() => {
+    if (isEditing) {
+      if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
+      editTimeoutRef.current = setTimeout(() => {
+        setIsEditing(false);
+      }, 10000);
+    } else {
+      if (editTimeoutRef.current) {
+        clearTimeout(editTimeoutRef.current);
+        editTimeoutRef.current = null;
+      }
+    }
+
+    return () => {
+      if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
+    };
+  }, [isEditing]);
+
+  const handleContainerPress = () => {
+    if (isEditing) {
+      setIsEditing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -417,11 +569,12 @@ export default function Cards() {
         isSaving={isSaving}
         saveButtonDisabled={!hasChanges}
         isDraggable={isEditing}
+        onContainerPress={isEditing ? handleContainerPress : undefined}
       >
         {/* Cards Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Your Cards</Text>
-          {!isEditing && (
+          {isEditing && (
             <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.addButton}>
               <Ionicons name="add-circle-outline" size={24} color="#007aff" />
               <Text style={styles.addButtonText}>Add Card</Text>
@@ -465,14 +618,21 @@ export default function Cards() {
                   mode="manage"
                   subtitle={formatDate(renewalDates[card.id])}
                   subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                  flashAnimation={flashingCardId === card.id}
                 />
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No cards added yet</Text>
-                <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.emptyStateButton}>
-                  <Text style={styles.emptyStateButtonText}>Add Your First Card</Text>
-                </TouchableOpacity>
+                <Ionicons name="card-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
+                <Text style={styles.emptyStateTitle}>No cards yet</Text>
+                <Text style={styles.emptyStateText}>
+                  {isEditing ? "Tap 'Add Card' above to get started" : "Add your first card to start tracking perks and benefits"}
+                </Text>
+                {!isEditing && (
+                  <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.emptyStateButton}>
+                    <Text style={styles.emptyStateButtonText}>Add Your First Card</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -494,6 +654,23 @@ export default function Cards() {
           />
         ))}
       </ManageCardsContainer>
+
+      {/* Undo Snackbar */}
+      {showUndoSnackbar && deletedCard && (
+        <MotiView
+          from={{ opacity: 0, translateY: 100 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          exit={{ opacity: 0, translateY: 100 }}
+          style={styles.undoSnackbar}
+        >
+          <Text style={styles.undoSnackbarText}>
+            {deletedCard.card.name} removed
+          </Text>
+          <TouchableOpacity onPress={handleUndoDelete} style={styles.undoButton}>
+            <Text style={styles.undoButtonText}>Undo</Text>
+          </TouchableOpacity>
+        </MotiView>
+      )}
 
       {/* Add Card Modal */}
       <Modal
@@ -574,14 +751,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EDEDED',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.light.text,
+    color: '#6E6E73',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   addButton: {
     flexDirection: 'row',
@@ -600,6 +780,15 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: 40,
     alignItems: 'center',
+  },
+  emptyStateIcon: {
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 16,
@@ -684,5 +873,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.light.icon,
     fontSize: 16,
+  },
+  undoSnackbar: {
+    position: 'absolute',
+    bottom: 100,
+    left: 16,
+    right: 16,
+    backgroundColor: '#333333',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  undoSnackbarText: {
+    fontSize: 16,
+    color: '#ffffff',
+    flex: 1,
+  },
+  undoButton: {
+    backgroundColor: '#007aff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  undoButtonText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
   },
 });

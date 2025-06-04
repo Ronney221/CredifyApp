@@ -11,6 +11,7 @@ import { Card } from '../../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
 import LottieView from 'lottie-react-native';
+import { MotiView } from 'moti';
 
 const getCardNetworkColor = (card: Card) => {
   switch (card.network?.toLowerCase()) {
@@ -38,6 +39,7 @@ interface CardRowProps {
   showDragHandle?: boolean;
   onDrag?: () => void;
   onRemove?: (cardId: string) => void;
+  flashAnimation?: boolean;
 }
 
 export const CardRow: React.FC<CardRowProps> = ({
@@ -52,6 +54,7 @@ export const CardRow: React.FC<CardRowProps> = ({
   showDragHandle = false,
   onDrag,
   onRemove,
+  flashAnimation = false,
 }) => {
   const networkColor = getCardNetworkColor(card);
 
@@ -106,45 +109,55 @@ export const CardRow: React.FC<CardRowProps> = ({
     : [];
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.cardRow,
-        isSelected && mode === 'onboard' && styles.cardRowSelected,
-        disabled && styles.cardRowDisabled,
-      ]}
-      onPress={() => !disabled && onPress(card.id)}
-      activeOpacity={0.7}
-      disabled={disabled}
+    <MotiView
+      animate={{
+        backgroundColor: flashAnimation ? '#eef7ff' : '#ffffff',
+      }}
+      transition={{
+        type: 'timing',
+        duration: 500,
+      }}
     >
-      {showDragHandle && onDrag && (
-        <TouchableOpacity onPressIn={onDrag} style={styles.dragHandle}>
-          <Ionicons name="reorder-three-outline" size={24} color="#c7c7cc" />
-        </TouchableOpacity>
-      )}
-      
-      <Animated.View 
+      <TouchableOpacity
         style={[
-          styles.cardImageWrapper, 
-          { backgroundColor: networkColor, transform: containerTransform }
+          styles.cardRow,
+          isSelected && mode === 'onboard' && styles.cardRowSelected,
+          disabled && styles.cardRowDisabled,
         ]}
+        onPress={() => !disabled && onPress(card.id)}
+        activeOpacity={0.7}
+        disabled={disabled}
       >
-        <Image source={card.image} style={styles.cardImage} />
-      </Animated.View>
-      
-      <View style={styles.cardContent}>
-        <Text style={styles.cardName}>{card.name}</Text>
-        {subtitle && (
-          <Text style={[
-            styles.cardSubtitle,
-            subtitleStyle === 'placeholder' && styles.cardSubtitlePlaceholder
-          ]}>
-            {subtitle}
-          </Text>
+        {showDragHandle && onDrag && (
+          <TouchableOpacity onPressIn={onDrag} style={styles.dragHandle}>
+            <Ionicons name="reorder-three-outline" size={24} color="#c7c7cc" />
+          </TouchableOpacity>
         )}
-      </View>
-      
-      {renderRightElement()}
-    </TouchableOpacity>
+        
+        <Animated.View 
+          style={[
+            styles.cardImageWrapper, 
+            { backgroundColor: networkColor, transform: containerTransform }
+          ]}
+        >
+          <Image source={card.image} style={styles.cardImage} />
+        </Animated.View>
+        
+        <View style={styles.cardContent}>
+          <Text style={styles.cardName}>{card.name}</Text>
+          {subtitle && (
+            <Text style={[
+              styles.cardSubtitle,
+              subtitleStyle === 'placeholder' && styles.cardSubtitlePlaceholder
+            ]}>
+              {subtitle}
+            </Text>
+          )}
+        </View>
+        
+        {renderRightElement()}
+      </TouchableOpacity>
+    </MotiView>
   );
 };
 

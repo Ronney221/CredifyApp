@@ -21,6 +21,7 @@ interface ManageCardsContainerProps {
   saveButtonText?: string;
   saveButtonDisabled?: boolean;
   isDraggable?: boolean;
+  onContainerPress?: () => void;
 }
 
 export const ManageCardsContainer: React.FC<ManageCardsContainerProps> = ({
@@ -33,6 +34,7 @@ export const ManageCardsContainer: React.FC<ManageCardsContainerProps> = ({
   saveButtonText = "Save Changes",
   saveButtonDisabled = false,
   isDraggable = false,
+  onContainerPress,
 }) => {
   const contentContainer = (
     <MotiView
@@ -58,11 +60,23 @@ export const ManageCardsContainer: React.FC<ManageCardsContainerProps> = ({
     <SafeAreaView style={styles.container} edges={['bottom']}>
       {isDraggable ? (
         <View style={styles.draggableContentContainer}>
-          {contentContainer}
+          {onContainerPress ? (
+            <TouchableOpacity style={styles.containerPressable} onPress={onContainerPress} activeOpacity={1}>
+              {contentContainer}
+            </TouchableOpacity>
+          ) : (
+            contentContainer
+          )}
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContentContainer}>
-          {contentContainer}
+          {onContainerPress ? (
+            <TouchableOpacity style={styles.containerPressable} onPress={onContainerPress} activeOpacity={1}>
+              {contentContainer}
+            </TouchableOpacity>
+          ) : (
+            contentContainer
+          )}
         </ScrollView>
       )}
 
@@ -139,7 +153,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 20,
-    paddingBottom: 68,
+    paddingBottom: 88,
     backgroundColor: '#f2f2f7',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#c7c7cc',
@@ -170,5 +184,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 24,
+  },
+  containerPressable: {
+    flex: 1,
   },
 }); 
