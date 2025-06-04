@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useAuth } from '../../../contexts/AuthContext';
 import AccountButton from './AccountButton';
 import { endOfMonth, differenceInDays } from 'date-fns';
@@ -46,9 +46,20 @@ export default function Header() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 28,
     paddingBottom: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F8F7FF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   content: {
     flexDirection: 'row',

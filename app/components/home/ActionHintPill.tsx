@@ -21,7 +21,7 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
   });
 
   // Determine urgency based on days remaining
-  let urgencyColor = Colors.light.tint; // Default blue
+  let urgencyColor = '#20B2AA'; // Brand teal instead of default blue
   let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline';
 
   if (daysRemaining <= 3) {
@@ -45,7 +45,7 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
           from {perk.cardName} by {format(expiryDate, 'M/d')}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={Colors.light.icon} style={styles.chevronIcon} />
+      <Ionicons name="chevron-forward-outline" size={20} color={Colors.light.icon} style={styles.chevronIcon} />
     </TouchableOpacity>
   );
 };
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.06,
         shadowRadius: 4,
       },
       android: {

@@ -680,7 +680,7 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F8F7FF',
   },
   mainContainer: {
     flex: 1,
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
   summarySection: {
     alignItems: 'center',
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FAFAFE',
   },
   cardsSection: {
     flex: 1,

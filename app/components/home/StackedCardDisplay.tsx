@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Card, CardPerk } from '../../../src/data/card-data'; // Adjusted path
 import ExpandableCard from './ExpandableCard'; // Assuming ExpandableCard is in the same directory
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../constants/Colors'; // Adjusted path
+import CardExpanderFooter from './CardExpanderFooter';
 
 interface StackedCardDisplayProps {
   sortedCards: { card: Card; perks: CardPerk[] }[];
@@ -48,17 +47,14 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
           sortIndex={index} // Or pass the original index if needed for other logic
         />
       ))}
-      {!isStackExpanded && sortedCards.length > 2 && (
-        <TouchableOpacity style={styles.expanderButton} onPress={() => setIsStackExpanded(true)}>
-          <Ionicons name="ellipsis-horizontal-circle-outline" size={22} color={Colors.light.tint} />
-          <Text style={styles.expanderText}>+ {sortedCards.length - 2} more cards</Text>
-        </TouchableOpacity>
-      )}
-      {isStackExpanded && sortedCards.length > 2 && (
-        <TouchableOpacity style={styles.expanderButton} onPress={() => setIsStackExpanded(false)}>
-          <Ionicons name="remove-circle-outline" size={22} color={Colors.light.text} />
-          <Text style={styles.expanderText}>Show fewer cards</Text>
-        </TouchableOpacity>
+      
+      {/* Apple Wallet-style Card Expander Footer */}
+      {sortedCards.length > 2 && (
+        <CardExpanderFooter
+          hiddenCardsCount={remainingCardsCount}
+          isExpanded={isStackExpanded}
+          onToggleExpanded={() => setIsStackExpanded(!isStackExpanded)}
+        />
       )}
     </View>
   );
@@ -67,25 +63,6 @@ const StackedCardDisplay: React.FC<StackedCardDisplayProps> = ({
 const styles = StyleSheet.create({
   container: {
     // Add any overall container styling if needed
-  },
-  expanderButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.light.background, // Match dashboard background
-    borderRadius: 8,
-    marginHorizontal: 16, // Match card section padding
-    marginTop: 8, // Space from the last card
-    borderWidth: 1,
-    borderColor: Colors.light.icon, // Subtle border
-  },
-  expanderText: {
-    marginLeft: 8,
-    fontSize: 15,
-    fontWeight: '500',
-    color: Colors.light.tint,
   },
 });
 

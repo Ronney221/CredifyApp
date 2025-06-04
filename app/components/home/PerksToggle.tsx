@@ -94,6 +94,7 @@ const styles = StyleSheet.create({
     maxWidth: 240,
     alignSelf: 'center',
     position: 'relative',
+    marginHorizontal: 16,
   },
   buttonsContainer: {
     flexDirection: 'row',
