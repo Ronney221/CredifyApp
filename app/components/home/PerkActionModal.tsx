@@ -26,6 +26,7 @@ interface PerkActionModalProps {
   onDismiss: () => void;
   onOpenApp: (targetPerkName?: string) => void;
   onMarkRedeemed: () => void;
+  onMarkAvailable: () => void;
 }
 
 export default function PerkActionModal({
@@ -34,6 +35,7 @@ export default function PerkActionModal({
   onDismiss,
   onOpenApp,
   onMarkRedeemed,
+  onMarkAvailable,
 }: PerkActionModalProps) {
   const [showChoices, setShowChoices] = useState(false);
   const translateY = useSharedValue(0);
@@ -205,14 +207,25 @@ export default function PerkActionModal({
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={onMarkRedeemed}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#007AFF" style={styles.buttonIcon} />
-                  <Text style={styles.secondaryButtonText}>Mark as Redeemed</Text>
-                </TouchableOpacity>
+                {perk.status === 'available' ? (
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={onMarkRedeemed}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#007AFF" style={styles.buttonIcon} />
+                    <Text style={styles.secondaryButtonText}>Mark as Redeemed</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={onMarkAvailable}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="arrow-undo-outline" size={18} color="#007AFF" style={styles.buttonIcon} />
+                    <Text style={styles.secondaryButtonText}>Mark as Available</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>

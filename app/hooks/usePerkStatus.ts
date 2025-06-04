@@ -190,7 +190,7 @@ export function usePerkStatus(
     };
 
     if (user && initialUserCardsWithPerks.length > 0 && perkDefinitions.length > 0) {
-      calculateSavings();
+    calculateSavings();
     } else if (!arePerkDefinitionsLoading) {
       setIsLoadingHook(false);
       setProcessedCardsWithPerks(initialUserCardsWithPerks);
@@ -200,7 +200,7 @@ export function usePerkStatus(
   const setPerkStatus = useCallback((cardId: string, perkId: string, newStatus: 'redeemed' | 'available') => {
     console.log('========= [usePerkStatus] setPerkStatus called =========');
     console.log('Input parameters:', { cardId, perkId, newStatus });
-
+    
     let perkValue = 0;
     let periodMonths = 0;
     let definitionId = '';

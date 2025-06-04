@@ -432,26 +432,25 @@ export default function ExpandableCard({
       currency: 'USD',
     });
 
-    // Format period text
     let periodText = '';
     switch (perk.periodMonths) {
-      case 1:
-        periodText = 'Monthly';
-        break;
-      case 3:
-        periodText = 'Quarterly';
-        break;
-      case 6:
-        periodText = 'Semi-Annual';
-        break;
-      case 12:
-        periodText = 'Annual';
-        break;
-      default:
-        periodText = `Every ${perk.periodMonths} months`;
+      case 1: periodText = 'Monthly'; break;
+      case 3: periodText = 'Quarterly'; break;
+      case 6: periodText = 'Semi-Annual'; break;
+      case 12: periodText = 'Annual'; break;
+      default: periodText = perk.periodMonths ? `Every ${perk.periodMonths} months` : '';
     }
 
-    // Determine container style based on status
+    // Truncate perk description for display in the card
+    let displayDescription = '';
+    if (perk.description) {
+      displayDescription = perk.description.length > 100 
+        ? perk.description.substring(0, 97) + '...' 
+        : perk.description;
+    } else {
+      displayDescription = 'No description available.';
+    }
+    
     let containerStyle: any = styles.perkContainer;
     if (isRedeemed && isAutoRedeemed) {
       containerStyle = [styles.perkContainer, styles.perkContainerAutoRedeemed];
@@ -518,20 +517,27 @@ export default function ExpandableCard({
                   color={isRedeemed ? (isAutoRedeemed ? '#FF9500' : '#8E8E93') : isAutoRedeemed ? '#FF9500' : '#007AFF'}
                 />
               </View>
-              <View style={styles.perkTextContainer}>
-                <Text style={[
-                  styles.perkName, 
-                  isRedeemed && !isAutoRedeemed && styles.perkNameRedeemed,
-                  isRedeemed && isAutoRedeemed && styles.perkNameAutoRedeemed
-                ]}>
-                  {perk.name}
-                </Text>
+              <View style={styles.perkTextContainerInsideItem}> 
+                <View style={styles.perkNameAndPeriodContainer}> 
+                  <Text style={[
+                    styles.perkName, 
+                    isRedeemed && !isAutoRedeemed && styles.perkNameRedeemed,
+                    isRedeemed && isAutoRedeemed && styles.perkNameAutoRedeemed
+                  ]}
+                  >
+                    {perk.name}
+                  </Text>
+                  {periodText ? <Text style={styles.perkPeriodTag}>{periodText}</Text> : null}
+                </View>
                 <Text style={[
                   styles.perkDescription, 
                   isRedeemed && !isAutoRedeemed && styles.perkDescriptionRedeemed,
                   isRedeemed && isAutoRedeemed && styles.perkDescriptionAutoRedeemed
-                ]}>
-                  {isRedeemed ? (isAutoRedeemed ? 'Auto-redeemed monthly' : 'Used this month') : isAutoRedeemed ? 'Auto-redeemed monthly' : perk.description}
+                ]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                >
+                  {displayDescription}
                 </Text>
               </View>
               <View style={styles.perkValueContainer}>
@@ -628,7 +634,7 @@ export default function ExpandableCard({
         </View>
         <View style={styles.headerRight}>
           <Ionicons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            name={isExpanded ? 'chevron-down' : 'chevron-forward'}
             size={24}
             color="#8e8e93"
           />
@@ -731,8 +737,8 @@ const styles = StyleSheet.create({
   },
   savedValueText: {
     color: '#34c759',
-    fontSize: 22,
-    fontWeight: '400',
+    fontSize: 14, 
+    fontWeight: '500',
   },
   perkItem: {
     backgroundColor: '#ffffff',
@@ -757,18 +763,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 4,
   },
-  perkNameContainer: {
+  perkTextContainerInsideItem: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
     marginRight: 8,
+    justifyContent: 'center',
+  },
+  perkNameAndPeriodContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    marginBottom: 2,
   },
   perkName: {
     fontSize: 15,
     fontWeight: '500',
     color: '#1c1c1e',
+    marginRight: 6,
+  },
+  perkPeriodTag: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#8A8A8E',
+  },
+  perkNameRedeemed: {
+    color: '#8E8E93',
+    textDecorationLine: 'line-through',
   },
   perkValue: {
     fontSize: 22,
@@ -802,11 +821,6 @@ const styles = StyleSheet.create({
     color: '#1976d2',
     fontSize: 12,
     fontWeight: '500',
-  },
-  perkPeriod: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 4,
   },
   redeemedText: {
     color: '#34c759',
@@ -913,32 +927,29 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   perkContainerOuter: {
-    // Existing styles if any, or add new ones if needed
-    // backgroundColor: '#FFF', // Example if each perk needs its own bg for swipe animation visibility
   },
   perkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 16, // Ensure horizontal padding for hint space if needed
-    backgroundColor: '#FFFFFF', // Default background for perk row
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5EA',
-    position: 'relative', // For absolute positioning of hint if chosen
+    position: 'relative',
   },
   perkContainerRedeemed: {
     backgroundColor: '#F7F7F7',
   },
   swipeHintContainer: {
     position: 'absolute',
-    right: 12, // Adjust as needed for alignment with chevron-forward or overall padding
+    right: 12,
     top: 0,
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    opacity: 0.7, // As per request
-    zIndex: -1, // Ensure it's behind perk content if perk content has its own bg
-                 // Or adjust perkContainer padding and place hint inline
+    opacity: 0.7,
+    zIndex: -1,
   },
   swipeHintText: {
     fontSize: 12,
@@ -950,20 +961,12 @@ const styles = StyleSheet.create({
     width: 30,
     alignItems: 'center',
   },
-  perkTextContainer: {
-    flex: 1,
-    marginRight: 8,
-  },
-  perkNameRedeemed: {
-    color: '#8E8E93',
-    textDecorationLine: 'line-through',
-  },
-  perkDescription: {
+  perkDescription: { 
     fontSize: 13,
     color: '#6C6C70',
-    marginTop: 2,
+    lineHeight: 18,
   },
-  perkDescriptionRedeemed: {
+  perkDescriptionRedeemed: { 
     color: '#AEAEB2',
   },
   perkValueContainer: {
@@ -971,7 +974,7 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
     alignItems: 'flex-end',
   },
-  perkValueRedeemed: {
+  perkValueRedeemed: { 
     color: '#8E8E93',
     textDecorationLine: 'line-through',
   },
@@ -981,13 +984,13 @@ const styles = StyleSheet.create({
   perkContainerAutoRedeemed: {
     backgroundColor: '#FFF8E1',
   },
-  perkNameAutoRedeemed: {
+  perkNameAutoRedeemed: { 
     color: '#FF9500',
   },
-  perkDescriptionAutoRedeemed: {
+  perkDescriptionAutoRedeemed: { 
     color: '#FF9500',
   },
-  perkValueAutoRedeemed: {
+  perkValueAutoRedeemed: { 
     color: '#FF9500',
   },
 }); 
