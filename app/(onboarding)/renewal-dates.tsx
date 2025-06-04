@@ -11,7 +11,8 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import { Card, allCards } from '../../src/data/card-data';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,8 +20,10 @@ import * as Haptics from 'expo-haptics';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import LottieView from 'lottie-react-native';
 import { MotiView } from 'moti';
+import { useOnboardingContext } from './context/OnboardingContext';
+import { onboardingScreenNames } from './_layout';
+import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 
-const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90;
 const CARD_ANIMATION_DELAY = 60;
 
 // Helper to format date as MM/DD/YYYY or return placeholder
@@ -40,6 +43,20 @@ interface RenewalDateInfo {
 export default function OnboardingRenewalDatesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string }>();
+  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const route = useRoute();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const screenName = route.name.split('/').pop() || 'renewal-dates';
+      const stepIndex = onboardingScreenNames.indexOf(screenName);
+      if (stepIndex !== -1) {
+        setStep(stepIndex);
+      }
+      setIsHeaderGloballyHidden(false);
+      return () => {};
+    }, [route.name, setStep, setIsHeaderGloballyHidden])
+  );
   
   const [selectedCards, setSelectedCards] = useState<Card[]>([]);
   const [renewalDates, setRenewalDates] = useState<Map<string, RenewalDateInfo>>(new Map());
@@ -120,17 +137,17 @@ export default function OnboardingRenewalDatesScreen() {
       });
     };
 
-    if (datesActuallySetCount === 0 && selectedCards.length > 0) { // Only show if cards were present but no dates set
+    if (datesActuallySetCount === 0 && selectedCards.length > 0) {
       Alert.alert(
         "No Renewal Dates Set",
         "No renewal dates yet – we'll remind you after you add them in Settings.",
         [
-          { text: "OK", onPress: navigateToNextScreen } // Proceed after dismissal
+          { text: "OK", onPress: navigateToNextScreen }
         ],
-        { cancelable: false } // User must tap OK
+        { cancelable: false }
       );
     } else {
-      navigateToNextScreen(); // Proceed directly if dates were set or no cards
+      navigateToNextScreen();
     }
   };
 
@@ -150,14 +167,14 @@ export default function OnboardingRenewalDatesScreen() {
 
   if (selectedCards.length === 0 && params.selectedCardIds) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered]} edges={['bottom', 'left', 'right']}>
+      <SafeAreaView style={[styles.container, styles.centered, {paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom', 'left', 'right']}>
         <Text>Loading card details...</Text>
       </SafeAreaView>
     );
   }
   
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       <DateTimePickerModal
         isVisible={isDatePickerVisible}

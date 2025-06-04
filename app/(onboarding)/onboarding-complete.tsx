@@ -10,26 +10,46 @@ import {
   Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import LottieView from 'lottie-react-native';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
-
-const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Updated Offset for transparent header
+import { useOnboardingContext } from './context/OnboardingContext';
+import { onboardingScreenNames } from './_layout';
+import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 
 export default function OnboardingCompleteScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
+  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const route = useRoute();
+
   const lottieRef = useRef<LottieView>(null);
   const confettiOpacityAnim = useRef(new Animated.Value(1)).current;
   const summaryOpacityAnim = useRef(new Animated.Value(0)).current;
-  const buttonScaleAnim = useRef(new Animated.Value(0.8)).current; // Initial scale for spring-in
+  const buttonScaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const screenName = route.name.split('/').pop() || 'onboarding-complete';
+      const stepIndex = onboardingScreenNames.indexOf(screenName);
+      if (stepIndex !== -1) {
+        setStep(stepIndex);
+      }
+      const hideHeaderTimer = setTimeout(() => {
+        setIsHeaderGloballyHidden(true);
+      }, 1000);
+
+      return () => {
+        setIsHeaderGloballyHidden(false);
+        clearTimeout(hideHeaderTimer);
+      };
+    }, [route.name, setStep, setIsHeaderGloballyHidden])
+  );
 
   useEffect(() => {
-    // Initial Lottie play
     lottieRef.current?.play(0);
 
-    // Lottie fade out after initial burst + delay
     const lottieFadeOutTimer = setTimeout(() => {
       Animated.timing(confettiOpacityAnim, {
         toValue: 0,
@@ -37,9 +57,8 @@ export default function OnboardingCompleteScreen() {
         easing: Easing.ease,
         useNativeDriver: true,
       }).start();
-    }, 2700); // 700ms burst + 2000ms subtle loop (simulated by delay)
+    }, 2700);
 
-    // "What's Next?" fade in
     const summaryFadeInTimer = setTimeout(() => {
       Animated.timing(summaryOpacityAnim, {
         toValue: 1,
@@ -47,39 +66,28 @@ export default function OnboardingCompleteScreen() {
         easing: Easing.ease,
         useNativeDriver: true,
       }).start();
-    }, 900); // After confetti burst (700ms) + slight delay
+    }, 900);
 
-    // Button spring-in animation
     Animated.spring(buttonScaleAnim, {
-      toValue: 1, // Spring to final resting scale of 1
+      toValue: 1,
       friction: 5,
       tension: 140,
       useNativeDriver: true,
     }).start();
 
-    // New button pulse animation after 1.5 seconds
     const pulseTimer = setTimeout(() => {
       Animated.sequence([
         Animated.timing(buttonScaleAnim, { toValue: 1.03, duration: 150, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
         Animated.timing(buttonScaleAnim, { toValue: 1, duration: 200, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
       ]).start();
-    }, 1500); // Start pulse 1.5 seconds after component mounts
-
-    // Hide header elements after 1 second
-    const hideHeaderTimer = setTimeout(() => {
-      navigation.setOptions({
-        headerTitle: () => null, // Hide step/dots
-        headerLeft: () => null,   // Hide back arrow
-      });
-    }, 1000); // 1 second delay
+    }, 1500);
 
     return () => {
       clearTimeout(lottieFadeOutTimer);
       clearTimeout(summaryFadeInTimer);
-      clearTimeout(pulseTimer); // Clear the new pulse timer
-      clearTimeout(hideHeaderTimer); // Clear the header hide timer
+      clearTimeout(pulseTimer);
     };
-  }, [confettiOpacityAnim, summaryOpacityAnim, buttonScaleAnim, navigation]);
+  }, [confettiOpacityAnim, summaryOpacityAnim, buttonScaleAnim]);
 
   const handleGoToDashboard = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -87,9 +95,9 @@ export default function OnboardingCompleteScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <Animated.View style={[styles.lottieContainer, { opacity: confettiOpacityAnim, top: HEADER_OFFSET }]}>
+      <Animated.View style={[styles.lottieContainer, { opacity: confettiOpacityAnim, top: WIZARD_HEADER_HEIGHT }]}>
         <LottieView
           ref={lottieRef}
           source={require('../../assets/animations/celebration.json')}

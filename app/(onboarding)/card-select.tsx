@@ -11,18 +11,19 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useNavigation } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import { Card, allCards } from '../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
+import { useOnboardingContext } from './context/OnboardingContext';
+import { onboardingScreenNames } from './_layout';
+import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 
-const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90;
-
-// Helper to get card network color (can be moved to a utility if used elsewhere)
 const getCardNetworkColor = (card: Card) => {
   switch (card.network?.toLowerCase()) {
     case 'amex':
@@ -33,13 +34,29 @@ const getCardNetworkColor = (card: Card) => {
     case 'chase':
       return '#124A8D';
     default:
-      return '#F0F0F0'; // A light gray for others
+      return '#F0F0F0';
   }
 };
 
 export default function OnboardingCardSelectScreen() {
   const router = useRouter();
-  const navigation = useNavigation(); 
+  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const route = useRoute();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const screenName = route.name.split('/').pop() || 'card-select';
+      const stepIndex = onboardingScreenNames.indexOf(screenName);
+      if (stepIndex !== -1) {
+        setStep(stepIndex);
+      }
+      setIsHeaderGloballyHidden(false);
+
+      return () => {
+      };
+    }, [route.name, setStep, setIsHeaderGloballyHidden])
+  );
+
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [firstCardAdded, setFirstCardAdded] = useState(false);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
@@ -63,7 +80,6 @@ export default function OnboardingCardSelectScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setFirstCardAdded(true);
       }
-      // Pop animation for the card thumbnail itself
       Animated.sequence([
         Animated.timing(cardScale, {
           toValue: 1.05, 
@@ -83,7 +99,7 @@ export default function OnboardingCardSelectScreen() {
   };
 
   const handleNext = () => {
-    if (selectedCardIds.size === 0) return; // Guard against accidental press if somehow enabled
+    if (selectedCardIds.size === 0) return;
     const idsArray = Array.from(selectedCardIds);
     router.push({
       pathname: '/(onboarding)/renewal-dates',
@@ -91,7 +107,6 @@ export default function OnboardingCardSelectScreen() {
     });
   };
 
-  // Memoize sorted cards to prevent re-sorting on every render
   const sortedAllCards = useMemo(() => 
     [...allCards].sort((a, b) => a.name.localeCompare(b.name)), 
     []
@@ -125,7 +140,7 @@ export default function OnboardingCardSelectScreen() {
           ) : (
             <Ionicons 
               name="square-outline" 
-              size={26} // Slightly larger for a better tap target feel
+              size={26}
               color={Colors.light.icon} 
               style={styles.checkboxIcon}
             />
@@ -135,32 +150,21 @@ export default function OnboardingCardSelectScreen() {
     );
   };
 
-  const titleAnimationDelay = 50; // Main title (now with count) will animate
-  const subtitleAnimationDelay = titleAnimationDelay + 100;
+  const subtitleAnimationDelay = 50;
   const listAnimationDelay = subtitleAnimationDelay + 100;
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContentContainer}> 
         <MotiView
           from={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ type: 'timing', duration: 150, delay: titleAnimationDelay }}
-        >
-          <Text style={styles.title}>
-            Select Your Cards 
-            {selectedCardIds.size > 0 && (
-              <Text style={styles.selectedCountText}> ({selectedCardIds.size} selected)</Text>
-            )}
-          </Text>
-        </MotiView>
-        <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
           transition={{ type: 'timing', duration: 150, delay: subtitleAnimationDelay }}
         >
-          <Text style={styles.subtitle}>Choose the credit cards you own. You can add more later.</Text>
+          <Text style={styles.subtitle}>
+            Choose the credit cards you own. You can add more later. 
+          </Text>
         </MotiView>
       </View>
 
@@ -179,7 +183,7 @@ export default function OnboardingCardSelectScreen() {
         <TouchableOpacity 
           style={[styles.nextButton, selectedCardIds.size === 0 && styles.nextButtonDisabled]} 
           onPress={handleNext}
-          disabled={selectedCardIds.size === 0} // Ensure this is correctly set
+          disabled={selectedCardIds.size === 0}
         >
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
@@ -197,22 +201,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 15,
     backgroundColor: '#ffffff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#c7c7cc',
-    paddingTop: Platform.OS === 'ios' ? 4 : 20, // Adjust paddingTop as needed
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  selectedCountText: {
-    fontSize: 20,
-    fontWeight: 'normal',
-    color: Colors.light.icon,
-    marginLeft: 8,
+    paddingTop: 10,
   },
   subtitle: {
     fontSize: 16,

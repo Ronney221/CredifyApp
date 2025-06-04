@@ -11,14 +11,17 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons'; // For icons in mini-cards
 import { MotiView } from 'moti'; // Added MotiView
+import { useOnboardingContext } from './context/OnboardingContext'; // Import context hook
+import { onboardingScreenNames } from './_layout'; // Import screen names for index
+import { WIZARD_HEADER_HEIGHT } from './WizardHeader'; // Import WizardHeader height
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences_v2'; // Consider versioning if structure changes
-const HEADER_OFFSET = Platform.OS === 'ios' ? 120 : 90; // Updated Offset for transparent header
 
 interface ToggleProps {
   label: string;
@@ -97,10 +100,24 @@ const NotificationSettingItem: React.FC<NotificationSettingItemProps> = ({
 
 export default function OnboardingNotificationPrefsScreen() {
   const router = useRouter();
-  // Expect selectedCardIds and renewalDates from renewal-dates screen
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string }>();
+  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const route = useRoute();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const screenName = route.name.split('/').pop() || 'notification-prefs';
+      const stepIndex = onboardingScreenNames.indexOf(screenName);
+      // console.log(`notification-prefs focused, screenName: ${screenName}, stepIndex: ${stepIndex}`);
+      if (stepIndex !== -1) {
+        setStep(stepIndex);
+      }
+      setIsHeaderGloballyHidden(false); // Ensure header is visible for this step
+      return () => {};
+    }, [route.name, setStep, setIsHeaderGloballyHidden])
+  );
+
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
-  // Parsed renewal dates: Record<cardId, isoDateString | null>
   const [parsedRenewalDates, setParsedRenewalDates] = useState<Record<string, string | null>>({});
 
   // State for individual perk expiry toggles
@@ -212,7 +229,7 @@ export default function OnboardingNotificationPrefsScreen() {
   const ctaDelay = ctaBaseDelay + (allNotificationItems.length * itemStagger) + 100;
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: HEADER_OFFSET }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       {/* Header area is now minimal as title/dots are in _layout.tsx */}
       
