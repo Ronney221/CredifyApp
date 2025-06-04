@@ -8,7 +8,6 @@ import {
   Platform,
   StatusBar,
   Alert,
-  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -17,86 +16,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons'; // For icons in mini-cards
 import { MotiView } from 'moti'; // Added MotiView
-import { useOnboardingContext } from './context/OnboardingContext'; // Import context hook
-import { onboardingScreenNames } from './_layout'; // Import screen names for index
-import { WIZARD_HEADER_HEIGHT } from './WizardHeader'; // Import WizardHeader height
+import { useOnboardingContext } from './context/OnboardingContext';
+import { onboardingScreenNames } from './_layout';
+import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
+import { ReminderToggleGroup } from '../components/manage/ReminderToggleGroup';
 
-const NOTIFICATION_PREFS_KEY = '@notification_preferences_v2'; // Consider versioning if structure changes
+const NOTIFICATION_PREFS_KEY = '@notification_preferences_v2';
 
 interface ToggleProps {
   label: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
 }
-
-interface NotificationSettingItemProps { // Renamed from MiniCardProps for clarity
-  iconName: keyof typeof Ionicons.glyphMap;
-  title: string;
-  details?: string[];
-  iconColor?: string;
-  toggles?: ToggleProps[];
-  index?: number;
-  isLastItem?: boolean; // Added to conditionally add bottom margin
-  dimmed?: boolean; // Added for dynamic description
-}
-
-// Renamed from MiniCard to NotificationSettingItem for clarity in new context
-const NotificationSettingItem: React.FC<NotificationSettingItemProps> = ({
-  iconName,
-  title,
-  details,
-  iconColor = Colors.light.tint,
-  toggles,
-  index = 0,
-  isLastItem = false,
-  dimmed = false, // Added for dynamic description
-}) => {
-  return (
-    <MotiView
-      from={{ opacity: 0, translateY: 20 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{
-        type: 'timing',
-        duration: 250,
-        delay: 150 + (index * 100),
-      }}
-      style={[
-        styles.notificationItemContainer, 
-        isLastItem && { borderBottomWidth: 0 },
-        dimmed && styles.dimmedItem, // Apply dimming style
-      ]}
-    >
-      <View style={styles.notificationItemHeader}>
-        <Ionicons name={iconName} size={22} color={dimmed ? Colors.light.icon : iconColor} style={styles.notificationItemIcon} />
-        <Text style={[styles.notificationItemTitle, dimmed && styles.dimmedText]}>{title}</Text>
-      </View>
-      {details && details.length > 0 && (
-        <View style={styles.notificationItemBody}>
-          {details.map((detail, idx) => (
-            <Text key={idx} style={[styles.notificationItemDetailText, dimmed && styles.dimmedText]}>• {detail}</Text>
-          ))}
-        </View>
-      )}
-      {toggles && toggles.length > 0 && (
-        <View style={[styles.togglesContainer, dimmed && styles.dimmedItemChildren]}> 
-          {toggles.map((toggle, idx) => (
-            <View key={idx} style={styles.toggleRow}>
-              <Text style={[styles.toggleLabel, dimmed && styles.dimmedText]}>{toggle.label}</Text>
-              <Switch
-                trackColor={{ false: "#767577", true: dimmed ? Colors.light.icon : Colors.light.tint }}
-                thumbColor={toggle.value ? "#ffffff" : "#f4f3f4"}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={toggle.onValueChange}
-                value={toggle.value}
-                disabled={dimmed} // Disable switch if section is dimmed
-              />
-            </View>
-          ))}
-        </View>
-      )}
-    </MotiView>
-  );
-};
 
 export default function OnboardingNotificationPrefsScreen() {
   const router = useRouter();
@@ -242,14 +173,15 @@ export default function OnboardingNotificationPrefsScreen() {
         >
           <Text style={styles.mainCardTitle}>Configure Your Reminders</Text>
           <Text style={styles.mainCardInfoText}>
-            We've enabled recommended reminders. You can tweak them below or change them anytime in <Text style={styles.boldText}>Settings &gt; Notifications</Text>.
+            We&apos;ve enabled recommended reminders. You can tweak them below or change them anytime in <Text style={styles.boldText}>Settings &gt; Notifications</Text>.
           </Text>
           
           <View style={styles.notificationItemsSection}>
             {allNotificationItems.map((itemProps, index) => (
-              <NotificationSettingItem 
+              <ReminderToggleGroup
                 key={itemProps.title}
                 {...itemProps}
+                mode="onboard"
                 index={index}
                 isLastItem={index === allNotificationItems.length - 1}
               />
@@ -265,7 +197,7 @@ export default function OnboardingNotificationPrefsScreen() {
         transition={{ type: 'timing', duration: 200, delay: ctaDelay }}
       >
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>All Set—Let's Go!</Text>
+          <Text style={styles.nextButtonText}>All Set—Let&apos;s Go!</Text>
         </TouchableOpacity>
       </MotiView>
     </SafeAreaView>
@@ -275,19 +207,19 @@ export default function OnboardingNotificationPrefsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f7', // Page background
+    backgroundColor: '#f2f2f7',
   },
-  scrollContentContainer: { // Styles for the ScrollView's content
+  scrollContentContainer: {
     flexGrow: 1,
-    justifyContent: 'center', // Center content vertically
-    paddingHorizontal: 16, // Adjusted horizontal padding for the scroll view
-    paddingVertical: 24,   // Added some vertical padding for the scroll view
-  },
-  mainCardContainer: { // Styles for the single large white card
-    alignItems: 'center', // Center content horizontally
-    paddingHorizontal: 20, // Internal padding for the card content
+    justifyContent: 'center',
+    paddingHorizontal: 16,
     paddingVertical: 24,
-    backgroundColor: '#ffffff', // White card for content
+  },
+  mainCardContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     shadowColor: "#000",
     shadowOffset: {
@@ -298,91 +230,32 @@ const styles = StyleSheet.create({
     shadowRadius: 3.00,
     elevation: 2,
   },
-  mainCardTitle: { // Renamed from infoTitle
+  mainCardTitle: {
     fontSize: 22,
     fontWeight: '600',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 12, // Reduced margin as items follow directly
+    marginBottom: 12,
   },
-  mainCardInfoText: { // Renamed from infoText
+  mainCardInfoText: {
     fontSize: 16,
-    color: Colors.light.icon, // Using icon color as a secondary text color
+    color: Colors.light.icon,
     textAlign: 'center',
-    marginBottom: 24, // Margin before the list of items
+    marginBottom: 24,
     lineHeight: 22,
-    paddingHorizontal: 8, // Slight horizontal padding for better readability
+    paddingHorizontal: 8,
   },
   boldText: {
     fontWeight: '600',
     color: Colors.light.text,
   },
-  notificationItemsSection: { // Container for all notification settings items
+  notificationItemsSection: {
     width: '100%',
-    marginTop: 0, // No extra margin as it's part of the card flow
-  },
-  notificationItemContainer: {
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    paddingVertical: 12,
-    paddingHorizontal: 0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#EDEDED',
-  },
-  dimmedItem: { 
-    // Marker style, specific dimming applied to children elements or via props directly.
-  },
-  dimmedItemChildren: { 
-    opacity: 0.5, // Dim the container of toggles/other interactive children
-  },
-  dimmedText: { 
-    color: Colors.light.icon, 
-    opacity: 0.7,
-  },
-  notificationItemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  notificationItemIcon: {
-    marginRight: 12, // Slightly increased for better spacing
-  },
-  notificationItemTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  notificationItemBody: {
-    paddingLeft: 34, // Align with title text (icon width + margin)
-  },
-  notificationItemDetailText: {
-    fontSize: 15,
-    color: Colors.light.icon,
-    marginBottom: 4,
-    lineHeight: 20,
-  },
-  togglesContainer: {
-    marginTop: 12, // Space above toggles
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F9F9FB', // Slightly different background for visual grouping
-    paddingVertical: 12,
-    paddingHorizontal: 12, // Padding within the toggle row
-    borderRadius: 8, // Rounded corners for each toggle group row
-    marginTop: 4, // Small margin between toggle rows if multiple
-  },
-  toggleLabel: {
-    fontSize: 15,
-    color: Colors.light.text,
-    flexShrink: 1, // Allow label to shrink if needed
-    marginRight: 8, // Space between label and switch
+    marginTop: 0,
   },
   footer: {
     padding: 20,
-    backgroundColor: '#f2f2f7', // Match page background
+    backgroundColor: '#f2f2f7',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#c7c7cc',
   },

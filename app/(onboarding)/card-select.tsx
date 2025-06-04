@@ -23,6 +23,7 @@ import { MotiView } from 'moti';
 import { useOnboardingContext } from './context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
+import { CardRow } from '../components/manage/CardRow';
 
 const getCardNetworkColor = (card: Card) => {
   switch (card.network?.toLowerCase()) {
@@ -61,6 +62,12 @@ export default function OnboardingCardSelectScreen() {
   const [firstCardAdded, setFirstCardAdded] = useState(false);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
 
+  // Get the header text based on selected cards
+  const headerText = useMemo(() => {
+    const count = selectedCardIds.size;
+    return count > 0 ? `Select Cards (${count} selected)` : 'Select Cards';
+  }, [selectedCardIds.size]);
+
   const getScaleValue = (cardId: string) => {
     if (!scaleValues.has(cardId)) {
       scaleValues.set(cardId, new Animated.Value(1));
@@ -76,13 +83,10 @@ export default function OnboardingCardSelectScreen() {
       newSelectedCardIds.delete(cardId);
     } else {
       newSelectedCardIds.add(cardId);
-      if (!firstCardAdded) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setFirstCardAdded(true);
-      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       Animated.sequence([
         Animated.timing(cardScale, {
-          toValue: 1.05, 
+          toValue: 1.05,
           duration: 100,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
@@ -112,51 +116,25 @@ export default function OnboardingCardSelectScreen() {
     []
   );
 
-  const renderCardItem = ({ item: card }: { item: Card }) => {
-    const isSelected = selectedCardIds.has(card.id);
-    const networkColor = getCardNetworkColor(card);
-    const cardScaleAnim = getScaleValue(card.id);
-
-    return (
-      <TouchableOpacity 
-        key={card.id} 
-        style={[styles.cardRow, isSelected && styles.cardRowSelected]}
-        onPress={() => handleToggleCard(card.id)}
-        activeOpacity={0.7}
-      >
-        <Animated.View style={[styles.cardImageWrapper, { backgroundColor: networkColor, transform: [{ scale: cardScaleAnim }] }]}>
-          <Image source={card.image} style={styles.cardImage} />
-        </Animated.View>
-        <Text style={styles.cardName}>{card.name}</Text>
-        <View style={styles.checkboxContainer}>
-          {isSelected ? (
-            <LottieView
-              source={require('../../assets/animations/checkmark.json')}
-              autoPlay={true}
-              loop={false}
-              style={styles.lottieCheckmarkOnRight}
-              speed={1.5} 
-            />
-          ) : (
-            <Ionicons 
-              name="square-outline" 
-              size={26}
-              color={Colors.light.icon} 
-              style={styles.checkboxIcon}
-            />
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   const subtitleAnimationDelay = 50;
   const listAnimationDelay = subtitleAnimationDelay + 100;
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContentContainer}> 
+        <MotiView
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: 'timing', duration: 150 }}
+          style={styles.headerWrapper}
+        >
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerText}>
+              Select Cards{selectedCardIds.size > 0 ? ` (${selectedCardIds.size} selected)` : ''}
+            </Text>
+          </View>
+        </MotiView>
         <MotiView
           from={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -175,7 +153,16 @@ export default function OnboardingCardSelectScreen() {
         style={{flex: 1}}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {sortedAllCards.map((card) => renderCardItem({ item: card }))}
+          {sortedAllCards.map((card) => (
+            <CardRow
+              key={card.id}
+              card={card}
+              isSelected={selectedCardIds.has(card.id)}
+              onPress={handleToggleCard}
+              mode="onboard"
+              cardScaleAnim={getScaleValue(card.id)}
+            />
+          ))}
         </ScrollView>
       </MotiView>
 
@@ -195,13 +182,26 @@ export default function OnboardingCardSelectScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f7',
+    backgroundColor: '#ffffff',
   },
   headerContentContainer: {
     paddingHorizontal: 20,
     paddingBottom: 15,
     backgroundColor: '#ffffff',
+  },
+  headerWrapper: {
     paddingTop: 10,
+  },
+  headerTextContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  headerText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: Colors.light.text,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
@@ -210,55 +210,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 20, 
-  },
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,   
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#c7c7cc',
-  },
-  cardRowSelected: {
-    backgroundColor: '#eef7ff', 
-  },
-  cardImageWrapper: {
-    width: 64,  
-    height: 40, 
-    borderRadius: 5, 
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  cardImage: {
-    width: '90%', 
-    height: '90%', 
-    resizeMode: 'contain',
-  },
-  cardName: {
-    flex: 1, 
-    fontSize: 17,
-    color: Colors.light.text,
-    marginRight: 8, 
-  },
-  checkboxContainer: {
-    width: 28, 
-    height: 28, 
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  lottieCheckmarkOnRight: {
-    width: 36, 
-    height: 36,
-    backgroundColor: 'transparent',
-  },
-  checkboxIcon: {
   },
   footer: {
     padding: 20,
