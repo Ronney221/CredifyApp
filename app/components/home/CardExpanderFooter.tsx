@@ -13,8 +13,8 @@ const CardExpanderFooter: React.FC<CardExpanderFooterProps> = ({
   isExpanded, 
   onToggleExpanded 
 }) => {
-  // Don't show the footer if there are no hidden cards
-  if (hiddenCardsCount <= 0) {
+  // Don't show the footer if there are less than 2 hidden cards
+  if (hiddenCardsCount < 2) {
     return null;
   }
 
