@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   Switch,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
@@ -41,6 +43,12 @@ export const ReminderToggleGroup: React.FC<ReminderToggleGroupProps> = ({
   dimmed = false,
   disabledReason,
 }) => {
+  // Check if this is a master toggle group with children
+  const isMasterToggleGroup = toggles && toggles.length > 1;
+  const masterToggle = isMasterToggleGroup ? toggles[0] : null;
+  const childToggles = isMasterToggleGroup ? toggles.slice(1) : toggles;
+  const areChildrenDisabled = Boolean(isMasterToggleGroup && masterToggle && !masterToggle.value);
+
   const containerStyle = mode === 'onboard' 
     ? [
         styles.onboardContainer, 
@@ -81,27 +89,57 @@ export const ReminderToggleGroup: React.FC<ReminderToggleGroupProps> = ({
         </View>
       )}
       
-      {toggles && toggles.length > 0 && (
-        <View style={[styles.togglesContainer, dimmed && styles.dimmedToggles]}>
-          {toggles.map((toggle, idx) => (
+      {/* Master Toggle */}
+      {masterToggle && (
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>{masterToggle.label}</Text>
+          <Switch
+            value={masterToggle.value}
+            onValueChange={masterToggle.onValueChange}
+            trackColor={{ false: '#e0e0e0', true: Colors.light.tint }}
+            thumbColor={masterToggle.value ? '#ffffff' : '#f4f3f4'}
+            disabled={masterToggle.disabled}
+          />
+        </View>
+      )}
+
+      {/* Child Toggles */}
+      {childToggles && childToggles.length > 0 && (
+        <Animated.View 
+          style={[
+            styles.childTogglesContainer,
+            { 
+              opacity: areChildrenDisabled ? 0.5 : 1,
+              pointerEvents: areChildrenDisabled ? 'none' : 'auto'
+            }
+          ]}
+        >
+          {childToggles.map((toggle, idx) => (
             <View key={idx} style={styles.toggleRow}>
-              <Text style={[styles.toggleLabel, dimmed && styles.dimmedText]}>
-                {toggle.label}
-              </Text>
+              <Text style={styles.toggleLabel}>{toggle.label}</Text>
               <Switch
-                trackColor={{ 
-                  false: "#767577", 
-                  true: dimmed ? Colors.light.icon : Colors.light.tint 
-                }}
-                thumbColor={toggle.value ? "#ffffff" : "#f4f3f4"}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={toggle.onValueChange}
                 value={toggle.value}
-                disabled={dimmed || toggle.disabled}
+                onValueChange={toggle.onValueChange}
+                trackColor={{ false: '#e0e0e0', true: Colors.light.tint }}
+                thumbColor={toggle.value ? '#ffffff' : '#f4f3f4'}
+                disabled={toggle.disabled || areChildrenDisabled}
               />
             </View>
           ))}
-        </View>
+        </Animated.View>
+      )}
+
+      {!toggles && disabledReason && (
+        <TouchableOpacity disabled style={styles.disabledToggleRow}>
+          <Text style={[styles.toggleLabel, styles.disabledToggleLabel]}>Toggle disabled</Text>
+          <Switch
+            value={false}
+            onValueChange={() => {}}
+            trackColor={{ false: '#e0e0e0', true: '#e0e0e0' }}
+            thumbColor='#f4f3f4'
+            disabled={true}
+          />
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -198,5 +236,64 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     flexShrink: 1,
     marginRight: 8,
+  },
+  toggleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  toggleIcon: {
+    marginRight: 12,
+  },
+  toggleContent: {
+    flex: 1,
+  },
+  toggleTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  toggleDetails: {
+    fontSize: 15,
+    color: Colors.light.icon,
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  disabledReason: {
+    fontSize: 14,
+    color: Colors.light.icon,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  disabledToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F9F9FB',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  disabledToggleLabel: {
+    fontSize: 15,
+    color: Colors.light.icon,
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  childTogglesContainer: {
+    marginTop: 12,
+  },
+  toggleGroup: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#c7c7cc',
+  },
+  lastToggleGroup: {
+    borderBottomWidth: 0,
+  },
+  toggleGroupDimmed: {
+    opacity: 0.5,
   },
 }); 

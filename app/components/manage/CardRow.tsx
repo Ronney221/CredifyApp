@@ -146,12 +146,19 @@ export const CardRow: React.FC<CardRowProps> = ({
         <View style={styles.cardContent}>
           <Text style={styles.cardName}>{card.name}</Text>
           {subtitle && (
-            <Text style={[
-              styles.cardSubtitle,
-              subtitleStyle === 'placeholder' && styles.cardSubtitlePlaceholder
-            ]}>
-              {subtitle}
-            </Text>
+            <View style={styles.statusChipContainer}>
+              {subtitleStyle === 'placeholder' ? (
+                <View style={styles.statusChipOrange}>
+                  <Ionicons name="calendar-outline" size={12} color="#ffffff" style={styles.chipIcon} />
+                  <Text style={styles.statusChipTextOrange}>{subtitle}</Text>
+                </View>
+              ) : (
+                <View style={styles.statusChipGreen}>
+                  <Ionicons name="checkmark-circle" size={12} color="#ffffff" style={styles.chipIcon} />
+                  <Text style={styles.statusChipTextGreen}>{subtitle}</Text>
+                </View>
+              )}
+            </View>
           )}
         </View>
         
@@ -207,14 +214,39 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Colors.light.text,
   },
-  cardSubtitle: {
-    fontSize: 15,
-    color: '#8e8e93',
-    marginTop: 2,
+  statusChipContainer: {
+    marginTop: 6,
   },
-  cardSubtitlePlaceholder: {
-    fontWeight: '600',
-    color: '#007aff',
+  statusChipOrange: {
+    backgroundColor: '#ff9500',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  chipIcon: {
+    marginRight: 4,
+  },
+  statusChipTextOrange: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  statusChipGreen: {
+    backgroundColor: '#34c759',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  statusChipTextGreen: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '500',
   },
   checkboxContainer: {
     width: 28,

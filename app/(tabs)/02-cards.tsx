@@ -475,8 +475,8 @@ export default function Cards() {
       iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, 
       title: "Monthly Perk Expiry Reminders", 
       details: perkExpiryRemindersEnabled 
-        ? ["Choose when to remind you before perks expire"] 
-        : ["Turn on to get reminded before perks expire"],
+        ? ["Choose timing"] 
+        : ["Turn on to get reminded"],
       toggles: [
         { 
           label: "Enable perk expiry reminders", 
@@ -491,8 +491,8 @@ export default function Cards() {
       iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap,
       title: "Card Renewal Reminders", 
       details: anyRenewalDateSet 
-        ? ["We'll remind you 7 days before renewal dates"] 
-        : ["Add renewal dates to enable reminders"],
+        ? ["7 days before renewal dates"] 
+        : ["Add renewal dates first"],
       toggles: anyRenewalDateSet ? [
         { 
           label: "Enable renewal reminders", 
@@ -507,7 +507,7 @@ export default function Cards() {
     { 
       iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, 
       title: "Perk Reset Confirmations", 
-      details: ["We'll confirm when monthly perks reset on the 1st"],
+      details: ["Monthly reset notifications"],
       toggles: [
         { 
           label: "Enable reset confirmations", 
@@ -561,99 +561,125 @@ export default function Cards() {
 
   return (
     <>
-      <ManageCardsContainer
-        title="Manage Your Cards"
-        subtitle="Update your card collection and notification preferences"
-        showSaveButton={hasChanges && !isEditing}
-        onSave={handleSaveChanges}
-        isSaving={isSaving}
-        saveButtonDisabled={!hasChanges}
-        isDraggable={isEditing}
-        onContainerPress={isEditing ? handleContainerPress : undefined}
-      >
-        {/* Cards Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your Cards</Text>
-          {isEditing && (
-            <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.addButton}>
-              <Ionicons name="add-circle-outline" size={24} color="#007aff" />
-              <Text style={styles.addButtonText}>Add Card</Text>
-            </TouchableOpacity>
-          )}
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.headerSection}>
+          <Text style={styles.headerTitle}>Manage Your Cards</Text>
+          <Text style={styles.headerSubtitle}>Update your card collection and notification preferences</Text>
         </View>
 
-        {isEditing ? (
-          <DraggableFlatList
-            data={selectedCardObjects}
-            renderItem={({ item: card, drag }: RenderItemParams<Card>) => (
-              <CardRow
-                key={card.id}
-                card={card}
-                isSelected={false}
-                onPress={handleCardPress}
-                mode="manage"
-                subtitle={formatDate(renewalDates[card.id])}
-                subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                showDragHandle={true}
-                onDrag={drag}
-                onRemove={handleRemoveCard}
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Cards Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Cards</Text>
+              {isEditing && (
+                <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.addButton}>
+                  <Ionicons name="add-circle-outline" size={24} color="#007aff" />
+                  <Text style={styles.addButtonText}>Add Card</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {isEditing ? (
+              <DraggableFlatList
+                data={selectedCardObjects}
+                renderItem={({ item: card, drag }: RenderItemParams<Card>) => (
+                  <CardRow
+                    key={card.id}
+                    card={card}
+                    isSelected={false}
+                    onPress={handleCardPress}
+                    mode="manage"
+                    subtitle={formatDate(renewalDates[card.id])}
+                    subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                    showDragHandle={true}
+                    onDrag={drag}
+                    onRemove={handleRemoveCard}
+                  />
+                )}
+                keyExtractor={(item) => item.id}
+                onDragEnd={({ data }) => {
+                  const newSelectedCardIds = data.map(card => card.id);
+                  setSelectedCards(newSelectedCardIds);
+                }}
+                style={styles.cardsList}
               />
-            )}
-            keyExtractor={(item) => item.id}
-            onDragEnd={({ data }) => {
-              const newSelectedCardIds = data.map(card => card.id);
-              setSelectedCards(newSelectedCardIds);
-            }}
-            style={styles.cardsList}
-          />
-        ) : (
-          <View style={styles.cardsList}>
-            {selectedCardObjects.length > 0 ? (
-              selectedCardObjects.map((card) => (
-                <CardRow
-                  key={card.id}
-                  card={card}
-                  isSelected={false}
-                  onPress={handleCardPress}
-                  mode="manage"
-                  subtitle={formatDate(renewalDates[card.id])}
-                  subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                  flashAnimation={flashingCardId === card.id}
-                />
-              ))
             ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="card-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
-                <Text style={styles.emptyStateTitle}>No cards yet</Text>
-                <Text style={styles.emptyStateText}>
-                  {isEditing ? "Tap 'Add Card' above to get started" : "Add your first card to start tracking perks and benefits"}
-                </Text>
-                {!isEditing && (
-                  <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.emptyStateButton}>
-                    <Text style={styles.emptyStateButtonText}>Add Your First Card</Text>
-                  </TouchableOpacity>
+              <View style={styles.cardsList}>
+                {selectedCardObjects.length > 0 ? (
+                  selectedCardObjects.map((card) => (
+                    <CardRow
+                      key={card.id}
+                      card={card}
+                      isSelected={false}
+                      onPress={handleCardPress}
+                      mode="manage"
+                      subtitle={formatDate(renewalDates[card.id])}
+                      subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+                      flashAnimation={flashingCardId === card.id}
+                    />
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="card-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
+                    <Text style={styles.emptyStateTitle}>No cards yet</Text>
+                    <Text style={styles.emptyStateText}>
+                      {isEditing ? "Tap 'Add Card' above to get started" : "Add your first card to start tracking perks and benefits"}
+                    </Text>
+                    {!isEditing && (
+                      <TouchableOpacity onPress={handleOpenAddCardModal} style={styles.emptyStateButton}>
+                        <Text style={styles.emptyStateButtonText}>Add Your First Card</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 )}
               </View>
             )}
           </View>
-        )}
 
-        {/* Notification Preferences Section */}
-        <View style={styles.sectionDivider} />
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Notification Preferences</Text>
-        </View>
-        
-        {notificationItems.map((itemProps, index) => (
-          <ReminderToggleGroup
-            key={itemProps.title}
-            {...itemProps}
-            mode="manage"
-            index={index}
-            isLastItem={index === notificationItems.length - 1}
-          />
-        ))}
-      </ManageCardsContainer>
+          {/* Notification Preferences Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Notification Preferences</Text>
+            </View>
+            
+            {notificationItems.map((itemProps, index) => (
+              <ReminderToggleGroup
+                key={itemProps.title}
+                {...itemProps}
+                mode="manage"
+                index={index}
+                isLastItem={index === notificationItems.length - 1}
+              />
+            ))}
+          </View>
+        </ScrollView>
+
+        {hasChanges && !isEditing && (
+          <MotiView 
+            style={styles.footer}
+            from={{ opacity: 0, translateY: 100 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 200 }}
+          >
+            <TouchableOpacity 
+              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]} 
+              onPress={handleSaveChanges}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+          </MotiView>
+        )}
+      </SafeAreaView>
 
       {/* Undo Snackbar */}
       {showUndoSnackbar && deletedCard && (
@@ -746,12 +772,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#f2f2f7',
+  },
+  headerSection: {
+    padding: 20,
+    paddingTop: 40,
+    paddingBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#EDEDED',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: Colors.light.icon,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  section: {
+    marginBottom: 20,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EDEDED',
@@ -806,9 +860,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  sectionDivider: {
-    height: 20,
-    backgroundColor: '#f2f2f7',
+  footer: {
+    padding: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#EDEDED',
+  },
+  saveButton: {
+    backgroundColor: '#007aff',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#d3d3d3',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  undoSnackbar: {
+    position: 'absolute',
+    bottom: 100,
+    left: '10%',
+    right: '10%',
+    backgroundColor: '#20B2AA',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  undoSnackbarText: {
+    fontSize: 16,
+    color: '#ffffff',
+    flex: 1,
+  },
+  undoButton: {
+    backgroundColor: '#007aff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  undoButtonText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   modalContainer: {
     flex: 1,
@@ -873,38 +975,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.light.icon,
     fontSize: 16,
-  },
-  undoSnackbar: {
-    position: 'absolute',
-    bottom: 100,
-    left: 16,
-    right: 16,
-    backgroundColor: '#333333',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  undoSnackbarText: {
-    fontSize: 16,
-    color: '#ffffff',
-    flex: 1,
-  },
-  undoButton: {
-    backgroundColor: '#007aff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  undoButtonText: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
   },
 });
