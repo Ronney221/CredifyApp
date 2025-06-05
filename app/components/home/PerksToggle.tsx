@@ -51,11 +51,11 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
           }
         }}
         // The following props are common for styling to match iOS native look
-        tintColor={Platform.OS === 'ios' ? Colors.light.tint : undefined} // iOS uses tint for selected BG
-        fontStyle={{ color: Platform.OS === 'android' ? Colors.light.text : undefined }} // Android text color
-        activeFontStyle={{ color: Platform.OS === 'android' ? '#FFFFFF' : undefined }} // Android active text color
-        // backgroundColor for Android - default is often fine, or use a light grey like #F2F2F7 if needed
-        // style prop can be used for width, height, margins if necessary
+        tintColor={'#20B2AA'} // Changed from Colors.light.tint to #20B2AA (brandTeal from CTA)
+        backgroundColor={Platform.OS === 'android' ? '#ECECEC' : undefined} 
+        fontStyle={{ color: Platform.OS === 'android' ? Colors.light.text : '#20B2AA' }} // Unselected text also to #20B2AA for consistency on iOS
+        activeFontStyle={{ color: '#FFFFFF' }} 
+        appearance={Platform.OS === 'ios' ? 'dark' : undefined} 
         style={styles.segmentedControl}
       />
     </View>

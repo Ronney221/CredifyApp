@@ -976,9 +976,9 @@ const styles = StyleSheet.create({
     flex: 1, // Allow greeting to take available space
   },
   welcomeText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 14,
+    color: '#8A8A8E',
+    fontWeight: '400',
   },
   userNameText: {
     fontSize: 24,

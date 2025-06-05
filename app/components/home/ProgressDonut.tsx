@@ -195,8 +195,8 @@ const styles = StyleSheet.create({
   },
   progressPercentageText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
+    fontWeight: '400',
+    color: '#687076',
     textAlign: 'center',
     marginBottom: 2,
   },

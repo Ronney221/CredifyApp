@@ -283,7 +283,7 @@ export default function Cards() {
     
     // Hide floating add button when scrolling down, show when scrolling up
     // Also hide when near the bottom of the page
-    const isNearBottom = currentScrollY + layoutHeight >= contentHeight - 50;
+    const isNearBottom = currentScrollY + layoutHeight >= contentHeight - 100;
     
     if (scrollDirection === 'down' && currentScrollY > 100) {
       setShowFloatingAdd(false);
@@ -345,6 +345,7 @@ export default function Cards() {
                 subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
                 showRemoveButton={true}
                 onRemove={handleRemoveCard}
+                isEditMode={true}
               />
             ) : (
               <CardRow
@@ -356,6 +357,7 @@ export default function Cards() {
                 subtitle={formatDate(renewalDates[card.id])}
                 subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
                 showRemoveButton={false}
+                isEditMode={false}
               />
             )
           )}
@@ -375,15 +377,17 @@ export default function Cards() {
               {/* Cards Section Header */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Your Cards</Text>
+                  <Text style={styles.sectionTitleYourCards}>Your Cards</Text>
                   {selectedCards.length > 0 && (
                     <TouchableOpacity 
                       onPress={handleEditModeToggle} 
-                      style={styles.editButton}
+                      style={styles.editIconButton}
                     >
-                      <Text style={styles.editButtonText}>
-                        {isEditMode ? 'Done' : 'Edit'}
-                      </Text>
+                      <Ionicons 
+                        name={isEditMode ? "checkmark-done-outline" : "create-outline"} 
+                        size={24} 
+                        color={Colors.light.tint}
+                      />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -520,6 +524,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  sectionTitleYourCards: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6E6E73',
+  },
   cardsList: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EDEDED',
@@ -571,5 +580,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#20B2AA',
+  },
+  editIconButton: {
+    padding: 6,
   },
 });

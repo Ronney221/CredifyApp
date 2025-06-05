@@ -644,7 +644,7 @@ const ExpandableCardComponent = ({
           <Ionicons
             name={isExpanded ? 'chevron-down' : 'chevron-forward'}
             size={24}
-            color="#8e8e93"
+            color="#20B2AA"
           />
         </View>
       </TouchableOpacity>

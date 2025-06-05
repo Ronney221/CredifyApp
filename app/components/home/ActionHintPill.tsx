@@ -18,26 +18,30 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
     maximumFractionDigits: 0,
   });
 
-  let urgencyColor = '#20B2AA'; // Subtle Teal as default
+  let urgencyColor = '#20B2AA'; // Subtle Teal as default for text/icon
+  let borderColor = '#20B2AA66'; // Default border color with 40% opacity
   let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline'; // Default icon
   let daysText = `${daysRemaining} days left`;
 
   if (daysRemaining <= 0) {
     urgencyColor = '#f57c00'; // Orange for urgent (expired or today)
+    borderColor = '#f57c0066'; // Orange with 40% opacity for border
     iconName = 'flame-outline';
     daysText = 'Expires today!';
-    if (daysRemaining < 0) daysText = 'Expired'; // Or handle more gracefully if needed
+    if (daysRemaining < 0) daysText = 'Expired';
   } else if (daysRemaining <= 3) {
     urgencyColor = '#f57c00'; // Orange for urgent
+    borderColor = '#f57c0066'; // Orange with 40% opacity for border
     iconName = 'flame-outline';
     daysText = 'Expires soon!';
   } else if (daysRemaining <= 7) {
     urgencyColor = '#ffab00'; // Amber for soon
+    borderColor = '#ffab0066'; // Amber with 40% opacity for border
     iconName = 'time-outline';
   }
 
   return (
-    <TouchableOpacity style={[styles.container, { borderColor: urgencyColor }]} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={[styles.container, { borderColor: borderColor }]} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.iconContainer}>
         <Ionicons name={iconName} size={24} color={urgencyColor} />
       </View>

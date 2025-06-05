@@ -37,6 +37,7 @@ interface CardRowProps {
   subtitleStyle?: 'normal' | 'placeholder';
   showRemoveButton?: boolean;
   onRemove?: (cardId: string) => void;
+  isEditMode?: boolean;
 }
 
 export const CardRow: React.FC<CardRowProps> = ({
@@ -50,6 +51,7 @@ export const CardRow: React.FC<CardRowProps> = ({
   subtitleStyle = 'normal',
   showRemoveButton = false,
   onRemove,
+  isEditMode = false,
 }) => {
   const networkColor = getCardNetworkColor(card);
 
@@ -110,11 +112,17 @@ export const CardRow: React.FC<CardRowProps> = ({
           styles.cardRow,
           isSelected && mode === 'onboard' && styles.cardRowSelected,
           disabled && styles.cardRowDisabled,
+          isEditMode && styles.cardRowEditMode,
         ]}
         onPress={() => !disabled && onPress(card.id)}
         activeOpacity={0.7}
         disabled={disabled}
       >
+        {isEditMode && (
+          <View style={styles.grabberIconContainer}>
+            <Ionicons name="reorder-three-outline" size={28} color="#8e8e93" />
+          </View>
+        )}
         <Animated.View 
           style={[
             styles.cardImageWrapper, 
@@ -129,14 +137,14 @@ export const CardRow: React.FC<CardRowProps> = ({
           {subtitle && (
             <View style={styles.statusChipContainer}>
               {subtitleStyle === 'placeholder' ? (
-                <View style={styles.statusChipOrange}>
-                  <Ionicons name="calendar-outline" size={12} color="#ffffff" style={styles.chipIcon} />
-                  <Text style={styles.statusChipTextOrange}>{subtitle}</Text>
+                <View style={[styles.statusChipBase, styles.statusChipMissingDate]}>
+                  <Ionicons name="calendar-outline" size={12} color="#FFFFFF" style={styles.chipIcon} />
+                  <Text style={[styles.statusChipTextBase, styles.statusChipTextMissingDate]}>{subtitle}</Text>
                 </View>
               ) : (
-                <View style={styles.statusChipGreen}>
-                  <Ionicons name="checkmark-circle" size={12} color="#ffffff" style={styles.chipIcon} />
-                  <Text style={styles.statusChipTextGreen}>{subtitle}</Text>
+                <View style={[styles.statusChipBase, styles.statusChipValidDate]}>
+                  <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" style={styles.chipIcon} />
+                  <Text style={[styles.statusChipTextBase, styles.statusChipTextValidDate]}>{subtitle}</Text>
                 </View>
               )}
             </View>
@@ -164,6 +172,14 @@ const styles = StyleSheet.create({
   },
   cardRowDisabled: {
     opacity: 0.5,
+  },
+  cardRowEditMode: {
+    opacity: 0.9,
+  },
+  grabberIconContainer: {
+    paddingRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardImageWrapper: {
     width: 64,
@@ -194,36 +210,33 @@ const styles = StyleSheet.create({
   statusChipContainer: {
     marginTop: 6,
   },
-  statusChipOrange: {
-    backgroundColor: '#FFB75E',
+  statusChipBase: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+  },
+  statusChipMissingDate: {
+    backgroundColor: '#FF950099',
   },
   chipIcon: {
     marginRight: 4,
   },
-  statusChipTextOrange: {
+  statusChipTextBase: {
     fontSize: 12,
     color: '#ffffff',
     fontWeight: '500',
   },
-  statusChipGreen: {
-    backgroundColor: '#34c759',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
+  statusChipTextMissingDate: {
+    // Potentially specific text color if needed, otherwise inherits from base
   },
-  statusChipTextGreen: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '500',
+  statusChipValidDate: {
+    backgroundColor: Colors.light.tint,
+  },
+  statusChipTextValidDate: {
+    // Potentially specific text color if needed, otherwise inherits from base
   },
   checkboxContainer: {
     width: 28,
