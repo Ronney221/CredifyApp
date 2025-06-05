@@ -161,16 +161,17 @@ const ExpandableCardComponent = ({
       // Trigger haptic feedback when the hint is about to animate
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
-      // Nudge animation
+      // Nudge animation starts after a 1-second delay
       nudgeAnimation.value = withSequence(
-        withDelay(400, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withDelay(1000, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
-      // Appear and then fade out animation
+      // Appear instantly, then fade out for 1s after a delay
       redeemHintOpacity.value = withSequence(
-        withTiming(1, { duration: 0 }), // Appear instantly
-        withDelay(1200, withTiming(0, { duration: 500 })) // After 1.2s, fade out
+        withTiming(1, { duration: 0 }), // Appear
+        // Delay = 1s (pre-nudge) + 0.5s (nudge) + 1s (post-nudge) = 2.5s
+        withDelay(2500, withTiming(0, { duration: 1000 })) 
       );
     } else {
       // Stop any pending animations when the hint is hidden (e.g., on collapse)
@@ -187,16 +188,17 @@ const ExpandableCardComponent = ({
       // Trigger haptic feedback when the hint is about to animate
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      // Nudge left animation
+      // Nudge left animation starts after a 1-second delay
       undoNudgeAnimation.value = withSequence(
-        withDelay(400, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withDelay(1000, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
-      // Appear and then fade out animation
+      // Appear instantly, then fade out for 1s after a delay
       undoHintOpacity.value = withSequence(
-        withTiming(1, { duration: 0 }), // Appear instantly
-        withDelay(1200, withTiming(0, { duration: 500 })) // After 1.2s, fade out
+        withTiming(1, { duration: 0 }), // Appear
+        // Delay = 1s (pre-nudge) + 0.5s (nudge) + 1s (post-nudge) = 2.5s
+        withDelay(2500, withTiming(0, { duration: 1000 }))
       );
     } else {
       // Stop any pending animations when the hint is hidden
