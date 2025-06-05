@@ -986,6 +986,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5EA',
     position: 'relative',
+    borderRadius: 16,
   },
   perkContainerRedeemed: {
     backgroundColor: '#F7F7F7',
