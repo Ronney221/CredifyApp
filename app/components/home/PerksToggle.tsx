@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, Platform } from 'react-native';
-import { Animated } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
+import SegmentedControl from '@react-native-segmented-control/segmented-control'; // Import the library
+import { Colors } from '../../../constants/Colors'; // Assuming you might want to use your app's tint color
 
 export interface Segment {
   key: string;
@@ -18,78 +19,45 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
   selectedMode, 
   onModeChange 
 }) => {
-  console.log("DEBUG_PerksToggle_PROPS:", { segments, selectedMode });
+  // console.log("DEBUG_PerksToggle_PROPS:", { segments, selectedMode });
 
-  const [containerWidth, setContainerWidth] = React.useState(0);
-  const [isFirstRender, setIsFirstRender] = React.useState(true);
-  
   const selectedIndex = Math.max(0, segments.findIndex(segment => segment.key === selectedMode));
-  const slideAnim = React.useRef(new Animated.Value(selectedIndex)).current;
+  const segmentValues = segments.map(segment => segment.title);
 
-  React.useEffect(() => {
-    const newSelectedIndex = Math.max(0, segments.findIndex(segment => segment.key === selectedMode));
-    const animationDuration = isFirstRender ? 400 : 200; 
-    
-    Animated.timing(slideAnim, {
-      toValue: newSelectedIndex,
-      duration: animationDuration,
-      useNativeDriver: false, // Changed to false for layout-related animations like width/translateX
-    }).start();
-    
-    if (isFirstRender) {
-      setIsFirstRender(false);
+  const handleValueChange = (value: string) => {
+    const selectedSegment = segments.find(segment => segment.title === value);
+    if (selectedSegment) {
+      onModeChange(selectedSegment.key);
     }
-  }, [selectedMode, segments, isFirstRender, slideAnim]);
-
-  const sliderWidth = containerWidth > 0 && segments.length > 0 ? (containerWidth / segments.length) - 4 : 0;
-
-  const translateX = slideAnim.interpolate({
-    inputRange: segments.map((_, index) => index),
-    outputRange: segments.map((_, index) => (containerWidth / segments.length) * index + 2),
-    extrapolate: 'clamp', // Important for preventing out-of-bounds issues
-  });
+  };
 
   return (
     <View style={styles.outerContainer}>
-      <View 
-        style={styles.segmentedControl} 
-        onLayout={(event) => {
-          const { width } = event.nativeEvent.layout;
-          setContainerWidth(width);
+      <SegmentedControl
+        values={segmentValues}
+        selectedIndex={selectedIndex}
+        onChange={(event) => {
+          // The event often gives selectedSegmentIndex, or you might need to use onValueChange for the value directly
+          // For this library, onChange typically gives an event, and onValueChange gives the string value.
+          // Let's assume onValueChange is preferred if available, or adapt from event.
+          // The library's documentation should clarify the exact event structure.
+          // We will use event.nativeEvent.selectedSegmentIndex if that's standard, or adapt if not.
+          // Most robust is to have a direct onValueChange if the library supports it like this:
+          // onValueChange={handleValueChange}
+          // For now, if onChange is the primary, let's assume it returns an index:
+          const newIndex = event.nativeEvent.selectedSegmentIndex;
+          if (segments[newIndex]) {
+            onModeChange(segments[newIndex].key);
+          }
         }}
-      >
-        {containerWidth > 0 && segments.length > 0 && (
-          <Animated.View 
-            style={[
-              styles.slider,
-              {
-                width: sliderWidth,
-                transform: [{ translateX }],
-              }
-            ]} 
-          />
-        )}
-        
-        <View style={styles.buttonsContainer}>
-          {segments.map((segment) => (
-            <TouchableOpacity 
-              key={segment.key}
-              style={styles.button} 
-              onPress={() => onModeChange(segment.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.buttonText,
-                selectedMode === segment.key ? styles.activeText : styles.inactiveText
-              ]}>
-                {segment.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-      {/* Optional: Divider can be kept or removed based on new design with potentially more tabs */}
-      {/* <View style={styles.divider} /> */}
+        // The following props are common for styling to match iOS native look
+        tintColor={Platform.OS === 'ios' ? Colors.light.tint : undefined} // iOS uses tint for selected BG
+        fontStyle={{ color: Platform.OS === 'android' ? Colors.light.text : undefined }} // Android text color
+        activeFontStyle={{ color: Platform.OS === 'android' ? '#FFFFFF' : undefined }} // Android active text color
+        // backgroundColor for Android - default is often fine, or use a light grey like #F2F2F7 if needed
+        // style prop can be used for width, height, margins if necessary
+        style={styles.segmentedControl}
+      />
     </View>
   );
 };
@@ -97,76 +65,13 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
 const styles = StyleSheet.create({
   outerContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingVertical: 8, // Added some vertical padding
     width: '100%',
-    alignItems: 'center', // Center the control if it's not full width
+    alignItems: 'center',
   },
   segmentedControl: {
-    height: 32,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 6,
-    overflow: 'hidden',
-    width: '100%', // Allow it to take full width of its container
-    maxWidth: 300, // Max width to prevent it from becoming too wide
-    alignSelf: 'center',
-    position: 'relative',
-    // marginHorizontal: 16, // Removed to allow centering via outerContainer
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    position: 'relative',
-    zIndex: 1,
-    height: '100%',
-  },
-  button: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 5, // Add some padding for longer text
-  },
-  buttonText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#8E8E93',
-    textAlign: 'center', // Ensure text is centered
-  },
-  activeText: {
-    color: Platform.OS === 'ios' ? '#007AFF' : '#1a73e8',
-    fontWeight: '600',
-  },
-  inactiveText: {
-    color: '#8E8E93',
-    fontWeight: '500',
-    opacity: 0.8, // Slightly increased opacity for better readability
-  },
-  slider: {
-    position: 'absolute',
-    top: 2,
-    bottom: 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 1,
-        },
-        shadowOpacity: 0.15,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  // Divider might be less necessary with more tabs, or could be styled differently.
-  // For now, it's commented out in the JSX.
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E5EA',
-    marginTop: 12,
-    // marginHorizontal: -16, // Adjust if re-enabled
-    // width: '120%', // Adjust if re-enabled
+    width: '100%',
+    maxWidth: 320, // Max width to prevent it from becoming too wide on larger screens
+    height: Platform.OS === 'ios' ? 32 : 40, // Adjust height based on platform norms
   },
 }); 

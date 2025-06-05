@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { CardPerk } from '../../../src/data/card-data'; // Adjust path as needed
 import { Colors } from '../../../constants/Colors'; // Adjust path as needed
-import { format, endOfMonth, differenceInDays } from 'date-fns';
 
 interface ActionHintPillProps {
   perk: CardPerk & { cardId: string; cardName: string };
@@ -12,7 +11,6 @@ interface ActionHintPillProps {
 }
 
 const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, onPress }) => {
-  const expiryDate = endOfMonth(new Date());
   const formattedValue = perk.value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -20,31 +18,36 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
     maximumFractionDigits: 0,
   });
 
-  // Determine urgency based on days remaining
-  let urgencyColor = '#20B2AA'; // Brand teal instead of default blue
-  let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline';
+  let urgencyColor = '#20B2AA'; // Subtle Teal as default
+  let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline'; // Default icon
+  let daysText = `${daysRemaining} days left`;
 
-  if (daysRemaining <= 3) {
+  if (daysRemaining <= 0) {
+    urgencyColor = '#f57c00'; // Orange for urgent (expired or today)
+    iconName = 'flame-outline';
+    daysText = 'Expires today!';
+    if (daysRemaining < 0) daysText = 'Expired'; // Or handle more gracefully if needed
+  } else if (daysRemaining <= 3) {
     urgencyColor = '#f57c00'; // Orange for urgent
     iconName = 'flame-outline';
+    daysText = 'Expires soon!';
   } else if (daysRemaining <= 7) {
     urgencyColor = '#ffab00'; // Amber for soon
     iconName = 'time-outline';
   }
 
   return (
-    <TouchableOpacity style={[styles.container, { borderColor: urgencyColor, backgroundColor: '#ffffff' }]} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={[styles.container, { borderColor: urgencyColor }]} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.iconContainer}>
-        <Ionicons name={iconName} size={32} color={urgencyColor} />
+        <Ionicons name={iconName} size={24} color={urgencyColor} />
       </View>
       <View style={styles.textContainer}>
-        <Text style={styles.titleText}>
-          <Text style={styles.actionText}>Use your </Text>
-          <Text style={[styles.valueText, { color: urgencyColor }]}>{formattedValue} {perk.name}</Text>
+        <Text style={styles.titleText} numberOfLines={2}>
+          Use your <Text style={[styles.valueText, { color: urgencyColor }]}>{formattedValue} {perk.name}</Text>
         </Text>
         <Text style={styles.subtitleText}>
-          from {perk.cardName} • <Text style={[styles.urgencyText, { color: urgencyColor }]}>
-            {daysRemaining <= 3 ? 'Expires soon!' : `${daysRemaining} days left`}
+          from {perk.cardName} • <Text style={{ color: urgencyColor, fontWeight: '500' }}>
+            {daysText}
           </Text>
         </Text>
       </View>
@@ -62,20 +65,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 8, // Reduced paddingVertical from 12 to 8
+    paddingHorizontal: 16,
     marginHorizontal: 16,
     marginVertical: 12,
-    borderWidth: 2,
+    borderWidth: 1.5, // Subtle border width
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 }, // Softer shadow
+        shadowOpacity: 0.08, // Softer shadow
+        shadowRadius: 4,    // Softer shadow
       },
       android: {
-        elevation: 6,
+        elevation: 3,      // Softer elevation
       },
     }),
   },
@@ -86,42 +89,35 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
+    justifyContent: 'center', // Center text vertically if it wraps to two lines
   },
   titleText: {
-    fontSize: 15,
+    fontSize: 14, // Slightly smaller title
     color: Colors.light.text,
-    fontWeight: '500',
-    marginBottom: 2,
+    fontWeight: '400', // Normal weight for "Use your"
+    marginBottom: 3, // Space between title and subtitle
+    lineHeight: 18, // Adjust for two lines if necessary
   },
   subtitleText: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.light.icon,
+    lineHeight: 16, // Adjust for two lines if necessary
   },
   chevronIcon: {
-    marginLeft: 8,
-  },
-  actionText: {
-    fontSize: 15,
-    color: Colors.light.text,
-    fontWeight: '500',
+    marginLeft: 4, // Reduced space
   },
   valueText: {
-    fontSize: 15,
-    color: Colors.light.text,
-    fontWeight: 'bold',
-  },
-  urgencyText: {
-    fontSize: 13,
-    color: Colors.light.icon,
+    // Removed fontSize here, inherits from titleText
+    fontWeight: '600', // Bold for perk name and value
   },
   actionButtonContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 8, // Added some margin to separate from text block
   },
   actionButtonText: {
-    fontSize: 15,
-    color: Colors.light.text,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

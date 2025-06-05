@@ -348,11 +348,13 @@ export default function Dashboard() {
   };
 
   // Handler for the action hint pill press - memoized
-  const handleActionHintPress = useCallback((perkToActivate: (CardPerk & { cardId: string; cardName: string; daysRemaining: number }) | null) => {
+  const handleActionHintPress = useCallback((perkToActivate: (CardPerk & { cardId: string; cardName: string; cycleEndDate: Date; daysRemaining: number }) | null) => {
     if (perkToActivate) {
-      setActiveCardId(perkToActivate.cardId);
+      setSelectedPerk(perkToActivate);
+      setSelectedCardIdForModal(perkToActivate.cardId);
+      setModalVisible(true);
     }
-  }, [setActiveCardId]); // setActiveCardId is stable
+  }, [setSelectedPerk, setSelectedCardIdForModal, setModalVisible]);
 
   // Refresh data when navigating back to dashboard
   useFocusEffect(
