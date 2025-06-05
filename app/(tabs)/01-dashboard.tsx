@@ -671,11 +671,9 @@ export default function Dashboard() {
   }, [setActiveCardId]);
 
   const handlePerkStatusChange = useCallback(() => {
-    donutDisplayRef.current?.refresh(); // Immediate refresh for donut
-    // refreshSavings(); // No longer calling here
-    // refreshUserCards(); // No longer calling here
-    // Timeout logic removed, full refresh will rely on useFocusEffect
-  }, []); // Dependencies updated, refreshSavings and refreshUserCards removed
+    refreshSavings(); // Recalculate aggregates and savings
+    donutDisplayRef.current?.refresh(); // Refresh donut animation
+  }, [refreshSavings]); // Add refreshSavings to dependency array
 
   const sortedCards = useMemo(() => {
     // console.log('[Dashboard] Memoizing sortedCards. ActiveCardId:', activeCardId);
