@@ -15,7 +15,7 @@ import { useRoute } from '@react-navigation/native';
 import LottieView from 'lottie-react-native';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
-import { useOnboardingContext } from './context/OnboardingContext';
+import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 
@@ -111,15 +111,15 @@ export default function OnboardingCompleteScreen() {
         <View style={styles.spacerForLottie} />
         <Text style={styles.title}>All Set!</Text>
         <Text style={styles.subtitle}>
-          Great—you're all set. We'll remind you so you never miss a perk.
+          Great—you&apos;re all set. We&apos;ll remind you so you never miss a perk.
         </Text>
         
         <Animated.View style={{ opacity: summaryOpacityAnim, width: '100%', alignItems: 'center' }}>
-          <Text style={styles.whatsNextTitle}>What's Next:</Text>
+          <Text style={styles.whatsNextTitle}>What&apos;s Next:</Text>
           <View style={styles.whatsNextBulletContainer}>
             <Text style={styles.bulletPoint}>•</Text>
             <Text style={styles.whatsNextText}>
-              We'll send your first Perk Expiry reminder 7 days before it's due.
+              We&apos;ll send your first Perk Expiry reminder 7 days before it&apos;s due.
             </Text>
           </View>
           <View style={styles.whatsNextBulletContainer}>

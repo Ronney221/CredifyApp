@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import WizardHeader, { WIZARD_HEADER_HEIGHT } from './WizardHeader';
-import { OnboardingContext, OnboardingContextType } from './context/OnboardingContext';
+import { OnboardingContext, OnboardingContextType } from './_context/OnboardingContext';
 
 // Define onboarding steps order and names (route names)
 export const onboardingScreenNames = [

@@ -18,6 +18,8 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
   selectedMode, 
   onModeChange 
 }) => {
+  console.log("DEBUG_PerksToggle_PROPS:", { segments, selectedMode });
+
   const [containerWidth, setContainerWidth] = React.useState(0);
   const [isFirstRender, setIsFirstRender] = React.useState(true);
   

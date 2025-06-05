@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons'; // For icons in mini-cards
 import { MotiView } from 'moti'; // Added MotiView
-import { useOnboardingContext } from './context/OnboardingContext';
+import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 import { ReminderToggleGroup } from '../components/manage/ReminderToggleGroup';

@@ -20,7 +20,7 @@ import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
-import { useOnboardingContext } from './context/OnboardingContext';
+import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 import { CardRow } from '../components/manage/CardRow';

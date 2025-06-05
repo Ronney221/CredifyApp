@@ -40,6 +40,9 @@ export default function ProgressDonut({
   detailLineTwo,
   perksCount,
 }: ProgressDonutProps) {
+  // Log all incoming text-related props at the beginning of the function
+  console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, detailLineOne, detailLineTwo, perksCount });
+
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;

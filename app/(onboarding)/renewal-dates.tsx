@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import LottieView from 'lottie-react-native';
 import { MotiView } from 'moti';
-import { useOnboardingContext } from './context/OnboardingContext';
+import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 

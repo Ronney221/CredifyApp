@@ -563,8 +563,7 @@ const ExpandableCardComponent = ({
   };
 
   return (
-    // <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} layout={Layout.springify().duration(300)}>
-    <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} /* layout prop temporarily removed for diagnosis */>
+    <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} layout={Layout.springify().duration(300)}>
       <TouchableOpacity
         style={[styles.cardHeader, isActive && styles.activeCardHeader]}
         onPress={handleExpand}
@@ -579,7 +578,8 @@ const ExpandableCardComponent = ({
             <View style={styles.cardSubtitle}>
               {isFullyRedeemed ? (
                 <Text style={styles.subtitleText}>
-                  <Ionicons name="checkmark-circle" size={14} color="#34c759" /> All perks redeemed
+                  <Ionicons name="checkmark-circle" size={14} color="#34c759" />
+                  <Text> All perks redeemed</Text>
                   {cumulativeSavedValue > 0 && (
                     <Text style={styles.subtitleDivider}> • </Text>
                   )}
@@ -665,7 +665,46 @@ const ExpandableCardComponent = ({
   );
 };
 
-export default React.memo(ExpandableCardComponent);
+const areEqual = (prevProps: ExpandableCardProps, nextProps: ExpandableCardProps): boolean => {
+  if (prevProps.card.id !== nextProps.card.id ||
+      prevProps.card.name !== nextProps.card.name ||
+      prevProps.card.network !== nextProps.card.network) {
+    return false;
+  }
+
+  if (prevProps.cumulativeSavedValue !== nextProps.cumulativeSavedValue ||
+      prevProps.isActive !== nextProps.isActive ||
+      prevProps.sortIndex !== nextProps.sortIndex) {
+    return false;
+  }
+
+  if (prevProps.onTapPerk !== nextProps.onTapPerk ||
+      prevProps.onExpandChange !== nextProps.onExpandChange ||
+      prevProps.onPerkStatusChange !== nextProps.onPerkStatusChange ||
+      prevProps.setPerkStatus !== nextProps.setPerkStatus) {
+    return false;
+  }
+
+  if (prevProps.perks.length !== nextProps.perks.length) {
+    return false;
+  }
+
+  for (let i = 0; i < prevProps.perks.length; i++) {
+    const prevPerk = prevProps.perks[i];
+    const nextPerk = nextProps.perks[i];
+    if (prevPerk.id !== nextPerk.id ||
+        prevPerk.status !== nextPerk.status ||
+        prevPerk.definition_id !== nextPerk.definition_id ||
+        prevPerk.value !== nextPerk.value // Added perk value comparison
+        ) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+export default React.memo(ExpandableCardComponent, areEqual);
 
 const styles = StyleSheet.create({
   cardContainer: {

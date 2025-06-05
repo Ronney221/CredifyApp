@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Card, allCards } from '../../src/data/card-data';
 import { getUserCards } from '../../lib/database';
@@ -7,6 +7,7 @@ import { CardPerk } from '../../src/data/card-data';
 interface UserCardsHookResult {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
   isLoading: boolean;
+  isRefreshing: boolean;
   error: Error | null;
   refreshUserCards: () => Promise<void>;
 }
@@ -14,12 +15,19 @@ interface UserCardsHookResult {
 export function useUserCards(): UserCardsHookResult {
   const [userCardsWithPerks, setUserCardsWithPerks] = useState<{ card: Card; perks: CardPerk[] }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const initialLoadDoneRef = useRef(false);
 
   const loadUserCards = useCallback(async () => {
     try {
-      setIsLoading(true);
+      if (!initialLoadDoneRef.current) {
+        setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -69,12 +77,16 @@ export function useUserCards(): UserCardsHookResult {
       setError(err instanceof Error ? err : new Error('Failed to load user cards'));
       console.error('Error loading user cards in useUserCards:', err);
     } finally {
-      setIsLoading(false);
+      if (!initialLoadDoneRef.current) {
+        setIsLoading(false);
+        initialLoadDoneRef.current = true;
+      }
+      setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    console.log(`[useUserCards] useEffect triggered. refreshKey: ${refreshKey}`);
+    console.log(`[useUserCards] useEffect triggered. refreshKey: ${refreshKey}, initialLoadDone: ${initialLoadDoneRef.current}`);
     loadUserCards();
   }, [loadUserCards, refreshKey]);
 
@@ -86,6 +98,7 @@ export function useUserCards(): UserCardsHookResult {
   return {
     userCardsWithPerks,
     isLoading,
+    isRefreshing,
     error,
     refreshUserCards,
   };
