@@ -139,6 +139,18 @@ export default function TabLayout() {
             ),
           }}
         />
+        <Tabs.Screen
+          name="04-more/edit-profile"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="04-more/help-faq"
+          options={{
+            href: null,
+          }}
+        />
       </Tabs>
     </AuthGuard>
   );
