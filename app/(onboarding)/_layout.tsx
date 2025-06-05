@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import WizardHeader, { WIZARD_HEADER_HEIGHT } from './WizardHeader';
-import { OnboardingContext, OnboardingContextType } from './_context/OnboardingContext';
+import { OnboardingContext, OnboardingContextType, NotificationPrefs } from './_context/OnboardingContext';
 
 // Define onboarding steps order and names (route names)
 export const onboardingScreenNames = [
@@ -20,6 +20,18 @@ export default function OnboardingLayout() {
   const [currentStep, setCurrentStep] = useState(-1); // 0-indexed, -1 means no specific step for header
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const pathname = usePathname(); // Get current path to help determine initial step for direct loads
+
+  // State for onboarding data
+  const [selectedCards, setSelectedCards] = useState<string[]>([]);
+  const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>({
+    perkExpiryRemindersEnabled: true,
+    renewalRemindersEnabled: true,
+    perkResetConfirmationEnabled: true,
+    remind1DayBeforeMonthly: true,
+    remind3DaysBeforeMonthly: true,
+    remind7DaysBeforeMonthly: true,
+  });
 
   // Effect to set initial step based on path, useful for deep linking or reloads
   useEffect(() => {
@@ -41,6 +53,12 @@ export default function OnboardingLayout() {
     totalSteps: totalSteps,
     isHeaderGloballyHidden: isHeaderHidden,
     setIsHeaderGloballyHidden: setIsHeaderHidden,
+    selectedCards,
+    setSelectedCards,
+    renewalDates,
+    setRenewalDates,
+    notificationPrefs,
+    setNotificationPrefs,
   };
 
   return (

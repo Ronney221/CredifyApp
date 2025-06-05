@@ -31,8 +31,13 @@ interface ToggleProps {
 
 export default function OnboardingNotificationPrefsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string }>();
-  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const { 
+    setStep, 
+    setIsHeaderGloballyHidden,
+    notificationPrefs,
+    setNotificationPrefs,
+    renewalDates
+  } = useOnboardingContext();
   const route = useRoute();
 
   useFocusEffect(
@@ -48,84 +53,24 @@ export default function OnboardingNotificationPrefsScreen() {
     }, [route.name, setStep, setIsHeaderGloballyHidden])
   );
 
-  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
-  const [parsedRenewalDates, setParsedRenewalDates] = useState<Record<string, string | null>>({});
-
-  // State for individual perk expiry toggles
-  const [remind1DayBefore, setRemind1DayBefore] = useState(true);
-  const [remind3DaysBefore, setRemind3DaysBefore] = useState(true);
-  const [remind7DaysBefore, setRemind7DaysBefore] = useState(true);
-
-  useEffect(() => {
-    let hasError = false;
-    if (params.selectedCardIds) {
-      try {
-        const ids = JSON.parse(params.selectedCardIds);
-        setSelectedCardIds(ids);
-      } catch (e) {
-        console.error("Failed to parse selectedCardIds from params:", e);
-        Alert.alert("Error", "Could not load selected card data.");
-        hasError = true;
-      }
-    }
-    if (params.renewalDates) {
-      try {
-        const dates = JSON.parse(params.renewalDates);
-        setParsedRenewalDates(dates);
-      } catch (e) {
-        console.error("Failed to parse renewalDates from params:", e);
-        Alert.alert("Error", "Could not load renewal date data.");
-        hasError = true;
-      }
-    }
-    if (hasError) {
-      // router.back(); // Consider navigating back if essential data is missing
-    }
-  }, [params.selectedCardIds, params.renewalDates]);
-
   // Derived state to check if any card actually has a renewal date set
   const anyRenewalDateActuallySet = useMemo(() => {
-    return Object.values(parsedRenewalDates).some(date => date !== null);
-  }, [parsedRenewalDates]);
+    return Object.values(renewalDates).some(date => date !== undefined && date !== null);
+  }, [renewalDates]);
 
   const handleNext = async () => {
-    const monthlyPerkExpiryReminderDays: number[] = [];
-    if (remind1DayBefore) monthlyPerkExpiryReminderDays.push(1);
-    if (remind3DaysBefore) monthlyPerkExpiryReminderDays.push(3);
-    if (remind7DaysBefore) monthlyPerkExpiryReminderDays.push(7);
-
-    const notificationPreferences = {
-      perkExpiryRemindersEnabled: monthlyPerkExpiryReminderDays.length > 0,
-      renewalRemindersEnabled: anyRenewalDateActuallySet, 
-      perkResetConfirmationEnabled: true, 
-      monthlyPerkExpiryReminderDays,
-      remind1DayBeforeMonthly: remind1DayBefore,
-      remind3DaysBeforeMonthly: remind3DaysBefore,
-      remind7DaysBeforeMonthly: remind7DaysBefore,
-    };
-
-    const onboardingPrefs = {
-      selectedCardIds,
-      renewalDates: parsedRenewalDates, // Store the renewal dates as well
-      notificationPreferences,
-    };
-
-    try {
-      await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(onboardingPrefs));
-      router.push('/(onboarding)/onboarding-complete'); 
-    } catch (e) {
-      console.error("Failed to save onboarding prefs:", e);
-      Alert.alert("Error", "Could not save preferences. Please try again.");
-    }
+    // The state is already updated in context via onValueChange handlers.
+    // We can perform final validation here if needed.
+    router.push('/(onboarding)/onboarding-complete'); 
   };
 
   const perkExpiryToggles: ToggleProps[] = [
-    { label: "1 day before", value: remind1DayBefore, onValueChange: setRemind1DayBefore },
-    { label: "3 days before", value: remind3DaysBefore, onValueChange: setRemind3DaysBefore },
-    { label: "7 days before", value: remind7DaysBefore, onValueChange: setRemind7DaysBefore },
+    { label: "1 day before", value: notificationPrefs.remind1DayBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind1DayBeforeMonthly: value })) },
+    { label: "3 days before", value: notificationPrefs.remind3DaysBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind3DaysBeforeMonthly: value })) },
+    { label: "7 days before", value: notificationPrefs.remind7DaysBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind7DaysBeforeMonthly: value })) },
   ];
 
-  const showCardRenewalSection = selectedCardIds.length > 0; // Show if any cards were selected at all
+  const showCardRenewalSection = true; // Always show the section, but might be disabled.
 
   const allNotificationItems = useMemo(() => {
     const baseItems = [
@@ -151,7 +96,7 @@ export default function OnboardingNotificationPrefsScreen() {
       ];
     }
     return baseItems;
-  }, [anyRenewalDateActuallySet, perkExpiryToggles, showCardRenewalSection]);
+  }, [anyRenewalDateActuallySet, notificationPrefs]);
   
   // Animation timings
   const contentSlideInDelay = 200;
