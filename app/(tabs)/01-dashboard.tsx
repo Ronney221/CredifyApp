@@ -18,6 +18,7 @@ import {
   ActionSheetIOS,
   AlertButton,
   Animated,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -39,7 +40,7 @@ import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, g
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
 import AccountButton from '../components/home/AccountButton';
-import StackedCardDisplay from '../components/home/StackedCardDisplay';
+import CardExpanderFooter from '../components/home/CardExpanderFooter';
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SwipeCoachMark from '../components/home/SwipeCoachMark';
@@ -170,12 +171,20 @@ const INITIAL_HEADER_HEIGHT = 80; // Reduced from 90
 const COLLAPSED_HEADER_HEIGHT = 50;
 const HEADER_SCROLL_DISTANCE = INITIAL_HEADER_HEIGHT - COLLAPSED_HEADER_HEIGHT;
 
+// Constants for FlatList card rendering & expansion
+const DEFAULT_CARDS_VISIBLE = 4;
+const ESTIMATED_COLLAPSED_CARD_HEIGHT = 85; // Adjusted estimate
+const ESTIMATED_EXPANDED_CARD_HEIGHT = 320; // Adjusted rough estimate for an expanded card
+
+// Define the type for a single item in the cards list - MOVED HERE and defined explicitly
+type CardListItem = { card: Card; perks: CardPerk[] };
+
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
   const { user } = useAuth();
   const donutDisplayRef = useRef<{ refresh: () => void }>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList<(typeof sortedCards)[0]>>(null); // Ref for FlatList
   const scrollY = useRef(new Animated.Value(0)).current;
 
   // State for DEV date picker
@@ -194,6 +203,9 @@ export default function Dashboard() {
 
   // State for unique perk periods, default to monthly and annual if not found
   const [uniquePerkPeriods, setUniquePerkPeriods] = useState<number[]>([1, 12]);
+
+  // State for managing card list expansion (previously in StackedCardDisplay)
+  const [isCardListExpanded, setIsCardListExpanded] = useState(false);
 
   // Use custom hooks
   const { userCardsWithPerks, isLoading, error: userCardsError, refreshUserCards } = useUserCards();
@@ -278,7 +290,6 @@ export default function Dashboard() {
       return b.value - a.value; // Higher value first if daysRemaining is the same
     });
     
-    console.log('[Dashboard] Top actionable perk to highlight:', allActionablePerks.length > 0 ? allActionablePerks[0] : 'None');
     return allActionablePerks.length > 0 ? allActionablePerks[0] : null;
   }, [processedCardsFromPerkStatus]);
 
@@ -295,14 +306,11 @@ export default function Dashboard() {
         if (storedPeriods !== null) {
           const parsedPeriods = JSON.parse(storedPeriods);
           if (Array.isArray(parsedPeriods) && parsedPeriods.length > 0) {
-            console.log('[Dashboard] Loaded unique perk periods from AsyncStorage:', parsedPeriods);
             setUniquePerkPeriods(parsedPeriods);
           } else {
-            console.log('[Dashboard] No valid unique perk periods in AsyncStorage, using default [1, 12].');
             setUniquePerkPeriods([1, 12]); // Default if empty or invalid
           }
         } else {
-          console.log('[Dashboard] No unique perk periods found in AsyncStorage, using default [1, 12].');
           setUniquePerkPeriods([1, 12]); // Default if not found
         }
       } catch (e) {
@@ -340,7 +348,6 @@ export default function Dashboard() {
   const handleActionHintPress = (perkToActivate: (CardPerk & { cardId: string; cardName: string; daysRemaining: number }) | null) => {
     if (perkToActivate) {
       setActiveCardId(perkToActivate.cardId);
-      console.log('ActionHintPill tapped, setting active card:', perkToActivate.cardId, 'for perk:', perkToActivate.name);
     }
   };
 
@@ -355,8 +362,6 @@ export default function Dashboard() {
       
       const refreshData = async () => {
         try {
-          console.log('[Dashboard] Focus effect - refreshing user cards, savings, and async storage data');
-          // Load unique periods again on focus in case they changed via 02-cards and came back
           const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
           if (storedPeriods !== null) {
             const parsedPeriods = JSON.parse(storedPeriods);
@@ -385,7 +390,6 @@ export default function Dashboard() {
   // Effect to refresh data when params.refresh changes (e.g., after saving cards)
   useEffect(() => {
     if (params.refresh) {
-      console.log('[Dashboard] Refresh parameter detected, calling refreshUserCards.');
       refreshUserCards();
     }
   }, [params.refresh, refreshUserCards]);
@@ -439,7 +443,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleTapPerk = async (cardId: string, perkId: string, perk: CardPerk) => {
+  const handleTapPerk = useCallback(async (cardId: string, perkId: string, perk: CardPerk) => {
     if (!user) {
       Alert.alert(
         "Authentication Required",
@@ -456,7 +460,7 @@ export default function Dashboard() {
     setSelectedPerk(perk);
     setSelectedCardIdForModal(cardId);
     setModalVisible(true);
-  };
+  }, [user, router]);
 
   const handleModalDismiss = () => {
     setModalVisible(false);
@@ -486,7 +490,6 @@ export default function Dashboard() {
         const originalStatus = selectedPerk.status; 
 
         // Optimistic update for redemption
-        console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to redeemed for card', selectedCardIdForModal);
         setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
         
         // Background database operation
@@ -495,7 +498,6 @@ export default function Dashboard() {
         if (error) {
           console.error('Error tracking redemption in DB:', error);
           // Revert optimistic update on error
-          console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
           setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
           handlePerkStatusChange(); 
 
@@ -508,13 +510,11 @@ export default function Dashboard() {
         }
 
         // DB operation successful
-        console.log('[Dashboard] DB trackPerkRedemption successful for', selectedPerk.id);
         handlePerkStatusChange(); 
         
         showToast(
           `${selectedPerk.name} marked as redeemed`,
           async () => {
-            console.log('[Dashboard] Undo initiated for perk:', selectedPerk.id);
             setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
             try {
               const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
@@ -524,7 +524,6 @@ export default function Dashboard() {
                 handlePerkStatusChange(); 
                 showToast('Error undoing redemption');
               } else {
-                console.log('[Dashboard] DB deletePerkRedemption successful for undo of', selectedPerk.id);
                 handlePerkStatusChange(); 
                 showToast(`${selectedPerk.name} redemption undone.`);
               }
@@ -538,9 +537,6 @@ export default function Dashboard() {
         );
       } else if (selectedPerk.status === 'redeemed') {
         // Perk is already redeemed, we just opened the app.
-        console.log(`[Dashboard] Opened app for already redeemed perk: ${selectedPerk.name}`);
-        // Optionally, show a toast, e.g.,
-        // showToast(`${getAppName(perkToOpenAppFor)} opened.`); // getAppName would need to be accessible or simplified
       }
     } catch (openErrorOrDbError) {
       console.error('Error in perk action flow:', openErrorOrDbError);
@@ -571,7 +567,6 @@ export default function Dashboard() {
     }
     
     // Optimistic update: immediately update global UI state
-    console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to redeemed for card', selectedCardIdForModal);
     setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
     // No immediate refresh here, wait for DB confirmation or failure
 
@@ -582,7 +577,6 @@ export default function Dashboard() {
       if (error) {
         console.error('Error tracking redemption in DB:', error);
         // Revert optimistic update on error
-        console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
         setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
         handlePerkStatusChange(); // Refresh UI with reverted state
         
@@ -595,7 +589,6 @@ export default function Dashboard() {
       }
 
       // DB operation successful
-      console.log('[Dashboard] DB trackPerkRedemption successful for', selectedPerk.id);
       handlePerkStatusChange(); // Refresh UI with new state
       showToast(`${selectedPerk.name} marked as redeemed.`); // Simple toast, no undo here
       
@@ -603,7 +596,6 @@ export default function Dashboard() {
       // Catch any unexpected errors from trackPerkRedemption or subsequent logic
       console.error('Unexpected error marking perk as redeemed:', dbError);
       // Revert optimistic update on error  
-      console.log('[Dashboard] Catch block, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
       setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
       handlePerkStatusChange(); // Refresh UI with reverted state
       Alert.alert('Error', 'An unexpected error occurred while marking perk as redeemed.');
@@ -625,7 +617,6 @@ export default function Dashboard() {
     }
 
     // Optimistic update: set perk to 'available'
-    console.log('[Dashboard] Optimistic update: setting perk', selectedPerk.id, 'to available for card', selectedCardIdForModal);
     setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
 
     try {
@@ -635,7 +626,6 @@ export default function Dashboard() {
       if (error) {
         console.error('Error deleting redemption in DB:', error);
         // Revert optimistic update on error
-        console.log('[Dashboard] DB error, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
         setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
         handlePerkStatusChange(); // Refresh UI with reverted state
         Alert.alert('Error', 'Failed to mark perk as available in the database.');
@@ -643,14 +633,12 @@ export default function Dashboard() {
       }
 
       // DB operation successful
-      console.log('[Dashboard] DB deletePerkRedemption successful for', selectedPerk.id);
       handlePerkStatusChange(); // Refresh UI with new 'available' state
       showToast(`${selectedPerk.name} marked as available.`);
 
     } catch (dbError) {
       console.error('Unexpected error marking perk as available:', dbError);
       // Revert optimistic update on error
-      console.log('[Dashboard] Catch block, reverting perk', selectedPerk.id, 'to original status:', originalStatus, 'for card', selectedCardIdForModal);
       setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
       handlePerkStatusChange(); // Refresh UI with reverted state
       Alert.alert('Error', 'An unexpected error occurred while marking perk as available.');
@@ -679,62 +667,157 @@ export default function Dashboard() {
     }
   };
 
-  const sortCardsByUnredeemedPerks = (cards: { card: Card; perks: CardPerk[] }[]): typeof cards => {
-    return [...cards].sort((a, b) => {
-      if (a.card.id === activeCardId) return -1;
-      if (b.card.id === activeCardId) return 1;
-
-      const aUnredeemed = a.perks.filter(p => p.status === 'available').length;
-      const bUnredeemed = b.perks.filter(p => p.status === 'available').length;
-      
-      if (aUnredeemed !== bUnredeemed) {
-        return bUnredeemed - aUnredeemed;
-      }
-      
-      return 0;
-    });
-  };
-
-  const handleCardExpandChange = (cardId: string, isExpanded: boolean) => {
-    // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); // REMOVED - Reanimated handles this in ExpandableCard
+  const handleCardExpandChange = useCallback((cardId: string, isExpanded: boolean) => {
     setActiveCardId(isExpanded ? cardId : null);
-    
-    // Scroll logic can remain if still desired
-    if (isExpanded) {
-      requestAnimationFrame(() => {
-        const cardIndex = sortedCards.findIndex(c => c.card.id === cardId);
-        // Basic estimation of offset: assumes each card header is roughly 60-70pts, 
-        // plus some for section headers or other elements above the cards list.
-        // This might need fine-tuning based on actual layout.
-        const estimatedHeaderHeight = 200; // Adjust this based on what's above the cards list typically
-        const estimatedCardHeight = 70; // Approximate height of a collapsed card
-        const scrollToY = estimatedHeaderHeight + (cardIndex * estimatedCardHeight);
-
-        scrollViewRef.current?.scrollTo({
-          y: scrollToY, 
-          animated: true
-        });
-      });
-    }
-  };
+    // Scroll logic removed as per user request
+    // The FlatList will rely on getItemLayout for performance.
+    // If manual scroll to an expanded item is desired later, flatListRef.current.scrollToIndex can be used.
+  }, [setActiveCardId]);
 
   const handlePerkStatusChange = useCallback(() => {
-    // Immediate donut refresh
-    donutDisplayRef.current?.refresh();
-    // Force immediate refresh of global state
-    refreshSavings();
-    // Also refresh user cards to ensure ExpandableCard gets updated data
-    refreshUserCards();
-  }, [refreshSavings, refreshUserCards]);
+    donutDisplayRef.current?.refresh(); // Immediate refresh for donut
+    // refreshSavings(); // No longer calling here
+    // refreshUserCards(); // No longer calling here
+    // Timeout logic removed, full refresh will rely on useFocusEffect
+  }, []); // Dependencies updated, refreshSavings and refreshUserCards removed
 
-  const sortedCards = sortCardsByUnredeemedPerks(processedCardsFromPerkStatus);
+  const sortedCards = useMemo(() => {
+    // console.log('[Dashboard] Memoizing sortedCards. ActiveCardId:', activeCardId);
+    // Directly use processedCardsFromPerkStatus without sorting for now
+    return processedCardsFromPerkStatus;
+  }, [processedCardsFromPerkStatus]);
+
+  const cardsListData = useMemo(() => {
+    return isCardListExpanded ? sortedCards : sortedCards.slice(0, DEFAULT_CARDS_VISIBLE);
+  }, [isCardListExpanded, sortedCards]);
 
   // Log for debugging, ensure it's called when sortedCards is defined
   if (!isLoading) {
-    console.log('[Dashboard] Data for StackedCardDisplay (length):', sortedCards.length);
-    // The more detailed log can be added here if needed, once stable
-    // console.log('[Dashboard] Data for StackedCardDisplay (full):', sortedCards.map(c => ({ cardName: c.card.name, cardId: c.card.id, isActiveInSort: c.card.id === activeCardId, perks: c.perks.map(p => ({ name: p.name, id: p.id, status: p.status, periodMonths: p.periodMonths })) })));
   }
+
+  // Helper for getItemLayout to calculate cumulative offset for variable heights
+  const calculateOffset = (data: ArrayLike<CardListItem> | null | undefined, targetIndex: number, currentActiveCardId: string | null): number => {
+    let offset = 0;
+    if (!data) return 0;
+    for (let i = 0; i < targetIndex; i++) {
+      const item = data[i];
+      let h = ESTIMATED_COLLAPSED_CARD_HEIGHT;
+      if (item && item.card.id === currentActiveCardId) {
+        h = ESTIMATED_EXPANDED_CARD_HEIGHT; 
+      }
+      offset += h;
+    }
+    return offset;
+  };
+
+  const getItemLayout = (data: ArrayLike<CardListItem> | null | undefined, index: number): { length: number; offset: number; index: number } => {
+    if (!data || index < 0 || index >= data.length) { 
+      return { length: ESTIMATED_COLLAPSED_CARD_HEIGHT, offset: ESTIMATED_COLLAPSED_CARD_HEIGHT * index, index };
+    }
+    const item = data[index];
+    let itemHeight = ESTIMATED_COLLAPSED_CARD_HEIGHT;
+    if (item && item.card.id === activeCardId) {
+      itemHeight = ESTIMATED_EXPANDED_CARD_HEIGHT;
+    }
+    const offset = calculateOffset(data, index, activeCardId);
+    return { length: itemHeight, offset, index };
+  };
+  
+  // renderItem function for the FlatList
+  const renderExpandableCardItem = ({ item, index }: { item: CardListItem, index: number }) => (
+    <ExpandableCard
+      key={item.card.id}
+      card={item.card}
+      perks={item.perks}
+      cumulativeSavedValue={cumulativeValueSavedPerCard[item.card.id] || 0}
+      onTapPerk={handleTapPerk}
+      onExpandChange={handleCardExpandChange}
+      onPerkStatusChange={handlePerkStatusChange}
+      setPerkStatus={setPerkStatus}
+      isActive={item.card.id === activeCardId}
+      sortIndex={index} 
+    />
+  );
+
+  const renderListHeader = () => (
+    <>
+      {/* Render a single ActionHintPill for the most relevant perk */}
+      {nextActionablePerkToHighlight && (
+        <ActionHintPill 
+          key={`action-hint-${nextActionablePerkToHighlight.id}`}
+          perk={nextActionablePerkToHighlight}
+          daysRemaining={nextActionablePerkToHighlight.daysRemaining}
+          onPress={() => handleActionHintPress(nextActionablePerkToHighlight)}
+        />
+      )}
+
+      {/* Summary Section with Donut Chart */}
+      <View style={[styles.summarySection, { paddingTop: 0 /* Adjust as needed if FlatList style changes header spacing */ }]}>
+        <PerkDonutDisplayManager
+          ref={donutDisplayRef}
+          userCardsWithPerks={userCardsWithPerks} // or processedCardsFromPerkStatus if more up-to-date
+          periodAggregates={periodAggregates}
+          redeemedInCurrentCycle={redeemedInCurrentCycle}
+          uniquePerkPeriods={uniquePerkPeriods}
+        />
+      </View>
+
+      {/* Cards Section Header - now part of ListHeaderComponent */}
+      <View style={styles.cardsSectionHeader}> 
+        <Text style={styles.sectionTitle}>Your Cards</Text>
+      </View>
+    </>
+  );
+
+  const renderListFooter = () => {
+    const hiddenCardsCount = sortedCards.length - cardsListData.length;
+    return (
+      <>
+        {/* Card Expander Footer */}
+        {(sortedCards.length > DEFAULT_CARDS_VISIBLE) && (
+          <CardExpanderFooter
+            hiddenCardsCount={hiddenCardsCount}
+            isExpanded={isCardListExpanded}
+            onToggleExpanded={() => setIsCardListExpanded(!isCardListExpanded)}
+          />
+        )}
+
+        {/* Swipe Coach Mark */}
+        <SwipeCoachMark 
+          visible={shouldShowSwipeCoachMark}
+          onDismiss={handleDismissSwipeCoachMark}
+        />
+
+        {/* DEV Date Picker */}
+        <View style={styles.devSection}>
+          <TouchableOpacity
+            onPress={() => setShowDatePickerForDev(true)}
+            style={styles.devButton}
+          >
+            <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleResetSwipeHint}
+            style={[styles.devButton, { marginTop: 8 }]}
+          >
+            <Text style={styles.devButtonText}>DEV: Reset Swipe Coach Mark</Text>
+          </TouchableOpacity>
+
+          {showDatePickerForDev && (
+            <DateTimePicker
+              testID="dateTimePickerForDev"
+              value={devSelectedDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDevDateChange}
+              {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
+            />
+          )}
+        </View>
+      </>
+    );
+  };
 
   // Enhanced loading state check
   const isOverallLoading = isLoading || isCalculatingSavings;
@@ -778,7 +861,7 @@ export default function Dashboard() {
           >
             <View style={styles.greetingTextContainer}>
               <Text style={styles.welcomeText}>Good morning,</Text>
-              <Text style={styles.userNameText}>{userName}</Text>
+              <Text style={styles.userNameText}>{userName || ' '}</Text>
             </View>
             {/* Account button is also part of expanded view for consistent positioning before collapse */}
             <View style={styles.headerAccountButtonWrapper}>
@@ -794,7 +877,7 @@ export default function Dashboard() {
             ]}
           >
             <View style={styles.collapsedTitleContainer}>
-              <Text style={styles.collapsedHeaderText}>{collapsedHeaderText}</Text>
+              <Text style={styles.collapsedHeaderText}>{collapsedHeaderText || ' '}</Text>
             </View>
             <View style={styles.headerAccountButtonWrapper}> 
               <AccountButton />
@@ -802,106 +885,71 @@ export default function Dashboard() {
           </Animated.View>
         </Animated.View>
 
-        <ScrollView
-          ref={scrollViewRef}
-          contentContainerStyle={styles.scrollContent} // This will have paddingTop
-          scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* NO Spacer View needed here if scrollContent has paddingTop */}
-          
-          {/* Render a single ActionHintPill for the most relevant perk */}
-          {nextActionablePerkToHighlight && (
-            <ActionHintPill 
-              key={`action-hint-${nextActionablePerkToHighlight.id}`}
-              perk={nextActionablePerkToHighlight} // Pass the full augmented perk object
-              daysRemaining={nextActionablePerkToHighlight.daysRemaining}
-              onPress={() => handleActionHintPress(nextActionablePerkToHighlight)}
-            />
-          )}
-
-          {/* Summary Section with Donut Chart */}
-          <View style={[styles.summarySection, { paddingTop: 0 }]}>
-            <PerkDonutDisplayManager
-              ref={donutDisplayRef}
-              userCardsWithPerks={userCardsWithPerks}
-              periodAggregates={periodAggregates}
-              redeemedInCurrentCycle={redeemedInCurrentCycle}
-              uniquePerkPeriods={uniquePerkPeriods}
-            />
-          </View>
-
-          {/* Cards Section */}
-          <View style={styles.cardsSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Cards</Text>
-            </View>
-
-            {sortedCards.length > 0 ? (
-              <StackedCardDisplay
-                sortedCards={sortedCards}
-                cumulativeValueSavedPerCard={cumulativeValueSavedPerCard}
-                activeCardId={activeCardId}
-                onTapPerk={handleTapPerk}
-                onExpandChange={handleCardExpandChange}
-                onPerkStatusChange={handlePerkStatusChange}
-                setPerkStatus={setPerkStatus}
-              />
-            ) : (
-              <View style={styles.noCardsContainer}>
-                <Ionicons name="card-outline" size={48} color="#8e8e93" />
-                <Text style={styles.noCardsText}>
-                  No cards selected. Add your first card to start tracking rewards!
-                </Text>
-                <TouchableOpacity
-                  style={styles.addFirstCardButton}
-                  onPress={() => router.push("/(tabs)/02-cards")}
-                >
-                  <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
-                </TouchableOpacity>
-              </View>
+        {/* Main content area now uses FlatList */}
+        {sortedCards.length > 0 ? (
+           <Animated.FlatList // Use Animated.FlatList for onScroll event
+            ref={flatListRef}
+            data={cardsListData}
+            renderItem={renderExpandableCardItem}
+            keyExtractor={(item) => item.card.id}
+            ListHeaderComponent={renderListHeader}
+            ListFooterComponent={renderListFooter}
+            contentContainerStyle={styles.flatListContentContainer} // New style for FlatList specific content padding
+            style={styles.flatListOverallStyle} // Style for the FlatList container itself
+            showsVerticalScrollIndicator={false}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: false }
             )}
-          </View>
-
-          {/* Swipe Coach Mark */}
-          <SwipeCoachMark 
-            visible={shouldShowSwipeCoachMark}
-            onDismiss={handleDismissSwipeCoachMark}
+            scrollEventThrottle={16}
+            getItemLayout={getItemLayout}
+            extraData={{ activeCardId, isCardListExpanded }} // Ensures re-render when these change
           />
-
-          {/* DEV Date Picker */}
-          <View style={styles.devSection}>
-            <TouchableOpacity
-              onPress={() => setShowDatePickerForDev(true)}
-              style={styles.devButton}
-            >
-              <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleResetSwipeHint}
-              style={[styles.devButton, { marginTop: 8 }]}
-            >
-              <Text style={styles.devButtonText}>DEV: Reset Swipe Coach Mark</Text>
-            </TouchableOpacity>
-
-            {showDatePickerForDev && (
-              <DateTimePicker
-                testID="dateTimePickerForDev"
-                value={devSelectedDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDevDateChange}
-                {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
-              />
+        ) : (
+          // No cards state - needs to be scrollable if header content is tall
+          // or ensure header content is also minimal.
+          // For now, let's wrap the no cards view in a basic ScrollView if needed,
+          // or ensure ListHeader + this occupies screen correctly.
+          // This part might need adjustment based on visual requirements of "no cards" view with header.
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent} // Re-use existing scrollContent for padding
+            showsVerticalScrollIndicator={false}
+             onScroll={Animated.event( // Also attach scroll handler here for header animation
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: false }
             )}
-          </View>
-        </ScrollView>
-
+            scrollEventThrottle={16}
+          >
+            {renderListHeader()} {/* Show header content even if no cards */}
+            <View style={styles.noCardsContainer}>
+              <Ionicons name="card-outline" size={48} color="#8e8e93" />
+              <Text style={styles.noCardsText}>
+                No cards selected. Add your first card to start tracking rewards!
+              </Text>
+              <TouchableOpacity
+                style={styles.addFirstCardButton}
+                onPress={() => router.push("/(tabs)/02-cards")}
+              >
+                <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
+              </TouchableOpacity>
+            </View>
+            {/* Potentially render a simplified footer or just the dev section */}
+            <SwipeCoachMark 
+              visible={shouldShowSwipeCoachMark}
+              onDismiss={handleDismissSwipeCoachMark}
+            />
+            <View style={styles.devSection}>
+              <TouchableOpacity onPress={() => setShowDatePickerForDev(true)} style={styles.devButton} >
+                <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleResetSwipeHint} style={[styles.devButton, { marginTop: 8 }]} >
+                <Text style={styles.devButtonText}>DEV: Reset Swipe Coach Mark</Text>
+              </TouchableOpacity>
+              {showDatePickerForDev && ( <DateTimePicker testID="dateTimePickerForDev" value={devSelectedDate} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={handleDevDateChange} {...(Platform.OS === 'ios' && { textColor: Colors.light.text })} /> )}
+            </View>
+          </ScrollView>
+        )}
+        
         {showCelebration && (
           <LottieView 
             source={require('../../assets/animations/celebration.json')}
@@ -1123,5 +1171,22 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  flatListOverallStyle: { // New style for the FlatList component itself
+    flex: 1, // Ensure FlatList takes up available space
+    // The paddingTop to clear the absolute header will be handled by contentContainerStyle or ListHeaderComponent's structure
+  },
+  flatListContentContainer: { // New style for FlatList's content
+    paddingTop: INITIAL_HEADER_HEIGHT, // Content starts below the absolute positioned header
+    paddingBottom: 80, // Retain bottom padding
+    flexGrow: 1, // Important for ScrollView-like behavior if content is short
+  },
+  cardsSectionHeader: { // New style for the header within ListHeaderComponent
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 20, // Add some padding if it's the first thing after summary
+    marginBottom: 12,
   },
 }); 

@@ -67,7 +67,7 @@ const showToast = (message: string, onUndo?: () => void) => {
   });
 };
 
-export default function ExpandableCard({
+const ExpandableCardComponent = ({
   card,
   perks,
   cumulativeSavedValue,
@@ -77,7 +77,7 @@ export default function ExpandableCard({
   setPerkStatus,
   isActive,
   sortIndex,
-}: ExpandableCardProps) {
+}: ExpandableCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const { user } = useAuth();
@@ -563,7 +563,8 @@ export default function ExpandableCard({
   };
 
   return (
-    <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} layout={Layout.springify().duration(300)}>
+    // <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} layout={Layout.springify().duration(300)}>
+    <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} /* layout prop temporarily removed for diagnosis */>
       <TouchableOpacity
         style={[styles.cardHeader, isActive && styles.activeCardHeader]}
         onPress={handleExpand}
@@ -662,7 +663,9 @@ export default function ExpandableCard({
       )}
     </Reanimated.View>
   );
-}
+};
+
+export default React.memo(ExpandableCardComponent);
 
 const styles = StyleSheet.create({
   cardContainer: {
