@@ -257,6 +257,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 8,
     alignSelf: 'flex-start',
+    overflow: 'hidden',
   },
   inlineHintText: {
     color: '#007AFF',

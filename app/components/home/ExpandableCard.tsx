@@ -11,7 +11,7 @@ import {
   AlertButton,
   LayoutAnimation,
 } from 'react-native';
-import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue, useSharedValue, withRepeat, withSequence, withDelay, Easing, cancelAnimation } from 'react-native-reanimated';
+import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue, useSharedValue, withRepeat, withSequence, withDelay, Easing, cancelAnimation, interpolate } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -223,11 +223,15 @@ const ExpandableCardComponent = ({
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
     opacity: redeemHintOpacity.value,
+    height: interpolate(redeemHintOpacity.value, [0, 1], [0, 28]),
+    marginTop: interpolate(redeemHintOpacity.value, [0, 1], [0, 8]),
   }));
 
   const animatedUndoNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: undoNudgeAnimation.value }],
     opacity: undoHintOpacity.value,
+    height: interpolate(undoHintOpacity.value, [0, 1], [0, 28]),
+    marginTop: interpolate(undoHintOpacity.value, [0, 1], [0, 8]),
   }));
 
   const firstAvailablePerkId = useMemo(() => {
