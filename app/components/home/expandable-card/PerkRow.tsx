@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { CardPerk } from '../../../../src/data/card-data';
 import { useAutoRedemptions } from '../../../hooks/useAutoRedemptions';
 
+const AUTO_REDEEM_COLOR = '#5856D6'; // A calm, distinct purple
+
 interface PerkRowProps {
   perk: CardPerk;
   isFirstAvailablePerk: boolean;
@@ -52,12 +54,16 @@ const PerkRow: React.FC<PerkRowProps> = ({
   });
 
   let periodText = '';
-  switch (perk.periodMonths) {
-    case 1: periodText = 'Monthly'; break;
-    case 3: periodText = 'Quarterly'; break;
-    case 6: periodText = 'Semi-Annual'; break;
-    case 12: periodText = 'Annual'; break;
-    default: periodText = perk.periodMonths ? `Every ${perk.periodMonths} months` : '';
+  if (isAutoRedeemed) {
+    periodText = 'Monthly Auto-Redemption';
+  } else {
+    switch (perk.periodMonths) {
+      case 1: periodText = 'Monthly'; break;
+      case 3: periodText = 'Quarterly'; break;
+      case 6: periodText = 'Semi-Annual'; break;
+      case 12: periodText = 'Annual'; break;
+      default: periodText = perk.periodMonths ? `Every ${perk.periodMonths} months` : '';
+    }
   }
 
   let displayDescription = perk.description
@@ -99,7 +105,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
               <Ionicons 
                 name={isRedeemed ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline') : 'pricetag-outline'}
                 size={26} 
-                color={isRedeemed ? (isAutoRedeemed ? '#FF9500' : '#8E8E93') : '#007AFF'}
+                color={isRedeemed ? (isAutoRedeemed ? AUTO_REDEEM_COLOR : '#8E8E93') : (isAutoRedeemed ? AUTO_REDEEM_COLOR : '#007AFF')}
               />
             </View>
             <View style={styles.perkTextContainerInsideItem}> 
@@ -154,7 +160,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
             <Ionicons 
               name="chevron-forward" 
               size={20} 
-              color={isRedeemed ? (isAutoRedeemed ? '#CC7A00' : '#C7C7CC') : '#B0B0B0'} 
+              color={isRedeemed ? (isAutoRedeemed ? '#A9A8F2' : '#C7C7CC') : '#B0B0B0'} 
               style={styles.perkChevron}
             />
           </View>
@@ -209,7 +215,6 @@ const styles = StyleSheet.create({
   },
   perkNameRedeemed: {
     color: '#8E8E93',
-    textDecorationLine: 'line-through',
   },
   perkDescription: { 
     fontSize: 13,
@@ -231,22 +236,21 @@ const styles = StyleSheet.create({
   },
   perkValueRedeemed: { 
     color: '#8E8E93',
-    textDecorationLine: 'line-through',
   },
   perkChevron: {
     marginLeft: 8,
   },
   perkContainerAutoRedeemed: {
-    backgroundColor: '#FFF8E1',
+    backgroundColor: '#F4F4FD',
   },
   perkNameAutoRedeemed: { 
-    color: '#FF9500',
+    color: AUTO_REDEEM_COLOR,
   },
   perkDescriptionAutoRedeemed: { 
-    color: '#FF9500',
+    color: AUTO_REDEEM_COLOR,
   },
   perkValueAutoRedeemed: { 
-    color: '#FF9500',
+    color: AUTO_REDEEM_COLOR,
   },
   inlineHintContainer: {
     flexDirection: 'row',

@@ -425,6 +425,9 @@ const ExpandableCardComponent = ({
             } else {
               console.log(`[ExpandableCard] Successfully cancelled auto-redemption for ${perk.name}`);
               
+              // Optimistically update UI to mark as available
+              setPerkStatus?.(card.id, perk.id, 'available');
+
               await refreshAutoRedemptions(); // Refresh the hook data
               onPerkStatusChange?.(); // Refresh dashboard
               Alert.alert('Success', `Auto-redemption cancelled for "${perk.name}".`);
@@ -452,7 +455,10 @@ const ExpandableCardComponent = ({
                       return;
                     }
 
-                    // Then mark as redeemed for current month
+                    // Optimistically update UI to show as redeemed immediately
+                    setPerkStatus?.(card.id, perk.id, 'redeemed');
+                    
+                    // Then mark as redeemed for current month in DB
                     const { error: redeemError } = await trackPerkRedemption(user.id, cardId, perk, perk.value);
                     if (redeemError) {
                       console.log('Note: Auto-redemption set but current month redemption may already exist');
