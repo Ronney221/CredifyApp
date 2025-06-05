@@ -94,11 +94,8 @@ const ExpandableCardComponent = ({
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const router = useRouter();
   
-  // Log incoming perks prop
-  console.log(`[ExpandableCard] Received props for ${card.name} (${card.id}):`, {
-    isActiveProp: isActive,
-    perks: perks.map(p => ({ name: p.name, id: p.id, status: p.status, periodMonths: p.periodMonths, definition_id: p.definition_id }))
-  });
+  // Ref to track if the card had redeemed perks in the previous render
+  const hadRedeemedPerks = useRef(perks.some(p => p.status === 'redeemed'));
   
   // When card becomes active (e.g. from action hint pill), ensure it expands
   React.useEffect(() => {
@@ -155,56 +152,82 @@ const ExpandableCardComponent = ({
 
   const nudgeAnimation = useSharedValue(0);
   const undoNudgeAnimation = useSharedValue(0);
+  const redeemHintOpacity = useSharedValue(0);
+  const undoHintOpacity = useSharedValue(0);
 
   useEffect(() => {
-    // This effect creates the subtle nudge animation for the hint.
+    // This effect creates a one-time haptic/visual nudge for the redeem hint.
     if (showSwipeHint) {
-      // It repeats roughly every 5 seconds.
-      nudgeAnimation.value = withRepeat(
-        withSequence(
-          // Nudge right
-          withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) }),
-          // Nudge back
-          withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
-          // Wait for 4.5 seconds to complete the 5-second loop
-          withDelay(4500, withTiming(0, { duration: 0 }))
-        ),
-        -1, // Repeat indefinitely
+      // Trigger haptic feedback when the hint is about to animate
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      // Nudge animation
+      nudgeAnimation.value = withSequence(
+        withDelay(400, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
+      );
+
+      // Appear and then fade out animation
+      redeemHintOpacity.value = withSequence(
+        withTiming(1, { duration: 0 }), // Appear instantly
+        withDelay(1200, withTiming(0, { duration: 500 })) // After 1.2s, fade out
       );
     } else {
-      // Stop the animation when the hint is hidden
+      // Stop any pending animations when the hint is hidden (e.g., on collapse)
       cancelAnimation(nudgeAnimation);
+      cancelAnimation(redeemHintOpacity);
       nudgeAnimation.value = 0;
+      redeemHintOpacity.value = 0;
     }
-  }, [showSwipeHint, nudgeAnimation]);
+  }, [showSwipeHint, nudgeAnimation, redeemHintOpacity]);
 
   useEffect(() => {
+    // This effect creates a one-time haptic/visual nudge for the undo hint.
     if (showUndoHint) {
-      // It repeats roughly every 5 seconds.
-      undoNudgeAnimation.value = withRepeat(
-        withSequence(
-          // Nudge left
-          withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) }),
-          // Nudge back
-          withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
-          // Wait for 4.5 seconds to complete the 5-second loop
-          withDelay(4500, withTiming(0, { duration: 0 }))
-        ),
-        -1, // Repeat indefinitely
+      // Trigger haptic feedback when the hint is about to animate
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Nudge left animation
+      undoNudgeAnimation.value = withSequence(
+        withDelay(400, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
+      );
+
+      // Appear and then fade out animation
+      undoHintOpacity.value = withSequence(
+        withTiming(1, { duration: 0 }), // Appear instantly
+        withDelay(1200, withTiming(0, { duration: 500 })) // After 1.2s, fade out
       );
     } else {
-      // Stop the animation and reset when the hint is hidden
+      // Stop any pending animations when the hint is hidden
       cancelAnimation(undoNudgeAnimation);
+      cancelAnimation(undoHintOpacity);
       undoNudgeAnimation.value = 0;
+      undoHintOpacity.value = 0;
     }
-  }, [showUndoHint, undoNudgeAnimation]);
+  }, [showUndoHint, undoNudgeAnimation, undoHintOpacity]);
+
+  // This effect watches for the first perk to be marked as 'redeemed' while the card is open
+  useEffect(() => {
+    const nowHasRedeemedPerks = perks.some(p => p.status === 'redeemed');
+
+    // If the card is expanded and we just transitioned from 0 redeemed to 1+ redeemed
+    if (isExpanded && nowHasRedeemedPerks && !hadRedeemedPerks.current) {
+      setShowUndoHint(true);
+    }
+    
+    // Update the ref for the next render
+    hadRedeemedPerks.current = nowHasRedeemedPerks;
+  }, [perks, isExpanded]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
+    opacity: redeemHintOpacity.value,
   }));
 
   const animatedUndoNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: undoNudgeAnimation.value }],
+    opacity: undoHintOpacity.value,
   }));
 
   const firstAvailablePerkId = useMemo(() => {
@@ -238,19 +261,11 @@ const ExpandableCardComponent = ({
   };
 
   const executePerkAction = async (perk: CardPerk, action: 'redeemed' | 'available') => {
-    // On the first interaction, hide the swipe hint with an animation and permanently dismiss
+    // On the first redeem interaction, permanently dismiss the hint for future sessions.
     if (showSwipeHint && action === 'redeemed') {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setShowSwipeHint(false);
       onHintDismissed();
     }
     
-    // Auto-dismiss the undo hint on a successful undo swipe
-    if (showUndoHint && action === 'available') {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setShowUndoHint(false);
-    }
-
     console.log(`[ExpandableCard] executePerkAction called for ${perk.name}, action: ${action}`);
     if (!user) {
       console.log('[ExpandableCard] executePerkAction: No user, returning.');
