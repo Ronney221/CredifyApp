@@ -563,7 +563,14 @@ const ExpandableCardComponent = ({
   };
 
   return (
-    <Reanimated.View style={[styles.cardContainer, isActive && styles.activeCard]} layout={Layout.springify().duration(300)}>
+    <Reanimated.View 
+      style={[styles.cardContainer, isActive && styles.activeCard]} 
+      layout={Layout.springify().duration(300)}
+      onLayout={(event) => {
+        const { height } = event.nativeEvent.layout;
+        console.log(`ExpandableCard (${card.name} - ${isExpanded ? 'Expanded' : 'Collapsed'}) height: ${height}`);
+      }}
+    >
       <TouchableOpacity
         style={[styles.cardHeader, isActive && styles.activeCardHeader]}
         onPress={handleExpand}

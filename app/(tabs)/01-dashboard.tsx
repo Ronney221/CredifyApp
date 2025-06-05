@@ -159,8 +159,8 @@ const HEADER_SCROLL_DISTANCE = INITIAL_HEADER_HEIGHT - COLLAPSED_HEADER_HEIGHT;
 
 // Constants for FlatList card rendering & expansion
 const DEFAULT_CARDS_VISIBLE = 4;
-const ESTIMATED_COLLAPSED_CARD_HEIGHT = 96; // Adjusted from 85
-const ESTIMATED_EXPANDED_CARD_HEIGHT = 316; // Adjusted from 320
+const ESTIMATED_COLLAPSED_CARD_HEIGHT = 109; // Updated from 96, based on Amex Gold (larger) collapsed height
+const ESTIMATED_EXPANDED_CARD_HEIGHT = 555; // Updated from 316, based on Amex Gold (max observed) expanded height
 
 // Define the type for a single item in the cards list - MOVED HERE and defined explicitly
 type CardListItem = { card: Card; perks: CardPerk[] };
@@ -222,7 +222,7 @@ export default function Dashboard() {
   // Dynamic text for collapsed header
   const currentMonthName = useMemo(() => format(new Date(), 'MMMM'), []);
   const collapsedHeaderText = `${currentMonthName} Summary`;
-  const userName = user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User';
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
 
   // Animated values for header styles
   const animatedHeaderHeight = scrollY.interpolate({
@@ -668,7 +668,6 @@ export default function Dashboard() {
   };
 
   const handleCardExpandChange = useCallback((cardId: string, isExpanded: boolean) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     console.log(`[Dashboard] handleCardExpandChange: cardId=${cardId}, isExpanded=${isExpanded}`);
     setActiveCardId(isExpanded ? cardId : null);
   }, [setActiveCardId]);
@@ -692,34 +691,6 @@ export default function Dashboard() {
   if (!isLoading) {
   }
 
-  // Helper for getItemLayout to calculate cumulative offset for variable heights
-  const calculateOffset = (data: ArrayLike<CardListItem> | null | undefined, targetIndex: number, currentActiveCardId: string | null): number => {
-    let offset = 0;
-    if (!data) return 0;
-    for (let i = 0; i < targetIndex; i++) {
-      const item = data[i];
-      let h = ESTIMATED_COLLAPSED_CARD_HEIGHT;
-      if (item && item.card.id === currentActiveCardId) {
-        h = ESTIMATED_EXPANDED_CARD_HEIGHT; 
-      }
-      offset += h;
-    }
-    return offset;
-  };
-
-  const getItemLayout = useCallback((data: ArrayLike<CardListItem> | null | undefined, index: number): { length: number; offset: number; index: number } => {
-    if (!data || index < 0 || index >= data.length) { 
-      return { length: ESTIMATED_COLLAPSED_CARD_HEIGHT, offset: ESTIMATED_COLLAPSED_CARD_HEIGHT * index, index };
-    }
-    const item = data[index];
-    let itemHeight = ESTIMATED_COLLAPSED_CARD_HEIGHT;
-    if (item && item.card.id === activeCardId) {
-      itemHeight = ESTIMATED_EXPANDED_CARD_HEIGHT;
-    }
-    const offset = calculateOffset(data, index, activeCardId);
-    return { length: itemHeight, offset, index };
-  }, [activeCardId]);
-  
   // renderItem function for the FlatList
   const renderExpandableCardItem = ({ item, index }: { item: CardListItem, index: number }) => (
     <ExpandableCard
@@ -785,11 +756,11 @@ export default function Dashboard() {
           />
         )}
 
-          {/* Swipe Coach Mark */}
-          <SwipeCoachMark 
+          {/* Swipe Coach Mark - Conditionally render if cards exist */}
+          {sortedCards.length > 0 && <SwipeCoachMark 
             visible={shouldShowSwipeCoachMark}
             onDismiss={handleDismissSwipeCoachMark}
-          />
+          />}
 
           {/* DEV Date Picker */}
           <View style={styles.devSection}>
@@ -910,7 +881,6 @@ export default function Dashboard() {
               { useNativeDriver: false }
             )}
             scrollEventThrottle={16}
-            getItemLayout={getItemLayout}
             extraData={activeCardId} // Changed extraData
           />
         ) : (
@@ -928,7 +898,7 @@ export default function Dashboard() {
             )}
             scrollEventThrottle={16}
           >
-            {listHeaderElement} {/* Show header content even if no cards */}
+            {/* {listHeaderElement} Temporarily removed for testing no-cards scenario */}
             <View style={styles.noCardsContainer}>
               <Ionicons name="card-outline" size={48} color="#8e8e93" />
               <Text style={styles.noCardsText}>

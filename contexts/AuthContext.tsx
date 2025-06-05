@@ -13,6 +13,7 @@ interface AuthContextType {
   signInApple: () => Promise<{ data: any; error: any }>;
   logOut: () => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ data: any; error: any }>;
+  updateUserMetadata: (metadata: object) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,9 +38,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user || null);
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      setUser(initialSession?.user || null);
       setLoading(false);
     };
 
@@ -47,10 +48,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event);
-        setSession(session);
-        setUser(session?.user || null);
+      async (event, currentSession) => {
+        console.log('Auth state changed:', event, 'Session:', currentSession);
+        setSession(currentSession);
+        setUser(currentSession?.user || null);
         setLoading(false);
       }
     );
@@ -98,6 +99,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return { data, error };
   };
 
+  const handleUpdateUserMetadata = async (metadata: object): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const { data: updatedUserData, error } = await supabase.auth.updateUser({
+        data: metadata,
+      });
+      if (error) {
+        console.error('Error updating user metadata:', error.message);
+        setLoading(false);
+        return false;
+      }
+      // Manually update the local user state for immediate UI reflection
+      if (updatedUserData?.user) {
+        setUser(updatedUserData.user); // Update the user in our context
+        console.log('[AuthContext] User state manually updated after metadata change:', updatedUserData.user);
+      } else {
+        // If for some reason updatedUserData.user is null, try to refresh the session to get the latest user data
+        // This is a fallback, ideally updatedUserData.user is populated.
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession?.user) {
+          setUser(currentSession.user);
+          console.log('[AuthContext] User state refreshed from session after metadata change:', currentSession.user);
+        }
+      }
+      console.log('User metadata updated successfully via context. Updated user object from Supabase:', updatedUserData.user);
+      setLoading(false);
+      return true;
+    } catch (e) {
+      console.error('Unexpected error during metadata update:', e);
+      setLoading(false);
+      return false;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     session,
@@ -108,6 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signInApple: handleAppleSignIn,
     logOut: handleSignOut,
     resetPassword: handleResetPassword,
+    updateUserMetadata: handleUpdateUserMetadata,
   };
 
   return (

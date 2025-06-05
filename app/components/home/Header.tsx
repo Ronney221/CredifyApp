@@ -8,6 +8,11 @@ import { Ionicons } from '@expo/vector-icons';
 export default function Header() {
   const { user } = useAuth();
 
+  console.log('[Header.tsx] User object from useAuth():', user);
+  if (user) {
+    console.log('[Header.tsx] User metadata:', user.user_metadata);
+  }
+
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -16,7 +21,7 @@ export default function Header() {
   }, []);
 
   const firstName = useMemo(() => {
-    const fullName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+    const fullName = user?.user_metadata?.full_name || 'User';
     return fullName.split(' ')[0].charAt(0).toUpperCase() + fullName.split(' ')[0].slice(1).toLowerCase();
   }, [user]);
 

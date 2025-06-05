@@ -68,7 +68,7 @@ const PerkDonutDisplayManagerInner = (
     backgroundColor = '#FAFAFE', // Default background color
   } = props;
 
-  // console.log("DEBUG_PDM_INNER: Component body START. Props:", { periodAggregatesIsPresent: !!periodAggregates, uniquePerkPeriodsCount: uniquePerkPeriods?.length });
+  // console.log("DEBUG_PDM_INNER: Component body START. Props:", { periodAggregatesIsPresent: !!periodAggregates, uniquePerkPeriodsCount: uniquePerkPeriods?.length, userCardsWithPerksCount: userCardsWithPerks?.length });
 
   const { user } = useAuth();
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>(() => uniquePerkPeriods?.[0] || 1);
@@ -190,7 +190,16 @@ const PerkDonutDisplayManagerInner = (
       </View>
     );
   }
-  
+
+  // TEST: If userCardsWithPerks is empty, render placeholder
+  if (!userCardsWithPerks || userCardsWithPerks.length === 0) {
+    return (
+      <View style={[styles.metricsContainer, { backgroundColor, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: Colors.light.text, fontSize: 14 }}>No card data for donut display.</Text>
+      </View>
+    );
+  }
+
   // console.log("DEBUG_PDM_INNER: Component body END - Before JSX. Calculated values:", { activeSegmentKey, activeDataIsPresent: !!activeData, toggleSegmentsCount: toggleSegments?.length, totalAnnualFees });
 
   return (
