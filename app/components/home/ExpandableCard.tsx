@@ -11,7 +11,7 @@ import {
   AlertButton,
   LayoutAnimation,
 } from 'react-native';
-import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue, useSharedValue, withRepeat, withSequence, withDelay, Easing } from 'react-native-reanimated';
+import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue, useSharedValue, withRepeat, withSequence, withDelay, Easing, cancelAnimation } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -87,6 +87,7 @@ const ExpandableCardComponent = ({
 }: ExpandableCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
+  const [showUndoHint, setShowUndoHint] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
@@ -153,24 +154,65 @@ const ExpandableCardComponent = ({
   const isFullyRedeemed = !hasUnredeemedPerks;
 
   const nudgeAnimation = useSharedValue(0);
+  const undoNudgeAnimation = useSharedValue(0);
 
   useEffect(() => {
     // This effect creates the subtle nudge animation for the hint.
-    // It runs only once when the hint becomes visible.
     if (showSwipeHint) {
-      nudgeAnimation.value = withSequence(
-        withDelay(400, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
-        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
+      // It repeats roughly every 5 seconds.
+      nudgeAnimation.value = withRepeat(
+        withSequence(
+          // Nudge right
+          withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+          // Nudge back
+          withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+          // Wait for 4.5 seconds to complete the 5-second loop
+          withDelay(4500, withTiming(0, { duration: 0 }))
+        ),
+        -1, // Repeat indefinitely
       );
+    } else {
+      // Stop the animation when the hint is hidden
+      cancelAnimation(nudgeAnimation);
+      nudgeAnimation.value = 0;
     }
   }, [showSwipeHint, nudgeAnimation]);
+
+  useEffect(() => {
+    if (showUndoHint) {
+      // It repeats roughly every 5 seconds.
+      undoNudgeAnimation.value = withRepeat(
+        withSequence(
+          // Nudge left
+          withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+          // Nudge back
+          withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+          // Wait for 4.5 seconds to complete the 5-second loop
+          withDelay(4500, withTiming(0, { duration: 0 }))
+        ),
+        -1, // Repeat indefinitely
+      );
+    } else {
+      // Stop the animation and reset when the hint is hidden
+      cancelAnimation(undoNudgeAnimation);
+      undoNudgeAnimation.value = 0;
+    }
+  }, [showUndoHint, undoNudgeAnimation]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
   }));
 
+  const animatedUndoNudgeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: undoNudgeAnimation.value }],
+  }));
+
   const firstAvailablePerkId = useMemo(() => {
     return perks.find(p => p.status === 'available')?.id;
+  }, [perks]);
+
+  const firstRedeemedPerkId = useMemo(() => {
+    return perks.find(p => p.status === 'redeemed')?.id;
   }, [perks]);
 
   const handleExpand = () => {
@@ -179,20 +221,34 @@ const ExpandableCardComponent = ({
     onExpandChange?.(card.id, newExpandedState, sortIndex);
     Object.values(swipeableRefs.current).forEach(ref => ref?.close());
 
-    // Show hint if there are perks to swipe (remains visible for testing)
+    // Show redeem hint if there are perks to swipe (remains visible for testing)
     if (newExpandedState && hasUnredeemedPerks) {
       setShowSwipeHint(true);
     } else if (!newExpandedState) {
       setShowSwipeHint(false); // Hide hint on collapse
     }
+
+    // Show undo hint if there are redeemed perks (remains visible for testing)
+    const hasRedeemedPerks = perks.some(p => p.status === 'redeemed');
+    if (newExpandedState && hasRedeemedPerks) {
+      setShowUndoHint(true);
+    } else if (!newExpandedState) {
+      setShowUndoHint(false);
+    }
   };
 
   const executePerkAction = async (perk: CardPerk, action: 'redeemed' | 'available') => {
     // On the first interaction, hide the swipe hint with an animation and permanently dismiss
-    if (showSwipeHint) {
+    if (showSwipeHint && action === 'redeemed') {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setShowSwipeHint(false);
       onHintDismissed();
+    }
+    
+    // Auto-dismiss the undo hint on a successful undo swipe
+    if (showUndoHint && action === 'available') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setShowUndoHint(false);
     }
 
     console.log(`[ExpandableCard] executePerkAction called for ${perk.name}, action: ${action}`);
@@ -472,7 +528,10 @@ const ExpandableCardComponent = ({
       perk={perk}
       isFirstAvailablePerk={isAvailable && perk.id === firstAvailablePerkId}
       showSwipeHint={isAvailable && showSwipeHint}
+      isFirstRedeemedPerk={!isAvailable && perk.id === firstRedeemedPerkId}
+      showUndoHint={!isAvailable && showUndoHint}
       animatedNudgeStyle={animatedNudgeStyle}
+      animatedUndoNudgeStyle={animatedUndoNudgeStyle}
       onTapPerk={() => onTapPerk(card.id, perk.id, perk)}
       onLongPressPerk={() => handleLongPressPerk(card.id, perk)}
       setSwipeableRef={(ref: Swipeable | null) => { swipeableRefs.current[perk.id] = ref; }}

@@ -11,6 +11,9 @@ interface PerkRowProps {
   isFirstAvailablePerk: boolean;
   showSwipeHint: boolean;
   animatedNudgeStyle: any;
+  isFirstRedeemedPerk: boolean;
+  showUndoHint: boolean;
+  animatedUndoNudgeStyle: any;
   onTapPerk: () => void;
   onLongPressPerk: () => void;
   onSwipeableWillOpen: (direction: 'left' | 'right') => void;
@@ -25,6 +28,9 @@ const PerkRow: React.FC<PerkRowProps> = ({
   isFirstAvailablePerk,
   showSwipeHint,
   animatedNudgeStyle,
+  isFirstRedeemedPerk,
+  showUndoHint,
+  animatedUndoNudgeStyle,
   onTapPerk,
   onLongPressPerk,
   onSwipeableWillOpen,
@@ -37,7 +43,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const isRedeemed = perk.status === 'redeemed';
   const isAutoRedeemed = perk.periodMonths === 1 && getAutoRedemptionByPerkName(perk.name);
   
-  const shouldShowHintOnThisPerk = showSwipeHint && isFirstAvailablePerk;
+  const shouldShowRedeemHintOnThisPerk = showSwipeHint && isFirstAvailablePerk;
+  const shouldShowUndoHintOnThisPerk = showUndoHint && isFirstRedeemedPerk;
 
   const formattedValue = perk.value.toLocaleString('en-US', {
     style: 'currency',
@@ -116,13 +123,22 @@ const PerkRow: React.FC<PerkRowProps> = ({
               >
                 {displayDescription}
               </Text>
-              {shouldShowHintOnThisPerk && (
+              {shouldShowRedeemHintOnThisPerk && (
                 <Reanimated.View 
                   style={[styles.inlineHintContainer, animatedNudgeStyle]}
                   accessibilityRole="text"
                 >
                   <Ionicons name="hand-left-outline" size={16} color="#007AFF" />
                   <Text style={styles.inlineHintText}>Swipe → Redeem</Text>
+                </Reanimated.View>
+              )}
+              {shouldShowUndoHintOnThisPerk && (
+                <Reanimated.View 
+                  style={[styles.inlineHintContainer, animatedUndoNudgeStyle]}
+                  accessibilityRole="text"
+                >
+                  <Text style={[styles.inlineHintText, { color: '#8E8E93' }]}>Swipe ← Undo</Text>
+                  <Ionicons name="hand-right-outline" size={16} color="#8E8E93" style={{ marginLeft: 6, marginRight: 0 }}/>
                 </Reanimated.View>
               )}
             </View>
