@@ -557,6 +557,7 @@ export default function Dashboard() {
 
     // Close modal first
     handleModalDismiss();
+    await Promise.resolve(); // Allow modal dismissal to process
       
       // Trigger haptic feedback immediately
       if (Platform.OS === 'ios') {
@@ -565,7 +566,7 @@ export default function Dashboard() {
 
     // Optimistic update: immediately update global UI state
     setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
-    // No immediate refresh here, wait for DB confirmation or failure
+    handlePerkStatusChange(); // Attempt to refresh donut with optimistic state
 
     try {
       // Background database operation
@@ -586,7 +587,7 @@ export default function Dashboard() {
       }
 
       // DB operation successful
-      handlePerkStatusChange(); // Refresh UI with new state
+      handlePerkStatusChange(); // Refresh UI with new state (final confirmation)
       showToast(`${selectedPerk.name} marked as redeemed.`); // Simple toast, no undo here
       
     } catch (dbError) {
@@ -607,6 +608,7 @@ export default function Dashboard() {
 
     // Close modal first
     handleModalDismiss();
+    await Promise.resolve(); // Allow modal dismissal to process
 
     // Trigger haptic feedback
     if (Platform.OS === 'ios') {
@@ -614,7 +616,8 @@ export default function Dashboard() {
     }
 
     // Optimistic update: set perk to 'available'
-      setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+    setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+    handlePerkStatusChange(); // Attempt to refresh donut with optimistic state
 
     try {
       // Background database operation to delete the redemption
@@ -630,7 +633,7 @@ export default function Dashboard() {
       }
 
       // DB operation successful
-      handlePerkStatusChange(); // Refresh UI with new 'available' state
+      handlePerkStatusChange(); // Refresh UI with new 'available' state (final confirmation)
       showToast(`${selectedPerk.name} marked as available.`);
 
     } catch (dbError) {
