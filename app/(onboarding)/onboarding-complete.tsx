@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Platform,
   Animated,
   Easing,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -39,12 +38,9 @@ export default function OnboardingCompleteScreen() {
   const { user } = useAuth();
   const route = useRoute();
   
-  const [isSaving, setIsSaving] = useState(false);
-
   const lottieRef = useRef<LottieView>(null);
   const confettiOpacityAnim = useRef(new Animated.Value(1)).current;
   const summaryOpacityAnim = useRef(new Animated.Value(0)).current;
-  const buttonScaleAnim = useRef(new Animated.Value(0.8)).current;
 
   useFocusEffect(
     React.useCallback(() => {
@@ -64,9 +60,35 @@ export default function OnboardingCompleteScreen() {
     }, [route.name, setStep, setIsHeaderGloballyHidden])
   );
 
+  const handleCompleteOnboarding = async () => {
+    if (!user) {
+      console.error("Onboarding completion attempted without a user.");
+      Alert.alert("Error", "You must be logged in to complete onboarding.", [
+        { text: "OK", onPress: () => router.replace('/(auth)/login') }
+      ]);
+      return;
+    }
+
+    try {
+      const selectedCardObjects = allCards.filter(card => selectedCards.includes(card.id));
+      await saveUserCards(user.id, selectedCardObjects, renewalDates);
+      
+      const monthlyPerkExpiryReminderDays: number[] = [];
+      if (notificationPrefs.perkExpiryRemindersEnabled) {
+        if (notificationPrefs.remind1DayBeforeMonthly) monthlyPerkExpiryReminderDays.push(1);
+        if (notificationPrefs.remind3DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(3);
+        if (notificationPrefs.remind7DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(7);
+      }
+      const prefsToSave = { ...notificationPrefs, monthlyPerkExpiryReminderDays };
+      await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefsToSave));
+
+    } catch (error) {
+      console.error("[OnboardingComplete] Failed to save user data:", error);
+    }
+  };
+
   useEffect(() => {
     lottieRef.current?.play(0);
-
     const lottieFadeOutTimer = setTimeout(() => {
       Animated.timing(confettiOpacityAnim, {
         toValue: 0,
@@ -77,80 +99,20 @@ export default function OnboardingCompleteScreen() {
     }, 2700);
 
     const summaryFadeInTimer = setTimeout(() => {
-      Animated.timing(summaryOpacityAnim, {
-        toValue: 1,
-        duration: 200,
-        easing: Easing.ease,
-        useNativeDriver: true,
-      }).start();
+      Animated.timing(summaryOpacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
     }, 900);
 
-    Animated.spring(buttonScaleAnim, {
-      toValue: 1,
-      friction: 5,
-      tension: 140,
-      useNativeDriver: true,
-    }).start();
-
-    const pulseTimer = setTimeout(() => {
-      Animated.sequence([
-        Animated.timing(buttonScaleAnim, { toValue: 1.03, duration: 150, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
-        Animated.timing(buttonScaleAnim, { toValue: 1, duration: 200, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
-      ]).start();
-    }, 1500);
+    handleCompleteOnboarding();
+    const redirectTimer = setTimeout(() => {
+      router.replace('/(tabs)/01-dashboard');
+    }, 3200);
 
     return () => {
       clearTimeout(lottieFadeOutTimer);
       clearTimeout(summaryFadeInTimer);
-      clearTimeout(pulseTimer);
+      clearTimeout(redirectTimer);
     };
-  }, [confettiOpacityAnim, summaryOpacityAnim, buttonScaleAnim]);
-
-  const handleCompleteOnboarding = async () => {
-    if (!user) {
-      Alert.alert("Error", "You must be logged in to complete onboarding.");
-      return;
-    }
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsSaving(true);
-
-    try {
-      // 1. Save card selections and renewal dates to the database
-      const selectedCardObjects = allCards.filter(card => selectedCards.includes(card.id));
-      const { error: cardsError } = await saveUserCards(user.id, selectedCardObjects, renewalDates);
-
-      if (cardsError) {
-        throw new Error('Failed to save your card selections. Please try again.');
-      }
-
-      // 2. Save notification preferences to AsyncStorage
-      const monthlyPerkExpiryReminderDays: number[] = [];
-      if (notificationPrefs.perkExpiryRemindersEnabled) {
-        if (notificationPrefs.remind1DayBeforeMonthly) monthlyPerkExpiryReminderDays.push(1);
-        if (notificationPrefs.remind3DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(3);
-        if (notificationPrefs.remind7DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(7);
-      }
-      
-      const prefsToSave = {
-        ...notificationPrefs,
-        monthlyPerkExpiryReminderDays,
-      };
-
-      await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefsToSave));
-
-      // 3. Navigate to the dashboard automatically after a delay
-      setTimeout(() => {
-        router.replace('/(tabs)/01-dashboard');
-      }, 1000); // 1-second delay after saving
-
-    } catch (error) {
-      console.error("[OnboardingComplete] Error:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-      Alert.alert("Onboarding Failed", errorMessage);
-      setIsSaving(false);
-    }
-  };
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom']}>
@@ -188,21 +150,7 @@ export default function OnboardingCompleteScreen() {
           </View>
         </Animated.View>
       </View>
-      <View style={styles.footer}>
-        <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
-          <TouchableOpacity 
-            style={[styles.dashboardButton, isSaving && styles.dashboardButtonDisabled]} 
-            onPress={handleCompleteOnboarding}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.dashboardButtonText}>Let's see your perks ›</Text>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
+      <View style={styles.footer} />
     </SafeAreaView>
   );
 }
@@ -278,28 +226,8 @@ const styles = StyleSheet.create({
   footer: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e1e1e1',
     backgroundColor: '#ffffff',
     zIndex: 1,
-  },
-  dashboardButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: {width:0, height:2},
-    elevation: 4,
-  },
-  dashboardButtonDisabled: {
-    backgroundColor: '#a4c7ff',
-  },
-  dashboardButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
+    minHeight: 90, 
   },
 }); 
