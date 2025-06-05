@@ -1,5 +1,5 @@
 import React, { useEffect, type PropsWithChildren } from 'react';
-import { StatusBar, View } from 'react-native';
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { AuthProvider } from '../contexts/AuthContext';
 import * as SplashScreen from 'expo-splash-screen';
@@ -45,7 +45,7 @@ export default function RootLayout() {
         <RootSiblingParent>
           <View style={{ flex: 1, backgroundColor: '#fff' }}>
             {/* Transparent status bar over white background */}
-            <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+            {/* <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" /> */}
 
             <AuthProvider>
               <Stack screenOptions={{ headerShown: false }}>

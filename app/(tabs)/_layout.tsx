@@ -75,84 +75,90 @@ export default function TabLayout() {
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
 
   return (
-    <AuthGuard>
-      <StatusBar style={barStyle} />
-      <Tabs
-        initialRouteName="01-dashboard"
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: Platform.select({
-            ios: {
-              backgroundColor: 'rgba(255, 255, 255, 0.85)',
-              borderTopColor: 'rgba(0, 0, 0, 0.2)',
-              height: 83,
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              paddingBottom: 34,
-              paddingTop: 8,
-            },
-            android: {
-              backgroundColor: '#ffffff',
-              borderTopColor: '#e0e0e0',
-              height: 56,
-              paddingBottom: 0,
-              paddingTop: 0,
-            },
-          }),
-          tabBarItemStyle: {
-            paddingVertical: 8,
-          },
-          tabBarActiveTintColor: Colors.light.tint,
-          tabBarInactiveTintColor: '#8e8e93',
-        }}
-      >
-        <Tabs.Screen
-          name="01-dashboard"
-          options={{
-            title: 'Dashboard',
+    <>
+      <StatusBar 
+        style={barStyle} 
+        backgroundColor="transparent" 
+        translucent={true} 
+      />
+      <AuthGuard>
+        <Tabs
+          initialRouteName="01-dashboard"
+          screenOptions={{
             headerShown: false,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" size={size} color={color} />
-            ),
+            tabBarStyle: Platform.select({
+              ios: {
+                backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                borderTopColor: 'rgba(0, 0, 0, 0.2)',
+                height: 83,
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                paddingBottom: 34,
+                paddingTop: 8,
+              },
+              android: {
+                backgroundColor: '#ffffff',
+                borderTopColor: '#e0e0e0',
+                height: 56,
+                paddingBottom: 0,
+                paddingTop: 0,
+              },
+            }),
+            tabBarItemStyle: {
+              paddingVertical: 8,
+            },
+            tabBarActiveTintColor: Colors.light.tint,
+            tabBarInactiveTintColor: '#8e8e93',
           }}
-        />
-        <Tabs.Screen
-          name="02-cards"
-          options={{
-            title: 'Manage Cards',
-            headerShown: true,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="card-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="03-insights"
-          options={{
-            title: 'Your Journey',
-            headerShown: true,
-            headerRight: () => <InsightsHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="analytics-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="04-more/edit-profile"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="04-more/help-faq"
-          options={{
-            href: null,
-          }}
-        />
-      </Tabs>
-    </AuthGuard>
+        >
+          <Tabs.Screen
+            name="01-dashboard"
+            options={{
+              title: 'Dashboard',
+              headerShown: false,
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="home-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="02-cards"
+            options={{
+              title: 'Manage Cards',
+              headerShown: true,
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="card-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="03-insights"
+            options={{
+              title: 'Your Journey',
+              headerShown: true,
+              headerRight: () => <InsightsHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="analytics-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="04-more/edit-profile"
+            options={{
+              href: null,
+            }}
+          />
+          <Tabs.Screen
+            name="04-more/help-faq"
+            options={{
+              href: null,
+            }}
+          />
+        </Tabs>
+      </AuthGuard>
+    </>
   );
 }
 

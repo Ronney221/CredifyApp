@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Platform,
   Alert,
   ActivityIndicator,
@@ -20,6 +19,7 @@ import {
   Animated,
   FlatList,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import LottieView from 'lottie-react-native';
@@ -198,13 +198,19 @@ export default function Dashboard() {
   const [headerPillContent, setHeaderPillContent] = useState<(CardPerk & { cardId: string; cardName: string; cycleEndDate: Date; daysRemaining: number }) | null>(null);
 
   // Use custom hooks
-  const { userCardsWithPerks, isLoading, error: userCardsError, refreshUserCards } = useUserCards();
+  const { 
+    userCardsWithPerks, 
+    isLoading: isUserCardsInitialLoading, // Renamed for clarity
+    isRefreshing: isUserCardsRefreshing, // Renamed for clarity
+    error: userCardsError, 
+    refreshUserCards 
+  } = useUserCards();
   const {
     periodAggregates,
     cumulativeValueSavedPerCard,
     userCardsWithPerks: processedCardsFromPerkStatus,
     setPerkStatus,
-    isCalculatingSavings,
+    isCalculatingSavings, // This indicates background processing after cards are loaded
     refreshSavings,
     redeemedInCurrentCycle,
     showCelebration,
@@ -214,7 +220,7 @@ export default function Dashboard() {
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
 
   // Initial log after hooks have run
-  console.log("DEBUG: Dashboard component - AFTER hooks. isLoading:", isLoading, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
+  console.log("DEBUG: Dashboard component - AFTER hooks. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isUserCardsRefreshing, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
 
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
@@ -324,12 +330,12 @@ export default function Dashboard() {
       cardData.perks.some(perk => perk.status === 'available' && perk.periodMonths === 1)
     );
 
-    if (!isLoading && !userHasSeenSwipeHint && hasActionableMonthlyPerks) {
+    if (!isUserCardsInitialLoading && !userHasSeenSwipeHint && hasActionableMonthlyPerks) {
       setShouldShowSwipeCoachMark(true);
     } else {
       setShouldShowSwipeCoachMark(false);
     }
-  }, [isLoading, userHasSeenSwipeHint, processedCardsFromPerkStatus]);
+  }, [isUserCardsInitialLoading, userHasSeenSwipeHint, processedCardsFromPerkStatus]);
 
   const handleDismissSwipeCoachMark = async () => {
     try {
@@ -351,11 +357,11 @@ export default function Dashboard() {
   // Refresh data when navigating back to dashboard
   useFocusEffect(
     useCallback(() => {
-      StatusBar.setBarStyle('dark-content');
-      if (Platform.OS === 'android') {
-        StatusBar.setBackgroundColor('transparent');
-        StatusBar.setTranslucent(true);
-      }
+      // StatusBar.setBarStyle('dark-content'); // Temporarily comment out for testing
+      // if (Platform.OS === 'android') { // Commenting out Android specific calls as well
+      //   StatusBar.setBackgroundColor('transparent'); 
+      //   StatusBar.setTranslucent(true); 
+      // }
       
       const refreshData = async () => {
         try {
@@ -688,7 +694,7 @@ export default function Dashboard() {
   }, [isCardListExpanded, sortedCards]);
 
   // Log for debugging, ensure it's called when sortedCards is defined
-  if (!isLoading) {
+  if (!isUserCardsInitialLoading) {
   }
 
   // renderItem function for the FlatList
@@ -793,8 +799,19 @@ export default function Dashboard() {
     );
   }, [sortedCards, cardsListData, isCardListExpanded, shouldShowSwipeCoachMark, handleDismissSwipeCoachMark, showDatePickerForDev, devSelectedDate]);
 
-  // Enhanced loading state check
-  const isOverallLoading = isLoading || isCalculatingSavings;
+  // Only show full-screen loader on the very first load of user cards.
+  // Subsequent refreshes (isUserCardsRefreshing) or savings calculations (isCalculatingSavings)
+  // will happen in the background without a full-screen loader.
+  if (isUserCardsInitialLoading) { // Check only the initial loading state from useUserCards
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.light.tint} />
+          <Text style={styles.loadingText}>Loading your card data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (userCardsError) {
     return (
@@ -806,26 +823,12 @@ export default function Dashboard() {
     );
   }
 
-  // Consolidated loading view
-  if (isOverallLoading) {
-    return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
-          {isLoading && <Text style={styles.loadingText}>Loading card data...</Text>}
-          {isCalculatingSavings && <Text style={styles.loadingText}>Calculating perk savings...</Text>}
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   // Log before returning the main JSX tree
-  console.log("DEBUG: Dashboard component - BEFORE MAIN RETURN. isLoading:", isLoading, "isCalculatingSavings:", isCalculatingSavings, "sortedCards count:", sortedCards?.length);
+  console.log("DEBUG: Dashboard component - BEFORE MAIN RETURN. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isUserCardsRefreshing, "isCalculatingSavings:", isCalculatingSavings, "sortedCards count:", sortedCards?.length);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* This console.log is now effectively covered by the one above */}
-      {/* console.log("DEBUG: Dashboard component - INSIDE SafeAreaView RENDER.") */}
+      <StatusBar style="dark" />
       <View style={styles.mainContainer}>
         <Animated.View style={[styles.animatedHeaderContainer, { height: animatedHeaderHeight }]}>
           {/* Expanded Header Content (Greeting) */}
