@@ -43,7 +43,6 @@ import AccountButton from '../components/home/AccountButton';
 import CardExpanderFooter from '../components/home/CardExpanderFooter';
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SwipeCoachMark from '../components/home/SwipeCoachMark';
 
 // Import notification functions
 import {
@@ -185,9 +184,8 @@ export default function Dashboard() {
   const [selectedCardIdForModal, setSelectedCardIdForModal] = useState<string | null>(null);
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
 
-  // Coach Mark State
+  // Coach Mark State - This will be handled inside ExpandableCard now
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
-  const [shouldShowSwipeCoachMark, setShouldShowSwipeCoachMark] = useState(false);
 
   // State for unique perk periods, default to monthly and annual if not found
   const [uniquePerkPeriodsForToggle, setUniquePerkPeriodsForToggle] = useState<number[]>([1, 12]); // Renamed for clarity
@@ -325,26 +323,14 @@ export default function Dashboard() {
     loadAsyncData();
   }, []);
 
-  // Determine if coach mark should be shown
-  /* useEffect(() => {
-    const hasActionableMonthlyPerks = processedCardsFromPerkStatus.some(cardData => 
-      cardData.perks.some(perk => perk.status === 'available' && perk.periodMonths === 1)
-    );
-
-    if (!isUserCardsInitialLoading && !userHasSeenSwipeHint && hasActionableMonthlyPerks) {
-      setShouldShowSwipeCoachMark(true);
-    } else {
-      setShouldShowSwipeCoachMark(false);
-    }
-  }, [isUserCardsInitialLoading, userHasSeenSwipeHint, processedCardsFromPerkStatus]); */
-
-  const handleDismissSwipeCoachMark = async () => {
-    try {
-      await AsyncStorage.setItem(SWIPE_HINT_STORAGE_KEY, JSON.stringify(true));
-      setUserHasSeenSwipeHint(true);
-      setShouldShowSwipeCoachMark(false);
-    } catch (e) {
-      console.error("Failed to save swipe hint status.", e);
+  const handleHintDismissed = async () => {
+    if (!userHasSeenSwipeHint) {
+      try {
+        await AsyncStorage.setItem(SWIPE_HINT_STORAGE_KEY, JSON.stringify(true));
+        setUserHasSeenSwipeHint(true);
+      } catch (e) {
+        console.error("Failed to save swipe hint status.", e);
+      }
     }
   };
 
@@ -668,7 +654,6 @@ export default function Dashboard() {
     try {
       await AsyncStorage.removeItem(SWIPE_HINT_STORAGE_KEY);
       setUserHasSeenSwipeHint(false);
-      setShouldShowSwipeCoachMark(true);
       Alert.alert('Success', 'Swipe hint reset. Coach mark will show again.');
     } catch (e) {
       console.error("Failed to reset swipe hint.", e);
@@ -685,21 +670,10 @@ export default function Dashboard() {
       flatListRef.current?.scrollToIndex({
         animated: true,
         index,
-        viewPosition: 0.15, // Tries to position the item 10% from the top of the visible area
+        viewPosition: 0.15, // Tries to position the item 15% from the top of the visible area
       });
-
-      // Check if the expanded card has any monthly perks to be swiped
-      const cardData = processedCardsFromPerkStatus.find(c => c.card.id === cardId);
-      const hasMonthlyPerks = cardData?.perks.some(p => p.periodMonths === 1);
-
-      if (hasMonthlyPerks) {
-        // Delay showing the coach mark to allow scroll to finish
-        setTimeout(() => {
-          setShouldShowSwipeCoachMark(true);
-        }, 400); // 400ms delay should be enough for scroll animation
-      }
     }
-  }, [setActiveCardId, processedCardsFromPerkStatus]);
+  }, [setActiveCardId]);
 
   const handlePerkStatusChange = useCallback(() => {
     refreshSavings(); // Recalculate aggregates and savings
@@ -732,6 +706,8 @@ export default function Dashboard() {
       setPerkStatus={setPerkStatus}
       isActive={item.card.id === activeCardId}
       sortIndex={index} 
+      userHasSeenSwipeHint={userHasSeenSwipeHint}
+      onHintDismissed={handleHintDismissed}
     />
   );
 
@@ -935,15 +911,6 @@ export default function Dashboard() {
           onMarkRedeemed={handleMarkRedeemed}
           onMarkAvailable={handleMarkAvailable}
         />
-
-        {/* Swipe Coach Mark */}
-        {shouldShowSwipeCoachMark && coachMarkTopOffset > 0 && (
-          <SwipeCoachMark 
-            visible={shouldShowSwipeCoachMark}
-            onDismiss={handleDismissSwipeCoachMark}
-            topOffset={coachMarkTopOffset}
-          />
-        )}
       </View>
     </SafeAreaView>
   );

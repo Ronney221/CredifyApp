@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   Alert,
   ActionSheetIOS,
   AlertButton,
+  LayoutAnimation,
 } from 'react-native';
-import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue } from 'react-native-reanimated';
+import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue, useSharedValue, withRepeat, withSequence, withDelay, Easing } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -20,6 +21,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
 import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase, setAutoRedemption, debugAutoRedemptions } from '../../../lib/database';
 import { useRouter } from 'expo-router';
+import PerkRow from './expandable-card/PerkRow';
+import CardHeader from './expandable-card/CardHeader';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -31,6 +34,8 @@ export interface ExpandableCardProps {
   setPerkStatus?: (cardId: string, perkId: string, status: 'available' | 'redeemed') => void;
   isActive?: boolean;
   sortIndex: number;
+  userHasSeenSwipeHint: boolean;
+  onHintDismissed: () => void;
 }
 
 const showToast = (message: string, onUndo?: () => void) => {
@@ -77,8 +82,11 @@ const ExpandableCardComponent = ({
   setPerkStatus,
   isActive,
   sortIndex,
+  userHasSeenSwipeHint,
+  onHintDismissed,
 }: ExpandableCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
@@ -144,14 +152,49 @@ const ExpandableCardComponent = ({
   const hasUnredeemedPerks = unredeemedPerks.length > 0;
   const isFullyRedeemed = !hasUnredeemedPerks;
 
+  const nudgeAnimation = useSharedValue(0);
+
+  useEffect(() => {
+    // This effect creates the subtle nudge animation for the hint.
+    // It runs only once when the hint becomes visible.
+    if (showSwipeHint) {
+      nudgeAnimation.value = withSequence(
+        withDelay(400, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
+      );
+    }
+  }, [showSwipeHint, nudgeAnimation]);
+
+  const animatedNudgeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: nudgeAnimation.value }],
+  }));
+
+  const firstAvailablePerkId = useMemo(() => {
+    return perks.find(p => p.status === 'available')?.id;
+  }, [perks]);
+
   const handleExpand = () => {
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
     onExpandChange?.(card.id, newExpandedState, sortIndex);
     Object.values(swipeableRefs.current).forEach(ref => ref?.close());
+
+    // Show hint if there are perks to swipe (remains visible for testing)
+    if (newExpandedState && hasUnredeemedPerks) {
+      setShowSwipeHint(true);
+    } else if (!newExpandedState) {
+      setShowSwipeHint(false); // Hide hint on collapse
+    }
   };
 
   const executePerkAction = async (perk: CardPerk, action: 'redeemed' | 'available') => {
+    // On the first interaction, hide the swipe hint with an animation and permanently dismiss
+    if (showSwipeHint) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setShowSwipeHint(false);
+      onHintDismissed();
+    }
+
     console.log(`[ExpandableCard] executePerkAction called for ${perk.name}, action: ${action}`);
     if (!user) {
       console.log('[ExpandableCard] executePerkAction: No user, returning.');
@@ -397,7 +440,7 @@ const ExpandableCardComponent = ({
     }
   };
 
-  const renderLeftActions = (progress: SharedValue<number>, dragX: SharedValue<number>, perk: CardPerk) => {
+  const renderLeftActions = (perk: CardPerk) => {
     // Left side action = revealed when swiping RIGHT = GREEN "Redeem" action
     return (
       <TouchableOpacity
@@ -410,7 +453,7 @@ const ExpandableCardComponent = ({
     );
   };
 
-  const renderRightActions = (progress: SharedValue<number>, dragX: SharedValue<number>, perk: CardPerk) => {
+  const renderRightActions = (perk: CardPerk) => {
     // Right side action = revealed when swiping LEFT = BLUE "Available" action
     return (
       <TouchableOpacity
@@ -423,144 +466,39 @@ const ExpandableCardComponent = ({
     );
   };
 
-  const renderPerk = (perk: CardPerk) => {
-    const isRedeemed = perk.status === 'redeemed';
-    const isAutoRedeemed = perk.periodMonths === 1 && getAutoRedemptionByPerkName(perk.name);
-    const showSwipeHint = perk.periodMonths === 1 && !interactedPerkIdsThisSession.has(perk.id) && !isAutoRedeemed;
-    const formattedValue = perk.value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    });
-
-    let periodText = '';
-    switch (perk.periodMonths) {
-      case 1: periodText = 'Monthly'; break;
-      case 3: periodText = 'Quarterly'; break;
-      case 6: periodText = 'Semi-Annual'; break;
-      case 12: periodText = 'Annual'; break;
-      default: periodText = perk.periodMonths ? `Every ${perk.periodMonths} months` : '';
-    }
-
-    // Truncate perk description for display in the card
-    let displayDescription = '';
-    if (perk.description) {
-      displayDescription = perk.description.length > 100 
-        ? perk.description.substring(0, 97) + '...' 
-        : perk.description;
-    } else {
-      displayDescription = 'No description available.';
-    }
-    
-    let containerStyle: any = styles.perkContainer;
-    if (isRedeemed && isAutoRedeemed) {
-      containerStyle = [styles.perkContainer, styles.perkContainerAutoRedeemed];
-    } else if (isRedeemed) {
-      containerStyle = [styles.perkContainer, styles.perkContainerRedeemed];
-    }
-
-    return (
-      <Reanimated.View
-        key={perk.id}
-        style={styles.perkContainerOuter}
-        layout={Layout.springify()}
-        entering={FadeIn.duration(200)}
-        exiting={FadeOut.duration(100)}
-      >
-        <Swipeable
-          ref={instance => { swipeableRefs.current[perk.id] = instance; }}
-          renderLeftActions={(progress, dragX) => renderLeftActions(progress as any, dragX as any, perk)}
-          renderRightActions={(progress, dragX) => renderRightActions(progress as any, dragX as any, perk)}
-          leftThreshold={40}
-          rightThreshold={40}
-          onSwipeableOpen={(direction) => {
-            Object.entries(swipeableRefs.current).forEach(([id, swipeableRef]) => {
-              if (id !== perk.id && swipeableRef) {
-                swipeableRef.close();
-              }
-            });
-          }}
-          onSwipeableLeftOpen={() => {
-            // Left open = swipe right completed = Mark as Redeemed
-            executePerkAction(perk, 'redeemed');
-          }}
-          onSwipeableRightOpen={() => {
-            // Right open = swipe left completed = Mark as Available  
-            executePerkAction(perk, 'available');
-          }}
-          onSwipeableWillOpen={(direction) => {
-            if (direction === 'left') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-             else if (direction === 'right') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }
-          }}
-          friction={1.5}
-          overshootFriction={8}
-        >
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => onTapPerk(card.id, perk.id, perk)}
-            onLongPress={() => handleLongPressPerk(card.id, perk)}
-          >
-            <View style={containerStyle}>
-              {showSwipeHint && (
-                <View style={styles.swipeHintContainer}>
-                  <Ionicons name="chevron-back-outline" size={16} color="#888888" />
-                  <Text style={styles.swipeHintText}>Swipe</Text>
-                </View>
-              )}
-              <View style={styles.perkIconContainer}>
-                <Ionicons 
-                  name={isRedeemed ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline') : isAutoRedeemed ? 'sync-circle-outline' : 'pricetag-outline'}
-                  size={26} 
-                  color={isRedeemed ? (isAutoRedeemed ? '#FF9500' : '#8E8E93') : isAutoRedeemed ? '#FF9500' : '#007AFF'}
-                />
-              </View>
-              <View style={styles.perkTextContainerInsideItem}> 
-                <View style={styles.perkNameAndPeriodContainer}> 
-                  <Text style={[
-                    styles.perkName, 
-                    isRedeemed && !isAutoRedeemed && styles.perkNameRedeemed,
-                    isRedeemed && isAutoRedeemed && styles.perkNameAutoRedeemed
-                  ]}
-                  >
-                    {perk.name}
-                  </Text>
-                  {periodText ? <Text style={styles.perkPeriodTag}>{periodText}</Text> : null}
-                </View>
-                <Text style={[
-                  styles.perkDescription, 
-                  isRedeemed && !isAutoRedeemed && styles.perkDescriptionRedeemed,
-                  isRedeemed && isAutoRedeemed && styles.perkDescriptionAutoRedeemed
-                ]}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-                >
-                  {displayDescription}
-                </Text>
-              </View>
-              <View style={styles.perkValueContainer}>
-                <Text style={[
-                  styles.perkValue, 
-                  isRedeemed && !isAutoRedeemed && styles.perkValueRedeemed,
-                  isRedeemed && isAutoRedeemed && styles.perkValueAutoRedeemed
-                ]}>
-                  {formattedValue}
-                </Text>
-              </View>
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={isRedeemed ? (isAutoRedeemed ? '#CC7A00' : '#C7C7CC') : '#B0B0B0'} 
-                style={styles.perkChevron}
-              />
-            </View>
-          </TouchableOpacity>
-        </Swipeable>
-      </Reanimated.View>
-    );
-  };
+  const renderPerkRow = (perk: CardPerk, isAvailable: boolean) => (
+    <PerkRow
+      key={perk.id}
+      perk={perk}
+      isFirstAvailablePerk={isAvailable && perk.id === firstAvailablePerkId}
+      showSwipeHint={isAvailable && showSwipeHint}
+      animatedNudgeStyle={animatedNudgeStyle}
+      onTapPerk={() => onTapPerk(card.id, perk.id, perk)}
+      onLongPressPerk={() => handleLongPressPerk(card.id, perk)}
+      setSwipeableRef={(ref: Swipeable | null) => { swipeableRefs.current[perk.id] = ref; }}
+      onSwipeableWillOpen={(direction) => {
+        if (direction === 'left') { // Right-swipe reveals the left-side action ("Redeem")
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } else if (direction === 'right') { // Left-swipe reveals the right-side action ("Available")
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      }}
+      onSwipeableOpen={(direction) => {
+        Object.entries(swipeableRefs.current).forEach(([id, swipeableRef]) => {
+          if (id !== perk.id && swipeableRef) {
+            swipeableRef.close();
+          }
+        });
+        if (direction === 'left') { // Left panel was revealed by a right-swipe
+          executePerkAction(perk, 'redeemed');
+        } else { // Right panel was revealed by a left-swipe
+          executePerkAction(perk, 'available');
+        }
+      }}
+      renderLeftActions={() => renderLeftActions(perk)}
+      renderRightActions={() => renderRightActions(perk)}
+    />
+  );
 
   return (
     <Reanimated.View 
@@ -571,83 +509,16 @@ const ExpandableCardComponent = ({
         console.log(`ExpandableCard (${card.name} - ${isExpanded ? 'Expanded' : 'Collapsed'}) height: ${height}`);
       }}
     >
-      <TouchableOpacity
-        style={[styles.cardHeader, isActive && styles.activeCardHeader]}
+      <CardHeader
+        card={card}
+        isExpanded={isExpanded}
+        isActive={!!isActive}
+        isFullyRedeemed={isFullyRedeemed}
+        unredeemedPerksCount={unredeemedPerks.length}
+        cumulativeSavedValue={cumulativeSavedValue}
+        monthlyPerkStats={monthlyPerkStats}
         onPress={handleExpand}
-        activeOpacity={0.7}
-      >
-        <View style={styles.cardInfo}>
-          <View style={[styles.cardImageWrapper, { backgroundColor: cardNetworkColor }]}>
-            <Image source={card.image} style={styles.cardImage} />
-          </View>
-          <View style={styles.cardTextContainer}>
-            <Text style={styles.cardName}>{card.name}</Text>
-            <View style={styles.cardSubtitle}>
-              {isFullyRedeemed ? (
-                <Text style={styles.subtitleText}>
-                  <Ionicons name="checkmark-circle" size={14} color="#34c759" />
-                  <Text> All perks redeemed</Text>
-                  {cumulativeSavedValue > 0 && (
-                    <Text style={styles.subtitleDivider}> • </Text>
-                  )}
-                  {cumulativeSavedValue > 0 && (
-                    <Text style={[styles.subtitleText, styles.savedValueText]}>
-                      {cumulativeSavedValue.toLocaleString('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                      })} saved
-                    </Text>
-                  )}
-                </Text>
-              ) : (
-                // Display unredeemed count or saved value first
-                <> 
-                  {hasUnredeemedPerks && (
-                    <Text style={styles.subtitleText}>
-                      {unredeemedPerks.length} {unredeemedPerks.length === 1 ? 'perk' : 'perks'} left
-                    </Text>
-                  )}
-                  {cumulativeSavedValue > 0 && hasUnredeemedPerks && (
-                     <Text style={styles.subtitleDivider}> • </Text>
-                  )}
-                  {cumulativeSavedValue > 0 && (
-                    <Text style={[styles.subtitleText, styles.savedValueText]}>
-                      {cumulativeSavedValue.toLocaleString('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                      })} saved
-                    </Text>
-                  )}
-                </>
-              )}
-            </View>
-            {/* Monthly Perk Progress Chip - Placed below subtitle */} 
-            {monthlyPerkStats.total > 0 && (
-              <View style={styles.progressChipContainer}>
-                {[...Array(monthlyPerkStats.total)].map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.progressDot,
-                      i < monthlyPerkStats.redeemed ? styles.progressDotRedeemed : styles.progressDotAvailable,
-                    ]}
-                  />
-                ))}
-                <Text style={styles.progressChipText}>
-                  ({monthlyPerkStats.redeemed} of {monthlyPerkStats.total} monthly redeemed)
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-        <View style={styles.headerRight}>
-          <Ionicons
-            name={isExpanded ? 'chevron-down' : 'chevron-forward'}
-            size={24}
-            color="#20B2AA"
-          />
-        </View>
-      </TouchableOpacity>
+      />
 
       {isExpanded && (
         <Reanimated.View 
@@ -657,13 +528,13 @@ const ExpandableCardComponent = ({
           {perks.filter(p => p.status === 'available').length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Available Perks</Text>
-              {perks.filter(p => p.status === 'available').map(renderPerk)}
+              {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
             </>
           )}
           {perks.filter(p => p.status === 'redeemed').length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-              {perks.filter(p => p.status === 'redeemed').map(renderPerk)}
+              {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
             </>
           )}
         </Reanimated.View>
@@ -732,157 +603,12 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: 'rgba(248, 248, 248, 0.7)',
-  },
-  cardInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  cardImageWrapper: {
-    width: 48,
-    height: 32,
-    borderRadius: 4,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  cardImage: {
-    width: '90%',
-    height: '90%',
-    resizeMode: 'contain',
-  },
-  cardTextContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  cardName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1c1e',
-    marginBottom: 2,
-  },
-  cardSubtitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-    flexShrink: 1,
-    marginRight: 4,
-  },
-  subtitleDivider: {
-    color: '#666',
-    fontWeight: '400',
-  },
-  savedValueText: {
-    color: '#34c759',
-    fontSize: 14, 
-    fontWeight: '500',
-  },
-  perkItem: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginVertical: 4,
-    padding: 12,
-  },
-  redeemedPerk: {
-    backgroundColor: '#f8faf8',
-    borderColor: '#c8e6c9',
-  },
-  availablePerk: {
-    borderColor: '#bbdefb',
-    backgroundColor: '#f8fafe',
-  },
-  perkContent: {
-    flex: 1,
-  },
-  perkMainInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  perkTextContainerInsideItem: {
-    flex: 1,
-    marginRight: 8,
-    justifyContent: 'center',
-  },
-  perkNameAndPeriodContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    marginBottom: 2,
-  },
-  perkName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1c1c1e',
-    marginRight: 6,
-  },
-  perkPeriodTag: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#8A8A8E',
-  },
-  perkNameRedeemed: {
-    color: '#8E8E93',
-    textDecorationLine: 'line-through',
-  },
-  perkValue: {
-    fontSize: 22,
-    fontWeight: '400',
-    color: '#1c1c1e',
-  },
-  redeemedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#34c759',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    gap: 4,
-  },
-  redeemedBadgeText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  availableBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    gap: 4,
-  },
-  availableBadgeText: {
-    color: '#1976d2',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  redeemedText: {
-    color: '#34c759',
-  },
   sectionLabel: {
     fontSize: 17,
     fontWeight: '600',
     color: '#666',
     marginVertical: 8,
     paddingHorizontal: 4,
-  },
-  fullyRedeemedCard: {
-    opacity: 0.9,
   },
   activeCard: {
     ...Platform.select({
@@ -896,16 +622,6 @@ const styles = StyleSheet.create({
         elevation: 8,
       },
     }),
-  },
-  activeCardHeader: {
-    backgroundColor: '#f8f9fa',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 'auto',
-    paddingLeft: 8,
-    flexShrink: 0,
   },
   perksListContainer: {
     paddingHorizontal: 16,
@@ -1042,5 +758,37 @@ const styles = StyleSheet.create({
   },
   perkValueAutoRedeemed: { 
     color: '#FF9500',
+  },
+  ghostPerkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.04)', // Very subtle tint
+    borderRadius: 12,
+    paddingVertical: 12, // Reduced padding for a ~48pt height
+    paddingHorizontal: 16,
+    marginVertical: 4,
+  },
+  ghostPerkText: {
+    color: '#007AFF',
+    fontSize: 15, // Matches system .body text size
+    fontWeight: '500',
+    marginHorizontal: 8,
+  },
+  inlineHintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  inlineHintText: {
+    color: '#007AFF',
+    fontSize: 13,
+    fontWeight: '500',
+    marginLeft: 6,
   },
 }); 
