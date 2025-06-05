@@ -151,6 +151,7 @@ const PerkDonutDisplayManagerInner = (
         detailLineOne: '$0 redeemed',
         detailLineTwo: '$0 available',
         perksCount: '0 of 0',
+        progressPercentageText: '0% Used', // Default percentage
         color: Colors.light.tint,
         displayName: String(defaultDisplayName)
       };
@@ -166,6 +167,10 @@ const PerkDonutDisplayManagerInner = (
     const progress = currentAggregates.possibleValue > 0 
       ? currentAggregates.redeemedValue / currentAggregates.possibleValue 
       : 0;
+
+    const percentageUsed = currentAggregates.totalCount > 0
+      ? Math.round((currentAggregates.redeemedCount / currentAggregates.totalCount) * 100)
+      : 0;
     
     const displayName = getPeriodDisplayName(activeSegmentKey);
 
@@ -178,6 +183,7 @@ const PerkDonutDisplayManagerInner = (
       detailLineOne: `$${currentAggregates.redeemedValue.toFixed(0)} redeemed`,
       detailLineTwo: `$${currentAggregates.possibleValue.toFixed(0)} available`,
       perksCount: `${currentAggregates.redeemedCount} of ${currentAggregates.totalCount}`,
+      progressPercentageText: `${percentageUsed}% Used`,
       color: activeSegmentKey === 1 ? Colors.light.tint : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
       displayName: String(displayName)
     };
@@ -219,6 +225,7 @@ const PerkDonutDisplayManagerInner = (
         detailLineOne={activeData.detailLineOne}
         detailLineTwo={activeData.detailLineTwo}
         perksCount={activeData.perksCount}
+        progressPercentageText={activeData.progressPercentageText}
         color={activeData.color}
         backgroundColor={Platform.OS === 'android' ? '#f0f0f0' : '#ECECEC'} // This BG is for the donut itself
       />

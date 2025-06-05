@@ -22,7 +22,8 @@ interface ProgressDonutProps {
   label: string;
   detailLineOne: string;
   detailLineTwo: string;
-  perksCount?: string;
+  perksCount?: string; // e.g., "3 of 8"
+  progressPercentageText?: string; // e.g., "37% Used"
 }
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -39,9 +40,10 @@ export default function ProgressDonut({
   detailLineOne,
   detailLineTwo,
   perksCount,
+  progressPercentageText,
 }: ProgressDonutProps) {
   // Log all incoming text-related props at the beginning of the function
-  console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, detailLineOne, detailLineTwo, perksCount });
+  console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, detailLineOne, detailLineTwo, perksCount, progressPercentageText });
 
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
@@ -137,9 +139,14 @@ export default function ProgressDonut({
           />
         </Svg>
         
-        {perksCount && (
+        {(progressPercentageText || perksCount) && (
           <View style={styles.centerTextContainer}>
-            <Text style={styles.centerText}>{perksCount}</Text>
+            {progressPercentageText && (
+              <Text style={styles.progressPercentageText}>{progressPercentageText}</Text>
+            )}
+            {perksCount && (
+              <Text style={styles.perksCountText}>{perksCount}</Text>
+            )}
           </View>
         )}
       </View>
@@ -186,10 +193,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     pointerEvents: 'none',
   },
-  centerText: {
-    fontSize: 15,
+  progressPercentageText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  perksCountText: {
+    fontSize: 13,
     fontWeight: '500',
-    color: '#3C3C4399',
+    color: '#8E8E93',
     textAlign: 'center',
   },
   detailLine: {
