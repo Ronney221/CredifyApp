@@ -27,6 +27,7 @@ interface ToggleProps {
   label: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
+  disabled?: boolean;
 }
 
 export default function OnboardingNotificationPrefsScreen() {
@@ -64,11 +65,11 @@ export default function OnboardingNotificationPrefsScreen() {
     router.push('/(onboarding)/onboarding-complete'); 
   };
 
-  const perkExpiryToggles: ToggleProps[] = [
+  const perkExpiryToggles: ToggleProps[] = notificationPrefs.perkExpiryRemindersEnabled ? [
     { label: "1 day before", value: notificationPrefs.remind1DayBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind1DayBeforeMonthly: value })) },
     { label: "3 days before", value: notificationPrefs.remind3DaysBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind3DaysBeforeMonthly: value })) },
     { label: "7 days before", value: notificationPrefs.remind7DaysBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind7DaysBeforeMonthly: value })) },
-  ];
+  ] : [];
 
   const showCardRenewalSection = true; // Always show the section, but might be disabled.
 
@@ -118,7 +119,7 @@ export default function OnboardingNotificationPrefsScreen() {
         >
           <Text style={styles.mainCardTitle}>Configure Your Reminders</Text>
           <Text style={styles.mainCardInfoText}>
-            We&apos;ve enabled recommended reminders. You can tweak them below or change them anytime in <Text style={styles.boldText}>Settings &gt; Notifications</Text>.
+            We&apos;ve enabled the reminders pros use. You can tweak them below or later in <Text style={styles.boldText}>Settings › Notifications</Text>.
           </Text>
           
           <View style={styles.notificationItemsSection}>

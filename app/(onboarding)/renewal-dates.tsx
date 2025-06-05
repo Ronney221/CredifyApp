@@ -26,13 +26,10 @@ import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 
 const CARD_ANIMATION_DELAY = 60;
 
-// Helper to format date as MM/DD/YYYY or return placeholder
+// Helper to format date or return placeholder
 const formatDate = (date: Date | null) => {
-  if (!date) return 'MM/DD/YYYY';
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${month}/${day}/${year}`;
+  if (!date) return 'Set Renewal Date'; // More generic placeholder
+  return date.toLocaleDateString(); // Use device's locale for formatting
 };
 
 interface RenewalDateInfo {
@@ -139,6 +136,12 @@ export default function OnboardingRenewalDatesScreen() {
     }
   };
 
+  const handleSkipAll = () => {
+    // Clear any dates set in the context and navigate
+    setContextRenewalDates({});
+    router.push('/(onboarding)/notification-prefs');
+  };
+
   const getCardNetworkColor = (card: Card) => {
     switch (card.network?.toLowerCase()) {
       case 'amex':
@@ -223,7 +226,7 @@ export default function OnboardingRenewalDatesScreen() {
                     </>
                   ) : (
                     <>
-                      <Text style={styles.dateTextPlaceholder}>MM/DD/YYYY</Text>
+                      <Text style={styles.dateTextPlaceholder}>{formatDate(null)}</Text>
                       <TouchableOpacity 
                         onPress={(e) => { e.stopPropagation(); handleSkipCard(card.id); }} 
                         style={styles.skipButton}
@@ -246,6 +249,12 @@ export default function OnboardingRenewalDatesScreen() {
           onPress={handleNext}
         >
           <Text style={styles.nextButtonText}>Next: Set Notifications ›</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.skipAllButton}
+          onPress={handleSkipAll}
+        >
+          <Text style={styles.skipAllButtonText}>Skip all dates</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -385,5 +394,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '600',
+  },
+  skipAllButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  skipAllButtonText: {
+    fontSize: 16,
+    color: Colors.light.tint,
+    fontWeight: '500',
   },
 }); 

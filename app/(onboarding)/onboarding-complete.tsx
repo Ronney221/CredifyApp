@@ -139,8 +139,10 @@ export default function OnboardingCompleteScreen() {
 
       await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefsToSave));
 
-      // 3. Navigate to the dashboard
-      router.replace('/(tabs)/01-dashboard');
+      // 3. Navigate to the dashboard automatically after a delay
+      setTimeout(() => {
+        router.replace('/(tabs)/01-dashboard');
+      }, 1000); // 1-second delay after saving
 
     } catch (error) {
       console.error("[OnboardingComplete] Error:", error);
@@ -196,7 +198,7 @@ export default function OnboardingCompleteScreen() {
             {isSaving ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.dashboardButtonText}>Go to Dashboard</Text>
+              <Text style={styles.dashboardButtonText}>Let's see your perks ›</Text>
             )}
           </TouchableOpacity>
         </Animated.View>

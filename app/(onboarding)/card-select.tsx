@@ -39,6 +39,34 @@ const getCardNetworkColor = (card: Card) => {
   }
 };
 
+const ISSUER_NAME_MAP: { [key: string]: string } = {
+  amex: 'American Express',
+  chase: 'Chase',
+  citi: 'Citi',
+  capone: 'Capital One',
+  boa: 'Bank of America',
+  usbank: 'U.S. Bank',
+  delta: 'Delta',
+  hilton: 'Hilton',
+  marriott: 'Marriott',
+};
+
+// Define a custom sort order for Amex cards
+const AMEX_SORT_ORDER = [
+  'amex_blue_cash_preferred',
+  'amex_green',
+  'amex_gold',
+  'amex_platinum',
+];
+
+// Define a custom sort order for issuer groups
+const GROUP_SORT_ORDER = [
+  'American Express',
+  'Chase',
+  'Bank of America',
+  'Other Issuers',
+];
+
 export default function OnboardingCardSelectScreen() {
   const router = useRouter();
   const { setStep, setIsHeaderGloballyHidden, selectedCards, setSelectedCards } = useOnboardingContext();
@@ -107,10 +135,62 @@ export default function OnboardingCardSelectScreen() {
     router.push('/(onboarding)/renewal-dates');
   };
 
-  const sortedAllCards = useMemo(() => 
-    [...allCards].sort((a, b) => a.name.localeCompare(b.name)), 
-    []
-  );
+  const handleSkip = () => {
+    // Clear any selections just in case, then navigate
+    setSelectedCards([]);
+    router.push('/(onboarding)/onboarding-complete');
+  };
+
+  const groupedCards = useMemo(() => {
+    // 1. Group all cards by their issuer name.
+    const issuerCardMap: { [key: string]: Card[] } = {};
+    allCards.forEach(card => {
+      const issuerKey = card.id.split('_')[0];
+      const issuerName = ISSUER_NAME_MAP[issuerKey] || issuerKey;
+      if (!issuerCardMap[issuerName]) {
+        issuerCardMap[issuerName] = [];
+      }
+      issuerCardMap[issuerName].push(card);
+    });
+
+    // 2. Separate multi-card issuers from single-card issuers.
+    const multiCardIssuers: { [key: string]: Card[] } = {};
+    const otherIssuers: Card[] = [];
+    for (const issuerName in issuerCardMap) {
+      if (issuerCardMap[issuerName].length > 1) {
+        multiCardIssuers[issuerName] = issuerCardMap[issuerName];
+      } else {
+        otherIssuers.push(...issuerCardMap[issuerName]);
+      }
+    }
+
+    // 3. Assemble the final groups in the desired order.
+    const finalGroups: { [key: string]: Card[] } = {};
+    GROUP_SORT_ORDER.forEach(groupName => {
+      if (groupName === 'Other Issuers') {
+        if (otherIssuers.length > 0) {
+          finalGroups['Other Issuers'] = otherIssuers.sort((a, b) => a.name.localeCompare(b.name));
+        }
+      } else if (multiCardIssuers[groupName]) {
+        const cards = multiCardIssuers[groupName];
+        if (groupName === 'American Express') {
+          // Apply custom sort for Amex
+          finalGroups[groupName] = cards.sort((a, b) => {
+            const indexA = AMEX_SORT_ORDER.indexOf(a.id);
+            const indexB = AMEX_SORT_ORDER.indexOf(b.id);
+            if (indexA === -1) return 1; // Put unsorted items at the end
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+          });
+        } else {
+          // Default sort for other multi-card groups
+          finalGroups[groupName] = cards.sort((a, b) => a.name.localeCompare(b.name));
+        }
+      }
+    });
+
+    return finalGroups;
+  }, []);
 
   const subtitleAnimationDelay = 50;
   const listAnimationDelay = subtitleAnimationDelay + 100;
@@ -149,27 +229,40 @@ export default function OnboardingCardSelectScreen() {
         style={{flex: 1}}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {sortedAllCards.map((card) => (
-            <CardRow
-              key={card.id}
-              card={card}
-              isSelected={selectedCardIds.has(card.id)}
-              onPress={handleToggleCard}
-              mode="onboard"
-              cardScaleAnim={getScaleValue(card.id)}
-            />
+          {Object.entries(groupedCards).map(([issuerName, cards]) => (
+            <View key={issuerName} style={styles.issuerGroup}>
+              <Text style={styles.issuerName}>{issuerName}</Text>
+              {cards.map(card => (
+                <CardRow
+                  key={card.id}
+                  card={card}
+                  isSelected={selectedCardIds.has(card.id)}
+                  onPress={handleToggleCard}
+                  mode="onboard"
+                  cardScaleAnim={getScaleValue(card.id)}
+                />
+              ))}
+            </View>
           ))}
         </ScrollView>
       </MotiView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.nextButton, selectedCardIds.size === 0 && styles.nextButtonDisabled]} 
-          onPress={handleNext}
-          disabled={selectedCardIds.size === 0}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
+        {selectedCardIds.size > 0 ? (
+          <TouchableOpacity 
+            style={styles.nextButton} 
+            onPress={handleNext}
+          >
+            <Text style={styles.nextButtonText}>Next</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.nextButton, styles.skipButton]} 
+            onPress={handleSkip}
+          >
+            <Text style={[styles.nextButtonText, styles.skipButtonText]}>Skip for now</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -207,6 +300,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20, 
   },
+  issuerGroup: {
+    marginBottom: 16,
+  },
+  issuerName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.light.text,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
   footer: {
     padding: 20,
     backgroundColor: '#f2f2f7',
@@ -229,6 +332,16 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     shadowOpacity: 0, 
     elevation: 0,
+  },
+  skipButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  skipButtonText: {
+    color: Colors.light.tint,
   },
   nextButtonText: {
     color: '#ffffff',
