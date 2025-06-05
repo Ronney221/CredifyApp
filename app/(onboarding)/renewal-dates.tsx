@@ -42,8 +42,13 @@ interface RenewalDateInfo {
 
 export default function OnboardingRenewalDatesScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedCardIds?: string }>();
-  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const { 
+    setStep, 
+    setIsHeaderGloballyHidden, 
+    selectedCards: selectedCardIds, 
+    renewalDates: contextRenewalDates,
+    setRenewalDates: setContextRenewalDates 
+  } = useOnboardingContext();
   const route = useRoute();
 
   useFocusEffect(
@@ -58,32 +63,23 @@ export default function OnboardingRenewalDatesScreen() {
     }, [route.name, setStep, setIsHeaderGloballyHidden])
   );
   
-  const [selectedCards, setSelectedCards] = useState<Card[]>([]);
-  const [renewalDates, setRenewalDates] = useState<Map<string, RenewalDateInfo>>(new Map());
+  const selectedCardObjects = useMemo(() => {
+    return allCards
+      .filter(card => selectedCardIds.includes(card.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [selectedCardIds]);
+
+  const [renewalDates, setRenewalDates] = useState<Map<string, RenewalDateInfo>>(() => {
+    const initialDates = new Map<string, RenewalDateInfo>();
+    selectedCardIds.forEach(id => {
+      const existingDate = contextRenewalDates[id];
+      initialDates.set(id, { date: existingDate || null, skipped: false });
+    });
+    return initialDates;
+  });
   
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [currentCardIdForPicker, setCurrentCardIdForPicker] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (params.selectedCardIds) {
-      try {
-        const ids: string[] = JSON.parse(params.selectedCardIds);
-        const filteredCards = allCards
-          .filter(card => ids.includes(card.id))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        setSelectedCards(filteredCards);
-        
-        const initialRenewalDates = new Map<string, RenewalDateInfo>();
-        filteredCards.forEach(card => {
-          initialRenewalDates.set(card.id, { date: null, skipped: false });
-        });
-        setRenewalDates(initialRenewalDates);
-      } catch (e) {
-        console.error("Failed to parse selectedCardIds or filter cards:", e);
-        Alert.alert("Error", "Could not load selected card data. Please go back and try again.");
-      }
-    }
-  }, [params.selectedCardIds]);
 
   const showDatePicker = (cardId: string) => {
     setCurrentCardIdForPicker(cardId);
@@ -113,31 +109,23 @@ export default function OnboardingRenewalDatesScreen() {
   };
   
   const handleNext = () => {
+    const newContextRenewalDates: Record<string, Date> = {};
     let datesActuallySetCount = 0;
-    const renewalDataForNextScreen: Record<string, string | null> = {};
     
-    selectedCards.forEach(card => {
-      const cardId = card.id;
-      const info = renewalDates.get(cardId);
-      if (info && info.date && !info.skipped) {
-        renewalDataForNextScreen[cardId] = info.date.toISOString();
+    renewalDates.forEach((info, cardId) => {
+      if (info.date && !info.skipped) {
+        newContextRenewalDates[cardId] = info.date;
         datesActuallySetCount++;
-      } else {
-        renewalDataForNextScreen[cardId] = null;
       }
     });
+    
+    setContextRenewalDates(newContextRenewalDates);
 
     const navigateToNextScreen = () => {
-      router.push({
-        pathname: '/(onboarding)/notification-prefs',
-        params: { 
-          selectedCardIds: params.selectedCardIds,
-          renewalDates: JSON.stringify(renewalDataForNextScreen) 
-        },
-      });
+      router.push('/(onboarding)/notification-prefs');
     };
 
-    if (datesActuallySetCount === 0 && selectedCards.length > 0) {
+    if (datesActuallySetCount === 0 && selectedCardObjects.length > 0) {
       Alert.alert(
         "No Renewal Dates Set",
         "No renewal dates yet – we'll remind you after you add them in Settings.",
@@ -165,10 +153,10 @@ export default function OnboardingRenewalDatesScreen() {
     }
   };
 
-  if (selectedCards.length === 0 && params.selectedCardIds) {
+  if (selectedCardObjects.length === 0) {
     return (
       <SafeAreaView style={[styles.container, styles.centered, {paddingTop: WIZARD_HEADER_HEIGHT }]} edges={['bottom', 'left', 'right']}>
-        <Text>Loading card details...</Text>
+        <Text>No cards selected. Please go back.</Text>
       </SafeAreaView>
     );
   }
@@ -191,7 +179,7 @@ export default function OnboardingRenewalDatesScreen() {
           <Text style={styles.subtitle}>Choose your billing anniversary for each card. You can update these anytime in card settings.</Text>
         </View>
 
-        {selectedCards.map((card, index) => {
+        {selectedCardObjects.map((card, index) => {
           const cardInfo = renewalDates.get(card.id);
           const networkColor = getCardNetworkColor(card);
 

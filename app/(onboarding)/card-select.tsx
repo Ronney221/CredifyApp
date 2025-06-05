@@ -41,7 +41,7 @@ const getCardNetworkColor = (card: Card) => {
 
 export default function OnboardingCardSelectScreen() {
   const router = useRouter();
-  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const { setStep, setIsHeaderGloballyHidden, selectedCards, setSelectedCards } = useOnboardingContext();
   const route = useRoute();
 
   useFocusEffect(
@@ -58,7 +58,7 @@ export default function OnboardingCardSelectScreen() {
     }, [route.name, setStep, setIsHeaderGloballyHidden])
   );
 
-  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  const selectedCardIds = useMemo(() => new Set(selectedCards), [selectedCards]);
   const [firstCardAdded, setFirstCardAdded] = useState(false);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
 
@@ -76,13 +76,13 @@ export default function OnboardingCardSelectScreen() {
   };
 
   const handleToggleCard = (cardId: string) => {
-    const newSelectedCardIds = new Set(selectedCardIds);
+    const newSelectedIds = new Set(selectedCardIds);
     const cardScale = getScaleValue(cardId);
 
-    if (newSelectedCardIds.has(cardId)) {
-      newSelectedCardIds.delete(cardId);
+    if (newSelectedIds.has(cardId)) {
+      newSelectedIds.delete(cardId);
     } else {
-      newSelectedCardIds.add(cardId);
+      newSelectedIds.add(cardId);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       Animated.sequence([
         Animated.timing(cardScale, {
@@ -99,16 +99,12 @@ export default function OnboardingCardSelectScreen() {
         }),
       ]).start();
     }
-    setSelectedCardIds(newSelectedCardIds);
+    setSelectedCards(Array.from(newSelectedIds));
   };
 
   const handleNext = () => {
     if (selectedCardIds.size === 0) return;
-    const idsArray = Array.from(selectedCardIds);
-    router.push({
-      pathname: '/(onboarding)/renewal-dates',
-      params: { selectedCardIds: JSON.stringify(idsArray) }, 
-    });
+    router.push('/(onboarding)/renewal-dates');
   };
 
   const sortedAllCards = useMemo(() => 
@@ -131,7 +127,7 @@ export default function OnboardingCardSelectScreen() {
         >
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerText}>
-              Select Cards{selectedCardIds.size > 0 ? ` (${selectedCardIds.size} selected)` : ''}
+              {headerText}
             </Text>
           </View>
         </MotiView>

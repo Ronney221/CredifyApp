@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Animated,
   Easing,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -18,11 +19,27 @@ import * as Haptics from 'expo-haptics';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
+import { useAuth } from '../../contexts/AuthContext';
+import { saveUserCards } from '../../lib/database';
+import { allCards } from '../../src/data/card-data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
+
+const NOTIFICATION_PREFS_KEY = '@notification_preferences';
 
 export default function OnboardingCompleteScreen() {
   const router = useRouter();
-  const { setStep, setIsHeaderGloballyHidden } = useOnboardingContext();
+  const { 
+    setStep, 
+    setIsHeaderGloballyHidden,
+    selectedCards,
+    renewalDates,
+    notificationPrefs 
+  } = useOnboardingContext();
+  const { user } = useAuth();
   const route = useRoute();
+  
+  const [isSaving, setIsSaving] = useState(false);
 
   const lottieRef = useRef<LottieView>(null);
   const confettiOpacityAnim = useRef(new Animated.Value(1)).current;
@@ -89,9 +106,48 @@ export default function OnboardingCompleteScreen() {
     };
   }, [confettiOpacityAnim, summaryOpacityAnim, buttonScaleAnim]);
 
-  const handleGoToDashboard = () => {
+  const handleCompleteOnboarding = async () => {
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to complete onboarding.");
+      return;
+    }
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.replace('/(tabs)/01-dashboard');
+    setIsSaving(true);
+
+    try {
+      // 1. Save card selections and renewal dates to the database
+      const selectedCardObjects = allCards.filter(card => selectedCards.includes(card.id));
+      const { error: cardsError } = await saveUserCards(user.id, selectedCardObjects, renewalDates);
+
+      if (cardsError) {
+        throw new Error('Failed to save your card selections. Please try again.');
+      }
+
+      // 2. Save notification preferences to AsyncStorage
+      const monthlyPerkExpiryReminderDays: number[] = [];
+      if (notificationPrefs.perkExpiryRemindersEnabled) {
+        if (notificationPrefs.remind1DayBeforeMonthly) monthlyPerkExpiryReminderDays.push(1);
+        if (notificationPrefs.remind3DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(3);
+        if (notificationPrefs.remind7DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(7);
+      }
+      
+      const prefsToSave = {
+        ...notificationPrefs,
+        monthlyPerkExpiryReminderDays,
+      };
+
+      await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefsToSave));
+
+      // 3. Navigate to the dashboard
+      router.replace('/(tabs)/01-dashboard');
+
+    } catch (error) {
+      console.error("[OnboardingComplete] Error:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+      Alert.alert("Onboarding Failed", errorMessage);
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -132,8 +188,16 @@ export default function OnboardingCompleteScreen() {
       </View>
       <View style={styles.footer}>
         <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
-          <TouchableOpacity style={styles.dashboardButton} onPress={handleGoToDashboard}>
-            <Text style={styles.dashboardButtonText}>Go to Dashboard</Text>
+          <TouchableOpacity 
+            style={[styles.dashboardButton, isSaving && styles.dashboardButtonDisabled]} 
+            onPress={handleCompleteOnboarding}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.dashboardButtonText}>Go to Dashboard</Text>
+            )}
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -227,6 +291,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: {width:0, height:2},
     elevation: 4,
+  },
+  dashboardButtonDisabled: {
+    backgroundColor: '#a4c7ff',
   },
   dashboardButtonText: {
     color: '#ffffff',
