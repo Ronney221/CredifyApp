@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,47 +25,38 @@ import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 import { CardRow } from '../components/manage/CardRow';
 
-const getCardNetworkColor = (card: Card) => {
-  switch (card.network?.toLowerCase()) {
-    case 'amex':
-    case 'american express':
-      if (card.name?.toLowerCase().includes('platinum')) return '#E5E4E2';
-      if (card.name?.toLowerCase().includes('gold')) return '#B08D57';
-      return '#007bc1';
-    case 'chase':
-      return '#124A8D';
-    default:
-      return '#F0F0F0';
-  }
-};
-
-const ISSUER_NAME_MAP: { [key: string]: string } = {
-  amex: 'American Express',
-  chase: 'Chase',
-  citi: 'Citi',
-  capone: 'Capital One',
-  boa: 'Bank of America',
-  usbank: 'U.S. Bank',
-  delta: 'Delta',
-  hilton: 'Hilton',
-  marriott: 'Marriott',
-};
-
-// Define a custom sort order for Amex cards
-const AMEX_SORT_ORDER = [
-  'amex_blue_cash_preferred',
-  'amex_green',
+const FREQUENTLY_OWNED_IDS = [
+  'chase_sapphire_preferred',
   'amex_gold',
+  'blue_cash_preferred',
+  'chase_sapphire_reserve',
   'amex_platinum',
+  'capital_one_venture_x',
+  'boa_premium_rewards',
 ];
 
-// Define a custom sort order for issuer groups
-const GROUP_SORT_ORDER = [
-  'American Express',
-  'Chase',
-  'Bank of America',
-  'Other Issuers',
+const ISSUER_ORDER = [
+  "American Express",
+  "Bank of America",
+  "Capital One",
+  "Chase",
 ];
+
+function getIssuer(card: Card): string {
+  const id = card.id.toLowerCase();
+  const name = card.name.toLowerCase();
+
+  if (id.startsWith('amex_') || id.startsWith('blue_cash_') || id.startsWith('delta_') || name.includes('(amex)') || name.includes('american express')) return "American Express";
+  if (id.startsWith('chase_')) return "Chase";
+  if (id.startsWith('boa_')) return "Bank of America";
+  if (id.startsWith('capital_one_')) return "Capital One";
+  if (id.startsWith('citi_')) return "Citi";
+  if (id.startsWith('usb_')) return "U.S. Bank";
+  if (id.startsWith('marriott_')) return "Marriott";
+  if (id.startsWith('hilton_')) return "Hilton";
+  
+  return "Other";
+}
 
 export default function OnboardingCardSelectScreen() {
   const router = useRouter();
@@ -81,16 +72,13 @@ export default function OnboardingCardSelectScreen() {
       }
       setIsHeaderGloballyHidden(false);
 
-      return () => {
-      };
+      return () => {};
     }, [route.name, setStep, setIsHeaderGloballyHidden])
   );
 
   const selectedCardIds = useMemo(() => new Set(selectedCards), [selectedCards]);
-  const [firstCardAdded, setFirstCardAdded] = useState(false);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
 
-  // Get the header text based on selected cards
   const headerText = useMemo(() => {
     const count = selectedCardIds.size;
     return count > 0 ? `Select Cards (${count} selected)` : 'Select Cards';
@@ -136,60 +124,60 @@ export default function OnboardingCardSelectScreen() {
   };
 
   const handleSkip = () => {
-    // Clear any selections just in case, then navigate
     setSelectedCards([]);
     router.push('/(onboarding)/onboarding-complete');
   };
 
   const groupedCards = useMemo(() => {
-    // 1. Group all cards by their issuer name.
-    const issuerCardMap: { [key: string]: Card[] } = {};
-    allCards.forEach(card => {
-      const issuerKey = card.id.split('_')[0];
-      const issuerName = ISSUER_NAME_MAP[issuerKey] || issuerKey;
-      if (!issuerCardMap[issuerName]) {
-        issuerCardMap[issuerName] = [];
+    const frequentlyOwnedIdsSet = new Set(FREQUENTLY_OWNED_IDS);
+    
+    const frequentlyOwned = FREQUENTLY_OWNED_IDS
+      .map(id => allCards.find(c => c.id === id))
+      .filter((c): c is Card => c !== undefined);
+    
+    const remainingCards = allCards.filter(c => !frequentlyOwnedIdsSet.has(c.id));
+    
+    const allRemainingGroups: { [key: string]: Card[] } = {};
+    remainingCards.forEach(card => {
+      const issuer = getIssuer(card);
+      if (!allRemainingGroups[issuer]) {
+        allRemainingGroups[issuer] = [];
       }
-      issuerCardMap[issuerName].push(card);
+      allRemainingGroups[issuer].push(card);
     });
 
-    // 2. Separate multi-card issuers from single-card issuers.
-    const multiCardIssuers: { [key: string]: Card[] } = {};
-    const otherIssuers: Card[] = [];
-    for (const issuerName in issuerCardMap) {
-      if (issuerCardMap[issuerName].length > 1) {
-        multiCardIssuers[issuerName] = issuerCardMap[issuerName];
-      } else {
-        otherIssuers.push(...issuerCardMap[issuerName]);
-      }
-    }
+    const allCardsByIssuer: { [key: string]: Card[] } = {};
+    const mainIssuerSet = new Set(ISSUER_ORDER);
+    const otherIssuersList: Card[] = [];
+    const nonMainMultiCardIssuers: { [key: string]: Card[] } = {};
 
-    // 3. Assemble the final groups in the desired order.
-    const finalGroups: { [key: string]: Card[] } = {};
-    GROUP_SORT_ORDER.forEach(groupName => {
-      if (groupName === 'Other Issuers') {
-        if (otherIssuers.length > 0) {
-          finalGroups['Other Issuers'] = otherIssuers.sort((a, b) => a.name.localeCompare(b.name));
+    for (const issuerName in allRemainingGroups) {
+        const cards = allRemainingGroups[issuerName];
+        if (mainIssuerSet.has(issuerName)) {
+            continue;
         }
-      } else if (multiCardIssuers[groupName]) {
-        const cards = multiCardIssuers[groupName];
-        if (groupName === 'American Express') {
-          // Apply custom sort for Amex
-          finalGroups[groupName] = cards.sort((a, b) => {
-            const indexA = AMEX_SORT_ORDER.indexOf(a.id);
-            const indexB = AMEX_SORT_ORDER.indexOf(b.id);
-            if (indexA === -1) return 1; // Put unsorted items at the end
-            if (indexB === -1) return -1;
-            return indexA - indexB;
-          });
+        if (cards.length > 1) {
+            nonMainMultiCardIssuers[issuerName] = cards;
         } else {
-          // Default sort for other multi-card groups
-          finalGroups[groupName] = cards.sort((a, b) => a.name.localeCompare(b.name));
+            otherIssuersList.push(...cards);
         }
-      }
+    }
+    
+    ISSUER_ORDER.forEach(issuerName => {
+        if (allRemainingGroups[issuerName]) {
+            allCardsByIssuer[issuerName] = allRemainingGroups[issuerName].sort((a,b) => a.name.localeCompare(b.name));
+        }
     });
-
-    return finalGroups;
+    
+    Object.keys(nonMainMultiCardIssuers).sort().forEach(issuerName => {
+        allCardsByIssuer[issuerName] = nonMainMultiCardIssuers[issuerName].sort((a,b) => a.name.localeCompare(b.name));
+    });
+    
+    if (otherIssuersList.length > 0) {
+        allCardsByIssuer["Other Issuers"] = otherIssuersList.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    
+    return { frequentlyOwned, allCardsByIssuer };
   }, []);
 
   const subtitleAnimationDelay = 50;
@@ -198,7 +186,7 @@ export default function OnboardingCardSelectScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.headerContentContainer}> 
+      <View style={styles.headerContentContainer}>
         <MotiView
           from={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -217,7 +205,7 @@ export default function OnboardingCardSelectScreen() {
           transition={{ type: 'timing', duration: 150, delay: subtitleAnimationDelay }}
         >
           <Text style={styles.subtitle}>
-            Choose the credit cards you own. You can add more later. 
+            Choose the credit cards you own. You can add more later.
           </Text>
         </MotiView>
       </View>
@@ -226,38 +214,55 @@ export default function OnboardingCardSelectScreen() {
         from={{ opacity: 0, translateY: 12 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 200, delay: listAnimationDelay }}
-        style={{flex: 1}}
+        style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {Object.entries(groupedCards).map(([issuerName, cards]) => (
-            <View key={issuerName} style={styles.issuerGroup}>
-              <Text style={styles.issuerName}>{issuerName}</Text>
-              {cards.map(card => (
-                <CardRow
-                  key={card.id}
-                  card={card}
-                  isSelected={selectedCardIds.has(card.id)}
-                  onPress={handleToggleCard}
-                  mode="onboard"
-                  cardScaleAnim={getScaleValue(card.id)}
-                />
-              ))}
-            </View>
-          ))}
+          <View style={styles.issuerGroup}>
+            <Text style={styles.issuerName}>Frequently Owned</Text>
+            {groupedCards.frequentlyOwned.map(card => (
+              <CardRow
+                key={card.id}
+                card={card}
+                isSelected={selectedCardIds.has(card.id)}
+                onPress={handleToggleCard}
+                mode="onboard"
+                cardScaleAnim={getScaleValue(card.id)}
+              />
+            ))}
+          </View>
+          
+          <View style={styles.issuerGroup}>
+            <Text style={styles.issuerName}>All Cards by Issuer</Text>
+            {Object.entries(groupedCards.allCardsByIssuer).map(([issuerName, cards]) => (
+              <View key={issuerName} style={styles.subIssuerGroup}>
+                <Text style={styles.subIssuerName}>{issuerName}</Text>
+                {cards.map(card => (
+                  <CardRow
+                    key={card.id}
+                    card={card}
+                    isSelected={selectedCardIds.has(card.id)}
+                    onPress={handleToggleCard}
+                    mode="onboard"
+                    cardScaleAnim={getScaleValue(card.id)}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
         </ScrollView>
       </MotiView>
 
       <View style={styles.footer}>
         {selectedCardIds.size > 0 ? (
-          <TouchableOpacity 
-            style={styles.nextButton} 
+          <TouchableOpacity
+            style={styles.nextButton}
             onPress={handleNext}
           >
             <Text style={styles.nextButtonText}>Next</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity 
-            style={[styles.nextButton, styles.skipButton]} 
+          <TouchableOpacity
+            style={[styles.nextButton, styles.skipButton]}
             onPress={handleSkip}
           >
             <Text style={[styles.nextButtonText, styles.skipButtonText]}>Skip for now</Text>
@@ -298,7 +303,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   scrollContent: {
-    paddingBottom: 20, 
+    paddingBottom: 20,
   },
   issuerGroup: {
     marginBottom: 16,
@@ -306,6 +311,17 @@ const styles = StyleSheet.create({
   issuerName: {
     fontSize: 18,
     fontWeight: '600',
+    color: Colors.light.text,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  subIssuerGroup: {
+    marginBottom: 16,
+    paddingLeft: 20,
+  },
+  subIssuerName: {
+    fontSize: 16,
+    fontWeight: '500',
     color: Colors.light.text,
     paddingHorizontal: 20,
     marginBottom: 8,
@@ -324,13 +340,13 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
-    shadowOffset: {width:0, height:2},
+    shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
   nextButtonDisabled: {
     backgroundColor: Colors.light.icon,
     opacity: 0.5,
-    shadowOpacity: 0, 
+    shadowOpacity: 0,
     elevation: 0,
   },
   skipButton: {
