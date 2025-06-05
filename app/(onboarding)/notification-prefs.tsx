@@ -65,39 +65,54 @@ export default function OnboardingNotificationPrefsScreen() {
     router.push('/(onboarding)/onboarding-complete'); 
   };
 
-  const perkExpiryToggles: ToggleProps[] = notificationPrefs.perkExpiryRemindersEnabled ? [
-    { label: "1 day before", value: notificationPrefs.remind1DayBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind1DayBeforeMonthly: value })) },
-    { label: "3 days before", value: notificationPrefs.remind3DaysBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind3DaysBeforeMonthly: value })) },
-    { label: "7 days before", value: notificationPrefs.remind7DaysBeforeMonthly, onValueChange: (value) => setNotificationPrefs(p => ({ ...p, remind7DaysBeforeMonthly: value })) },
-  ] : [];
-
-  const showCardRenewalSection = true; // Always show the section, but might be disabled.
-
   const allNotificationItems = useMemo(() => {
     const baseItems = [
-      { iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, title: "Perk Expiry Reminders", toggles: perkExpiryToggles, iconColor: "#FF9500" },
-      { iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, title: "Monthly Reset Alerts", details: ["1st of every month"], iconColor: "#007AFF" },
+      { 
+        iconName: "alarm-outline" as keyof typeof Ionicons.glyphMap, 
+        title: "Perk Expiry Reminders", 
+        toggles: [
+          {
+            label: "Enable Perk Expiry Reminders",
+            value: notificationPrefs.perkExpiryRemindersEnabled,
+            onValueChange: (value: boolean) => setNotificationPrefs(p => ({
+              ...p,
+              perkExpiryRemindersEnabled: value,
+              // Set sub-preferences automatically during onboarding for simplicity
+              remind1DayBeforeMonthly: value,
+              remind3DaysBeforeMonthly: value,
+              remind7DaysBeforeMonthly: value,
+            })),
+          },
+        ],
+        details: ["You can customize reminders for specific perks later in Settings."],
+        iconColor: "#FF9500" 
+      },
+      { 
+        iconName: "sync-circle-outline" as keyof typeof Ionicons.glyphMap, 
+        title: "Monthly Reset Alerts", 
+        iconColor: "#007AFF" 
+      },
     ];
 
-    if (showCardRenewalSection) {
-      const renewalItem = {
-        iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap,
-        title: "Card Renewal Reminder",
-        details: anyRenewalDateActuallySet 
-          ? ["For cards with set anniversary dates"] 
-          : ["Set a card's renewal date to enable this reminder."],
-        iconColor: anyRenewalDateActuallySet ? "#34C759" : Colors.light.icon, // Dim icon if not enabled
-        dimmed: !anyRenewalDateActuallySet, // Pass dimmed prop
-      };
-      // Insert renewal item before Monthly Reset Alerts
-      return [
-        baseItems[0], // Perk Expiry
-        renewalItem,  // Card Renewal
-        baseItems[1], // Monthly Reset
-      ];
-    }
-    return baseItems;
-  }, [anyRenewalDateActuallySet, notificationPrefs]);
+    const renewalItem = {
+      iconName: "calendar-outline" as keyof typeof Ionicons.glyphMap,
+      title: "Card Renewal Reminder",
+      details: anyRenewalDateActuallySet 
+        ? ["Helps you evaluate a card's value before the next annual fee."] 
+        : ["Set a card's renewal date to enable this reminder."],
+      toggles: anyRenewalDateActuallySet ? [
+        {
+          label: "Enable Renewal Reminders",
+          value: notificationPrefs.renewalRemindersEnabled,
+          onValueChange: (value: boolean) => setNotificationPrefs(p => ({ ...p, renewalRemindersEnabled: value })),
+        }
+      ] : undefined,
+      iconColor: anyRenewalDateActuallySet ? "#34C759" : Colors.light.icon,
+      dimmed: !anyRenewalDateActuallySet,
+    };
+    
+    return [baseItems[0], renewalItem, baseItems[1]];
+  }, [anyRenewalDateActuallySet, notificationPrefs, setNotificationPrefs]);
   
   // Animation timings
   const contentSlideInDelay = 200;
