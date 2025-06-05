@@ -26,7 +26,7 @@ export interface ExpandableCardProps {
   perks: CardPerk[];
   cumulativeSavedValue: number;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
-  onExpandChange?: (cardId: string, isExpanded: boolean) => void;
+  onExpandChange?: (cardId: string, isExpanded: boolean, index: number) => void;
   onPerkStatusChange?: () => void;
   setPerkStatus?: (cardId: string, perkId: string, status: 'available' | 'redeemed') => void;
   isActive?: boolean;
@@ -95,9 +95,9 @@ const ExpandableCardComponent = ({
   React.useEffect(() => {
     if (isActive && !isExpanded) {
       setIsExpanded(true);
-      onExpandChange?.(card.id, true);
+      onExpandChange?.(card.id, true, sortIndex);
     }
-  }, [isActive, isExpanded, card.id, onExpandChange]);
+  }, [isActive, isExpanded, card.id, onExpandChange, sortIndex]);
 
   const cardNetworkColor = useMemo(() => {
     switch (card.network?.toLowerCase()) {
@@ -147,7 +147,7 @@ const ExpandableCardComponent = ({
   const handleExpand = () => {
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
-    onExpandChange?.(card.id, newExpandedState);
+    onExpandChange?.(card.id, newExpandedState, sortIndex);
     Object.values(swipeableRefs.current).forEach(ref => ref?.close());
   };
 

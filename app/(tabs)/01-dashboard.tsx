@@ -183,6 +183,7 @@ export default function Dashboard() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
   const [selectedCardIdForModal, setSelectedCardIdForModal] = useState<string | null>(null);
+  const [listHeaderHeight, setListHeaderHeight] = useState(0);
 
   // Coach Mark State
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
@@ -325,7 +326,7 @@ export default function Dashboard() {
   }, []);
 
   // Determine if coach mark should be shown
-  useEffect(() => {
+  /* useEffect(() => {
     const hasActionableMonthlyPerks = processedCardsFromPerkStatus.some(cardData => 
       cardData.perks.some(perk => perk.status === 'available' && perk.periodMonths === 1)
     );
@@ -335,7 +336,7 @@ export default function Dashboard() {
     } else {
       setShouldShowSwipeCoachMark(false);
     }
-  }, [isUserCardsInitialLoading, userHasSeenSwipeHint, processedCardsFromPerkStatus]);
+  }, [isUserCardsInitialLoading, userHasSeenSwipeHint, processedCardsFromPerkStatus]); */
 
   const handleDismissSwipeCoachMark = async () => {
     try {
@@ -675,10 +676,30 @@ export default function Dashboard() {
     }
   };
 
-  const handleCardExpandChange = useCallback((cardId: string, isExpanded: boolean) => {
-    console.log(`[Dashboard] handleCardExpandChange: cardId=${cardId}, isExpanded=${isExpanded}`);
+  const handleCardExpandChange = useCallback((cardId: string, isExpanded: boolean, index: number) => {
+    console.log(`[Dashboard] handleCardExpandChange: cardId=${cardId}, isExpanded=${isExpanded}, index=${index}`);
     setActiveCardId(isExpanded ? cardId : null);
-  }, [setActiveCardId]);
+
+    if (isExpanded) {
+      // Scroll the list to the item that was expanded
+      flatListRef.current?.scrollToIndex({
+        animated: true,
+        index,
+        viewPosition: 0.15, // Tries to position the item 10% from the top of the visible area
+      });
+
+      // Check if the expanded card has any monthly perks to be swiped
+      const cardData = processedCardsFromPerkStatus.find(c => c.card.id === cardId);
+      const hasMonthlyPerks = cardData?.perks.some(p => p.periodMonths === 1);
+
+      if (hasMonthlyPerks) {
+        // Delay showing the coach mark to allow scroll to finish
+        setTimeout(() => {
+          setShouldShowSwipeCoachMark(true);
+        }, 400); // 400ms delay should be enough for scroll animation
+      }
+    }
+  }, [setActiveCardId, processedCardsFromPerkStatus]);
 
   const handlePerkStatusChange = useCallback(() => {
     refreshSavings(); // Recalculate aggregates and savings
@@ -718,7 +739,13 @@ export default function Dashboard() {
   const listHeaderElement = useMemo(() => {
     console.log("DEBUG: Dashboard listHeaderElement useMemo. Pill content:", headerPillContent ? 'Exists' : 'null');
     return (
-      <>
+      <View onLayout={(event) => {
+        const { height } = event.nativeEvent.layout;
+        if (height > 0 && height !== listHeaderHeight) {
+          // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setListHeaderHeight(height);
+        }
+      }}>
         {headerPillContent && (
           <ActionHintPill 
             perk={headerPillContent} 
@@ -739,7 +766,7 @@ export default function Dashboard() {
         <View style={styles.cardsSectionHeader}>
           <Text style={styles.sectionTitle}>Your Cards</Text>
         </View>
-      </>
+      </View>
     );
   }, [
     headerPillContent, 
@@ -748,7 +775,8 @@ export default function Dashboard() {
     userCardsWithPerks, 
     periodAggregates, 
     redeemedInCurrentCycle, 
-    uniquePerkPeriodsForToggle
+    uniquePerkPeriodsForToggle,
+    listHeaderHeight
   ]);
 
   const renderListFooter = useCallback(() => {
@@ -763,47 +791,15 @@ export default function Dashboard() {
             onToggleExpanded={() => setIsCardListExpanded(!isCardListExpanded)}
           />
         )}
-
-          {/* Swipe Coach Mark - Conditionally render if cards exist */}
-          {sortedCards.length > 0 && <SwipeCoachMark 
-            visible={shouldShowSwipeCoachMark}
-            onDismiss={handleDismissSwipeCoachMark}
-          />}
-
-          {/* DEV Date Picker */}
-          <View style={styles.devSection}>
-            <TouchableOpacity
-              onPress={() => setShowDatePickerForDev(true)}
-              style={styles.devButton}
-            >
-              <Text style={styles.devButtonText}>DEV: Set Current Date & Process Month</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleResetSwipeHint}
-              style={[styles.devButton, { marginTop: 32 }]}
-            >
-              <Text style={styles.devButtonText}>DEV: Reset Swipe Coach Mark</Text>
-            </TouchableOpacity>
-
-            {showDatePickerForDev && (
-              <DateTimePicker
-                testID="dateTimePickerForDev"
-                value={devSelectedDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDevDateChange}
-                {...(Platform.OS === 'ios' && { textColor: Colors.light.text })}
-              />
-            )}
-        </View>
       </>
     );
-  }, [sortedCards, cardsListData, isCardListExpanded, shouldShowSwipeCoachMark, handleDismissSwipeCoachMark, showDatePickerForDev, devSelectedDate]);
+  }, [sortedCards, cardsListData, isCardListExpanded]);
 
   // Only show full-screen loader on the very first load of user cards.
   // Subsequent refreshes (isUserCardsRefreshing) or savings calculations (isCalculatingSavings)
   // will happen in the background without a full-screen loader.
+  const coachMarkTopOffset = COLLAPSED_HEADER_HEIGHT + 250; // Position below the collapsed header and card header
+
   if (isUserCardsInitialLoading) { // Check only the initial loading state from useUserCards
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -939,6 +935,15 @@ export default function Dashboard() {
           onMarkRedeemed={handleMarkRedeemed}
           onMarkAvailable={handleMarkAvailable}
         />
+
+        {/* Swipe Coach Mark */}
+        {shouldShowSwipeCoachMark && coachMarkTopOffset > 0 && (
+          <SwipeCoachMark 
+            visible={shouldShowSwipeCoachMark}
+            onDismiss={handleDismissSwipeCoachMark}
+            topOffset={coachMarkTopOffset}
+          />
+        )}
       </View>
     </SafeAreaView>
   );

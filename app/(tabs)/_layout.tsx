@@ -75,10 +75,10 @@ export default function TabLayout() {
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: '#FAFAFE' }}>
       <StatusBar 
         style={barStyle} 
-        backgroundColor="transparent" 
+        backgroundColor="#FAFAFE" 
         translucent={true} 
       />
       <AuthGuard>
@@ -88,8 +88,8 @@ export default function TabLayout() {
             headerShown: false,
             tabBarStyle: Platform.select({
               ios: {
-                backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                borderTopColor: 'rgba(0, 0, 0, 0.2)',
+                backgroundColor: '#FAFAFE',
+                borderTopColor: 'rgba(0, 0, 0, 0.1)',
                 height: 83,
                 position: 'absolute',
                 bottom: 0,
@@ -99,7 +99,7 @@ export default function TabLayout() {
                 paddingTop: 8,
               },
               android: {
-                backgroundColor: '#ffffff',
+                backgroundColor: '#FAFAFE',
                 borderTopColor: '#e0e0e0',
                 height: 56,
                 paddingBottom: 0,
@@ -158,7 +158,7 @@ export default function TabLayout() {
           />
         </Tabs>
       </AuthGuard>
-    </>
+    </View>
   );
 }
 
