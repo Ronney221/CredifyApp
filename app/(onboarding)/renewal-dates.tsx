@@ -173,7 +173,6 @@ export default function OnboardingRenewalDatesScreen() {
         onConfirm={handleConfirmDate}
         onCancel={hideDatePicker}
         date={currentCardIdForPicker ? renewalDates.get(currentCardIdForPicker)?.date || new Date() : new Date()}
-        maximumDate={new Date()}
       />
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
