@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect, Link } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import LottieView from 'lottie-react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { height } = Dimensions.get('window');
 
@@ -74,7 +75,7 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (!loading && user) {
-      console.log('User session found, redirecting to onboarding.');
+      console.log('User session found, redirecting to onboarding for testing.');
       router.replace('/(onboarding)/card-select');
     }
     // If !loading && !user, the WelcomeScreen UI (auth options) is shown.
@@ -163,7 +164,10 @@ export default function WelcomeScreen() {
             Your Credit Card Companion
           </Text>
           <Text style={[Typography.body, styles.description]}>
-            Track, redeem, and maximize all your credit-card benefits in one place.
+            Track, redeem, and maximize your benefits.
+          </Text>
+          <Text style={[Typography.body, styles.description, { marginTop: 4 }]}>
+            All in one place.
           </Text>
         </View>
 
@@ -184,14 +188,33 @@ export default function WelcomeScreen() {
 
         <View style={styles.bottomSection}>
           <TouchableOpacity 
-            style={styles.continueButton} 
-            onPress={handleContinue}
+            style={styles.socialButton} 
+            onPress={() => signInGoogle()}
             activeOpacity={0.8}
           >
-            <Text style={[Typography.headline, styles.continueButtonText]}>
-              Get Started
+            <Ionicons name="logo-google" size={20} color="#4285f4" />
+            <Text style={[Typography.headline, styles.socialButtonText]}>
+              Continue with Google
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.socialButton, styles.disabledButton]} 
+            onPress={() => Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.')}
+            activeOpacity={0.8}
+            disabled={true}
+          >
+            <Ionicons name="logo-apple" size={20} color="#999" />
+            <Text style={[Typography.headline, styles.socialButtonText, styles.disabledText]}>
+              Continue with Apple
+            </Text>
+          </TouchableOpacity>
+          {/* <TouchableOpacity
+            style={styles.emailButton}
+            onPress={() => router.push('/(auth)/login')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.emailButtonText}>Continue with email</Text>
+          </TouchableOpacity> */}
 
           <View style={styles.termsContainer}>
             <Text 
@@ -264,38 +287,60 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     maxWidth: 300,
-    marginBottom: 24, // Multiple of 8 (3x8)
   },
   lottieAnimation: {
     width: '100%',
     aspectRatio: 1,
     transform: [{ scale: 0.8 }],
   },
-  continueButton: {
-    backgroundColor: '#007aff',
-    paddingVertical: 16, // Multiple of 8 (2x8)
-    borderRadius: 12, // Multiple of 8 (1.5x8) -> 12
+  socialButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16, // Multiple of 8 (2x8)
-    shadowColor: '#007aff',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8, // Base unit
-    elevation: 4,
-    alignSelf: 'stretch', // Make button full-width
-    marginHorizontal: 16, // 16pt side margins
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    alignSelf: 'stretch',
+    marginHorizontal: 16,
   },
-  continueButtonText: {
-    color: '#ffffff',
+  socialButtonText: {
+    color: '#1c1c1e',
+    marginLeft: 12,
+  },
+  disabledButton: {
+    backgroundColor: '#f2f2f2',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  disabledText: {
+    color: '#999',
+  },
+  emailButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 24, // Increased bottom margin for more space
+  },
+  emailButtonText: {
+    color: '#007aff',
+    fontSize: 16,
+    fontWeight: '500',
   },
   termsContainer: {
     paddingHorizontal: 16, // Multiple of 8 (2x8)
+    marginBottom: 16, // Added margin to push terms up a bit
   },
   termsText: {
     color: '#8e8e93',
     textAlign: 'center',
     lineHeight: 18,
     fontSize: Platform.OS === 'ios' ? 11 : 12,
+    opacity: 0.6,
   },
   termsLink: {
     color: '#007aff',
