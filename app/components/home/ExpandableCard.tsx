@@ -89,6 +89,7 @@ const ExpandableCardComponent = ({
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showUndoHint, setShowUndoHint] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
+  const [autoRedeemUpdateKey, setAutoRedeemUpdateKey] = useState(0);
   const { user } = useAuth();
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
@@ -476,6 +477,15 @@ const ExpandableCardComponent = ({
 
                     // Refresh all relevant data
                     await refreshAutoRedemptions();
+
+                    // If we just enabled auto-redeem on an already-redeemed perk, its status prop didn't change,
+                    // so a re-render isn't guaranteed if the parent is memoized.
+                    // The hook's context has updated, but we need to ensure this component re-renders 
+                    // to see the change in its child (PerkRow). Forcing a local state update achieves this.
+                    if (perk.status === 'redeemed') {
+                      setAutoRedeemUpdateKey(k => k + 1);
+                    }
+                    
                     onPerkStatusChange?.();
                     
                     Alert.alert('Success', `Auto-redemption enabled for "${perk.name}"!\n\nIt has been marked as redeemed for this month and will be automatically redeemed each month going forward.`);
@@ -559,10 +569,13 @@ const ExpandableCardComponent = ({
     );
   };
 
-  const renderPerkRow = (perk: CardPerk, isAvailable: boolean) => (
+  const renderPerkRow = (perk: CardPerk, isAvailable: boolean) => {
+    const isAutoRedeemed = perk.periodMonths === 1 && !!getAutoRedemptionByPerkName(perk.name);
+    return (
     <PerkRow
       key={perk.id}
       perk={perk}
+      isAutoRedeemed={isAutoRedeemed}
       isFirstAvailablePerk={isAvailable && perk.id === firstAvailablePerkId}
       showSwipeHint={isAvailable && showSwipeHint}
       isFirstRedeemedPerk={!isAvailable && perk.id === firstRedeemedPerkId}
@@ -591,10 +604,11 @@ const ExpandableCardComponent = ({
           executePerkAction(perk, 'available');
         }
       }}
-      renderLeftActions={() => renderLeftActions(perk)}
-      renderRightActions={() => renderRightActions(perk)}
+      renderLeftActions={isAvailable ? () => renderLeftActions(perk) : undefined}
+      renderRightActions={!isAvailable ? () => renderRightActions(perk) : undefined}
     />
-  );
+    );
+  };
 
   return (
     <Reanimated.View 
@@ -621,18 +635,20 @@ const ExpandableCardComponent = ({
           style={styles.perksListContainer} 
           layout={Layout.springify().duration(300)}
         >
-          {perks.filter(p => p.status === 'available').length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Available Perks</Text>
-              {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
-            </>
-          )}
-          {perks.filter(p => p.status === 'redeemed').length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-              {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
-            </>
-          )}
+          <View style={styles.perksGroupContainer}>
+            {perks.filter(p => p.status === 'available').length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Available Perks</Text>
+                {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
+              </>
+            )}
+            {perks.filter(p => p.status === 'redeemed').length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Redeemed Perks</Text>
+                {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
+              </>
+            )}
+          </View>
         </Reanimated.View>
       )}
     </Reanimated.View>
@@ -682,20 +698,20 @@ export default React.memo(ExpandableCardComponent, areEqual);
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginHorizontal: 16,
-    marginVertical: 8,
+    marginVertical: 6,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 4,
+        elevation: 2,
       },
     }),
   },
@@ -710,18 +726,36 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 8,
+        elevation: 4,
       },
     }),
   },
   perksListContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 0,
+    paddingBottom: 8,
+  },
+  perksGroupContainer: {
+    backgroundColor: '#F7F7F7',
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 12,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0,0,0,0.1)',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   leftAction: {
     backgroundColor: '#34c759',

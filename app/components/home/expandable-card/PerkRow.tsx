@@ -4,7 +4,6 @@ import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { CardPerk } from '../../../../src/data/card-data';
-import { useAutoRedemptions } from '../../../hooks/useAutoRedemptions';
 
 const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
 const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
@@ -12,6 +11,7 @@ const AUTO_REDEEM_CHEVRON = '#C4B2DE';   // Lighter purple for chevron
 
 interface PerkRowProps {
   perk: CardPerk;
+  isAutoRedeemed: boolean;
   isFirstAvailablePerk: boolean;
   showSwipeHint: boolean;
   animatedNudgeStyle: any;
@@ -23,12 +23,13 @@ interface PerkRowProps {
   onSwipeableWillOpen: (direction: 'left' | 'right') => void;
   onSwipeableOpen: (direction: 'left' | 'right') => void;
   setSwipeableRef: (ref: Swipeable | null) => void;
-  renderLeftActions: () => React.ReactNode;
-  renderRightActions: () => React.ReactNode;
+  renderLeftActions?: () => React.ReactNode;
+  renderRightActions?: () => React.ReactNode;
 }
 
 const PerkRow: React.FC<PerkRowProps> = ({
   perk,
+  isAutoRedeemed,
   isFirstAvailablePerk,
   showSwipeHint,
   animatedNudgeStyle,
@@ -43,9 +44,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
   renderLeftActions,
   renderRightActions,
 }) => {
-  const { getAutoRedemptionByPerkName } = useAutoRedemptions();
   const isRedeemed = perk.status === 'redeemed';
-  const isAutoRedeemed = perk.periodMonths === 1 && getAutoRedemptionByPerkName(perk.name);
   
   const shouldShowRedeemHintOnThisPerk = showSwipeHint && isFirstAvailablePerk;
   const shouldShowUndoHintOnThisPerk = showUndoHint && isFirstRedeemedPerk;
@@ -145,8 +144,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
                   style={[styles.inlineHintContainer, animatedUndoNudgeStyle]}
                   accessibilityRole="text"
                 >
-                  <Text style={[styles.inlineHintText, { color: '#8E8E93' }]}>Swipe ← Undo</Text>
-                  <Ionicons name="hand-right-outline" size={16} color="#8E8E93" style={{ marginLeft: 6, marginRight: 0 }}/>
+                  <Text style={styles.inlineHintText}>Swipe ← Undo</Text>
+                  <Ionicons name="hand-right-outline" size={16} color="#007AFF" style={{ marginLeft: 6, marginRight: 0 }}/>
                 </Reanimated.View>
               )}
             </View>
@@ -184,6 +183,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     position: 'relative',
     borderRadius: 16,
+    overflow: 'hidden',
   },
   perkContainerAvailable: {
     backgroundColor: '#FFFFFF',

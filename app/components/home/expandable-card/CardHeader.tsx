@@ -109,7 +109,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
     backgroundColor: 'rgba(248, 248, 248, 0.7)',
   },
   activeCardHeader: {
@@ -121,17 +123,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardImageWrapper: {
-    width: 48,
-    height: 32,
-    borderRadius: 4,
+    width: 60,
+    height: 40,
+    borderRadius: 6,
     marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   cardImage: {
-    width: '90%',
-    height: '90%',
+    width: '100%',
+    height: '100%',
     resizeMode: 'contain',
   },
   cardTextContainer: {
@@ -141,7 +145,7 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1c1c1e',
+    color: '#1F2937',
     marginBottom: 2,
   },
   cardSubtitle: {
@@ -151,13 +155,13 @@ const styles = StyleSheet.create({
   },
   subtitleText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B7280',
     fontWeight: '500',
     flexShrink: 1,
     marginRight: 4,
   },
   subtitleDivider: {
-    color: '#666',
+    color: '#6B7280',
     fontWeight: '400',
   },
   savedValueText: {

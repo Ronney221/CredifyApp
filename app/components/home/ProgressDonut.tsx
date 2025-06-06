@@ -160,11 +160,12 @@ export default function ProgressDonut({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginTop: 28,
+    marginBottom: 12,
   },
   amount: {
-    fontSize: 34,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '600',
     color: '#000',
     textAlign: 'center',
     letterSpacing: 0.41,
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#3C3C4399',
     marginTop: 4,
-    marginBottom: 20,
+    marginBottom: 12,
     textAlign: 'center',
     letterSpacing: -0.41,
   },
