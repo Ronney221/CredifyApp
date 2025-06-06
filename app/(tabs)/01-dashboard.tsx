@@ -666,12 +666,14 @@ export default function Dashboard() {
     setActiveCardId(isExpanded ? cardId : null);
 
     if (isExpanded) {
-      // Scroll the list to the item that was expanded
-      flatListRef.current?.scrollToIndex({
-        animated: true,
-        index,
-        viewPosition: 0.15, // Tries to position the item 15% from the top of the visible area
-      });
+      // We use a timeout to ensure the scroll happens *after* the card's expand animation (300ms) has finished.
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          animated: true,
+          index,
+          viewPosition: 0, // Scrolls the item to the top of the list view
+        });
+      }, 350);
     }
   }, [setActiveCardId]);
 
