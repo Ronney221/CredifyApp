@@ -10,9 +10,15 @@ interface CardRoiLeaderboardProps {
 
 const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => {
   const clampedProgress = Math.max(0, Math.min(100, progress));
+  const isFeeCovered = progress >= 100;
+
   return (
     <View style={styles.progressBarContainer}>
-      <View style={[styles.progressBarFill, { width: `${clampedProgress}%` }]} />
+      <View style={[
+        styles.progressBarFill, 
+        { width: `${clampedProgress}%` },
+        isFeeCovered ? styles.progressGreen : styles.progressBlue,
+      ]} />
     </View>
   );
 };
@@ -126,8 +132,13 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: Colors.light.tint,
     borderRadius: 3,
+  },
+  progressBlue: {
+    backgroundColor: Colors.light.tint,
+  },
+  progressGreen: {
+    backgroundColor: '#34C759', // A clear success green
   },
 });
 

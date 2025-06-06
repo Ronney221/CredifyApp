@@ -23,6 +23,7 @@ export interface MonthlyRedemptionSummary {
   cardFeesProportion: number; // For calculating "on pace for annual fee"
   allMonthlyPerksRedeemedThisMonth: boolean;
   coverageTrend: number[]; // Added for sparkline
+  isEven?: boolean; // For alternating row colors
 }
 
 export interface Achievement {

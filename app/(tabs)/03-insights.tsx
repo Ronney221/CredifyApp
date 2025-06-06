@@ -119,9 +119,10 @@ interface MonthSummaryCardProps {
   onToggleExpand: () => void;
   perkStatusFilter: PerkStatusFilter;
   isFirstOverallCard: boolean;
+  isEven: boolean;
 }
 
-const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded, onToggleExpand, perkStatusFilter, isFirstOverallCard }) => {
+const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded, onToggleExpand, perkStatusFilter, isFirstOverallCard, isEven }) => {
   const feeCoveragePercentage = summary.cardFeesProportion > 0 
     ? (summary.totalRedeemedValue / summary.cardFeesProportion) * 100 
     : 0;
@@ -140,9 +141,11 @@ const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded
     return summary.perkDetails.filter(perk => perk.status === perkStatusFilter);
   }, [summary.perkDetails, perkStatusFilter]);
 
+  const showCelebratoryEmptyState = perkStatusFilter !== 'all' && filteredPerkDetails.length === 0;
+
   return (
     <Pressable onPress={onToggleExpand} hitSlop={{top:8,left:8,right:8,bottom:8}}>
-      <View style={styles.monthCard}>
+      <View style={[styles.monthCard, isEven ? styles.monthCardAltBackground : null]}>
         <View style={styles.monthCardHeader}>
           <View style={styles.monthCardInfo}>
             <Text style={styles.monthYearText}>{summary.monthYear}</Text>
@@ -164,7 +167,6 @@ const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded
                 displayTextType={isFirstOverallCard ? 'full' : 'percentage_only'}
               />
             )}
-            <Sparkline data={summary.coverageTrend} height={30} width={80} color={Colors.light.tint} />
             <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
               <Ionicons name="chevron-down" size={24} color={Colors.light.text} />
             </Animated.View>
@@ -173,7 +175,14 @@ const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded
 
         {isExpanded && (
           <Animated.View layout={Layout.springify()} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.perkDetailsContainer}>
-            {filteredPerkDetails.length > 0 ? filteredPerkDetails.map(perk => (
+            {showCelebratoryEmptyState ? (
+              <View style={styles.celebratoryEmptyState}>
+                <Text style={styles.celebratoryEmoji}>🎉</Text>
+                <Text style={styles.celebratoryText}>
+                  Nice! You didn't miss any perks for this filter.
+                </Text>
+              </View>
+            ) : filteredPerkDetails.length > 0 ? filteredPerkDetails.map(perk => (
               <View key={perk.id} style={styles.perkDetailItem}>
                 <Ionicons 
                   name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
@@ -212,7 +221,7 @@ const ASYNC_STORAGE_FILTER_KEY = 'insights_filters';
 const HeatMapPlaceholder: React.FC = () => {
   return (
     <View style={[styles.placeholderModuleContainer, styles.skeletonStub]}>
-      <Text style={styles.skeletonStubText}>📅 Missed Value Heat-Map (Coming Soon!)</Text>
+      <Text style={styles.skeletonStubText}>Missed-value heat-map is cooking – track unredeemed perks by day soon!</Text>
     </View>
   );
 };
@@ -244,6 +253,16 @@ const ForecastDialPlaceholder: React.FC = () => {
     </View>
   );
 };
+
+const OnboardingHint: React.FC = () => {
+  return (
+    <Animated.View entering={FadeIn.duration(800).delay(500)} style={styles.onboardingHintContainer}>
+      <Text style={styles.onboardingHintText}>
+        This page is your receipt – every dollar you've squeezed from your cards.
+      </Text>
+    </Animated.View>
+  );
+}
 
 export default function InsightsScreen() {
   const insets = useSafeAreaInsets(); // For FAB positioning
@@ -336,6 +355,7 @@ export default function InsightsScreen() {
         onToggleExpand={() => handleToggleMonth(item.monthKey)}
         perkStatusFilter={perkStatusFilter}
         isFirstOverallCard={isFirstOverallCard}
+        isEven={index % 2 === 0}
         />
     );
   };
@@ -392,12 +412,8 @@ export default function InsightsScreen() {
           onManageFilters={() => setFilterModalVisible(true)}
         />
 
-        <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+        <OnboardingHint />
 
-        {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
-          <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
-        )}
-        
         {insightsData.yearSections.length > 0 ? (
             <SectionList<MonthlyRedemptionSummary, YearSection>
             ref={sectionListRef}
@@ -412,7 +428,15 @@ export default function InsightsScreen() {
             }}
             scrollEventThrottle={16}
             contentContainerStyle={styles.historySection}
-            ListHeaderComponent={<View style={{height: 10}}/>}
+            ListHeaderComponent={
+              <>
+                <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+                {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
+                  <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
+                )}
+                <View style={{height: 10}}/>
+              </>
+            }
             showsVerticalScrollIndicator={false}
             ListFooterComponent={() => (
               <View style={styles.placeholdersContainer}>
@@ -541,7 +565,7 @@ const styles = StyleSheet.create({
     marginTop: -5,
   },
   monthCard: {
-    backgroundColor: '#F5F7FA', 
+    backgroundColor: '#FFFFFF', 
     borderRadius: 12, 
     marginBottom: 15,
     padding: 15, 
@@ -550,6 +574,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 1, 
     shadowRadius: 10,
     elevation: 2, 
+  },
+  monthCardAltBackground: {
+    backgroundColor: '#F7F7F7',
   },
   monthCardHeader: {
     flexDirection: 'row',
@@ -767,7 +794,10 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   checkboxContainer: { // Added for alignment
-    paddingRight: 12,
+    paddingVertical: 10, // Increase vertical hitbox
+    paddingHorizontal: 12, // Increase horizontal hitbox
+    margin: -10, // Counteract padding to keep visual layout
+    marginRight: 0,
   },
   checkbox: {
     width: 22,
@@ -890,5 +920,30 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     color: Colors.light.tint,
+  },
+  celebratoryEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  celebratoryEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  celebratoryText: {
+    fontSize: 14,
+    color: Colors.light.icon,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  onboardingHintContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  onboardingHintText: {
+    fontSize: 13,
+    color: Colors.light.icon,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 }); 

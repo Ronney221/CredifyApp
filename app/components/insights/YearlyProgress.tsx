@@ -1,36 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Svg, Polyline } from 'react-native-svg';
 import { Colors } from '../../../constants/Colors';
-
-// --- Sparkline Component ---
-interface SparklineProps {
-  data: number[];
-  height: number;
-  width: number;
-  color: string;
-}
-
-const Sparkline: React.FC<SparklineProps> = ({ data, height, width, color }) => {
-  if (!data || data.length === 0) return null;
-
-  const points = data
-    .map((val, index) => {
-      const x = (index / (data.length - 1)) * width;
-      const y = height - (Math.max(0, Math.min(100, val)) / 100) * height; // Scale val 0-100 to height
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <View style={{ height, width, marginTop: 4 }}>
-      <Svg height={height} width={width}>
-        <Polyline points={points} fill="none" stroke={color} strokeWidth="1.5" />
-      </Svg>
-    </View>
-  );
-};
-
+import MiniBarChart from './MiniBarChart';
 
 // --- YearlyProgress Component ---
 interface YearlyProgressProps {
@@ -57,7 +28,7 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, to
         <View style={[styles.progressBarFill, { width: `${clampedProgress}%` }]} />
       </View>
       <View style={styles.sparklineRow}>
-        <Sparkline data={trendData} height={20} width={100} color={Colors.light.icon} />
+        <MiniBarChart data={trendData} />
         <Text style={styles.sparklineLabel}>Last 6 mo. trend</Text>
       </View>
     </View>
@@ -98,7 +69,7 @@ const styles = StyleSheet.create({
   sparklineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
     opacity: 0.8,
   },
   sparklineLabel: {
