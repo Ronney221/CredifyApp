@@ -418,7 +418,14 @@ const ExpandableCardComponent = ({
           try {
             console.log(`[ExpandableCard] Attempting to cancel auto-redemption for ${perk.name}`);
             
-            const { error } = await setAutoRedemption(user.id, cardId, perk, false);
+            // Perform both DB operations: turn off auto-redeem AND delete current redemption
+            const [autoResult, deleteResult] = await Promise.all([
+              setAutoRedemption(user.id, cardId, perk, false),
+              deletePerkRedemption(user.id, perk.definition_id)
+            ]);
+            
+            const error = autoResult.error || deleteResult.error;
+
             if (error) {
               console.error(`[ExpandableCard] Failed to disable auto-redemption for ${perk.name}:`, error);
               Alert.alert('Error', `Failed to disable auto-redemption: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -448,20 +455,23 @@ const ExpandableCardComponent = ({
                 text: 'Enable',
                 onPress: async () => {
                   try {
-                    // First set auto-redemption
+                    // Always set the auto-redemption setting first.
                     const { error: autoError } = await setAutoRedemption(user.id, cardId, perk, true);
                     if (autoError) {
                       Alert.alert('Error', 'Failed to enable auto-redemption.');
                       return;
                     }
 
-                    // Optimistically update UI to show as redeemed immediately
-                    setPerkStatus?.(card.id, perk.id, 'redeemed');
-                    
-                    // Then mark as redeemed for current month in DB
-                    const { error: redeemError } = await trackPerkRedemption(user.id, cardId, perk, perk.value);
-                    if (redeemError) {
-                      console.log('Note: Auto-redemption set but current month redemption may already exist');
+                    // If the perk was NOT already redeemed, we need to redeem it now.
+                    if (perk.status !== 'redeemed') {
+                      // Optimistically update UI
+                      setPerkStatus?.(card.id, perk.id, 'redeemed');
+                      
+                      // Mark as redeemed in DB
+                      const { error: redeemError } = await trackPerkRedemption(user.id, cardId, perk, perk.value);
+                      if (redeemError) {
+                        console.log('Note: Auto-redemption set but current month redemption may already exist', redeemError);
+                      }
                     }
 
                     // Refresh all relevant data
