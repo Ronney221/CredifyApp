@@ -258,7 +258,7 @@ const OnboardingHint: React.FC = () => {
   return (
     <Animated.View entering={FadeIn.duration(800).delay(500)} style={styles.onboardingHintContainer}>
       <Text style={styles.onboardingHintText}>
-        This page is your receipt – every dollar you've squeezed from your cards.
+        Every dollar you've squeezed from your cards this year.
       </Text>
     </Animated.View>
   );

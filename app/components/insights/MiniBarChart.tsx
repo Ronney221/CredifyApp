@@ -4,19 +4,41 @@ import { Colors } from '../../../constants/Colors';
 
 interface MiniBarChartProps {
   data: number[]; // Expects an array of 6 numbers (percentages)
+  width?: number;
+  height?: number;
+  barColor?: string;
+  barWidth?: number;
+  barSpacing?: number;
 }
 
-const MiniBarChart: React.FC<MiniBarChartProps> = ({ data }) => {
-  const maxValue = Math.max(...data, 1); // Avoid division by zero
+const MiniBarChart: React.FC<MiniBarChartProps> = ({
+  data,
+  width = 60,
+  height = 20,
+  barColor = Colors.light.tint,
+  barWidth = 4,
+  barSpacing = 3,
+}) => {
+  const maxValue = Math.max(...data, 1); // Avoid division by zero, ensure at least 1
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width, height }]}>
       {data.map((value, index) => {
-        const barHeight = (value / maxValue) * 100;
+        const barHeight = Math.max(2, (value / maxValue) * height); // Ensure a minimum height
+        const isLastBar = index === data.length - 1;
         return (
-          <View key={index} style={styles.barWrapper}>
-            <View style={[styles.bar, { height: `${barHeight}%` }]} />
-          </View>
+          <View
+            key={index}
+            style={[
+              styles.bar,
+              {
+                width: barWidth,
+                height: barHeight,
+                backgroundColor: isLastBar ? barColor : '#E5E5EA',
+                marginLeft: index > 0 ? barSpacing : 0,
+              },
+            ]}
+          />
         );
       })}
     </View>

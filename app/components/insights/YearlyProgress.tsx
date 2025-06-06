@@ -37,6 +37,7 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, to
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     paddingVertical: 15,
     paddingHorizontal: 5,
   },

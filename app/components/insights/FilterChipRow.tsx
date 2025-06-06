@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '../../../constants/Colors';
 import { PerkStatusFilter } from '../../../src/data/dummy-insights';
 
@@ -28,6 +30,11 @@ const FilterChipRow: React.FC<FilterChipRowProps> = ({
   onManageFilters,
   activeFilterCount,
 }) => {
+  const handleFilterChange = (status: PerkStatusFilter) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPerkStatusFilter(status);
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -43,7 +50,7 @@ const FilterChipRow: React.FC<FilterChipRowProps> = ({
           <TouchableOpacity
             key={status}
             style={[styles.chip, perkStatusFilter === status && styles.chipSelected]}
-            onPress={() => setPerkStatusFilter(status)}
+            onPress={() => handleFilterChange(status)}
           >
             <Text style={[styles.chipText, perkStatusFilter === status && styles.chipTextSelected]}>
               {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -51,6 +58,14 @@ const FilterChipRow: React.FC<FilterChipRowProps> = ({
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <LinearGradient
+        colors={['rgba(251, 251, 251, 0)', '#FBFCFE']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.fadeEffect}
+        pointerEvents="none"
+      />
 
       {/* Absolutely-positioned Manage icon */}
       <TouchableOpacity style={styles.manageBtn} onPress={onManageFilters}>
@@ -77,6 +92,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     paddingHorizontal: 15,
     alignItems: 'center',
+    backgroundColor: `${Colors.light.background}F2`, // Add slight transparency to blend edges
   },
   chip: {
     flexDirection: 'row',
@@ -115,6 +131,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: `${Colors.light.background}F2`, // Add slight transparency to blend edges
+  },
+  fadeEffect: {
+    position: 'absolute',
+    right: ICON_WIDTH,
+    top: 0,
+    bottom: 0,
+    width: 12,
   },
   badgeContainer: {
     position: 'absolute',
