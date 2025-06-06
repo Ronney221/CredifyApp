@@ -7,7 +7,17 @@ import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; //
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
-import ProgressDonut from '../components/home/ProgressDonut'; // Import ProgressDonut
+import YearlyProgress from '../components/insights/YearlyProgress'; // Import the new component
+import FilterChipRow from '../components/insights/FilterChipRow'; // Import the new component
+import CardRoiLeaderboard from '../components/insights/CardRoiLeaderboard'; // Import the new component
+import {
+  generateDummyInsightsData,
+  InsightsData,
+  YearSection,
+  MonthlyRedemptionSummary,
+  Achievement,
+  PerkStatusFilter,
+} from '../../src/data/dummy-insights';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -30,248 +40,7 @@ const CARD_BACKGROUND_COLOR = '#F8F8F8';
 const SEPARATOR_COLOR = '#E0E0E0';
 const SECONDARY_COLOR = '#ff9500'; // Fallback color, assuming secondary/accent are not defined in Colors.ts
 
-type PerkStatusFilter = 'all' | 'redeemed' | 'missed';
-
-interface PerkRedemptionDetail {
-  id: string;
-  name:string;
-  value: number;
-  status: 'redeemed' | 'missed';
-  period: Benefit['period'];
-}
-
-interface MonthlyRedemptionSummary {
-  monthYear: string; // e.g., "July 2024"
-  monthKey: string; // Unique key for the month, e.g., "2024-07"
-  totalRedeemedValue: number;
-  totalPotentialValue: number;
-  perksRedeemedCount: number;
-  perksMissedCount: number;
-  perkDetails: PerkRedemptionDetail[];
-  cardFeesProportion: number; // For calculating "on pace for annual fee"
-  allMonthlyPerksRedeemedThisMonth: boolean;
-  coverageTrend: number[]; // Added for sparkline
-}
-
-interface Achievement {
-  id: string;
-  emoji: string;
-  title: string;
-  description: string;
-}
-
-interface YearSection extends DefaultSectionT {
-  year: string;
-  data: MonthlyRedemptionSummary[];
-  totalRedeemedForYear: number;
-  totalPotentialForYear: number;
-}
-
-interface InsightsData {
-  yearSections: YearSection[]; // Changed from monthlySummaries
-  achievements: Achievement[];
-  availableCardsForFilter: { id: string; name: string }[];
-  currentFeeCoverageStreak?: number; // Added for streak badge
-}
-
-// --- DUMMY DATA GENERATION ---
-const generateDummyInsightsData = (selectedCards: string[]): Omit<InsightsData, 'availableCardsForFilter' | 'currentFeeCoverageStreak'> & { currentFeeCoverageStreak?: number } => {
-  const insightsCards = allCards.filter(
-    card => selectedCards.includes(card.id)
-  );
-
-  const monthlyDataByYear: Record<string, { شهرs: MonthlyRedemptionSummary[], yearTotalRedeemed: number, yearTotalPotential: number }> = {};
-  const achievements: Achievement[] = [];
-  const now = new Date();
-
-  let consecutiveFeeCoverageMonths = 0;
-  let highestSingleMonthRedemption = { month: '', value: 0 };
-  const perkRedemptionStreaks: Record<string, number> = {}; // perkId: streakCount
-  let consecutiveMonthsAllPerksRedeemed = 0;
-
-  if (insightsCards.length === 0) {
-    return { yearSections: [], achievements: [{
-      id: 'no_cards_selected',
-      emoji: '💳',
-      title: 'No Cards Selected',
-      description: 'Select cards in the filter to see insights.',
-    }], currentFeeCoverageStreak: 0 };
-  }
-
-  for (let i = 5; i >= 0; i--) { 
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const yearStr = date.getFullYear().toString();
-    const monthYearDisplay = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-    const monthKey = `${yearStr}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-    if (!monthlyDataByYear[yearStr]) {
-      monthlyDataByYear[yearStr] = { شهرs: [], yearTotalRedeemed: 0, yearTotalPotential: 0 };
-    }
-
-    let monthTotalRedeemed = 0;
-    let monthTotalPotential = 0;
-    let monthPerksRedeemed = 0;
-    let monthPerksMissed = 0;
-    const currentMonthPerkDetails: PerkRedemptionDetail[] = [];
-    let allMonthlyPerksAvailableThisMonth = 0;
-    let allMonthlyPerksRedeemedThisMonthCount = 0;
-
-    let totalAnnualFeesForProration = 0;
-    insightsCards.forEach(card => {
-      totalAnnualFeesForProration += card.annualFee || 0;
-    });
-    const monthlyFeeProrationTarget = totalAnnualFeesForProration / 12;
-
-    // Generate dummy coverage trend for the last 12 months
-    const coverageTrend: number[] = Array.from({ length: 12 }, () => Math.floor(Math.random() * 101));
-
-    insightsCards.forEach(card => {
-      card.benefits.forEach(perk => {
-        if (perk.period === 'monthly') {
-          allMonthlyPerksAvailableThisMonth++;
-          const isRedeemed = Math.random() > 0.4; // 60% chance of redeeming a monthly perk
-          monthTotalPotential += perk.value;
-          currentMonthPerkDetails.push({
-            id: perk.definition_id, // Use definition_id for uniqueness
-            name: perk.name,
-            value: perk.value,
-            status: isRedeemed ? 'redeemed' : 'missed',
-            period: perk.period,
-          });
-
-          if (isRedeemed) {
-            monthTotalRedeemed += perk.value;
-            monthPerksRedeemed++;
-            allMonthlyPerksRedeemedThisMonthCount++;
-            perkRedemptionStreaks[perk.definition_id] = (perkRedemptionStreaks[perk.definition_id] || 0) + 1;
-          } else {
-            monthPerksMissed++;
-            perkRedemptionStreaks[perk.definition_id] = 0; // Reset streak
-          }
-        }
-        // TODO: Handle yearly/semi-annual/quarterly perks appropriately if they factor into monthly views
-      });
-    });
-    
-    const allCurrentMonthlyPerksRedeemed = allMonthlyPerksAvailableThisMonth > 0 && allMonthlyPerksRedeemedThisMonthCount === allMonthlyPerksAvailableThisMonth;
-
-    const monthSummary: MonthlyRedemptionSummary = {
-      monthKey,
-      monthYear: monthYearDisplay,
-      totalRedeemedValue: monthTotalRedeemed,
-      totalPotentialValue: monthTotalPotential,
-      perksRedeemedCount: monthPerksRedeemed,
-      perksMissedCount: monthPerksMissed,
-      perkDetails: currentMonthPerkDetails,
-      cardFeesProportion: monthlyFeeProrationTarget > 0 ? monthlyFeeProrationTarget : 0.01, // Avoid division by zero for feeProration
-      allMonthlyPerksRedeemedThisMonth: allCurrentMonthlyPerksRedeemed,
-      coverageTrend, // Added
-    };
-    // Add to the beginning of the array for that year to keep months in reverse chronological order within the year section
-    monthlyDataByYear[yearStr].شهرs.unshift(monthSummary);
-    monthlyDataByYear[yearStr].yearTotalRedeemed += monthTotalRedeemed;
-    monthlyDataByYear[yearStr].yearTotalPotential += monthTotalPotential;
-
-    // Achievement Calculations
-    if (monthlyFeeProrationTarget > 0 && monthTotalRedeemed >= monthlyFeeProrationTarget) {
-      consecutiveFeeCoverageMonths++;
-    } else {
-      consecutiveFeeCoverageMonths = 0;
-    }
-
-    if (monthTotalRedeemed > highestSingleMonthRedemption.value) {
-      highestSingleMonthRedemption = { month: monthYearDisplay, value: monthTotalRedeemed };
-    }
-    
-    if(allCurrentMonthlyPerksRedeemed) {
-      consecutiveMonthsAllPerksRedeemed++;
-    } else {
-      consecutiveMonthsAllPerksRedeemed = 0;
-    }
-  }
-
-  // Populate Achievements based on calculated streaks/data
-  if (highestSingleMonthRedemption.value > 0) {
-    achievements.push({
-      id: 'highest_month',
-      emoji: '🏆',
-      title: 'Top Month!',
-      description: `Highest single-month redemption: $${highestSingleMonthRedemption.value.toFixed(0)} in ${highestSingleMonthRedemption.month}.`,
-    });
-  }
-
-  if (consecutiveFeeCoverageMonths >= 2) { // Example: 2 months for a streak
-    achievements.push({
-      id: 'fee_coverage_streak',
-      emoji: '🔥',
-      title: 'Fee Crusher!',
-      description: `${consecutiveFeeCoverageMonths} consecutive months >50% fees covered.`,
-    });
-  }
-  
-  if (consecutiveMonthsAllPerksRedeemed >= 2) {
-     achievements.push({
-      id: 'all_perks_streak',
-      emoji: '💯',
-      title: 'Perk Perfectionist!',
-      description: `${consecutiveMonthsAllPerksRedeemed} consecutive months redeeming all available monthly perks.`,
-    });
-  }
-
-  for (const perkId in perkRedemptionStreaks) {
-    if (perkRedemptionStreaks[perkId] >= 3) { // Example: 3 months for a specific perk streak
-      const perkDetail = allCards.flatMap(c => c.benefits).find(p => p.definition_id === perkId);
-      if (perkDetail) {
-        achievements.push({
-          id: `perk_streak_${perkId}`,
-          emoji: '🎯',
-          title: `${perkDetail.name} Streak!`,
-          description: `Redeemed ${perkDetail.name} for ${perkRedemptionStreaks[perkId]} months in a row.`,
-        });
-      }
-    }
-  }
-   // Add a fallback if no achievements yet
-   if (achievements.length === 0 && insightsCards.length > 0) {
-    achievements.push({
-      id: 'getting_started',
-      emoji: '🚀',
-      title: 'Getting Started!',
-      description: 'Keep redeeming perks to unlock achievements and see your progress.',
-    });
-  }
-
-  // Convert monthlyDataByYear to yearSections, sorted by year descending (most recent year first)
-  const yearSections: YearSection[] = Object.keys(monthlyDataByYear)
-    .sort((a, b) => parseInt(b) - parseInt(a)) // Sort years descending
-    .map(year => ({
-      year: year,
-      data: monthlyDataByYear[year].شهرs, // Months are already reverse chrono
-      totalRedeemedForYear: monthlyDataByYear[year].yearTotalRedeemed,
-      totalPotentialForYear: monthlyDataByYear[year].yearTotalPotential,
-    }));
-
-  return { yearSections, achievements, currentFeeCoverageStreak: consecutiveFeeCoverageMonths >= 2 ? consecutiveFeeCoverageMonths : undefined };
-};
-
-
 // --- UI COMPONENTS ---
-
-interface AchievementChipProps {
-  achievement: Achievement;
-}
-
-const AchievementChip: React.FC<AchievementChipProps> = ({ achievement }) => {
-  return (
-    <View style={styles.achievementChip}>
-      <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
-      <View style={styles.achievementTextContainer}>
-        <Text style={styles.achievementTitle}>{achievement.title}</Text>
-        <Text style={styles.achievementDescription}>{achievement.description}</Text>
-      </View>
-    </View>
-  );
-};
 
 interface MeterChipProps {
   value: number;
@@ -525,12 +294,22 @@ export default function InsightsScreen() {
   }, [selectedCardIds, perkStatusFilter, isDataLoaded]);
 
   const insightsData = useMemo(() => {
-    if (!isDataLoaded) return { yearSections: [], achievements: [], availableCardsForFilter: defaultCardsForFilter, currentFeeCoverageStreak: 0 };
-    const { yearSections, achievements, currentFeeCoverageStreak } = generateDummyInsightsData(selectedCardIds);
-    // availableCardsForFilter should come from allCards or a more dynamic source if cards can be added/removed by user elsewhere
-    const availableCards = allCards.map(c => ({id: c.id, name: c.name }));
-    return { yearSections, achievements, availableCardsForFilter: availableCards, currentFeeCoverageStreak };
+    if (!isDataLoaded) {
+      const defaultCardsWithActivity = defaultCardsForFilter.map(card => ({ ...card, activityCount: 0 }));
+      return { yearSections: [], achievements: [], availableCardsForFilter: defaultCardsWithActivity, currentFeeCoverageStreak: 0, cardRois: [] };
+    }
+    const { yearSections, achievements, currentFeeCoverageStreak, availableCardsForFilter, cardRois } = generateDummyInsightsData(selectedCardIds);
+    return { yearSections, achievements, availableCardsForFilter, currentFeeCoverageStreak, cardRois };
   }, [selectedCardIds, isDataLoaded]);
+
+  // Set the default expanded month when data loads
+  useEffect(() => {
+    if (insightsData.yearSections.length > 0 && insightsData.yearSections[0].data.length > 0) {
+      if (expandedMonthKey === null) { // Only set on initial load
+        setExpandedMonthKey(insightsData.yearSections[0].data[0].monthKey);
+      }
+    }
+  }, [insightsData]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -562,28 +341,17 @@ export default function InsightsScreen() {
   };
 
   const renderSectionHeader = ({ section }: { section: YearSection }) => {
-    const yearProgress = section.totalPotentialForYear > 0 ? section.totalRedeemedForYear / section.totalPotentialForYear : 0;
-    const amountSavedThisYear = section.totalRedeemedForYear.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    const potentialSavingsThisYear = section.totalPotentialForYear.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    // Dummy trend data for the sparkline - in a real app, this would come from your data source
+    const trendData = section.data.map(month => (month.totalRedeemedValue / month.cardFeesProportion) * 100).slice(0, 6).reverse();
 
     return (
       <View style={styles.sectionHeaderContainer}>
-        <View style={styles.sectionHeaderDetails}>
-            <Text style={styles.sectionListHeader}>{section.year}</Text>
-            {/* Potentially add more year-specific summary text here if needed */}
-        </View>
-        <View style={styles.sectionHeaderDonutContainer}>
-            <ProgressDonut 
-                progress={yearProgress}
-                size={80} // Smaller donut for header
-                strokeWidth={5}
-                amount={amountSavedThisYear} // Display redeemed amount
-                label={`of ${potentialSavingsThisYear} potential`}
-                detailLineOne="Total Saved This Year"
-                detailLineTwo="" //  Can be empty or show something else
-                color={Colors.light.tint} // Or a year-specific color theme
-            />
-        </View>
+        <YearlyProgress
+          year={section.year}
+          totalRedeemed={section.totalRedeemedForYear}
+          totalPotential={section.totalPotentialForYear}
+          trendData={trendData}
+        />
       </View>
     );
   };
@@ -616,23 +384,18 @@ export default function InsightsScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
         {/* Header is now rendered by navigator */}
 
+        <FilterChipRow
+          perkStatusFilter={perkStatusFilter}
+          setPerkStatusFilter={setPerkStatusFilter}
+          selectedCardIds={selectedCardIds}
+          availableCards={insightsData.availableCardsForFilter}
+          onManageFilters={() => setFilterModalVisible(true)}
+        />
+
+        <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+
         {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
           <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
-        )}
-        
-        <View style={styles.roiPlaceholderContainer}>
-          <Text style={styles.placeholderTitleSmall}>🏆 Card ROI Leaderboard (Coming Soon!)</Text>
-        </View>
-
-        {insightsData.achievements.length > 0 && (
-          <View style={styles.achievementsSectionContainer}>
-            <Text style={styles.sectionTitle}>Achievements</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.achievementsScroll}>
-              {insightsData.achievements.map(ach => (
-                <AchievementChip key={ach.id} achievement={ach} />
-              ))}
-            </ScrollView>
-          </View>
         )}
         
         {insightsData.yearSections.length > 0 ? (
@@ -665,22 +428,6 @@ export default function InsightsScreen() {
             </View>
         )}
 
-        {/* Active Filter Chip - positioned near FAB or above list */}
-        {activeFilterCount > 0 && (
-            <TouchableOpacity 
-                style={[styles.activeFilterChip, { bottom: insets.bottom + 16 + 48 + 10 }]} // Position above FAB
-                onPress={() => setFilterModalVisible(true)}
-            >
-                <Ionicons name="options-outline" size={16} color={Colors.dark.text} />
-                <Text style={styles.activeFilterChipText}>{activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active</Text>
-            </TouchableOpacity>
-        )}
-
-        {/* Filter FAB */}
-        <TouchableOpacity style={[styles.fab, { bottom: insets.bottom + 16 }]} onPress={() => setFilterModalVisible(true)}>
-            <Ionicons name="filter" size={24} color={Colors.dark.text} />{/* Ensure icon color contrasts with new FAB bg*/}
-        </TouchableOpacity>
-
         {/* Filter Modal */}
         <Modal
             animationType="slide"
@@ -692,7 +439,7 @@ export default function InsightsScreen() {
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Filter Insights</Text>
                     
-                    <Text style={styles.filterSectionTitle}>Perk Status</Text>
+                    <Text style={styles.filterSectionTitle}>PERK STATUS</Text>
                     <View style={styles.filterOptionRow}>
                         {(['all', 'redeemed', 'missed'] as PerkStatusFilter[]).map(status => (
                             <TouchableOpacity 
@@ -707,21 +454,41 @@ export default function InsightsScreen() {
                         ))}
                     </View>
 
-                    <Text style={styles.filterSectionTitle}>Cards</Text>
-                    {insightsData.availableCardsForFilter.map(card => (
-                        <View key={card.id} style={styles.cardFilterRow}>
-                            <Text style={styles.cardFilterName}>{card.name}</Text>
-                            <Switch 
-                                trackColor={{ false: '#767577', true: Colors.light.tint }}
-                                thumbColor={selectedCardIds.includes(card.id) ? Colors.light.tint : '#f4f3f4'}
-                                ios_backgroundColor="#3e3e3e"
-                                onValueChange={() => toggleCardSelection(card.id)}
-                                value={selectedCardIds.includes(card.id)}
-                            />
-                        </View>
-                    ))}
+                    <Text style={styles.filterSectionTitle}>CARD</Text>
+                    <ScrollView style={styles.cardsScrollView}>
+                      {[...insightsData.availableCardsForFilter]
+                        .sort((a, b) => b.activityCount - a.activityCount)
+                        .map(card => {
+                          const isSelected = selectedCardIds.includes(card.id);
+                          return (
+                              <TouchableOpacity key={card.id} style={styles.cardFilterRow} onPress={() => toggleCardSelection(card.id)}>
+                                  <View style={styles.checkboxContainer}>
+                                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                                        {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                                    </View>
+                                  </View>
+                                  <View style={styles.cardNameContainer}>
+                                    <Text style={styles.cardFilterName}>{card.name}</Text>
+                                    {card.activityCount > 0 && (
+                                      <Text style={styles.cardActivityLabel}>{card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}</Text>
+                                    )}
+                                  </View>
+                              </TouchableOpacity>
+                          );
+                      })}
+                    </ScrollView>
 
-                    <Button title="Apply Filters" onPress={() => setFilterModalVisible(false)} /> 
+                    <View style={styles.modalFooter}>
+                      <TouchableOpacity style={[styles.footerButton, styles.clearButton]} onPress={() => {
+                        setSelectedCardIds(defaultSelectedCardIds);
+                        setPerkStatusFilter(defaultPerkStatusFilter);
+                      }}>
+                        <Text style={[styles.footerButtonText, styles.clearButtonText]}>Clear</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.footerButton, styles.applyButton]} onPress={() => setFilterModalVisible(false)}>
+                        <Text style={[styles.footerButtonText, styles.applyButtonText]}>Apply</Text>
+                      </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </Modal>
@@ -738,59 +505,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  roiPlaceholderContainer: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  achievementsSectionContainer: { 
-    paddingVertical: 10, 
-    backgroundColor: Colors.light.background, 
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.light.text,
-    paddingHorizontal: 20,
-    marginBottom: 10, 
-  },
-  achievementsScroll: {
-    paddingHorizontal: 12,
-    paddingBottom: 10, 
-  },
-  achievementChip: {
-    backgroundColor: ACCENT_YELLOW_BACKGROUND, 
-    borderRadius: 8, 
-    paddingVertical: 10, 
-    paddingHorizontal: 12,
-    marginRight: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, 
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-    minWidth: 250, 
-  },
-  achievementEmoji: {
-    fontSize: 24,
-    marginRight: 10,
-  },
-  achievementTextContainer: {
-    flex: 1,
-  },
-  achievementTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    marginBottom: 2,
-  },
-  achievementDescription: {
-    fontSize: 11,
-    color: Colors.light.icon, 
-    flexWrap: 'wrap',
   },
   historySection: { 
     paddingHorizontal: 15,
@@ -827,15 +541,15 @@ const styles = StyleSheet.create({
     marginTop: -5,
   },
   monthCard: {
-    backgroundColor: CARD_BACKGROUND_COLOR, 
-    borderRadius: 8, 
+    backgroundColor: '#F5F7FA', 
+    borderRadius: 12, 
     marginBottom: 15,
-    padding: 12, 
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1, 
-    shadowRadius: 3,
-    elevation: 1, 
+    padding: 15, 
+    shadowColor: 'rgba(0,0,0,0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1, 
+    shadowRadius: 10,
+    elevation: 2, 
   },
   monthCardHeader: {
     flexDirection: 'row',
@@ -984,22 +698,6 @@ const styles = StyleSheet.create({
     color: SUBTLE_GRAY_TEXT,
     textAlign: 'center',
   },
-  fab: {
-    position: 'absolute',
-    margin: 16,
-    right: 10,
-    backgroundColor: SECONDARY_COLOR, // Use defined secondary color
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6, 
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1016,6 +714,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+    maxHeight: '80%', // Limit height to allow for footer
   },
   modalTitle: {
     fontSize: 20,
@@ -1030,6 +729,8 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginTop: 15,
     marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   filterOptionRow: {
     flexDirection: 'row',
@@ -1056,14 +757,73 @@ const styles = StyleSheet.create({
   cardFilterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: SEPARATOR_COLOR,
+    alignItems: 'center', // Align items vertically
   },
   cardFilterName: {
     fontSize: 15,
     color: Colors.light.text,
+  },
+  checkboxContainer: { // Added for alignment
+    paddingRight: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#BDBDBD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  cardNameContainer: { // Added for text layout
+    flex: 1,
+  },
+  cardActivityLabel: {
+    fontSize: 12,
+    color: Colors.light.icon,
+    marginTop: 2,
+  },
+  cardsScrollView: {
+    maxHeight: 250, // Limit height of card list to ensure footer is visible
+    marginVertical: 10,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: SEPARATOR_COLOR,
+  },
+  footerButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearButton: {
+    backgroundColor: '#E5E5EA',
+    marginRight: 10,
+  },
+  clearButtonText: {
+    color: Colors.light.text,
+  },
+  applyButton: {
+    backgroundColor: Colors.light.tint,
+  },
+  applyButtonText: {
+    color: '#FFFFFF',
+  },
+  footerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   streakBadgeContainer: {
     backgroundColor: ACCENT_YELLOW_BACKGROUND,
@@ -1130,26 +890,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     color: Colors.light.tint,
-  },
-  activeFilterChip: {
-    position: 'absolute',
-    right: 10 + 16, // Align with FAB horizontally
-    backgroundColor: Colors.light.tint, // Or another contrasting color
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 4,
-  },
-  activeFilterChipText: {
-    color: Colors.dark.text, // Ensure text is readable on chip background
-    fontSize: 13,
-    fontWeight: '500',
-    marginLeft: 6,
   },
 }); 
