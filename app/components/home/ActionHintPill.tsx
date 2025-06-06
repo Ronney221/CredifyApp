@@ -47,7 +47,7 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
           Use your <Text style={styles.valueText}>{formattedValue} {perk.name}</Text>
         </Text>
         <Text style={styles.subtitleText}>
-          from {perk.cardName} • {daysText}
+          from {perk.cardName} • <Text style={styles.daysLeftText}>{daysText}</Text>
         </Text>
       </View>
       <View style={styles.actionButtonContainer}>
@@ -95,6 +95,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.8)', // Slightly transparent white
     lineHeight: 18,
+  },
+  daysLeftText: {
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   valueText: {
     fontWeight: '700', // Bold for perk name and value
