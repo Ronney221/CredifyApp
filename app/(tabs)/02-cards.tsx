@@ -22,7 +22,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { CardRow } from '../components/manage/CardRow';
-import { ReminderToggleGroup } from '../components/manage/ReminderToggleGroup';
+import { ReminderToggleGroup } from '../components/notifications/ReminderToggleGroup';
 import { 
   AddCardModal, 
   EmptyState, 

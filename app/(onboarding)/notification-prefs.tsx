@@ -19,7 +19,10 @@ import { MotiView } from 'moti'; // Added MotiView
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
-import { ReminderToggleGroup } from '../components/manage/ReminderToggleGroup';
+import { ReminderToggleGroup } from '../components/notifications/ReminderToggleGroup';
+import { useNotificationPreferences } from '../components/cards/hooks/useNotificationPreferences';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCardManagement } from '../components/cards/hooks/useCardManagement';
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences_v2';
 

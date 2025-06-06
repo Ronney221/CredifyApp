@@ -155,13 +155,25 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
-            name="04-more/edit-profile"
+            name="profile/manage_cards"
             options={{
               href: null,
             }}
           />
           <Tabs.Screen
-            name="04-more/help-faq"
+            name="profile/notifications"
+            options={{
+              href: null,
+            }}
+          />
+          <Tabs.Screen
+            name="profile/edit-profile"
+            options={{
+              href: null,
+            }}
+          />
+          <Tabs.Screen
+            name="profile/help-faq"
             options={{
               href: null,
             }}

@@ -62,26 +62,26 @@ const ProfileScreen = () => {
     {
       title: 'Account',
       data: [
-        { id: 'edit-profile', title: 'Edit Profile', icon: 'person-outline', iconColor: '#fff', iconBackgroundColor: '#007AFF', onPress: () => router.push('/(tabs)/04-more/edit-profile') },
+        { id: 'edit-profile', title: 'Edit Profile', icon: 'person-outline', iconColor: '#fff', iconBackgroundColor: '#007AFF', onPress: () => router.push('/(tabs)/profile/edit-profile') },
         { id: 'sign-out', title: 'Sign Out', icon: 'log-out-outline', iconColor: '#fff', iconBackgroundColor: '#FF3B30', onPress: handleSignOut, color: '#FF3B30' },
       ],
     },
     {
       title: 'Wallet',
       data: [
-        { id: 'manage-cards', title: 'Manage Cards', icon: 'card-outline', iconColor: '#fff', iconBackgroundColor: '#34C759', onPress: () => router.push('/(tabs)/02-cards') },
+        { id: 'manage-cards', title: 'Manage Cards', icon: 'card-outline', iconColor: '#fff', iconBackgroundColor: '#34C759', onPress: () => router.push('/(tabs)/profile/manage_cards') },
       ],
     },
     {
       title: 'Notifications',
       data: [
-        { id: 'preferences', title: 'Preferences', icon: 'notifications-outline', iconColor: '#fff', iconBackgroundColor: '#FF9500', onPress: () => router.push('/(tabs)/02-cards') },
+        { id: 'preferences', title: 'Preferences', icon: 'notifications-outline', iconColor: '#fff', iconBackgroundColor: '#FF9500', onPress: () => router.push('/(tabs)/profile/notifications') },
       ],
     },
     {
       title: 'Support',
       data: [
-        { id: 'help-faq', title: 'Help & FAQ', icon: 'help-circle-outline', iconColor: '#fff', iconBackgroundColor: '#5856D6', onPress: () => router.push('/(tabs)/04-more/help-faq') },
+        { id: 'help-faq', title: 'Help & FAQ', icon: 'help-circle-outline', iconColor: '#fff', iconBackgroundColor: '#5856D6', onPress: () => router.push('/(tabs)/profile/help-faq') },
       ],
     },
   ];
