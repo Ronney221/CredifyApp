@@ -654,4 +654,24 @@ export async function debugAutoRedemptions(userId: string) {
     console.error('Unexpected error in debug function:', error);
     return { error };
   }
+}
+
+export async function getRedemptionsForPeriod(userId: string, startDate: Date, endDate: Date) {
+  try {
+    const { data, error } = await supabase
+      .from('perk_redemptions')
+      .select('perk_id')
+      .eq('user_id', userId)
+      .gte('redemption_date', startDate.toISOString())
+      .lte('redemption_date', endDate.toISOString());
+
+    if (error) {
+      console.error('Database error fetching redemptions for period:', error);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error fetching redemptions for period:', error);
+    return { data: null, error };
+  }
 } 
