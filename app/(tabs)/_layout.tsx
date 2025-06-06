@@ -16,7 +16,7 @@ const InsightsHeaderRight = () => {
 
   return (
     <View style={{ flexDirection: 'row', marginRight: Platform.OS === 'ios' ? 10 : 20 }}>
-      <TouchableOpacity onPress={handleShare} style={{ paddingHorizontal: 8 }}>
+      <TouchableOpacity onPress={handleShare} style={{ paddingHorizontal: 8, opacity: 0.4 }} disabled>
         <Ionicons name="share-outline" size={24} color={Colors.light.tint} />
       </TouchableOpacity>
       <TouchableOpacity onPress={handleCompareCards} style={{ paddingHorizontal: 8 }}>
