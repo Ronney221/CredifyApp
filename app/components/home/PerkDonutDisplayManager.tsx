@@ -263,11 +263,12 @@ const styles = StyleSheet.create({
   metricsContainer: {
     alignItems: 'center',
     width: '100%',
-    paddingVertical: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
     paddingHorizontal: 16,
     // backgroundColor: '#ffffff', // Removed as per Task 4
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

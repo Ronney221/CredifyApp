@@ -18,46 +18,18 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
     maximumFractionDigits: 0,
   });
 
-  let urgencyColor = '#20B2AA'; // Subtle Teal as default for text/icon
-  let borderColor = '#20B2AA66'; // Default border color with 40% opacity
-  let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline'; // Default icon
-  let daysText = `${daysRemaining} days left`;
-
-  if (daysRemaining <= 0) {
-    urgencyColor = '#f57c00'; // Orange for urgent (expired or today)
-    borderColor = '#f57c0066'; // Orange with 40% opacity for border
-    iconName = 'flame-outline';
-    daysText = 'Expires today!';
-    if (daysRemaining < 0) daysText = 'Expired';
-  } else if (daysRemaining <= 3) {
-    urgencyColor = '#f57c00'; // Orange for urgent
-    borderColor = '#f57c0066'; // Orange with 40% opacity for border
-    iconName = 'flame-outline';
-    daysText = 'Expires soon!';
-  } else if (daysRemaining <= 7) {
-    urgencyColor = '#ffab00'; // Amber for soon
-    borderColor = '#ffab0066'; // Amber with 40% opacity for border
-    iconName = 'time-outline';
-  }
-
   return (
-    <TouchableOpacity style={[styles.container, { borderColor: borderColor }]} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.iconContainer}>
-        <Ionicons name={iconName} size={24} color={urgencyColor} />
-      </View>
+    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.textContainer}>
         <Text style={styles.titleText} numberOfLines={2}>
-          Use your <Text style={[styles.valueText, { color: urgencyColor }]}>{formattedValue} {perk.name}</Text>
+          Use your <Text style={styles.valueText}>{formattedValue} {perk.name}</Text>
         </Text>
         <Text style={styles.subtitleText}>
-          from {perk.cardName} • <Text style={{ color: urgencyColor, fontWeight: '500' }}>
-            {daysText}
-          </Text>
+          from {perk.cardName}
         </Text>
       </View>
       <View style={styles.actionButtonContainer}>
-        <Text style={[styles.actionButtonText, { color: urgencyColor }]}>Use Now</Text>
-        <Ionicons name="chevron-forward" size={18} color={urgencyColor} style={styles.chevronIcon} />
+        <Ionicons name="chevron-forward-circle" size={32} color="#FFFFFF" />
       </View>
     </TouchableOpacity>
   );
@@ -67,61 +39,46 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0066FF', // Vibrant cobalt blue
     borderRadius: 16,
-    paddingVertical: 8, // Reduced paddingVertical from 12 to 8
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingLeft: 20, // More padding on the left for text
+    paddingRight: 12, // Less padding on the right for the icon
     marginHorizontal: 16,
     marginVertical: 12,
-    borderWidth: 1.5, // Subtle border width
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 }, // Softer shadow
-        shadowOpacity: 0.08, // Softer shadow
-        shadowRadius: 4,    // Softer shadow
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 3,      // Softer elevation
+        elevation: 6,
       },
     }),
   },
-  iconContainer: {
-    marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   textContainer: {
     flex: 1,
-    justifyContent: 'center', // Center text vertically if it wraps to two lines
+    justifyContent: 'center',
   },
   titleText: {
-    fontSize: 14, // Slightly smaller title
-    color: Colors.light.text,
-    fontWeight: '400', // Normal weight for "Use your"
-    marginBottom: 3, // Space between title and subtitle
-    lineHeight: 18, // Adjust for two lines if necessary
+    fontSize: 15,
+    color: '#FFFFFF', // White text
+    fontWeight: '400',
+    marginBottom: 2,
+    lineHeight: 20,
   },
   subtitleText: {
-    fontSize: 12,
-    color: Colors.light.icon,
-    lineHeight: 16, // Adjust for two lines if necessary
-  },
-  chevronIcon: {
-    marginLeft: 4, // Reduced space
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)', // Slightly transparent white
+    lineHeight: 18,
   },
   valueText: {
-    // Removed fontSize here, inherits from titleText
-    fontWeight: '600', // Bold for perk name and value
+    fontWeight: '700', // Bold for perk name and value
   },
   actionButtonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8, // Added some margin to separate from text block
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    marginLeft: 12,
   },
 });
 

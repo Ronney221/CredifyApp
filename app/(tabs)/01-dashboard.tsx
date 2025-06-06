@@ -731,7 +731,7 @@ export default function Dashboard() {
             daysRemaining={headerPillContent.daysRemaining} 
           />
         )}
-        <View style={[styles.summarySection, { paddingTop: 0, minHeight: 220 }]}>
+        <View style={styles.summarySection}>
           <PerkDonutDisplayManager
             ref={donutDisplayRef}
             userCardsWithPerks={userCardsWithPerks}
@@ -998,8 +998,8 @@ const styles = StyleSheet.create({
     paddingBottom: 80, // Added padding for the tab navigation menu
   },
   summarySection: {
-    alignItems: 'center',
-    paddingVertical: 12,
+    // This container now just provides vertical spacing and background
+    paddingTop: 0,
     backgroundColor: '#FAFAFE',
   },
   cardsSection: {
