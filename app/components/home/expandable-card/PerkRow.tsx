@@ -184,6 +184,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     position: 'relative',
     borderRadius: 16,
+    overflow: 'hidden',
   },
   perkContainerAvailable: {
     backgroundColor: '#FFFFFF',

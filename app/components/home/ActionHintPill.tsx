@@ -47,11 +47,11 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
           Use your <Text style={styles.valueText}>{formattedValue} {perk.name}</Text>
         </Text>
         <Text style={styles.subtitleText}>
-          from {perk.cardName}
+          from {perk.cardName} • {daysText}
         </Text>
       </View>
       <View style={styles.actionButtonContainer}>
-        <Ionicons name="chevron-forward-circle" size={32} color="#FFFFFF" />
+        <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
       </View>
     </TouchableOpacity>
   );
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#0066FF', // Vibrant cobalt blue
-    borderRadius: 16,
+    borderRadius: 12,
     paddingVertical: 12,
     paddingLeft: 20, // More padding on the left for text
     paddingRight: 12, // Less padding on the right for the icon

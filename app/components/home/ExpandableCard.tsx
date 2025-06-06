@@ -621,18 +621,20 @@ const ExpandableCardComponent = ({
           style={styles.perksListContainer} 
           layout={Layout.springify().duration(300)}
         >
-          {perks.filter(p => p.status === 'available').length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Available Perks</Text>
-              {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
-            </>
-          )}
-          {perks.filter(p => p.status === 'redeemed').length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-              {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
-            </>
-          )}
+          <View style={styles.perksGroupContainer}>
+            {perks.filter(p => p.status === 'available').length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Available Perks</Text>
+                {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
+              </>
+            )}
+            {perks.filter(p => p.status === 'redeemed').length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>Redeemed Perks</Text>
+                {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
+              </>
+            )}
+          </View>
         </Reanimated.View>
       )}
     </Reanimated.View>
@@ -685,7 +687,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginHorizontal: 16,
-    marginVertical: 8,
+    marginVertical: 6,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -720,8 +722,26 @@ const styles = StyleSheet.create({
     }),
   },
   perksListContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 0,
+    paddingBottom: 8,
+  },
+  perksGroupContainer: {
+    backgroundColor: '#F7F7F7',
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 12,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0,0,0,0.1)',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   leftAction: {
     backgroundColor: '#34c759',

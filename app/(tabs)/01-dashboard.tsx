@@ -1132,6 +1132,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 20, // Add some padding if it's the first thing after summary
-    marginBottom: 12,
+    marginBottom: 18,
   },
 }); 
