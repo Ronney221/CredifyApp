@@ -682,7 +682,7 @@ export default React.memo(ExpandableCardComponent, areEqual);
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginHorizontal: 16,
     marginVertical: 8,
@@ -690,12 +690,12 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 4,
+        elevation: 2,
       },
     }),
   },
@@ -710,12 +710,12 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 8,
+        elevation: 4,
       },
     }),
   },

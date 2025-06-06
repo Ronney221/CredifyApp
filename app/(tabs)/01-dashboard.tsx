@@ -1015,6 +1015,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
+    paddingHorizontal: 16,
     fontWeight: '600',
     color: '#1c1c1e',
   },
