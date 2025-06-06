@@ -89,6 +89,7 @@ const ExpandableCardComponent = ({
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showUndoHint, setShowUndoHint] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
+  const [autoRedeemUpdateKey, setAutoRedeemUpdateKey] = useState(0);
   const { user } = useAuth();
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
@@ -476,6 +477,15 @@ const ExpandableCardComponent = ({
 
                     // Refresh all relevant data
                     await refreshAutoRedemptions();
+
+                    // If we just enabled auto-redeem on an already-redeemed perk, its status prop didn't change,
+                    // so a re-render isn't guaranteed if the parent is memoized.
+                    // The hook's context has updated, but we need to ensure this component re-renders 
+                    // to see the change in its child (PerkRow). Forcing a local state update achieves this.
+                    if (perk.status === 'redeemed') {
+                      setAutoRedeemUpdateKey(k => k + 1);
+                    }
+                    
                     onPerkStatusChange?.();
                     
                     Alert.alert('Success', `Auto-redemption enabled for "${perk.name}"!\n\nIt has been marked as redeemed for this month and will be automatically redeemed each month going forward.`);
@@ -559,10 +569,13 @@ const ExpandableCardComponent = ({
     );
   };
 
-  const renderPerkRow = (perk: CardPerk, isAvailable: boolean) => (
+  const renderPerkRow = (perk: CardPerk, isAvailable: boolean) => {
+    const isAutoRedeemed = perk.periodMonths === 1 && !!getAutoRedemptionByPerkName(perk.name);
+    return (
     <PerkRow
       key={perk.id}
       perk={perk}
+      isAutoRedeemed={isAutoRedeemed}
       isFirstAvailablePerk={isAvailable && perk.id === firstAvailablePerkId}
       showSwipeHint={isAvailable && showSwipeHint}
       isFirstRedeemedPerk={!isAvailable && perk.id === firstRedeemedPerkId}
@@ -591,10 +604,11 @@ const ExpandableCardComponent = ({
           executePerkAction(perk, 'available');
         }
       }}
-      renderLeftActions={() => renderLeftActions(perk)}
-      renderRightActions={() => renderRightActions(perk)}
+      renderLeftActions={isAvailable ? () => renderLeftActions(perk) : undefined}
+      renderRightActions={!isAvailable ? () => renderRightActions(perk) : undefined}
     />
-  );
+    );
+  };
 
   return (
     <Reanimated.View 

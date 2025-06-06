@@ -18,6 +18,8 @@ import {
   AlertButton,
   Animated,
   FlatList,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -173,6 +175,10 @@ export default function Dashboard() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const nextPerkRef = useRef<CardPerkWithMeta | null>(null);
 
+  // State for pending toast notification after returning from another app
+  const [pendingToast, setPendingToast] = useState<{ message: string; onUndo: () => void; } | null>(null);
+  const appState = useRef(AppState.currentState);
+
   // State for DEV date picker
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
   const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
@@ -295,6 +301,29 @@ export default function Dashboard() {
     setHeaderPillContent(nextActionablePerkToHighlight);
   }, [nextActionablePerkToHighlight]);
 
+  // Effect for handling app state changes to show deferred toasts
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App has come to the foreground
+        if (pendingToast) {
+          showToast(pendingToast.message, pendingToast.onUndo);
+          setPendingToast(null); // Clear after showing
+        }
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [pendingToast]); // Re-subscribe if pendingToast changes to capture its value correctly
+
   // Load swipe hint status and unique perk periods from AsyncStorage
   useEffect(() => {
     const loadAsyncData = async () => {
@@ -368,6 +397,7 @@ export default function Dashboard() {
 
           await refreshUserCards();
           await refreshSavings();
+          await refreshAutoRedemptions();
           donutDisplayRef.current?.refresh();
           await setupNotifications();
         } catch (error) {
@@ -376,7 +406,7 @@ export default function Dashboard() {
       };
       
       refreshData();
-    }, [refreshUserCards, refreshSavings])
+    }, [refreshUserCards, refreshSavings, refreshAutoRedemptions])
   );
 
   // Effect to refresh data when params.refresh changes (e.g., after saving cards)
@@ -504,29 +534,30 @@ export default function Dashboard() {
         // DB operation successful
           handlePerkStatusChange();
           
-          showToast(
-            `${selectedPerk.name} marked as redeemed`,
-            async () => {
-            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+          // Defer the toast until the user returns to the app
+          setPendingToast({
+            message: `${selectedPerk.name} marked as redeemed`,
+            onUndo: async () => {
+              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
               try {
                 const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
                 if (undoError) {
-                console.error('Error undoing redemption in DB:', undoError);
-                setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
-                handlePerkStatusChange(); 
+                  console.error('Error undoing redemption in DB:', undoError);
+                  setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
+                  handlePerkStatusChange(); 
                   showToast('Error undoing redemption');
                 } else {
                   handlePerkStatusChange();
-                showToast(`${selectedPerk.name} redemption undone.`);
-              }
-            } catch (undoCatchError) {
-              console.error('Unexpected error during undo redemption:', undoCatchError);
-              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
-              handlePerkStatusChange(); 
+                  showToast(`${selectedPerk.name} redemption undone.`);
+                }
+              } catch (undoCatchError) {
+                console.error('Unexpected error during undo redemption:', undoCatchError);
+                setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
+                handlePerkStatusChange(); 
                 showToast('Error undoing redemption');
               }
-            }
-          );
+            },
+          });
       } else if (selectedPerk.status === 'redeemed') {
         // Perk is already redeemed, we just opened the app.
       }
