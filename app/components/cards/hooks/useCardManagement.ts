@@ -18,7 +18,6 @@ export const useCardManagement = (userId: string | undefined) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [deletedCard, setDeletedCard] = useState<{card: Card, renewalDate?: Date} | null>(null);
-  const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
   const [flashingCardId, setFlashingCardId] = useState<string | null>(null);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
 
@@ -96,7 +95,6 @@ export const useCardManagement = (userId: string | undefined) => {
     if (cardToRemove) {
       const renewalDate = renewalDates[cardId];
       setDeletedCard({ card: cardToRemove, renewalDate });
-      setShowUndoSnackbar(true);
     }
     
     setSelectedCards(prev => prev.filter(id => id !== cardId));
@@ -111,30 +109,11 @@ export const useCardManagement = (userId: string | undefined) => {
     }
   };
 
-  const handleUndoDelete = () => {
-    if (deletedCard) {
-      setSelectedCards(prev => [...prev, deletedCard.card.id]);
-      if (deletedCard.renewalDate) {
-        setRenewalDates(prev => ({
-          ...prev,
-          [deletedCard.card.id]: deletedCard.renewalDate!
-        }));
-      }
-      setShowUndoSnackbar(false);
-      setDeletedCard(null);
-      
-      if (Platform.OS === 'ios') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    }
-  };
-
   const handleDiscardChanges = () => {
     // Reset to initial state
     setSelectedCards(initialSelectedCards);
     setRenewalDates(initialRenewalDates);
     setDeletedCard(null);
-    setShowUndoSnackbar(false);
     
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -164,7 +143,6 @@ export const useCardManagement = (userId: string | undefined) => {
       setInitialSelectedCards([...selectedCards]);
       setInitialRenewalDates({...renewalDates});
       setDeletedCard(null);
-      setShowUndoSnackbar(false);
 
       // --- BEGIN: Logic to store unique perk periods ---
       try {
@@ -301,7 +279,6 @@ export const useCardManagement = (userId: string | undefined) => {
     isLoading,
     isSaving,
     deletedCard,
-    showUndoSnackbar,
     flashingCardId,
     setFlashingCardId,
     getScaleValue,
@@ -312,9 +289,7 @@ export const useCardManagement = (userId: string | undefined) => {
     initialSelectedCards,
     initialRenewalDates,
     handleRemoveCard,
-    handleUndoDelete,
     handleDiscardChanges,
     handleSaveChanges,
-    setShowUndoSnackbar,
   };
 }; 

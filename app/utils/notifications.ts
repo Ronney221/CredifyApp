@@ -9,6 +9,7 @@ export interface NotificationPreferences {
   renewalRemindersEnabled?: boolean;
   perkResetConfirmationEnabled?: boolean;
   monthlyPerkExpiryReminderDays?: number[]; // New: e.g., [1, 3, 7]
+  weeklyDigestEnabled?: boolean;
 }
 
 // --- Basic Notification Configuration ---
@@ -72,6 +73,28 @@ export const scheduleNotificationAsync = async (
     content: { title, body },
     trigger,
   });
+};
+
+/**
+ * Schedules an immediate test notification.
+ * @returns {Promise<string>} The ID of the scheduled notification, or an empty string if permissions are denied.
+ */
+export const sendTestNotification = async (): Promise<string> => {
+  const hasPermissions = await requestPermissionsAsync();
+  if (!hasPermissions) {
+    console.warn('[Notifications] Permission not granted for test notification.');
+    return ''; 
+  }
+
+  console.log('[Notifications] Sending a test notification.');
+  const now = new Date();
+  now.setSeconds(now.getSeconds() + 2); // Fire in 2 seconds
+
+  return scheduleNotificationAsync(
+    '🔔 Test Notification',
+    'This is a test notification to check if your settings are working correctly.',
+    now,
+  );
 };
 
 /**
@@ -264,6 +287,24 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
         startOfNext,
       ),
     );
+  }
+
+  // Schedule weekly digest
+  const weeklyDigestEnabled = preferences?.weeklyDigestEnabled === undefined ? true : preferences.weeklyDigestEnabled;
+  if (startOfNext > now && weeklyDigestEnabled) {
+      const weeklyDigestDate = new Date(startOfNext);
+      weeklyDigestDate.setDate(weeklyDigestDate.getDate() + 6); // First Saturday of the month
+      weeklyDigestDate.setHours(18, 0, 0, 0); // 6 PM
+      
+      if (weeklyDigestDate > now) {
+          tasks.push(
+              scheduleNotificationAsync(
+                  '📈 Your Weekly Digest',
+                  'A summary of your perks and benefits is ready.',
+                  weeklyDigestDate,
+              ),
+          );
+      }
   }
 
   return Promise.all(tasks);

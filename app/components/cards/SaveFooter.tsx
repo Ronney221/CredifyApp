@@ -29,7 +29,7 @@ export const SaveFooter: React.FC<SaveFooterProps> = ({
     <MotiView 
       style={[
         styles.footer,
-        { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }
+        { paddingBottom: insets.bottom > 0 ? insets.bottom + 65 : 100 }
       ]}
       from={{ opacity: 0, translateY: 100 }}
       animate={{ opacity: 1, translateY: 0 }}

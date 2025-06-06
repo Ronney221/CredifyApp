@@ -25,11 +25,8 @@ import { CardRow } from '../../components/manage/CardRow';
 import { 
   AddCardModal, 
   EmptyState, 
-  SaveChangesModal,
-  PageHeader,
-  useCardManagement,
-  UndoSnackbar,
   SaveFooter,
+  useCardManagement,
 } from '../../components/cards';
 import { MotiView } from 'moti';
 
@@ -60,16 +57,13 @@ export default function ManageCardsScreen() {
     isLoading,
     isSaving,
     deletedCard,
-    showUndoSnackbar,
     getScaleValue,
     formatDate,
     hasChanges,
     selectedCardObjects,
     handleRemoveCard,
-    handleUndoDelete,
     handleDiscardChanges,
     handleSaveChanges,
-    setShowUndoSnackbar,
   } = cardManagement;
 
   useEffect(() => {
@@ -274,13 +268,6 @@ export default function ManageCardsScreen() {
           onSave={handleSaveChanges}
           onDiscard={handleDiscardChanges}
           isSaving={isSaving}
-        />
-        
-        <UndoSnackbar
-          visible={showUndoSnackbar}
-          onUndo={handleUndoDelete}
-          onDismiss={() => setShowUndoSnackbar(false)}
-          message={deletedCard ? `${deletedCard.card.name} was removed` : ''}
         />
       </SafeAreaView>
 

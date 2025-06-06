@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { sendTestNotification as sendTest } from '../../../utils/notifications';
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences';
 
@@ -16,9 +17,14 @@ export const useNotificationPreferences = () => {
   const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(true);
   const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(true);
   const [perkResetConfirmationEnabled, setPerkResetConfirmationEnabled] = useState(true);
+  const [weeklyDigestEnabled, setWeeklyDigestEnabled] = useState(false);
   const [remind1DayBeforeMonthly, setRemind1DayBeforeMonthly] = useState(true);
   const [remind3DaysBeforeMonthly, setRemind3DaysBeforeMonthly] = useState(true);
   const [remind7DaysBeforeMonthly, setRemind7DaysBeforeMonthly] = useState(true);
+
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    'perk_expiry': true,
+  });
 
   // Load notification preferences
   useEffect(() => {
@@ -30,6 +36,7 @@ export const useNotificationPreferences = () => {
           setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : true);
           setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : true);
           setPerkResetConfirmationEnabled(prefs.perkResetConfirmationEnabled !== undefined ? prefs.perkResetConfirmationEnabled : true);
+          setWeeklyDigestEnabled(prefs.weeklyDigestEnabled !== undefined ? prefs.weeklyDigestEnabled : false);
           setRemind1DayBeforeMonthly(prefs.remind1DayBeforeMonthly !== undefined ? prefs.remind1DayBeforeMonthly : true);
           setRemind3DaysBeforeMonthly(prefs.remind3DaysBeforeMonthly !== undefined ? prefs.remind3DaysBeforeMonthly : true);
           setRemind7DaysBeforeMonthly(prefs.remind7DaysBeforeMonthly !== undefined ? prefs.remind7DaysBeforeMonthly : true);
@@ -55,6 +62,7 @@ export const useNotificationPreferences = () => {
         perkExpiryRemindersEnabled,
         renewalRemindersEnabled,
         perkResetConfirmationEnabled,
+        weeklyDigestEnabled,
         remind1DayBeforeMonthly,
         remind3DaysBeforeMonthly,
         remind7DaysBeforeMonthly,
@@ -78,10 +86,32 @@ export const useNotificationPreferences = () => {
     perkExpiryRemindersEnabled,
     renewalRemindersEnabled, 
     perkResetConfirmationEnabled,
+    weeklyDigestEnabled,
     remind1DayBeforeMonthly,
     remind3DaysBeforeMonthly,
     remind7DaysBeforeMonthly
   ]);
+
+  const handleSectionToggle = (sectionKey: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const sendTestNotification = async () => {
+    try {
+      const notificationId = await sendTest();
+      if (notificationId) {
+        Alert.alert('Test Notification Sent', 'You should receive a notification in a few seconds.');
+      } else {
+        Alert.alert('Permissions Required', 'Please enable notification permissions in your device settings.');
+      }
+    } catch (e) {
+      console.error('Failed to send test notification', e);
+      Alert.alert('Error', 'Could not send test notification.');
+    }
+  };
 
   const handlePerkExpiryMasterToggle = (value: boolean) => {
     setPerkExpiryRemindersEnabled(value);
@@ -103,6 +133,13 @@ export const useNotificationPreferences = () => {
 
   const handleResetConfirmationToggle = (value: boolean) => {
     setPerkResetConfirmationEnabled(value);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleWeeklyDigestToggle = (value: boolean) => {
+    setWeeklyDigestEnabled(value);
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -134,6 +171,9 @@ export const useNotificationPreferences = () => {
 
     return [
       { 
+        key: 'perk_expiry',
+        isExpanded: expandedSections['perk_expiry'],
+        onToggleExpand: () => handleSectionToggle('perk_expiry'),
         iconName: "alarm-outline" as const, 
         title: "Monthly Perk Expiry Reminders", 
         details: buildPerkExpiryHelperText(),
@@ -141,13 +181,15 @@ export const useNotificationPreferences = () => {
           { 
             label: "Enable perk expiry reminders", 
             value: perkExpiryRemindersEnabled, 
-            onValueChange: handlePerkExpiryMasterToggle 
+            onValueChange: handlePerkExpiryMasterToggle,
+            isMaster: true,
           },
           ...perkExpiryToggles
         ],
         iconColor: "#FF9500",
       },
       { 
+        key: 'card_renewal',
         iconName: "calendar-outline" as const,
         title: "Card Renewal Reminders", 
         details: anyRenewalDateSet 
@@ -165,6 +207,7 @@ export const useNotificationPreferences = () => {
         disabledReason: !anyRenewalDateSet ? "Set renewal dates to enable this reminder." : undefined,
       },
       { 
+        key: 'perk_reset',
         iconName: "sync-circle-outline" as const, 
         title: "Perk Reset Confirmations", 
         details: ["Monthly reset notifications"],
@@ -177,6 +220,20 @@ export const useNotificationPreferences = () => {
         ],
         iconColor: "#007AFF" 
       },
+      {
+        key: 'weekly_digest',
+        iconName: "stats-chart-outline" as const,
+        title: "Weekly Digest",
+        details: ["A summary of your perks and benefits"],
+        toggles: [
+          {
+            label: "Enable weekly digest",
+            value: weeklyDigestEnabled,
+            onValueChange: handleWeeklyDigestToggle,
+          },
+        ],
+        iconColor: "#5856D6",
+      },
     ];
   };
 
@@ -184,9 +241,11 @@ export const useNotificationPreferences = () => {
     perkExpiryRemindersEnabled,
     renewalRemindersEnabled,
     perkResetConfirmationEnabled,
+    weeklyDigestEnabled,
     remind1DayBeforeMonthly,
     remind3DaysBeforeMonthly,
     remind7DaysBeforeMonthly,
     buildNotificationItems,
+    sendTestNotification,
   };
 };
