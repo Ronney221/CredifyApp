@@ -18,6 +18,28 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
     maximumFractionDigits: 0,
   });
 
+  let urgencyColor = '#007A7F'; // Teal as default for text/icon
+  let borderColor = '#007A7F66'; // Default border color with 40% opacity
+  let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline'; // Default icon
+  let daysText = `${daysRemaining} days left`;
+
+  if (daysRemaining <= 0) {
+    urgencyColor = '#f57c00'; // Orange for urgent (expired or today)
+    borderColor = '#f57c0066'; // Orange with 40% opacity for border
+    iconName = 'flame-outline';
+    daysText = 'Expires today!';
+    if (daysRemaining < 0) daysText = 'Expired';
+  } else if (daysRemaining <= 3) {
+    urgencyColor = '#f57c00'; // Orange for urgent
+    borderColor = '#f57c0066'; // Orange with 40% opacity for border
+    iconName = 'flame-outline';
+    daysText = 'Expires soon!';
+  } else if (daysRemaining <= 7) {
+    urgencyColor = '#ffab00'; // Amber for soon
+    borderColor = '#ffab0066'; // Amber with 40% opacity for border
+    iconName = 'time-outline';
+  }
+
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.textContainer}>

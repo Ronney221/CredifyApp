@@ -602,7 +602,7 @@ const ExpandableCardComponent = ({
       layout={Layout.springify().duration(300)}
       onLayout={(event) => {
         const { height } = event.nativeEvent.layout;
-        console.log(`ExpandableCard (${card.name} - ${isExpanded ? 'Expanded' : 'Collapsed'}) height: ${height}`);
+       // console.log(`ExpandableCard (${card.name} - ${isExpanded ? 'Expanded' : 'Collapsed'}) height: ${height}`);
       }}
     >
       <CardHeader
@@ -726,8 +726,7 @@ const styles = StyleSheet.create({
   leftAction: {
     backgroundColor: '#34c759',
     flex: 1,
-    borderRadius: 12,
-    marginVertical: 4,
+    borderRadius: 16,
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'center',
@@ -736,8 +735,7 @@ const styles = StyleSheet.create({
   rightAction: {
     backgroundColor: '#007aff',
     flex: 1,
-    borderRadius: 12,
-    marginVertical: 4,
+    borderRadius: 16,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',

@@ -1,12 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { CardPerk } from '../../../../src/data/card-data';
 import { useAutoRedemptions } from '../../../hooks/useAutoRedemptions';
 
-const AUTO_REDEEM_COLOR = '#5856D6'; // A calm, distinct purple
+const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
+const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
+const AUTO_REDEEM_CHEVRON = '#C4B2DE';   // Lighter purple for chevron
 
 interface PerkRowProps {
   perk: CardPerk;
@@ -70,12 +72,12 @@ const PerkRow: React.FC<PerkRowProps> = ({
     ? (perk.description.length > 100 ? `${perk.description.substring(0, 97)}...` : perk.description)
     : 'No description available.';
   
-  let containerStyle: any = styles.perkContainer;
-  if (isRedeemed && isAutoRedeemed) {
-    containerStyle = [styles.perkContainer, styles.perkContainerAutoRedeemed];
-  } else if (isRedeemed) {
-    containerStyle = [styles.perkContainer, styles.perkContainerRedeemed];
-  }
+  const containerStyle = [
+    styles.perkContainer,
+    isRedeemed 
+      ? (isAutoRedeemed ? styles.perkContainerAutoRedeemed : styles.perkContainerRedeemed) 
+      : styles.perkContainerAvailable
+  ];
 
   return (
     <Reanimated.View
@@ -99,13 +101,13 @@ const PerkRow: React.FC<PerkRowProps> = ({
           activeOpacity={0.8}
           onPress={onTapPerk}
           onLongPress={onLongPressPerk}
+          style={containerStyle}
         >
-          <View style={containerStyle}>
             <View style={styles.perkIconContainer}>
               <Ionicons 
                 name={isRedeemed ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline') : 'pricetag-outline'}
                 size={26} 
-                color={isRedeemed ? (isAutoRedeemed ? AUTO_REDEEM_COLOR : '#8E8E93') : (isAutoRedeemed ? AUTO_REDEEM_COLOR : '#007AFF')}
+                color={isRedeemed ? (isAutoRedeemed ? AUTO_REDEEM_FOREGROUND : '#8E8E93') : (isAutoRedeemed ? AUTO_REDEEM_FOREGROUND : '#007AFF')}
               />
             </View>
             <View style={styles.perkTextContainerInsideItem}> 
@@ -160,10 +162,9 @@ const PerkRow: React.FC<PerkRowProps> = ({
             <Ionicons 
               name="chevron-forward" 
               size={20} 
-              color={isRedeemed ? (isAutoRedeemed ? '#A9A8F2' : '#C7C7CC') : '#B0B0B0'} 
+              color={isRedeemed ? (isAutoRedeemed ? AUTO_REDEEM_CHEVRON : '#C7C7CC') : '#B0B0B0'} 
               style={styles.perkChevron}
             />
-          </View>
         </TouchableOpacity>
       </Swipeable>
     </Reanimated.View>
@@ -171,20 +172,40 @@ const PerkRow: React.FC<PerkRowProps> = ({
 };
 
 const styles = StyleSheet.create({
-  perkContainerOuter: {},
+  perkContainerOuter: {
+    marginVertical: 4,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   perkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
     position: 'relative',
     borderRadius: 16,
   },
+  perkContainerAvailable: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
   perkContainerRedeemed: {
-    backgroundColor: '#F7F7F7',
+    backgroundColor: '#F2F2F2',
+  },
+  perkContainerAutoRedeemed: {
+    backgroundColor: AUTO_REDEEM_BACKGROUND,
   },
   perkIconContainer: {
     marginRight: 12,
@@ -240,17 +261,14 @@ const styles = StyleSheet.create({
   perkChevron: {
     marginLeft: 8,
   },
-  perkContainerAutoRedeemed: {
-    backgroundColor: '#F4F4FD',
-  },
   perkNameAutoRedeemed: { 
-    color: AUTO_REDEEM_COLOR,
+    color: AUTO_REDEEM_FOREGROUND,
   },
   perkDescriptionAutoRedeemed: { 
-    color: AUTO_REDEEM_COLOR,
+    color: AUTO_REDEEM_FOREGROUND,
   },
   perkValueAutoRedeemed: { 
-    color: AUTO_REDEEM_COLOR,
+    color: AUTO_REDEEM_FOREGROUND,
   },
   inlineHintContainer: {
     flexDirection: 'row',
