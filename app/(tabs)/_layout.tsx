@@ -126,11 +126,12 @@ export default function TabLayout() {
           <Tabs.Screen
             name="02-cards"
             options={{
-              title: 'Manage Cards',
-              headerShown: true,
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="card-outline" size={size} color={color} />
-              ),
+              href: null,
+              // title: 'Manage Cards',
+              // headerShown: true,
+              // tabBarIcon: ({ color, size }) => (
+              //   <Ionicons name="card-outline" size={size} color={color} />
+              // ),
             }}
           />
           <Tabs.Screen
@@ -148,8 +149,8 @@ export default function TabLayout() {
             name="04-profile"
             options={{
               title: 'Profile',
-              tabBarIcon: ({ color, focused }) => (
-                <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} />
+              tabBarIcon: ({ color, focused, size }) => (
+                <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} />
               ),
             }}
           />
