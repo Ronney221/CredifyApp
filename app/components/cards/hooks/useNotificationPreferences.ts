@@ -17,6 +17,7 @@ interface ToggleProps {
 export const useNotificationPreferences = () => {
   const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(true);
   const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(true);
+  const [renewalReminderDays, setRenewalReminderDays] = useState(7);
   const [perkResetConfirmationEnabled, setPerkResetConfirmationEnabled] = useState(true);
   const [weeklyDigestEnabled, setWeeklyDigestEnabled] = useState(false);
   const [remind1DayBeforeMonthly, setRemind1DayBeforeMonthly] = useState(true);
@@ -38,6 +39,7 @@ export const useNotificationPreferences = () => {
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'perk_expiry_monthly': true,
+    'card_renewal': true,
   });
 
   // Load unique perk periods from AsyncStorage
@@ -65,6 +67,7 @@ export const useNotificationPreferences = () => {
           const prefs = JSON.parse(jsonValue);
           setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : true);
           setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : true);
+          setRenewalReminderDays(prefs.renewalReminderDays !== undefined ? prefs.renewalReminderDays : 7);
           setPerkResetConfirmationEnabled(prefs.perkResetConfirmationEnabled !== undefined ? prefs.perkResetConfirmationEnabled : true);
           setWeeklyDigestEnabled(prefs.weeklyDigestEnabled !== undefined ? prefs.weeklyDigestEnabled : false);
           setRemind1DayBeforeMonthly(prefs.remind1DayBeforeMonthly !== undefined ? prefs.remind1DayBeforeMonthly : true);
@@ -116,6 +119,7 @@ export const useNotificationPreferences = () => {
       const prefsToSave = {
         perkExpiryRemindersEnabled,
         renewalRemindersEnabled,
+        renewalReminderDays,
         perkResetConfirmationEnabled,
         weeklyDigestEnabled,
         remind1DayBeforeMonthly,
@@ -152,6 +156,7 @@ export const useNotificationPreferences = () => {
   }, [
     perkExpiryRemindersEnabled,
     renewalRemindersEnabled, 
+    renewalReminderDays,
     perkResetConfirmationEnabled,
     weeklyDigestEnabled,
     remind1DayBeforeMonthly,
@@ -410,21 +415,32 @@ export const useNotificationPreferences = () => {
     notificationItems.push(
       { 
         key: 'card_renewal',
+        isExpanded: expandedSections['card_renewal'],
+        onToggleExpand: () => handleSectionToggle('card_renewal'),
         iconName: "calendar-outline" as const,
         title: "Card Renewal Reminders", 
         details: anyRenewalDateSet 
-          ? ["7 days before renewal dates"] 
+          ? [`${renewalReminderDays} days before renewal dates`] 
           : ["Add renewal dates first"],
-        toggles: anyRenewalDateSet ? [
+        toggles: [
           { 
             label: "Enable renewal reminders", 
             value: renewalRemindersEnabled, 
-            onValueChange: handleRenewalReminderToggle 
+            onValueChange: handleRenewalReminderToggle,
+            isMaster: true,
           }
-        ] : undefined,
+        ],
+        renewalOptions: anyRenewalDateSet && renewalRemindersEnabled ? {
+          current: renewalReminderDays,
+          setter: setRenewalReminderDays,
+          options: [
+            { label: '7 days before', value: 7 },
+            { label: '14 days before', value: 14 },
+            { label: '30 days before', value: 30 },
+          ]
+        } : undefined,
         iconColor: anyRenewalDateSet ? "#34C759" : "#8E8E93",
         dimmed: !anyRenewalDateSet,
-        disabledReason: !anyRenewalDateSet ? "Set renewal dates to enable this reminder." : undefined,
       },
       { 
         key: 'perk_reset',
@@ -435,7 +451,8 @@ export const useNotificationPreferences = () => {
           { 
             label: "Enable reset confirmations", 
             value: perkResetConfirmationEnabled, 
-            onValueChange: handleResetConfirmationToggle 
+            onValueChange: handleResetConfirmationToggle,
+            isMaster: true,
           }
         ],
         iconColor: "#007AFF" 
@@ -450,6 +467,7 @@ export const useNotificationPreferences = () => {
             label: "Enable weekly digest",
             value: weeklyDigestEnabled,
             onValueChange: handleWeeklyDigestToggle,
+            isMaster: true,
           },
         ],
         iconColor: "#5856D6",

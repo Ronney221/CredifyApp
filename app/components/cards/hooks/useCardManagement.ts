@@ -291,5 +291,6 @@ export const useCardManagement = (userId: string | undefined) => {
     handleRemoveCard,
     handleDiscardChanges,
     handleSaveChanges,
+    loadExistingCards,
   };
 }; 

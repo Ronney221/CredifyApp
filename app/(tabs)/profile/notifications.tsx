@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,11 @@ import {
   Switch,
   UIManager,
   LayoutAnimation,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useNotificationPreferences } from '../../components/cards/hooks/useNotificationPreferences';
 import { useCardManagement } from '../../components/cards/hooks/useCardManagement';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -33,12 +34,58 @@ interface NotificationSectionProps {
     toggles?: any[];
     iconColor: string;
     dimmed?: boolean;
+    renewalOptions?: {
+      current: number;
+      setter: (value: number) => void;
+      options: { label: string; value: number }[];
+    };
   };
   isLastItem: boolean;
 }
 
+interface RenewalModalProps {
+  visible: boolean;
+  onClose: () => void;
+  options: { label: string; value: number }[];
+  onSelect: (value: number) => void;
+  currentValue: number;
+}
+
+const RenewalOptionModal: React.FC<RenewalModalProps> = ({ visible, onClose, options, onSelect, currentValue }) => {
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+        <View style={styles.modalContent}>
+          {options.map((option, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={[
+                styles.modalOption, 
+                index === options.length - 1 && styles.noBorder
+              ]} 
+              onPress={() => {
+                onSelect(option.value);
+                onClose();
+              }}
+            >
+              <Text style={styles.modalOptionText}>{option.label}</Text>
+              {currentValue === option.value && <Ionicons name="checkmark" size={20} color={Colors.light.tint} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastItem }) => {
   const router = useRouter();
+  const [isRenewalModalVisible, setRenewalModalVisible] = useState(false);
   
   const masterToggle = item.toggles?.find(t => t.isMaster);
   const childToggles = item.toggles?.filter(t => !t.isMaster);
@@ -65,7 +112,7 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
           <Text style={styles.sectionTitle}>{item.title}</Text>
           {item.details && <Text style={styles.sectionDetails}>{item.details.join(', ')}</Text>}
         </View>
-        {item.onToggleExpand && (
+        {item.onToggleExpand && (!item.renewalOptions || !masterToggle?.value) && (
           <Ionicons name={item.isExpanded ? "chevron-up-outline" : "chevron-down-outline"} size={22} color="#c7c7cc" />
         )}
         {!item.onToggleExpand && masterToggle && (
@@ -78,6 +125,25 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
             />
         )}
       </TouchableOpacity>
+
+      {item.isExpanded && item.renewalOptions && masterToggle?.value && (
+        <View style={styles.childTogglesContainer}>
+            <TouchableOpacity style={[styles.toggleRow, styles.noBorder]} onPress={() => setRenewalModalVisible(true)}>
+              <Text style={styles.toggleLabel}>Remind Me</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ color: '#8e8e93', marginRight: 6 }}>{item.renewalOptions.current} days before</Text>
+                <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
+              </View>
+            </TouchableOpacity>
+            <RenewalOptionModal
+              visible={isRenewalModalVisible}
+              onClose={() => setRenewalModalVisible(false)}
+              options={item.renewalOptions.options}
+              currentValue={item.renewalOptions.current}
+              onSelect={item.renewalOptions.setter}
+            />
+        </View>
+      )}
 
       {item.isExpanded && childToggles && childToggles.length > 0 && (
         <View style={styles.childTogglesContainer}>
@@ -124,8 +190,18 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
 
 export default function NotificationSettingsScreen() {
   const { user } = useAuth();
-  const { anyRenewalDateSet } = useCardManagement(user?.id);
+  const { anyRenewalDateSet, loadExistingCards } = useCardManagement(user?.id);
   const { buildNotificationItems, sendTestNotification } = useNotificationPreferences();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        console.log('[NotificationsScreen] Focussed, reloading card data.');
+        loadExistingCards();
+      }
+    }, [user?.id])
+  );
+  
   const notificationItems = buildNotificationItems(anyRenewalDateSet);
 
   return (
@@ -235,4 +311,28 @@ const styles = StyleSheet.create({
   disabledButtonText: {
     color: '#c7c7cc',
   },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    width: '80%',
+    overflow: 'hidden',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e8e8e8',
+  },
+  modalOptionText: {
+    fontSize: 16,
+  }
 }); 
