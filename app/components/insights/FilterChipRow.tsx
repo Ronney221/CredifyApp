@@ -15,7 +15,10 @@ interface FilterChipRowProps {
   selectedCardIds: string[];
   availableCards: CardInfo[];
   onManageFilters: () => void;
+  activeFilterCount: number;
 }
+
+const ICON_WIDTH = 50;
 
 const FilterChipRow: React.FC<FilterChipRowProps> = ({
   perkStatusFilter,
@@ -23,12 +26,18 @@ const FilterChipRow: React.FC<FilterChipRowProps> = ({
   selectedCardIds,
   availableCards,
   onManageFilters,
+  activeFilterCount,
 }) => {
-  const selectedCards = availableCards.filter(card => selectedCardIds.includes(card.id));
-
   return (
     <View style={styles.container}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContainer,
+          { paddingRight: ICON_WIDTH },
+        ]}
+      >
         {/* Perk Status Filters */}
         {(['all', 'redeemed', 'missed'] as PerkStatusFilter[]).map(status => (
           <TouchableOpacity
@@ -41,37 +50,29 @@ const FilterChipRow: React.FC<FilterChipRowProps> = ({
             </Text>
           </TouchableOpacity>
         ))}
-
-        <View style={styles.divider} />
-
-        {/* Selected Card Filters */}
-        {selectedCards.map(card => (
-          <TouchableOpacity
-            key={card.id}
-            style={[styles.chip, styles.chipSelected]} // Always selected style for cards
-            onPress={onManageFilters} // Tapping a card opens the filter manager
-          >
-            {/* Add card logo/avatar here in the future */}
-            <Text style={[styles.chipText, styles.chipTextSelected]}>{card.name}</Text>
-          </TouchableOpacity>
-        ))}
-        
-        {/* Manage Filters Button */}
-        <TouchableOpacity style={styles.manageButton} onPress={onManageFilters}>
-          <Ionicons name="options-outline" size={16} color={Colors.light.tint} />
-          <Text style={styles.manageButtonText}>Manage</Text>
-        </TouchableOpacity>
       </ScrollView>
+
+      {/* Absolutely-positioned Manage icon */}
+      <TouchableOpacity style={styles.manageBtn} onPress={onManageFilters}>
+        <Ionicons name="options-outline" size={24} color={Colors.light.tint} />
+        {activeFilterCount > 0 && (
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{activeFilterCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
     backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   scrollContainer: {
     paddingHorizontal: 15,
@@ -105,16 +106,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1D1D6',
     marginHorizontal: 8,
   },
-  manageButton: {
-    flexDirection: 'row',
+  manageBtn: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: ICON_WIDTH,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    backgroundColor: `${Colors.light.background}F2`, // Add slight transparency to blend edges
   },
-  manageButtonText: {
-    fontSize: 14,
-    color: Colors.light.tint,
-    marginLeft: 5,
-    fontWeight: '600',
+  badgeContainer: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: Colors.light.tint,
+    borderRadius: 9,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.light.background,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
 

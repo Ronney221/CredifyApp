@@ -410,6 +410,7 @@ export default function InsightsScreen() {
           selectedCardIds={selectedCardIds}
           availableCards={insightsData.availableCardsForFilter}
           onManageFilters={() => setFilterModalVisible(true)}
+          activeFilterCount={activeFilterCount}
         />
 
         <OnboardingHint />
