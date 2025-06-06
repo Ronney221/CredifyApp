@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CardPerk } from '../../../src/data/card-data'; // Adjust path as needed
-import { Colors } from '../../../constants/Colors'; // Adjust path as needed
+import { CardPerk } from '../../../src/data/card-data';
+import { Colors } from '../../../constants/Colors';
 
 interface ActionHintPillProps {
   perk: CardPerk & { cardId: string; cardName: string };
@@ -10,7 +10,7 @@ interface ActionHintPillProps {
   onPress: () => void;
 }
 
-const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, onPress }) => {
+export const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, onPress }) => {
   const formattedValue = perk.value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -18,25 +18,18 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
     maximumFractionDigits: 0,
   });
 
-  let urgencyColor = '#007A7F'; // Teal as default for text/icon
-  let borderColor = '#007A7F66'; // Default border color with 40% opacity
-  let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline'; // Default icon
+  let urgencyColor = Colors.light.tint;
   let daysText = `${daysRemaining} days left`;
+  let iconName: keyof typeof Ionicons.glyphMap = 'arrow-forward-circle';
 
   if (daysRemaining <= 0) {
     urgencyColor = '#f57c00'; // Orange for urgent (expired or today)
-    borderColor = '#f57c0066'; // Orange with 40% opacity for border
-    iconName = 'flame-outline';
     daysText = 'Expires today!';
     if (daysRemaining < 0) daysText = 'Expired';
+    iconName = 'alert-circle';
   } else if (daysRemaining <= 3) {
     urgencyColor = '#f57c00'; // Orange for urgent
-    borderColor = '#f57c0066'; // Orange with 40% opacity for border
-    iconName = 'flame-outline';
     daysText = 'Expires soon!';
-  } else if (daysRemaining <= 7) {
-    urgencyColor = '#ffab00'; // Amber for soon
-    borderColor = '#ffab0066'; // Amber with 40% opacity for border
     iconName = 'time-outline';
   }
 
@@ -44,14 +37,15 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.textContainer}>
         <Text style={styles.titleText} numberOfLines={2}>
-          Use your <Text style={styles.valueText}>{formattedValue} {perk.name}</Text>
+          <Text style={{ fontWeight: '700' }}>{formattedValue} {perk.name}</Text> credit
         </Text>
         <Text style={styles.subtitleText}>
-          from {perk.cardName} • <Text style={styles.daysLeftText}>{daysText}</Text>
+          From your {perk.cardName.replace('American Express', 'Amex')}
         </Text>
       </View>
-      <View style={styles.actionButtonContainer}>
-        <Ionicons name="arrow-forward-circle" size={24} color="#FFFFFF" />
+      <View style={[styles.actionButtonContainer, { backgroundColor: urgencyColor }]}>
+        <Text style={styles.daysLeftText}>{daysText}</Text>
+        <Ionicons name={iconName} size={16} color="#FFFFFF" style={{ marginLeft: 6 }}/>
       </View>
     </TouchableOpacity>
   );
@@ -61,50 +55,51 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0066FF', // Vibrant cobalt blue
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingLeft: 20, // More padding on the left for text
-    paddingRight: 12, // Less padding on the right for the icon
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 12,
     marginHorizontal: 16,
-    marginVertical: 12,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 6,
+        elevation: 3,
       },
     }),
   },
   textContainer: {
     flex: 1,
     justifyContent: 'center',
+    marginRight: 12,
   },
   titleText: {
-    fontSize: 15,
-    color: '#FFFFFF', // White text
-    fontWeight: '400',
-    marginBottom: 2,
-    lineHeight: 20,
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '500',
+    marginBottom: 4,
   },
   subtitleText: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)', // Slightly transparent white
-    lineHeight: 18,
-  },
-  daysLeftText: {
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  valueText: {
-    fontWeight: '700', // Bold for perk name and value
+    fontSize: 14,
+    color: '#6e6e73',
   },
   actionButtonContainer: {
-    marginLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 100, // Pill shape
+  },
+  daysLeftText: {
+    fontSize: 13,
+    color: '#ffffff',
+    fontWeight: '600',
   },
 });
 

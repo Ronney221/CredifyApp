@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../../lib/supabase'; // Corrected path
-import { Card, allCards, Benefit } from '../../src/data/card-data'; // Corrected path, removed unused CardPerk
+import { Card, allCards, Benefit, APP_SCHEMES } from '../../src/data/card-data'; // Corrected path, removed unused CardPerk
 import { getUserCards, getCurrentMonthRedemptions } from '../../lib/database'; // Corrected path and imported types
 
 export interface NotificationPreferences {
@@ -10,7 +10,72 @@ export interface NotificationPreferences {
   perkResetConfirmationEnabled?: boolean;
   monthlyPerkExpiryReminderDays?: number[]; // New: e.g., [1, 3, 7]
   weeklyDigestEnabled?: boolean;
+  quarterlyPerkExpiryReminderDays?: number[];
+  semiAnnualPerkExpiryReminderDays?: number[];
+  annualPerkExpiryReminderDays?: number[];
 }
+
+const generateEngagingText = (
+  perkInfo: { perk: Benefit; cardName: string } | null,
+  daysBefore: number,
+  totalValue: number,
+  perkCount: number
+) => {
+  if (perkInfo) {
+    const { perk, cardName } = perkInfo;
+    const perkValueString = `$${perk.value.toFixed(0)}`;
+    const cardNameShort = cardName.replace('American Express', 'Amex').replace(' (AmEx)', '');
+    
+    let title = `Don't lose your ${perkValueString} credit!`;
+    let body = `Your ${cardNameShort} ${perk.name} credit expires in ${daysBefore} days.`;
+
+    switch (perk.appScheme) {
+      case 'uber':
+      case 'uberEats':
+        body = `Your ${cardNameShort} credit expires soon. Order a coffee or catch a ride! ☕️`;
+        break;
+      case 'grubhub':
+      case 'doordash':
+        title = `Your ${perkValueString} food credit is expiring!`;
+        body = `Grab some snacks with your ${cardNameShort} credit before it's gone. Chips and a soda, anyone? 🥤`;
+        break;
+      case 'saks':
+        title = `Your ${perkValueString} Saks credit is waiting`;
+        body = `Treat yourself with your ${cardNameShort} benefit. A nice gift is just a tap away. 🎁`;
+        break;
+      default:
+        if (perk.name.toLowerCase().includes('dining')) {
+          title = `Don't miss your ${perkValueString} dining credit!`;
+          body = `Your ${cardNameShort} perk for a tasty meal out expires soon.`;
+        } else if (perk.name.toLowerCase().includes('entertainment')) {
+          title = `Binge-watching on us!`;
+          body = `Your ${perkValueString} entertainment credit from ${cardNameShort} is expiring. Catch up on your favorite shows. 📺`;
+        }
+        break;
+    }
+    
+    if (daysBefore === 1) {
+        title = '🚨 Last Day for Monthly Perks!';
+        body = `Today is your last chance to use your ${perkValueString} ${perk.name} from ${cardNameShort}.`;
+    }
+    
+    return { title, body };
+  }
+
+  // Fallback for when there's no specific perk to highlight
+  const totalValueString = `$${totalValue.toFixed(0)}`;
+  const perkCountString = `${perkCount} perk${perkCount > 1 ? 's' : ''}`;
+  if (daysBefore === 1) {
+    return {
+      title: '🚨 Last Day for Monthly Perks!',
+      body: `Today is your last chance for ${perkCountString} worth ${totalValueString}!`,
+    };
+  }
+  return {
+    title: '✨ Perks Expiring Soon!',
+    body: `You have ${perkCountString} worth ${totalValueString} expiring in ${daysBefore} days.`,
+  };
+};
 
 // --- Basic Notification Configuration ---
 
@@ -79,22 +144,15 @@ export const scheduleNotificationAsync = async (
  * Schedules an immediate test notification.
  * @returns {Promise<string>} The ID of the scheduled notification, or an empty string if permissions are denied.
  */
-export const sendTestNotification = async (): Promise<string> => {
+export const sendTestNotification = async (userId: string, preferences: NotificationPreferences): Promise<(string | null)[]> => {
   const hasPermissions = await requestPermissionsAsync();
   if (!hasPermissions) {
     console.warn('[Notifications] Permission not granted for test notification.');
-    return ''; 
+    return []; 
   }
 
-  console.log('[Notifications] Sending a test notification.');
-  const now = new Date();
-  now.setSeconds(now.getSeconds() + 2); // Fire in 2 seconds
-
-  return scheduleNotificationAsync(
-    '🔔 Test Notification',
-    'This is a test notification to check if your settings are working correctly.',
-    now,
-  );
+  console.log('[Notifications] Sending a test notification for perk expiry.');
+  return scheduleMonthlyPerkResetNotifications(userId, preferences, true);
 };
 
 /**
@@ -149,7 +207,7 @@ export const scheduleCardRenewalReminder = async (
  * @param userId The ID of the user to fetch perk data for.
  * @param preferences User's notification preferences.
  */
-export const scheduleMonthlyPerkResetNotifications = async (userId?: string, preferences?: NotificationPreferences): Promise<(string | null)[]> => {
+export const scheduleMonthlyPerkResetNotifications = async (userId?: string, preferences?: NotificationPreferences, isTest: boolean = false): Promise<(string | null)[]> => {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
@@ -170,9 +228,9 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
   let totalAvailableValue = 0;
   let availablePerksCount = 0;
   let allMonthlyPerksRedeemed = true;
-  let mostExpensiveAvailablePerk: { name: string; value: number } | null = null;
+  let mostExpensiveAvailablePerk: { name: string; value: number; cardName: string } | null = null;
 
-  if (userId && expiryRemindersEnabled) { // Only fetch data if reminders are enabled and userId is present
+  if (userId && expiryRemindersEnabled) {
     try {
       console.log(`[Notifications] Fetching data for user ${userId} for monthly perk reminders.`);
       const { data: monthlyPerkDefinitions, error: perkDefError } = await supabase
@@ -209,16 +267,16 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
                   allMonthlyPerksRedeemed = false;
                   if (benefit.value > currentMostExpensiveValue) {
                     currentMostExpensiveValue = benefit.value;
-                    mostExpensiveAvailablePerk = { name: definition.name, value: benefit.value };
+                    mostExpensiveAvailablePerk = { name: definition.name, value: benefit.value, cardName: appCard.name };
                   }
                 }
               }
             });
           });
-          // Simplified log to avoid linter issues with type 'never'
+          
           let logMessage = `[Notifications] User ${userId}: ${availablePerksCount} monthly perks available, total $${totalAvailableValue.toFixed(0)}.`;
           if (mostExpensiveAvailablePerk) {
-            logMessage += ` Most expensive: ${mostExpensiveAvailablePerk.name} ($${mostExpensiveAvailablePerk.value.toFixed(0)})`;
+            logMessage += ` Most expensive: ${mostExpensiveAvailablePerk.name} ($${mostExpensiveAvailablePerk.value.toFixed(0)}) from ${mostExpensiveAvailablePerk.cardName}`;
           }
           console.log(logMessage);
       }
@@ -232,14 +290,20 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
   }
 
   if (expiryRemindersEnabled && (!allMonthlyPerksRedeemed || !userId)) { 
-    reminderDays.forEach(daysBefore => {
+    reminderDays.forEach((daysBefore, index) => {
       if (daysBefore <= 0) return; 
 
-      const reminderDate = new Date(endOfMonth);
-      reminderDate.setDate(endOfMonth.getDate() - daysBefore);
-      reminderDate.setHours(23, 59, 50, 0); 
+      let reminderDate: Date;
+      if (isTest) {
+        reminderDate = new Date();
+        reminderDate.setSeconds(now.getSeconds() + (index + 1) * 3); // Stagger tests
+      } else {
+        reminderDate = new Date(endOfMonth);
+        reminderDate.setDate(endOfMonth.getDate() - daysBefore);
+        reminderDate.setHours(23, 59, 50, 0); 
+      }
 
-      if (reminderDate > now) {
+      if (reminderDate > now || isTest) {
         let body = '';
         let title = '';
 
@@ -251,7 +315,7 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
             if (totalAvailableValue > 0 && availablePerksCount > 0) {
                 body = `Today is your last chance for ${perkCountString} worth ${totalValueString}!`;
                 if (mostExpensiveAvailablePerk && mostExpensiveAvailablePerk.value > 0) {
-                    body += ` Don't miss your $${mostExpensiveAvailablePerk.value.toFixed(0)} ${mostExpensiveAvailablePerk.name} credit.`;
+                    body += ` Don't miss your $${mostExpensiveAvailablePerk.value.toFixed(0)} ${mostExpensiveAvailablePerk.name} credit from your ${mostExpensiveAvailablePerk.cardName}.`;
                 }
             } else {
                 body = `Today is the last day to use your monthly credits.`;
@@ -261,21 +325,21 @@ export const scheduleMonthlyPerkResetNotifications = async (userId?: string, pre
             if (totalAvailableValue > 0 && availablePerksCount > 0) {
                 body = `You have ${perkCountString} worth ${totalValueString} expiring in ${daysBefore} days.`;
                 if (mostExpensiveAvailablePerk && mostExpensiveAvailablePerk.value > 0) {
-                    body += ` Key perk: $${mostExpensiveAvailablePerk.value.toFixed(0)} ${mostExpensiveAvailablePerk.name}.`;
+                    body += ` Key perk: $${mostExpensiveAvailablePerk.value.toFixed(0)} ${mostExpensiveAvailablePerk.name} from your ${mostExpensiveAvailablePerk.cardName}.`;
                 }
             } else {
                 body = `About ${daysBefore} days left to use your monthly credits.`;
             }
         }
         
-    tasks.push(
-      scheduleNotificationAsync(
+        tasks.push(
+          scheduleNotificationAsync(
             title,
             body,
             reminderDate,
-      ),
-    );
-  }
+          ),
+        );
+      }
     });
   }
 

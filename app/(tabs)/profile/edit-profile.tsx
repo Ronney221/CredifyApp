@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,60 +14,42 @@ import {
   ScrollView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Colors } from '../../../constants/Colors';
 import Toast from 'react-native-root-toast';
-import { useAuth } from '../../../contexts/AuthContext'; // Adjust path as needed
-import { Colors } from '../../../constants/Colors'; // Adjust path as needed
-
-// Fallback colors - ideally, add these to your Colors.ts
-const FauxColors = {
-  textSecondary: '#6c757d',
-  borderColor: '#ced4da',
-  inputBackground: '#f8f9fa',
-  error: '#dc3545',
-};
+import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, updateUserMetadata, loading: authLoading } = useAuth();
+  const { user, updateUserMetadata, logOut, loading: authLoading } = useAuth();
 
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // Initialize fullName from user metadata or provide an empty string if not available
-    setFullName(user?.user_metadata?.full_name || '');
-  }, [user]); // Depend on user object to re-initialize if it changes
+  const hasChanges = useMemo(() => {
+    return fullName.trim() !== (user?.user_metadata?.full_name || '');
+  }, [fullName, user]);
 
   const handleSaveChanges = async () => {
+    if (!hasChanges || isLoading) return;
+
     if (!fullName.trim()) {
       Alert.alert('Validation Error', 'Full name cannot be empty.');
-      return;
-    }
-    // Check if there are actual changes to save
-    if (fullName.trim() === (user?.user_metadata?.full_name || '')) {
-      Toast.show('No changes to save.', { position: Toast.positions.BOTTOM });
       return;
     }
 
     setIsLoading(true);
     try {
-      // Ensure updateUserMetadata is available before calling
-      if (typeof updateUserMetadata !== 'function') {
-        console.error("updateUserMetadata function is not available on AuthContext.");
-        Alert.alert('Error', 'Profile update functionality is currently unavailable. Please try again later.');
-        setIsLoading(false);
-        return;
-      }
-
       const success = await updateUserMetadata({ full_name: fullName.trim() });
       if (success) {
-        Toast.show('Profile updated successfully!', { 
-          position: Toast.positions.BOTTOM, 
-          backgroundColor: Colors.light.tint, 
-          textColor: '#ffffff' 
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Toast.show('Profile updated!', { 
+          position: Toast.positions.BOTTOM,
+          backgroundColor: '#4cd964',
+          textColor: '#ffffff',
+          shadow: false,
         });
-        router.back();
       } else {
         Alert.alert('Error', 'Failed to update profile. Please try again.');
       }
@@ -78,112 +60,117 @@ export default function EditProfileScreen() {
       setIsLoading(false);
     }
   };
+  
+  const handleSignOut = async () => {
+    Alert.alert(
+      "Log Out",
+      "Are you sure you want to log out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Log Out", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await logOut();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          } 
+        },
+      ]
+    );
+  };
 
-  // Show loading indicator if auth state is loading and user is not yet available
   if (authLoading && !user) {
     return (
-      <SafeAreaView style={styles.safeAreaLoading}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.light.tint} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ title: 'Edit Profile' }} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
+        style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.container}>
-            <View style={styles.avatarSection}>
-              {user?.user_metadata?.avatar_url ? (
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.avatarSection}>
+            <View>
+                {user?.user_metadata?.avatar_url ? (
                 <Image source={{ uri: user.user_metadata.avatar_url }} style={styles.avatar} />
-              ) : (
+                ) : (
                 <View style={styles.initialsAvatar}>
-                  <Text style={styles.initialsText}>
+                    <Text style={styles.initialsText}>
                     {(fullName || user?.email || 'P')?.[0]?.toUpperCase()}
-                  </Text>
+                    </Text>
                 </View>
-              )}
-              {/* Future: TouchableOpacity to change avatar */}
+                )}
+                <TouchableOpacity style={styles.avatarEditButton}>
+                    <Ionicons name="camera-outline" size={18} color="#ffffff" />
+                </TouchableOpacity>
             </View>
+          </View>
 
+          <View style={styles.section}>
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>Name</Text>
               <TextInput
                 style={styles.input}
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Enter your full name"
-                placeholderTextColor={FauxColors.textSecondary}
                 autoCapitalize="words"
                 autoCorrect={false}
                 returnKeyType="done"
+                onBlur={handleSaveChanges}
               />
             </View>
-
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Email Address</Text>
+            <View style={styles.fieldContainerNoBorder}>
+              <Text style={styles.label}>Email</Text>
               <TextInput
-                style={[styles.input, styles.readOnlyInput]}
+                style={styles.input}
                 value={user?.email || ''}
                 editable={false}
-                placeholderTextColor={FauxColors.textSecondary}
               />
             </View>
-
-            <TouchableOpacity
-              style={[styles.saveButton, (isLoading || !fullName.trim()) && styles.disabledButton]}
-              onPress={handleSaveChanges}
-              disabled={isLoading || !fullName.trim()}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              )}
-            </TouchableOpacity>
           </View>
         </ScrollView>
+        <View style={styles.footer}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut}>
+                <Text style={styles.logoutButtonText}>Log Out</Text>
+            </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.light.background, 
-  },
-  safeAreaLoading: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'flex-start', // Changed to flex-start for typical form layout
-    paddingTop: 24, // Added padding top
-  },
   container: {
     flex: 1,
-    paddingHorizontal: 24, // Consistent horizontal padding
+    backgroundColor: '#f2f2f7',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f2f2f7',
+  },
+  scrollContent: {
+    paddingVertical: 32,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 48,
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: FauxColors.borderColor, 
   },
   initialsAvatar: {
     width: 100,
@@ -198,42 +185,54 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: 'bold',
   },
+   avatarEditButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  section: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    overflow: 'hidden',
+  },
   fieldContainer: {
-    marginBottom: 24, // Increased spacing
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#c7c7cc',
+  },
+  fieldContainerNoBorder: {
+     padding: 16,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: FauxColors.textSecondary,
-    marginBottom: 8,
+    fontSize: 13,
+    color: '#6e6e73',
+    marginBottom: 4,
   },
   input: {
-    backgroundColor: FauxColors.inputBackground,
-    borderWidth: 1,
-    borderColor: FauxColors.borderColor,
-    borderRadius: 10, // Slightly more rounded
-    paddingHorizontal: 16,
-    paddingVertical: 14, // Increased padding for better touch
-    fontSize: 16,
-    color: Colors.light.text,
+    fontSize: 17,
+    color: '#000000',
   },
-  readOnlyInput: {
-    backgroundColor: '#e9ecef',
-    color: '#495057',
+  footer: {
+    padding: 20,
   },
-  saveButton: {
-    backgroundColor: Colors.light.tint,
+  logoutButton: {
+    backgroundColor: '#ff3b30',
+    borderRadius: 12,
     paddingVertical: 16,
-    borderRadius: 10,
     alignItems: 'center',
-    marginTop: 16, // Adjusted margin
   },
-  saveButtonText: {
+  logoutButtonText: {
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.5,
   },
 }); 

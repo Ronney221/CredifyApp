@@ -142,9 +142,13 @@ export default function NotificationSettingsScreen() {
               />
             ))}
           </View>
-           <TouchableOpacity onPress={sendTestNotification} style={styles.testButton}>
-              <Ionicons name="notifications-outline" size={20} color={Colors.light.tint} />
-              <Text style={styles.testButtonText}>Send Test Notification</Text>
+           <TouchableOpacity 
+              onPress={() => user?.id && sendTestNotification(user.id)} 
+              style={[styles.testButton, !user?.id && styles.disabledButton]}
+              disabled={!user?.id}
+            >
+              <Ionicons name="paper-plane-outline" size={20} color={!user?.id ? '#c7c7cc' : Colors.light.tint} />
+              <Text style={[styles.testButtonText, !user?.id && styles.disabledButtonText]}>Test Perk Reminders</Text>
             </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -217,11 +221,18 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#ffffff',
     borderRadius: 12,
+    marginTop: 20,
   },
   testButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.light.tint,
     marginLeft: 8,
+  },
+  disabledButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  disabledButtonText: {
+    color: '#c7c7cc',
   },
 }); 
