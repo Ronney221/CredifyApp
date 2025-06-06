@@ -18,8 +18,8 @@ const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemaining, on
     maximumFractionDigits: 0,
   });
 
-  let urgencyColor = '#20B2AA'; // Subtle Teal as default for text/icon
-  let borderColor = '#20B2AA66'; // Default border color with 40% opacity
+  let urgencyColor = '#007A7F'; // Teal as default for text/icon
+  let borderColor = '#007A7F66'; // Default border color with 40% opacity
   let iconName: keyof typeof Ionicons.glyphMap = 'information-circle-outline'; // Default icon
   let daysText = `${daysRemaining} days left`;
 

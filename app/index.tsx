@@ -75,8 +75,8 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (!loading && user) {
-      console.log('User session found, redirecting to onboarding for testing.');
-      router.replace('/(onboarding)/card-select');
+      console.log('User session found, redirecting to dashboard.');
+      router.replace('/01-dashboard');
     }
     // If !loading && !user, the WelcomeScreen UI (auth options) is shown.
   }, [user, loading, router]);

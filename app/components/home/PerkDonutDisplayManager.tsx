@@ -184,7 +184,7 @@ const PerkDonutDisplayManagerInner = (
       detailLineTwo: `$${currentAggregates.possibleValue.toFixed(0)} available`,
       perksCount: `${currentAggregates.redeemedCount} of ${currentAggregates.totalCount}`,
       progressPercentageText: `${percentageUsed}% Used`,
-      color: activeSegmentKey === 1 ? Colors.light.tint : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
+      color: activeSegmentKey === 1 ? '#007A7F' : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
       displayName: String(displayName)
     };
   }, [activeSegmentKey, periodAggregates]); // Removed Colors.light.tint as it's constant
@@ -217,7 +217,7 @@ const PerkDonutDisplayManagerInner = (
       />
 
       <ProgressDonut
-        size={120}
+        size={150}
         strokeWidth={10}
         progress={activeData.progress}
         amount={activeData.amount}

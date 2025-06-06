@@ -31,7 +31,7 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 
 export default function ProgressDonut({
   progress,
-  size = 120,
+  size = 150,
   strokeWidth = 6,
   color = Platform.OS === 'ios' ? '#007AFF' : 'dodgerblue',
   backgroundColor = '#ECECEC',
