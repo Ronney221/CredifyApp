@@ -39,7 +39,6 @@ import { useAutoRedemptions } from '../hooks/useAutoRedemptions';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
-import AccountButton from '../components/home/AccountButton';
 import CardExpanderFooter from '../components/home/CardExpanderFooter';
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -821,10 +820,6 @@ export default function Dashboard() {
               <Text style={styles.welcomeText}>Good morning,</Text>
               <Text style={styles.userNameText}>{userName || ' '}</Text>
             </View>
-            {/* Account button is also part of expanded view for consistent positioning before collapse */}
-            <View style={styles.headerAccountButtonWrapper}>
-                <AccountButton />
-            </View>
           </Animated.View>
 
           {/* Collapsed Header Content (Summary Title & Account Button) */}
@@ -836,9 +831,6 @@ export default function Dashboard() {
           >
             <View style={styles.collapsedTitleContainer}>
               <Text style={styles.collapsedHeaderText}>{collapsedHeaderText || ' '}</Text>
-            </View>
-            <View style={styles.headerAccountButtonWrapper}> 
-              <AccountButton />
             </View>
           </Animated.View>
         </Animated.View>
@@ -963,7 +955,7 @@ const styles = StyleSheet.create({
   collapsedHeaderElementsContainer: {
     height: COLLAPSED_HEADER_HEIGHT,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute', // Position it to overlay correctly during transition
     top: 0, // Align to the top of parent when parent is collapsed
@@ -974,23 +966,14 @@ const styles = StyleSheet.create({
   },
   collapsedTitleContainer: {
     flex: 1, 
-    // alignItems: 'center', // If you want text centered within this flex:1 container
-    // justifyContent: 'center',
+    alignItems: 'center', // If you want text centered within this flex:1 container
+    justifyContent: 'center',
   },
   collapsedHeaderText: {
     fontSize: 17,
     fontWeight: '600',
     color: '#1c1c1e',
     textAlign: 'center', // Center text if container is flex:1
-  },
-  // Wrapper for AccountButton to be used in both expanded and collapsed states if needed for layout
-  headerAccountButtonWrapper: {
-    // Styles for positioning or sizing the button wrapper if needed
-    // e.g., to ensure it aligns correctly with flexbox
-    // width: 40, // If AccountButton needs explicit sizing for layout
-    // height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   scrollContent: {
     flexGrow: 1,

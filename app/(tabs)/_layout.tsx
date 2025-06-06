@@ -145,6 +145,15 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
+            name="04-profile"
+            options={{
+              title: 'Profile',
+              tabBarIcon: ({ color, focused }) => (
+                <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
             name="04-more/edit-profile"
             options={{
               href: null,
