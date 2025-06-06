@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,36 @@ import {
 } from 'react-native';
 import { MotiView } from 'moti';
 import { Card } from '../../../src/data/card-data';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface UndoSnackbarProps {
   visible: boolean;
-  deletedCard: { card: Card; renewalDate?: Date } | null;
+  message: string;
   onUndo: () => void;
+  onDismiss: () => void;
 }
 
 export const UndoSnackbar: React.FC<UndoSnackbarProps> = ({
   visible,
-  deletedCard,
+  message,
   onUndo,
+  onDismiss,
 }) => {
-  if (!deletedCard) return null;
+  const insets = useSafeAreaInsets();
+  
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => {
+        onDismiss();
+      }, 5000); // Auto-dismiss after 5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [visible, onDismiss]);
+
+  const handleUndo = () => {
+    onDismiss(); // Dismiss immediately on undo
+    onUndo();
+  };
 
   return (
     <MotiView
@@ -32,13 +49,16 @@ export const UndoSnackbar: React.FC<UndoSnackbarProps> = ({
         type: 'timing',
         duration: 300,
       }}
-      style={styles.undoSnackbar}
+      style={[
+        styles.undoSnackbar,
+        { bottom: insets.bottom + 92 }
+      ]}
       pointerEvents={visible ? 'auto' : 'none'}
     >
       <Text style={styles.undoSnackbarText}>
-        {deletedCard.card.name} removed
+        {message}
       </Text>
-      <TouchableOpacity onPress={onUndo} style={styles.undoButton}>
+      <TouchableOpacity onPress={handleUndo} style={styles.undoButton}>
         <Text style={styles.undoButtonText}>Undo</Text>
       </TouchableOpacity>
     </MotiView>
@@ -48,11 +68,10 @@ export const UndoSnackbar: React.FC<UndoSnackbarProps> = ({
 const styles = StyleSheet.create({
   undoSnackbar: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 120 : 92,
-    left: '10%',
-    right: '10%',
-    backgroundColor: '#20B2AA',
-    borderRadius: 12,
+    left: '5%',
+    right: '5%',
+    backgroundColor: '#333333',
+    borderRadius: 14,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',

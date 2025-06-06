@@ -135,19 +135,9 @@ export const CardRow: React.FC<CardRowProps> = ({
         <View style={styles.cardContent}>
           <Text style={styles.cardName}>{card.name}</Text>
           {subtitle && (
-            <View style={styles.statusChipContainer}>
-              {subtitleStyle === 'placeholder' ? (
-                <View style={[styles.statusChipBase, styles.statusChipMissingDate]}>
-                  <Ionicons name="calendar-outline" size={12} color="#FFFFFF" style={styles.chipIcon} />
-                  <Text style={[styles.statusChipTextBase, styles.statusChipTextMissingDate]}>{subtitle}</Text>
-                </View>
-              ) : (
-                <View style={[styles.statusChipBase, styles.statusChipValidDate]}>
-                  <Ionicons name="checkmark-circle" size={12} color="#FFFFFF" style={styles.chipIcon} />
-                  <Text style={[styles.statusChipTextBase, styles.statusChipTextValidDate]}>{subtitle}</Text>
-                </View>
-              )}
-            </View>
+            <Text style={[styles.subtitle, subtitleStyle === 'placeholder' && styles.subtitlePlaceholder]}>
+                {subtitle}
+            </Text>
           )}
         </View>
         
@@ -202,41 +192,21 @@ const styles = StyleSheet.create({
   cardContent: {
     flex: 1,
     marginRight: 8,
+    justifyContent: 'center',
   },
   cardName: {
     fontSize: 17,
+    fontWeight: '600',
     color: Colors.light.text,
   },
-  statusChipContainer: {
-    marginTop: 6,
+  subtitle: {
+    fontSize: 13,
+    color: '#8e8e93',
+    marginTop: 4,
   },
-  statusChipBase: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-  },
-  statusChipMissingDate: {
-    backgroundColor: '#FF950099',
-  },
-  chipIcon: {
-    marginRight: 4,
-  },
-  statusChipTextBase: {
-    fontSize: 12,
-    color: '#ffffff',
+  subtitlePlaceholder: {
+    color: Colors.light.tint,
     fontWeight: '500',
-  },
-  statusChipTextMissingDate: {
-    // Potentially specific text color if needed, otherwise inherits from base
-  },
-  statusChipValidDate: {
-    backgroundColor: Colors.light.tint,
-  },
-  statusChipTextValidDate: {
-    // Potentially specific text color if needed, otherwise inherits from base
   },
   checkboxContainer: {
     width: 28,

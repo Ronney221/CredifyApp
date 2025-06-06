@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,8 @@ import {
   SaveChangesModal,
   PageHeader,
   useCardManagement,
+  UndoSnackbar,
+  SaveFooter,
 } from '../../components/cards';
 import { MotiView } from 'moti';
 
@@ -43,8 +45,6 @@ export default function ManageCardsScreen() {
   const [tempSelectedCardIdsInModal, setTempSelectedCardIdsInModal] = useState<Set<string>>(new Set());
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [currentEditingCardId, setCurrentEditingCardId] = useState<string | null>(null);
-  const [showFloatingAdd, setShowFloatingAdd] = useState(true);
-  const [scrollY, setScrollY] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
   const flatListRef = useRef<FlatList<Card>>(null);
   const [newlyAddedCardIdForScroll, setNewlyAddedCardIdForScroll] = useState<string | null>(null);
@@ -69,6 +69,7 @@ export default function ManageCardsScreen() {
     handleUndoDelete,
     handleDiscardChanges,
     handleSaveChanges,
+    setShowUndoSnackbar,
   } = cardManagement;
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function ManageCardsScreen() {
     }
   }, [isEditMode, selectedCards.length]);
 
-  const handleEditModeToggle = () => {
+  const handleEditModeToggle = useCallback(() => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -89,7 +90,7 @@ export default function ManageCardsScreen() {
     } else {
       setIsEditMode(true);
     }
-  };
+  }, [isEditMode, hasChanges]);
 
   const showDatePicker = (cardId: string) => {
     setCurrentEditingCardId(cardId);
@@ -139,11 +140,11 @@ export default function ManageCardsScreen() {
     }
   };
 
-  const handleOpenAddCardModal = () => {
+  const handleOpenAddCardModal = useCallback(() => {
     setModalSearchQuery('');
     setTempSelectedCardIdsInModal(new Set());
     setAddCardModalVisible(true);
-  };
+  }, []);
 
   const handleDoneAddCardModal = () => {
     const newCardIds = Array.from(tempSelectedCardIdsInModal);
@@ -175,25 +176,6 @@ export default function ManageCardsScreen() {
     setScrollViewHeight(event.nativeEvent.layout.height);
   };
 
-  const handleScroll = (event: any) => {
-    const currentScrollY = event.nativeEvent.contentOffset.y;
-    const contentHeight = event.nativeEvent.contentSize.height;
-    const layoutHeight = event.nativeEvent.layoutMeasurement.height;
-    const scrollDirection = currentScrollY > scrollY ? 'down' : 'up';
-    
-    setScrollY(currentScrollY);
-    
-    const isNearBottom = currentScrollY + layoutHeight >= contentHeight - 100;
-    
-    if (scrollDirection === 'down' && currentScrollY > 100) {
-      setShowFloatingAdd(false);
-    } else if ((scrollDirection === 'up' || currentScrollY < 50) && !isNearBottom) {
-      setShowFloatingAdd(true);
-    } else if (isNearBottom) {
-      setShowFloatingAdd(false);
-    }
-  };
-
   const filteredAvailableCardsForModal = useMemo(() => {
     return allCards.filter(card => 
       card.name.toLowerCase().includes(modalSearchQuery.toLowerCase())
@@ -206,6 +188,29 @@ export default function ManageCardsScreen() {
     index,
   });
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+        headerRight: () => (
+            !isEditMode ? (
+                <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
+                    <Ionicons name="add" size={28} color={Colors.light.tint} />
+                </TouchableOpacity>
+            ) : null
+        ),
+        headerLeft: () => (
+            selectedCards.length > 0 ? (
+                <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
+                    <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
+                        {isEditMode ? 'Done' : 'Edit'}
+                    </Text>
+                </TouchableOpacity>
+            ) : null
+        ),
+        headerTitle: 'Manage Cards',
+        headerShown: true,
+    });
+  }, [navigation, isEditMode, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal]);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -216,37 +221,41 @@ export default function ManageCardsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Manage Cards', headerShown: true }} />
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <FlatList
           data={selectedCardObjects}
-          renderItem={({ item: card }) => (
-            isEditMode ? (
+          renderItem={({ item: card }) => {
+            const formattedDate = formatDate(renewalDates[card.id]);
+            let subtitle;
+            if (formattedDate === 'Set renewal date ›') {
+                subtitle = formattedDate;
+            } else if (card.annualFee) {
+                subtitle = `$${card.annualFee} • Next renewal ${formattedDate}`;
+            } else {
+                subtitle = `Next renewal ${formattedDate}`;
+            }
+
+            return isEditMode ? (
               <CardRow
                 key={card.id} card={card} isSelected={false} onPress={() => {}} mode="manage"
-                subtitle={formatDate(renewalDates[card.id])}
+                subtitle={subtitle}
                 subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
                 showRemoveButton={true} onRemove={handleRemoveCard} isEditMode={true}
               />
             ) : (
               <CardRow
                 key={card.id} card={card} isSelected={false} onPress={handleCardPress} mode="manage"
-                subtitle={formatDate(renewalDates[card.id])}
+                subtitle={subtitle}
                 subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
                 showRemoveButton={false} isEditMode={false}
               />
             )
-          )}
+          }}
           keyExtractor={(card) => card.id}
           ListHeaderComponent={
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitleYourCards}>Your Cards</Text>
-                {selectedCards.length > 0 && (
-                  <TouchableOpacity onPress={handleEditModeToggle} style={styles.editIconButton}>
-                    <Ionicons name={isEditMode ? "checkmark-done-outline" : "create-outline"} size={24} color={Colors.light.tint} />
-                  </TouchableOpacity>
-                )}
               </View>
               {selectedCardObjects.length === 0 && (
                 <EmptyState onAddCard={handleOpenAddCardModal} />
@@ -256,27 +265,22 @@ export default function ManageCardsScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          onScroll={handleScroll} scrollEventThrottle={16} ref={flatListRef}
+          ref={flatListRef}
           onLayout={handleScrollViewLayout} getItemLayout={getItemLayout}
         />
 
-        <MotiView
-          animate={{ opacity: showFloatingAdd ? 1 : 0, scale: showFloatingAdd ? 1 : 0.8, translateY: showFloatingAdd ? 0 : 20 }}
-          transition={{ type: 'timing', duration: 200 }}
-          style={styles.floatingAddButton}
-        >
-          <TouchableOpacity onPress={handleOpenAddCardModal} activeOpacity={0.8} style={styles.floatingAddButtonTouchable}>
-            <Ionicons name="add-circle" size={56} color="#007aff" />
-          </TouchableOpacity>
-        </MotiView>
-
-        <SaveChangesModal 
-          visible={hasChanges && !isEditMode}
+        <SaveFooter
+          visible={hasChanges}
           onSave={handleSaveChanges}
           onDiscard={handleDiscardChanges}
           isSaving={isSaving}
-          deletedCard={deletedCard}
-          hasOtherChanges={hasChanges && deletedCard !== null}
+        />
+        
+        <UndoSnackbar
+          visible={showUndoSnackbar}
+          onUndo={handleUndoDelete}
+          onDismiss={() => setShowUndoSnackbar(false)}
+          message={deletedCard ? `${deletedCard.card.name} was removed` : ''}
         />
       </SafeAreaView>
 
@@ -308,7 +312,4 @@ const styles = StyleSheet.create({
   section: { marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EDEDED' },
   sectionTitleYourCards: { fontSize: 12, fontWeight: '600', color: '#6E6E73' },
-  floatingAddButton: { position: 'absolute', bottom: Platform.OS === 'ios' ? 100 : 72, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8 },
-  floatingAddButtonTouchable: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-  editIconButton: { padding: 6 },
 }); 

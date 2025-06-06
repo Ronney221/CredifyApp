@@ -32,29 +32,19 @@ export const useCardManagement = (userId: string | undefined) => {
   const formatDate = (date: Date | undefined): string => {
     if (!date) return 'Set renewal date ›';
     
-    const now = new Date();
-    // Ensure date is a Date object
     const renewalDateObj = typeof date === 'string' ? new Date(date) : date;
-    const currentYear = now.getFullYear();
-    const renewalMonth = renewalDateObj.getMonth();
-    const renewalDay = renewalDateObj.getDate();
+    const now = new Date();
+    let nextRenewal = new Date(now.getFullYear(), renewalDateObj.getMonth(), renewalDateObj.getDate());
     
-    // Create next renewal date (could be this year or next year)
-    let nextRenewal = new Date(currentYear, renewalMonth, renewalDay);
-    
-    // If the renewal date has passed this year, set it to next year
-    if (nextRenewal < now) {
-      nextRenewal = new Date(currentYear + 1, renewalMonth, renewalDay);
+    if (nextRenewal.getTime() < now.getTime() - (24*60*60*1000)) {
+      nextRenewal.setFullYear(now.getFullYear() + 1);
     }
     
-    const diffTime = nextRenewal.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthName = months[nextRenewal.getMonth()];
+    const year = nextRenewal.getFullYear().toString().slice(-2);
     
-    if (diffDays <= 30) {
-      return `Renews in ${diffDays} day${diffDays !== 1 ? 's' : ''}`;
-    } else {
-      return `Renews ${nextRenewal.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-    }
+    return `${monthName} ’${year}`;
   };
 
   const hasChanges = useMemo(() => {
@@ -106,6 +96,7 @@ export const useCardManagement = (userId: string | undefined) => {
     if (cardToRemove) {
       const renewalDate = renewalDates[cardId];
       setDeletedCard({ card: cardToRemove, renewalDate });
+      setShowUndoSnackbar(true);
     }
     
     setSelectedCards(prev => prev.filter(id => id !== cardId));
@@ -195,7 +186,7 @@ export const useCardManagement = (userId: string | undefined) => {
       // --- END: Logic to store unique perk periods ---
       
       if (Platform.OS === 'ios') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
       console.error('Error in save handler:', error);
@@ -324,5 +315,6 @@ export const useCardManagement = (userId: string | undefined) => {
     handleUndoDelete,
     handleDiscardChanges,
     handleSaveChanges,
+    setShowUndoSnackbar,
   };
 }; 
