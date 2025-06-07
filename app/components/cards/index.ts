@@ -5,4 +5,5 @@ export { SaveFooter } from './SaveFooter';
 export { SaveChangesModal } from './SaveChangesModal';
 export { PageHeader } from './PageHeader';
 export { useCardManagement } from './hooks/useCardManagement';
-export { useNotificationPreferences } from './hooks/useNotificationPreferences'; 
+export { useNotificationPreferences } from './hooks/useNotificationPreferences';
+export { useGroupedCards } from './hooks/useGroupedCards'; 

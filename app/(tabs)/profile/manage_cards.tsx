@@ -170,12 +170,6 @@ export default function ManageCardsScreen() {
     setScrollViewHeight(event.nativeEvent.layout.height);
   };
 
-  const filteredAvailableCardsForModal = useMemo(() => {
-    return allCards.filter(card => 
-      card.name.toLowerCase().includes(modalSearchQuery.toLowerCase())
-    );
-  }, [modalSearchQuery]);
-
   const getItemLayout = (data: any, index: number) => ({
     length: ESTIMATED_CARD_ROW_HEIGHT,
     offset: ESTIMATED_CARD_ROW_HEIGHT * index,
@@ -191,19 +185,23 @@ export default function ManageCardsScreen() {
                 </TouchableOpacity>
             ) : null
         ),
-        headerLeft: () => (
-            selectedCards.length > 0 ? (
+        headerLeft: () => {
+            if (selectedCards.length === 0 || (isEditMode && hasChanges)) {
+                return null;
+            }
+
+            return (
                 <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
                     <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
                         {isEditMode ? 'Done' : 'Edit'}
                     </Text>
                 </TouchableOpacity>
-            ) : null
-        ),
+            );
+        },
         headerTitle: 'Manage Cards',
         headerShown: true,
     });
-  }, [navigation, isEditMode, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal]);
+  }, [navigation, isEditMode, hasChanges, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal]);
 
   if (isLoading) {
     return (
@@ -273,7 +271,6 @@ export default function ManageCardsScreen() {
 
       <AddCardModal
         visible={addCardModalVisible} onClose={handleDoneAddCardModal}
-        availableCards={filteredAvailableCardsForModal}
         selectedCardIds={selectedCards}
         tempSelectedCardIds={tempSelectedCardIdsInModal}
         searchQuery={modalSearchQuery} onSearchChange={setModalSearchQuery}
