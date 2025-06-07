@@ -108,7 +108,12 @@ export default function EditProfileScreen() {
           style: "destructive", 
           onPress: async () => {
             try {
-              await logOut();
+              const { error } = await logOut();
+              if (error) {
+                Alert.alert('Error', 'Failed to sign out. Please try again.');
+              } else {
+                router.replace('/');
+              }
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
