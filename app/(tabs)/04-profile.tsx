@@ -6,7 +6,6 @@ import {
   SectionList,
   TouchableOpacity,
   Alert,
-  SectionListData,
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
@@ -16,20 +15,20 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors } from '../../constants/Colors';
-import { PageHeader } from '../components/cards'; // Reusing PageHeader
+import { ProfileHeader } from '../components/profile/ProfileHeader';
 
 interface ProfileRow {
   id: string;
   title: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  iconBackgroundColor: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  isDestructive?: boolean;
   onPress: () => void;
-  color?: string;
 }
 
-interface ProfileSection extends SectionListData<ProfileRow> {
+interface ProfileSection {
   title: string;
+  data: ProfileRow[];
+  footer?: string;
 }
 
 const ProfileScreen = () => {
@@ -60,33 +59,27 @@ const ProfileScreen = () => {
   
   const sections: ProfileSection[] = [
     {
-      title: 'Account',
-      data: [
-        { id: 'edit-profile', title: 'Edit Profile', icon: 'person-outline', iconColor: '#fff', iconBackgroundColor: '#007AFF', onPress: () => router.push('/(tabs)/profile/edit-profile') },
-        { id: 'sign-out', title: 'Sign Out', icon: 'log-out-outline', iconColor: '#fff', iconBackgroundColor: '#FF3B30', onPress: handleSignOut, color: '#FF3B30' },
-      ],
-    },
-    {
       title: 'Wallet',
       data: [
-        { id: 'manage-cards', title: 'Manage Cards', icon: 'card-outline', iconColor: '#fff', iconBackgroundColor: '#34C759', onPress: () => router.push('/(tabs)/profile/manage_cards') },
+        { id: 'manage-cards', title: 'Manage Cards', icon: 'card-outline', onPress: () => router.push('/(tabs)/profile/manage_cards') },
       ],
     },
     {
       title: 'Notifications',
       data: [
-        { id: 'preferences', title: 'Preferences', icon: 'notifications-outline', iconColor: '#fff', iconBackgroundColor: '#FF9500', onPress: () => router.push('/(tabs)/profile/notifications') },
+        { id: 'preferences', title: 'Preferences', icon: 'notifications-outline', onPress: () => router.push('/(tabs)/profile/notifications') },
       ],
     },
     {
       title: 'Support',
       data: [
-        { id: 'help-faq', title: 'Help & FAQ', icon: 'help-circle-outline', iconColor: '#fff', iconBackgroundColor: '#5856D6', onPress: () => router.push('/(tabs)/profile/help-faq') },
+        { id: 'help-faq', title: 'Help & FAQ', icon: 'help-circle-outline', onPress: () => router.push('/(tabs)/profile/help-faq') },
       ],
+      footer: 'Get help with your account, cards, and more.',
     },
   ];
 
-  const renderItem = ({ item, index, section }: SectionListRenderItemInfo<ProfileRow>) => {
+  const renderItem = ({ item, index, section }: SectionListRenderItemInfo<ProfileRow, ProfileSection>) => {
     const isFirstItem = index === 0;
     const isLastItem = index === section.data.length - 1;
 
@@ -101,39 +94,68 @@ const ProfileScreen = () => {
 
     return (
       <TouchableOpacity style={rowStyle} onPress={item.onPress}>
-        <View style={[styles.iconContainer, { backgroundColor: item.iconBackgroundColor }]}>
-          <Ionicons name={item.icon} size={18} color={item.iconColor} />
-        </View>
-        <Text style={[styles.rowText, { color: item.color || Colors.light.text }]}>
+        {item.icon && (
+          <Ionicons 
+            name={item.icon} 
+            size={22} 
+            color={Colors.light.secondaryAccent} 
+            style={styles.icon}
+          />
+        )}
+        <Text style={[
+          styles.rowText,
+          item.isDestructive && styles.destructiveText
+        ]}>
           {item.title}
         </Text>
-        {item.id !== 'sign-out' && (
-          <Ionicons name="chevron-forward" size={20} color={'#C7C7CC'} style={styles.chevron} />
-        )}
+        <Ionicons 
+          name="chevron-forward" 
+          size={20} 
+          color={Colors.light.secondaryLabel} 
+          style={styles.chevron} 
+        />
       </TouchableOpacity>
     );
   };
 
-  const renderSectionHeader = ({ section }: { section: SectionListData<ProfileRow> }) => (
-    <Text style={styles.sectionHeader}>{(section as ProfileSection).title}</Text>
+  const renderSectionHeader = ({ section }: { section: ProfileSection }) => (
+    <Text style={styles.sectionHeader}>{section.title}</Text>
   );
+
+  const renderSectionFooter = ({ section }: { section: ProfileSection }) => (
+    section.footer ? <Text style={styles.sectionFooter}>{section.footer}</Text> : null
+  );
+
+  // Extract first and last name from email (temporary, should come from user profile)
+  const name = user?.email ? user.email.split('@')[0].split('.').map(
+    word => word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ') : 'User';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <PageHeader 
-        title="Profile"
-        subtitle={`Signed in as ${user?.email || ''}`}
+      <ProfileHeader
+        name={name}
+        email={user?.email || ''}
+        onPress={() => router.push('/(tabs)/profile/edit-profile')}
       />
+      
       <SectionList
         sections={sections}
-        keyExtractor={(item, index) => item.id + index}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
-        ItemSeparatorComponent={({ leadingItem, section }) => 
-          section.data.indexOf(leadingItem) === section.data.length - 1 ? null : <View style={styles.separator} />
-        }
+        renderSectionFooter={renderSectionFooter}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={styles.listContent}
         stickySectionHeadersEnabled={false}
+        ListFooterComponent={() => (
+          <TouchableOpacity 
+            style={styles.signOutButton} 
+            onPress={handleSignOut}
+          >
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        )}
       />
     </SafeAreaView>
   );
@@ -142,58 +164,78 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f7',
+    backgroundColor: Colors.light.systemGroupedBackground,
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
   },
   sectionHeader: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#6D6D72',
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.light.secondaryLabel,
     textTransform: 'uppercase',
-    marginTop: 35,
-    marginBottom: 10,
-    paddingHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 16,
+  },
+  sectionFooter: {
+    fontSize: 13,
+    color: Colors.light.secondaryLabel,
+    marginTop: 8,
+    marginBottom: 16,
+    marginLeft: 16,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.light.background,
     paddingHorizontal: 16,
     height: 44,
   },
   rowSingle: {
-    borderRadius: 10,
+    borderRadius: 13,
   },
   rowFirst: {
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
+    borderTopLeftRadius: 13,
+    borderTopRightRadius: 13,
   },
   rowLast: {
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
+    borderBottomLeftRadius: 13,
+    borderBottomRightRadius: 13,
   },
-  iconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
+  icon: {
     marginRight: 16,
+    width: 24,
   },
   rowText: {
     fontSize: 17,
+    color: Colors.light.text,
     flex: 1,
+  },
+  destructiveText: {
+    color: Colors.light.error,
   },
   chevron: {
     marginLeft: 'auto',
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#C8C7CC',
-    marginLeft: 60, // icon width + margins
+    backgroundColor: Colors.light.separator,
+    marginLeft: 56,
+  },
+  signOutButton: {
+    backgroundColor: Colors.light.background,
+    marginTop: 32,
+    marginHorizontal: 16,
+    height: 44,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signOutText: {
+    fontSize: 17,
+    color: Colors.light.error,
+    fontWeight: '600',
   },
 });
 

@@ -1,22 +1,65 @@
+interface ThemeColors {
+  text: string;
+  background: string;
+  tint: string;
+  icon: string;
+  tabIconDefault: string;
+  tabIconSelected: string;
+  // iOS system colors
+  systemGroupedBackground: string;
+  secondarySystemGroupedBackground: string;
+  separator: string;
+  secondaryLabel: string;
+  secondaryAccent: string;
+  error: string;
+  // Application-specific colors
+  primary: string;
+  accent: string;
+  textSecondary: string;
+  cardBackground: string;
+  warning: string;
+  pending: string;
+  disabledText: string;
+  disabledBackground: string;
+  borderLight: string;
+  progressBarTrack: string;
+  streakBronze: string;
+  streakSilver: string;
+  streakGold: string;
+  coldStreakIcon: string;
+  textOnPrimary: string;
+  textOnAccent: string;
+  redeemButtonDefault: string;
+  redeemButtonDisabled: string;
+  coldStreakBackground: string;
+  textOnColdStreakBackground: string;
+}
+
 const tintColorLight = '#007AFF'; // Our primary color
 const tintColorDark = '#FFFFFF';  // A common dark mode tint
 
-export const Colors = {
+export const Colors: { light: ThemeColors; dark: ThemeColors } = {
   light: {
     text: '#1C1C1E',
-    background: '#F0F2F5', // This will be our app's main background
+    background: '#FFFFFF',
     tint: tintColorLight,
-    icon: '#687076', // Example icon color
+    icon: '#687076',
     tabIconDefault: '#ccc',
     tabIconSelected: tintColorLight,
-    // Application-specific colors within the light theme
+    // iOS system colors
+    systemGroupedBackground: '#F2F2F7',
+    secondarySystemGroupedBackground: '#FFFFFF',
+    separator: '#C6C6C8',
+    secondaryLabel: '#6D6D72',
+    secondaryAccent: '#007AFF',
+    error: '#FF3B30',
+    // Application-specific colors
     primary: tintColorLight,
     accent: '#34C759',
     textSecondary: '#666666',
-    cardBackground: '#FFFFFF', // Specific background for cards
+    cardBackground: '#FFFFFF',
     warning: '#FF9500',
     pending: '#FFCC00',
-    error: '#FF3B30',
     disabledText: '#AEAEB2',
     disabledBackground: '#E5E5EA',
     borderLight: '#DCDCDC',
@@ -29,24 +72,30 @@ export const Colors = {
     textOnAccent: '#FFFFFF',
     redeemButtonDefault: tintColorLight,
     redeemButtonDisabled: '#6c757d',
-    coldStreakBackground: '#e0f7fa', // A light cyan/blue
-    textOnColdStreakBackground: '#00796b', // A darker teal for text
+    coldStreakBackground: '#e0f7fa',
+    textOnColdStreakBackground: '#00796b',
   },
   dark: {
     text: '#FFFFFF',
-    background: '#121212', // App's main background for dark mode
+    background: '#1C1C1E',
     tint: tintColorDark,
     icon: '#A0A0A0',
     tabIconDefault: '#555',
     tabIconSelected: tintColorDark,
-    // Application-specific colors within the dark theme
-    primary: tintColorLight, // Or a different blue for dark mode, e.g., a lighter shade
+    // iOS system colors
+    systemGroupedBackground: '#000000',
+    secondarySystemGroupedBackground: '#1C1C1E',
+    separator: '#38383A',
+    secondaryLabel: '#8E8E93',
+    secondaryAccent: '#0A84FF',
+    error: '#FF453A',
+    // Application-specific colors
+    primary: tintColorLight,
     accent: '#34C759',
     textSecondary: '#A0A0A0',
-    cardBackground: '#1E1E1E', // Specific background for cards in dark mode
+    cardBackground: '#2C2C2E',
     warning: '#FF9500',
     pending: '#FFCC00',
-    error: '#FF6B6B',
     disabledText: '#555555',
     disabledBackground: '#333333',
     borderLight: '#444444',
@@ -59,5 +108,7 @@ export const Colors = {
     textOnAccent: '#FFFFFF',
     redeemButtonDefault: tintColorLight,
     redeemButtonDisabled: '#4D4D4D',
+    coldStreakBackground: '#1a1a1a',
+    textOnColdStreakBackground: '#8E8E93',
   },
 }; 

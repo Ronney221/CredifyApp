@@ -19,6 +19,7 @@ import { Colors } from '../../../constants/Colors';
 import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function EditProfileScreen() {
 
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   const hasChanges = useMemo(() => {
     return fullName.trim() !== (user?.user_metadata?.full_name || '');
@@ -82,6 +84,31 @@ export default function EditProfileScreen() {
     );
   };
 
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Required',
+        'Please grant camera roll permissions to change your profile picture.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setAvatarUri(result.assets[0].uri);
+      // TODO: Upload image to storage and update user profile
+    }
+  };
+
   if (authLoading && !user) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -100,8 +127,8 @@ export default function EditProfileScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.avatarSection}>
             <View>
-                {user?.user_metadata?.avatar_url ? (
-                <Image source={{ uri: user.user_metadata.avatar_url }} style={styles.avatar} />
+                {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
                 ) : (
                 <View style={styles.initialsAvatar}>
                     <Text style={styles.initialsText}>
@@ -109,7 +136,7 @@ export default function EditProfileScreen() {
                     </Text>
                 </View>
                 )}
-                <TouchableOpacity style={styles.avatarEditButton}>
+                <TouchableOpacity style={styles.avatarEditButton} onPress={handlePickImage}>
                     <Ionicons name="camera-outline" size={18} color="#ffffff" />
                 </TouchableOpacity>
             </View>
