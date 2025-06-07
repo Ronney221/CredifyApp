@@ -9,6 +9,7 @@ import {
   SectionListRenderItemInfo,
   StyleProp,
   ViewStyle,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -93,12 +94,18 @@ const ProfileScreen = () => {
     }
 
     return (
-      <TouchableOpacity style={rowStyle} onPress={item.onPress}>
+      <Pressable 
+        onPress={item.onPress}
+        style={({ pressed }) => [
+          rowStyle,
+          pressed && { opacity: 0.8 }
+        ]}
+      >
         {item.icon && (
           <Ionicons 
             name={item.icon} 
             size={22} 
-            color={Colors.light.secondaryAccent} 
+            color={Colors.light.secondaryLabel}
             style={styles.icon}
           />
         )}
@@ -114,7 +121,7 @@ const ProfileScreen = () => {
           color={Colors.light.secondaryLabel} 
           style={styles.chevron} 
         />
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -126,7 +133,7 @@ const ProfileScreen = () => {
     section.footer ? <Text style={styles.sectionFooter}>{section.footer}</Text> : null
   );
 
-  // Extract first and last name from email (temporary, should come from user profile)
+  // Extract first and last name from email (temporary)
   const name = user?.email ? user.email.split('@')[0].split('.').map(
     word => word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ') : 'User';
@@ -136,6 +143,7 @@ const ProfileScreen = () => {
       <ProfileHeader
         name={name}
         email={user?.email || ''}
+        avatarUrl={user?.user_metadata?.avatar_url}
         onPress={() => router.push('/(tabs)/profile/edit-profile')}
       />
       
@@ -148,13 +156,19 @@ const ProfileScreen = () => {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={styles.listContent}
         stickySectionHeadersEnabled={false}
+        bounces
+        alwaysBounceVertical
+        overScrollMode="never"
         ListFooterComponent={() => (
-          <TouchableOpacity 
-            style={styles.signOutButton} 
+          <Pressable 
+            style={({ pressed }) => [
+              styles.signOutButton,
+              pressed && { opacity: 0.8 }
+            ]}
             onPress={handleSignOut}
           >
             <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       />
     </SafeAreaView>
@@ -174,9 +188,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.secondaryLabel,
     textTransform: 'uppercase',
-    marginTop: 24,
+    marginTop: 36,
     marginBottom: 8,
     marginLeft: 16,
+    letterSpacing: 0.1,
   },
   sectionFooter: {
     fontSize: 13,
@@ -190,7 +205,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.light.background,
     paddingHorizontal: 16,
-    height: 44,
+    minHeight: 52,
   },
   rowSingle: {
     borderRadius: 13,
@@ -217,6 +232,7 @@ const styles = StyleSheet.create({
   },
   chevron: {
     marginLeft: 'auto',
+    marginRight: 8,
   },
   separator: {
     height: StyleSheet.hairlineWidth,
@@ -227,7 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     marginTop: 32,
     marginHorizontal: 16,
-    height: 44,
+    minHeight: 52,
     borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',

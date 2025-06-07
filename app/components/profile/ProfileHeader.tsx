@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Image,
   Platform,
 } from 'react-native';
@@ -49,9 +49,16 @@ export const ProfileHeader = ({ name, email, avatarUrl, onPress }: ProfileHeader
   );
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.container}>
+    <Pressable 
+      onPress={onPress} 
+      style={({ pressed }) => [
+        styles.container,
+        pressed && { opacity: 0.8 }
+      ]}
+      hitSlop={16}
+    >
       {Platform.OS === 'ios' ? (
-        <BlurView intensity={80} tint="light" style={styles.blurContainer}>
+        <BlurView intensity={22} tint="light" style={styles.blurContainer}>
           <HeaderContent />
         </BlurView>
       ) : (
@@ -59,7 +66,7 @@ export const ProfileHeader = ({ name, email, avatarUrl, onPress }: ProfileHeader
           <HeaderContent />
         </View>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -70,9 +77,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 13,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 2,
   },
   blurContainer: {
     overflow: 'hidden',
+    height: 88,
   },
   androidContainer: {
     backgroundColor: Colors.light.secondarySystemGroupedBackground,
@@ -81,6 +94,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
+    height: '100%',
   },
   avatarContainer: {
     marginRight: 16,
@@ -112,8 +126,10 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 13,
     color: Colors.light.secondaryLabel,
+    letterSpacing: 0.1,
   },
   chevron: {
     marginLeft: 8,
+    marginRight: 8,
   },
 }); 
