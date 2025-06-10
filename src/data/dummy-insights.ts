@@ -71,20 +71,26 @@ export const generateDummyInsightsData = (
   const monthlyDataByYear: Record<string, { شهرs: MonthlyRedemptionSummary[], yearTotalRedeemed: number, yearTotalPotential: number }> = {};
   const achievements: Achievement[] = [];
   const now = new Date();
-  const cardActivity: Record<string, { redemptions: number; totalValue: number }> = {}; // Enhanced to track value
+  const cardActivity: Record<string, { redemptions: number; totalValue: number }> = {};
 
   let consecutiveFeeCoverageMonths = 0;
   let highestSingleMonthRedemption = { month: '', value: 0 };
-  const perkRedemptionStreaks: Record<string, number> = {}; // perkId: streakCount
+  const perkRedemptionStreaks: Record<string, number> = {};
   let consecutiveMonthsAllPerksRedeemed = 0;
 
   if (insightsCards.length === 0) {
-    return { yearSections: [], achievements: [{
-      id: 'no_cards_selected',
-      emoji: '💳',
-      title: 'No Cards Selected',
-      description: 'Select cards in the filter to see insights.',
-    }], currentFeeCoverageStreak: 0, availableCardsForFilter: [], cardRois: [] };
+    return { 
+      yearSections: [], 
+      achievements: [{
+        id: `no_cards_selected_${Date.now()}`,
+        emoji: '💳',
+        title: 'No Cards Selected',
+        description: 'Select cards in the filter to see insights.',
+      }], 
+      currentFeeCoverageStreak: 0, 
+      availableCardsForFilter: [], 
+      cardRois: [] 
+    };
   }
 
   for (let i = 5; i >= 0; i--) { 
@@ -118,10 +124,14 @@ export const generateDummyInsightsData = (
       card.benefits.forEach(perk => {
         if (perk.period === 'monthly') {
           allMonthlyPerksAvailableThisMonth++;
-          const isRedeemed = Math.random() > 0.4; // 60% chance of redeeming a monthly perk
+          const isRedeemed = Math.random() > 0.4;
           monthTotalPotential += perk.value;
+          
+          // Create a unique ID for each perk detail that includes card, month, and perk info
+          const perkDetailId = `${card.id}_${perk.definition_id}_${monthKey}`;
+          
           currentMonthPerkDetails.push({
-            id: perk.definition_id, // Use definition_id for uniqueness
+            id: perkDetailId,
             name: perk.name,
             value: perk.value,
             status: isRedeemed ? 'redeemed' : 'missed',
@@ -188,16 +198,16 @@ export const generateDummyInsightsData = (
   // Populate Achievements based on calculated streaks/data
   if (highestSingleMonthRedemption.value > 0) {
     achievements.push({
-      id: 'highest_month',
+      id: `highest_month_${Date.now()}_${highestSingleMonthRedemption.month}`,
       emoji: '🏆',
       title: 'Top Month!',
       description: `Highest single-month redemption: $${highestSingleMonthRedemption.value.toFixed(0)} in ${highestSingleMonthRedemption.month}.`,
     });
   }
 
-  if (consecutiveFeeCoverageMonths >= 2) { // Example: 2 months for a streak
+  if (consecutiveFeeCoverageMonths >= 2) {
     achievements.push({
-      id: 'fee_coverage_streak',
+      id: `fee_coverage_streak_${Date.now()}_${consecutiveFeeCoverageMonths}`,
       emoji: '🔥',
       title: 'Fee Crusher!',
       description: `${consecutiveFeeCoverageMonths} consecutive months >50% fees covered.`,
@@ -205,8 +215,8 @@ export const generateDummyInsightsData = (
   }
   
   if (consecutiveMonthsAllPerksRedeemed >= 2) {
-     achievements.push({
-      id: 'all_perks_streak',
+    achievements.push({
+      id: `all_perks_streak_${Date.now()}_${consecutiveMonthsAllPerksRedeemed}`,
       emoji: '💯',
       title: 'Perk Perfectionist!',
       description: `${consecutiveMonthsAllPerksRedeemed} consecutive months redeeming all available monthly perks.`,
@@ -214,11 +224,11 @@ export const generateDummyInsightsData = (
   }
 
   for (const perkId in perkRedemptionStreaks) {
-    if (perkRedemptionStreaks[perkId] >= 3) { // Example: 3 months for a specific perk streak
+    if (perkRedemptionStreaks[perkId] >= 3) {
       const perkDetail = allCards.flatMap(c => c.benefits).find(p => p.definition_id === perkId);
       if (perkDetail) {
         achievements.push({
-          id: `perk_streak_${perkId}`,
+          id: `perk_streak_${Date.now()}_${perkId}_${perkRedemptionStreaks[perkId]}`,
           emoji: '🎯',
           title: `${perkDetail.name} Streak!`,
           description: `Redeemed ${perkDetail.name} for ${perkRedemptionStreaks[perkId]} months in a row.`,
@@ -229,7 +239,7 @@ export const generateDummyInsightsData = (
    // Add a fallback if no achievements yet
    if (achievements.length === 0 && insightsCards.length > 0) {
     achievements.push({
-      id: 'getting_started',
+      id: `getting_started_${Date.now()}`,
       emoji: '🚀',
       title: 'Getting Started!',
       description: 'Keep redeeming perks to unlock achievements and see your progress.',
