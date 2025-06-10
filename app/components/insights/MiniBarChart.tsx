@@ -84,8 +84,6 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
 
   return (
     <View style={[styles.container, { width: screenWidth - 30, height: height + 20 }]}>
-      
-      
       <View style={styles.chartContent}>
         <View style={[styles.barsContainer, { width: chartWidth }]}>
           {data.map((value, index) => {
@@ -98,9 +96,8 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                 style={[
                   styles.barColumn,
                   {
-                    width: barWidth + (index > 0 ? barSpacing : 0),
-                    alignItems: index === 0 ? 'flex-start' : 'center',
-                    paddingLeft: index === 0 ? 0 : barSpacing / 2,
+                    width: barWidth + barSpacing,
+                    alignItems: 'center',
                   }
                 ]}
               >
@@ -118,7 +115,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                     },
                   ]}
                 />
-                <Text style={styles.monthLabel}>{monthLabels[index]}</Text>
+                <Text style={styles.monthLabel} numberOfLines={1}>{monthLabels[index]}</Text>
                 
                 {selectedBar === index && rawData && rawData[index] && (
                   <View style={getTooltipStyle(index)}>
@@ -140,23 +137,12 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
         <Text style={styles.legendText}>% of available credits used per month</Text>
       </View>
     </View>
-    
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 15,
-  },
-  legendContainer: {
-    alignItems: 'center',
-    paddingTop: 0,
-    paddingBottom: 8,
-  },
-  legendText: {
-    fontSize: 11,
-    color: Colors.light.icon,
-    fontStyle: 'italic',
   },
   chartContent: {
     flex: 1,
@@ -170,6 +156,7 @@ const styles = StyleSheet.create({
   barColumn: {
     justifyContent: 'flex-end',
     position: 'relative',
+    minWidth: 32, // Ensure minimum width for month labels
   },
   valueLabelContainer: {
     height: 16,
@@ -186,10 +173,20 @@ const styles = StyleSheet.create({
     color: Colors.light.icon,
     marginTop: 4,
     textAlign: 'center',
+    width: '100%',
   },
   bar: {
     backgroundColor: Colors.light.icon,
     borderRadius: 3,
+  },
+  legendContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  legendText: {
+    fontSize: 11,
+    color: Colors.light.icon,
+    fontStyle: 'italic',
   },
   tooltip: {
     position: 'absolute',
