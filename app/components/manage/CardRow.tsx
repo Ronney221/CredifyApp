@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   Animated,
+  Platform,
 } from 'react-native';
 import { Card } from '../../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,22 +80,15 @@ export const CardRow: React.FC<CardRowProps> = ({
       );
     }
 
-    if (mode === 'manage') {
-      if (showRemoveButton) {
-        return (
-          <View style={styles.manageControls}>
-            {onRemove && (
-              <TouchableOpacity onPress={() => onRemove(card.id)} style={styles.removeButton}>
-                <Ionicons name="remove-circle-outline" size={24} color="#ff3b30" />
-              </TouchableOpacity>
-            )}
-          </View>
-        );
-      }
+    if (mode === 'manage' && showRemoveButton) {
       return (
-        <TouchableOpacity onPress={() => onPress(card.id)} style={styles.chevronButton}>
-          <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
-        </TouchableOpacity>
+        <View style={styles.manageControls}>
+          {onRemove && (
+            <TouchableOpacity onPress={() => onRemove(card.id)} style={styles.removeButton}>
+              <Ionicons name="remove-circle-outline" size={24} color={Colors.light.error} />
+            </TouchableOpacity>
+          )}
+        </View>
       );
     }
 
@@ -105,24 +99,9 @@ export const CardRow: React.FC<CardRowProps> = ({
     ? [{ scale: cardScaleAnim }] 
     : [];
 
-  return (
-    <View>
-      <TouchableOpacity
-        style={[
-          styles.cardRow,
-          isSelected && mode === 'onboard' && styles.cardRowSelected,
-          disabled && styles.cardRowDisabled,
-          isEditMode && styles.cardRowEditMode,
-        ]}
-        onPress={() => !disabled && onPress(card.id)}
-        activeOpacity={0.7}
-        disabled={disabled}
-      >
-        {isEditMode && (
-          <View style={styles.grabberIconContainer}>
-            <Ionicons name="reorder-three-outline" size={28} color="#8e8e93" />
-          </View>
-        )}
+  const renderCardIcon = () => {
+    if (card.image) {
+      return (
         <Animated.View 
           style={[
             styles.cardImageWrapper, 
@@ -131,19 +110,62 @@ export const CardRow: React.FC<CardRowProps> = ({
         >
           <Image source={card.image} style={styles.cardImage} />
         </Animated.View>
-        
-        <View style={styles.cardContent}>
-          <Text style={styles.cardName}>{card.name}</Text>
-          {subtitle && (
-            <Text style={[styles.subtitle, subtitleStyle === 'placeholder' && styles.subtitlePlaceholder]}>
-                {subtitle}
-            </Text>
-          )}
+      );
+    }
+
+    return (
+      <Animated.View 
+        style={[
+          styles.cardIconWrapper,
+          { transform: containerTransform }
+        ]}
+      >
+        <Ionicons 
+          name={Platform.OS === 'ios' ? 'card' : 'card-outline'} 
+          size={28} 
+          color={Colors.light.icon} 
+        />
+      </Animated.View>
+    );
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.cardRow,
+        isSelected && mode === 'onboard' && styles.cardRowSelected,
+        disabled && styles.cardRowDisabled,
+        isEditMode && styles.cardRowEditMode,
+      ]}
+      onPress={() => !disabled && onPress(card.id)}
+      activeOpacity={0.7}
+      disabled={disabled}
+    >
+      {isEditMode && (
+        <View style={styles.grabberIconContainer}>
+          <Ionicons name="reorder-three-outline" size={28} color={Colors.light.secondaryLabel} />
         </View>
-        
-        {renderRightElement()}
-      </TouchableOpacity>
-    </View>
+      )}
+      
+      {renderCardIcon()}
+      
+      <View style={styles.cardContent}>
+        <Text style={styles.cardName} numberOfLines={1}>{card.name}</Text>
+        {subtitle && (
+          <Text 
+            style={[
+              styles.subtitle, 
+              subtitleStyle === 'placeholder' && styles.subtitlePlaceholder
+            ]}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        )}
+      </View>
+      
+      {renderRightElement()}
+    </TouchableOpacity>
   );
 };
 
@@ -151,11 +173,9 @@ const styles = StyleSheet.create({
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    minHeight: 60,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#c7c7cc',
+    paddingVertical: 10,
   },
   cardRowSelected: {
     backgroundColor: '#eef7ff',
@@ -167,15 +187,15 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   grabberIconContainer: {
-    paddingRight: 10,
+    paddingRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardImageWrapper: {
-    width: 64,
-    height: 40,
-    borderRadius: 5,
-    marginRight: 12,
+    width: 44,
+    height: 28,
+    borderRadius: 4,
+    marginRight: 16,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: "#000",
@@ -183,6 +203,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 1,
+  },
+  cardIconWrapper: {
+    width: 28,
+    height: 28,
+    marginRight: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardImage: {
     width: '90%',
@@ -196,13 +223,13 @@ const styles = StyleSheet.create({
   },
   cardName: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '400',
     color: Colors.light.text,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#8e8e93',
-    marginTop: 4,
+    fontSize: 15,
+    color: Colors.light.secondaryLabel,
   },
   subtitlePlaceholder: {
     color: Colors.light.tint,
@@ -225,9 +252,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   removeButton: {
-    padding: 4,
-  },
-  chevronButton: {
     padding: 4,
   },
 }); 

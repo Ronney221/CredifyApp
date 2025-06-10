@@ -227,7 +227,7 @@ export default function ManageCardsScreen() {
                 subtitle = `Next renewal ${formattedDate}`;
             }
 
-            return isEditMode ? (
+            const cardContent = isEditMode ? (
               <CardRow
                 key={card.id} card={card} isSelected={false} onPress={() => {}} mode="manage"
                 subtitle={subtitle}
@@ -241,9 +241,12 @@ export default function ManageCardsScreen() {
                 subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
                 showRemoveButton={false} isEditMode={false}
               />
-            )
+            );
+            
+            return <View style={styles.cardContainer}>{cardContent}</View>
           }}
           keyExtractor={(card) => card.id}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListHeaderComponent={
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -289,11 +292,29 @@ export default function ManageCardsScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f2f2f7' },
-  container: { flex: 1, backgroundColor: '#f2f2f7' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.light.systemGroupedBackground },
+  container: { flex: 1, backgroundColor: Colors.light.systemGroupedBackground },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 80 },
-  section: { marginBottom: 20 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EDEDED' },
-  sectionTitleYourCards: { fontSize: 12, fontWeight: '600', color: '#6E6E73' },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 96 },
+  section: { marginBottom: 8 },
+  sectionHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingVertical: 8,
+  },
+  sectionTitleYourCards: { 
+    fontSize: 13, 
+    fontWeight: 'normal', 
+    color: Colors.light.secondaryLabel, 
+    textTransform: 'uppercase' 
+  },
+  cardContainer: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  separator: {
+    height: 12,
+  },
 }); 

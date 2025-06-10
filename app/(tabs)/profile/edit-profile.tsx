@@ -29,7 +29,7 @@ import { uploadAvatar, updateUserProfile } from '../../../lib/supabase';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, updateUserMetadata, logOut, loading: authLoading } = useAuth();
+  const { user, updateUserMetadata, loading: authLoading } = useAuth();
 
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -98,32 +98,6 @@ export default function EditProfileScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
-  
-  const handleSignOut = async () => {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Log Out", 
-          style: "destructive", 
-          onPress: async () => {
-            try {
-              const { error } = await logOut();
-              if (error) {
-                Alert.alert('Error', 'Failed to sign out. Please try again.');
-              } else {
-                router.replace('/');
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
-          } 
-        },
-      ]
-    );
   };
 
   const handlePickImage = async () => {
@@ -229,9 +203,6 @@ export default function EditProfileScreen() {
             ) : (
               <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut}>
-            <Text style={styles.logoutButtonText}>Log Out</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -345,19 +316,6 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   saveButtonText: {
-    color: Colors.light.textOnAccent,
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.4,
-  },
-  logoutButton: {
-    backgroundColor: Colors.light.error,
-    borderRadius: 13,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: Platform.OS === 'ios' ? 34 : 24,
-  },
-  logoutButtonText: {
     color: Colors.light.textOnAccent,
     fontSize: 17,
     fontWeight: '600',

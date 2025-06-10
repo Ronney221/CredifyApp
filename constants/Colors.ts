@@ -3,24 +3,44 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#007AFF'; // iOS Blue for primary actions
+const tintColorDark = '#0A84FF';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: '#000000',
+    textOnPrimary: '#FFFFFF',
+    textOnAccent: '#FFFFFF',
+    background: '#FFFFFF',
+    systemGroupedBackground: '#F2F2F7',
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: '#8E8E93',
+    tabIconDefault: '#8E8E93',
     tabIconSelected: tintColorLight,
+    separator: '#C6C6C8',
+    secondaryLabel: '#3C3C4399', // 60% opacity of black
+    accent: tintColorLight, // Using tint as the main accent
+    secondaryAccent: '#F2F2F7', // A subtle accent for placeholders, etc.
+    error: '#FF3B30', // iOS Red for errors/destructive actions
+    success: '#34C759', // iOS Green for success
+    warning: '#FF9500', // iOS Orange for warnings
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: '#FFFFFF',
+    textOnPrimary: '#FFFFFF',
+    textOnAccent: '#000000',
+    background: '#000000',
+    systemGroupedBackground: '#1C1C1E',
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: '#8E8E93',
+    tabIconDefault: '#8E8E93',
     tabIconSelected: tintColorDark,
+    separator: '#38383A',
+    secondaryLabel: '#EBEBF599', // 60% opacity of white
+    accent: tintColorDark,
+    secondaryAccent: '#2C2C2E',
+    error: '#FF453A',
+    success: '#32D74B',
+    warning: '#FF9F0A',
   },
 };
