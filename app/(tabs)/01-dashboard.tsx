@@ -707,9 +707,9 @@ export default function Dashboard() {
         flatListRef.current?.scrollToIndex({
           animated: true,
           index,
-          viewPosition: 0.45, // Scrolls the item to the top of the list view
+          viewPosition: 0.15 // Scrolls the item to the top of the list view
         });
-      }, 350);
+      }, 100);
     }
   }, [setActiveCardId]);
 

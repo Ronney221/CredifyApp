@@ -20,16 +20,18 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, to
 
   return (
     <View style={styles.container}>
-      <View style={styles.textRow}>
-        <Text style={styles.yearText}>Saved so far in {year}</Text>
-        <Text style={styles.amountText}>{amountSaved} of {potentialSavings}</Text>
+      <View style={styles.mainContent}>
+        <View style={styles.textRow}>
+          <Text style={styles.yearText}>Saved so far in {year}</Text>
+          <Text style={styles.amountText}>{amountSaved} of {potentialSavings}</Text>
+        </View>
+        <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBarFill, { width: `${clampedProgress}%` }]} />
+        </View>
       </View>
-      <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBarFill, { width: `${clampedProgress}%` }]} />
-      </View>
-      <View style={styles.sparklineRow}>
+      
+      <View style={styles.trendContainer}>
         <MiniBarChart data={trendData} />
-        <Text style={styles.sparklineLabel}>Last 6 mo. trend</Text>
       </View>
     </View>
   );
@@ -37,9 +39,11 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, to
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingVertical: 15,
-    paddingHorizontal: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+  },
+  mainContent: {
+    marginBottom: 15,
   },
   textRow: {
     flexDirection: 'row',
@@ -67,17 +71,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.tint,
     borderRadius: 4,
   },
-  sparklineRow: {
-    flexDirection: 'row',
+  trendContainer: {
+    marginTop: 10,
     alignItems: 'center',
-    marginTop: 12,
-    opacity: 0.8,
   },
-  sparklineLabel: {
-    fontSize: 11,
-    color: Colors.light.icon,
-    marginLeft: 8,
-  }
 });
 
 export default YearlyProgress; 

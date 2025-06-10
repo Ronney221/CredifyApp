@@ -60,8 +60,8 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 15,
     marginVertical: 20,
+    marginHorizontal: 15,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 15,
