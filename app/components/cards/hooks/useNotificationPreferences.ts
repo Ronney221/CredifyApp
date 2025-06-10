@@ -263,15 +263,14 @@ export const useNotificationPreferences = () => {
   const buildNotificationItems = (anyRenewalDateSet: boolean) => {
     const notificationItems: any[] = [];
 
-    // Consolidated Perk Expiry Reminders
-    const periodToggles: ToggleProps[] = [];
-    
-    // Always show monthly toggle
-    periodToggles.push({
-      label: "Monthly Perks",
-      value: perkExpiryRemindersEnabled,
-      onValueChange: setPerkExpiryRemindersEnabled,
-    });
+    // Perk Expiry Reminders
+    const periodToggles: ToggleProps[] = [
+      {
+        label: "Monthly Perks",
+        value: perkExpiryRemindersEnabled,
+        onValueChange: setPerkExpiryRemindersEnabled,
+      }
+    ];
 
     // Quarterly toggle if user has quarterly perks
     if (uniquePerkPeriods.includes(3)) {
@@ -321,48 +320,35 @@ export const useNotificationPreferences = () => {
       iconColor: "#FF9500",
     });
 
-    // Other settings (Card Renewal, Reset Confirmations, Weekly Digest)
+    // Card Renewal Reminders (simplified to just a toggle)
     notificationItems.push(
       { 
         key: 'card_renewal',
-        isExpanded: expandedSections['card_renewal'],
-        onToggleExpand: () => handleSectionToggle('card_renewal'),
         iconName: "calendar-outline" as const,
         title: "Card Renewal Reminders", 
         details: anyRenewalDateSet 
-          ? [`${renewalReminderDays} days before renewal dates`] 
+          ? ["Notify 7 days before renewal dates"] 
           : ["Add renewal dates first"],
         toggles: [
           { 
             label: "Enable renewal reminders", 
             value: renewalRemindersEnabled, 
             onValueChange: handleRenewalReminderToggle,
-            isMaster: true,
           }
         ],
-        renewalOptions: anyRenewalDateSet && renewalRemindersEnabled ? {
-          current: renewalReminderDays,
-          setter: setRenewalReminderDays,
-          options: [
-            { label: '7 days before', value: 7 },
-            { label: '14 days before', value: 14 },
-            { label: '30 days before', value: 30 },
-          ]
-        } : undefined,
         iconColor: anyRenewalDateSet ? "#34C759" : "#8E8E93",
         dimmed: !anyRenewalDateSet,
       },
       { 
         key: 'perk_reset',
-        iconName: "sync-circle-outline" as const, 
-        title: "Perk Reset Confirmations", 
-        details: ["Monthly reset notifications"],
+        iconName: "refresh-circle-outline" as const, 
+        title: "Monthly Perk Reset Alerts", 
+        details: ["Get notified when your perks refresh"],
         toggles: [
           { 
-            label: "Enable reset confirmations", 
+            label: "Enable reset alerts", 
             value: perkResetConfirmationEnabled, 
             onValueChange: handleResetConfirmationToggle,
-            isMaster: true,
           }
         ],
         iconColor: "#007AFF" 
@@ -377,7 +363,6 @@ export const useNotificationPreferences = () => {
             label: "Enable weekly digest",
             value: weeklyDigestEnabled,
             onValueChange: handleWeeklyDigestToggle,
-            isMaster: true,
           },
         ],
         iconColor: "#5856D6",

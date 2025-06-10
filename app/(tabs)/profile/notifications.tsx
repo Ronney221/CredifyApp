@@ -87,8 +87,8 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
   const router = useRouter();
   const [isRenewalModalVisible, setRenewalModalVisible] = useState(false);
   
-  const masterToggle = item.toggles?.find(t => t.isMaster);
-  const childToggles = item.toggles?.filter(t => !t.isMaster);
+  const toggle = item.toggles?.[0];
+  const isPerkExpirySection = item.key === 'perk_expiry';
 
   const handleToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -112,44 +112,26 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
           <Text style={styles.sectionTitle}>{item.title}</Text>
           {item.details && <Text style={styles.sectionDetails}>{item.details.join(', ')}</Text>}
         </View>
-        {item.onToggleExpand && (!item.renewalOptions || !masterToggle?.value) && (
-          <Ionicons name={item.isExpanded ? "chevron-up-outline" : "chevron-down-outline"} size={22} color="#c7c7cc" />
-        )}
-        {!item.onToggleExpand && masterToggle && (
+        {isPerkExpirySection ? (
+          <Ionicons name="chevron-forward" size={22} color="#c7c7cc" />
+        ) : (
+          toggle && (
             <Switch
-              value={masterToggle.value}
-              onValueChange={masterToggle.onValueChange}
+              value={toggle.value}
+              onValueChange={toggle.onValueChange}
               disabled={item.dimmed}
               trackColor={{ false: '#767577', true: Colors.light.tint }}
               thumbColor={item.dimmed ? '#f4f3f4' : '#ffffff'}
               ios_backgroundColor="#3e3e3e"
             />
+          )
         )}
       </TouchableOpacity>
 
-      {item.isExpanded && item.renewalOptions && masterToggle?.value && !item.dimmed && (
+      {item.isExpanded && isPerkExpirySection && item.toggles && (
         <View style={styles.childTogglesContainer}>
-            <TouchableOpacity style={[styles.toggleRow, styles.noBorder]} onPress={() => setRenewalModalVisible(true)}>
-              <Text style={styles.toggleLabel}>Remind Me</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: '#8e8e93', marginRight: 6 }}>{item.renewalOptions.current} days before</Text>
-                <Ionicons name="chevron-forward" size={20} color="#c7c7cc" />
-              </View>
-            </TouchableOpacity>
-            <RenewalOptionModal
-              visible={isRenewalModalVisible}
-              onClose={() => setRenewalModalVisible(false)}
-              options={item.renewalOptions.options}
-              currentValue={item.renewalOptions.current}
-              onSelect={item.renewalOptions.setter}
-            />
-        </View>
-      )}
-
-      {item.isExpanded && childToggles && childToggles.length > 0 && (
-        <View style={styles.childTogglesContainer}>
-          {childToggles.map((toggle, index) => (
-            <View key={index} style={[styles.toggleRow, index === childToggles.length - 1 && styles.noBorder]}>
+          {item.toggles.map((toggle, index) => (
+            <View key={index} style={[styles.toggleRow, index === item.toggles!.length - 1 && styles.noBorder]}>
               <Text style={styles.toggleLabel}>{toggle.label}</Text>
               <Switch
                 value={toggle.value}
@@ -163,27 +145,32 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
           ))}
         </View>
       )}
-       {item.isExpanded && masterToggle && (
-         <View style={styles.masterToggleContainer}>
-            <View style={[styles.toggleRow, styles.noBorder]}>
-              <Text style={styles.toggleLabel}>{masterToggle.label}</Text>
+
+      {item.isExpanded && !isPerkExpirySection && item.toggles && item.toggles.length > 1 && (
+        <View style={styles.childTogglesContainer}>
+          {item.toggles.slice(1).map((toggle, index) => (
+            <View key={index} style={[styles.toggleRow, index === item.toggles!.length - 2 && styles.noBorder]}>
+              <Text style={styles.toggleLabel}>{toggle.label}</Text>
               <Switch
-                value={masterToggle.value}
-                onValueChange={masterToggle.onValueChange}
+                value={toggle.value}
+                onValueChange={toggle.onValueChange}
+                disabled={toggle.disabled}
                 trackColor={{ false: '#767577', true: Colors.light.tint }}
-                thumbColor={'#ffffff'}
+                thumbColor={toggle.disabled ? '#f4f3f4' : '#ffffff'}
                 ios_backgroundColor="#3e3e3e"
               />
             </View>
-         </View>
+          ))}
+        </View>
       )}
+
       {item.isExpanded && (
-          <View style={styles.previewContainer}>
-            <Ionicons name="notifications-outline" size={16} color="#6e6e73" style={{ marginRight: 8 }} />
-            <Text style={styles.previewText}>
-              {item.details ? item.details.join(', ') : 'Notification preview will appear here.'}
-            </Text>
-          </View>
+        <View style={styles.previewContainer}>
+          <Ionicons name="notifications-outline" size={16} color="#6e6e73" style={{ marginRight: 8 }} />
+          <Text style={styles.previewText}>
+            {item.details ? item.details.join(', ') : 'Notification preview will appear here.'}
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -266,7 +253,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: '600', color: '#000000' },
   sectionDetails: { fontSize: 13, color: '#6e6e73', marginTop: 2 },
   childTogglesContainer: { paddingLeft: 64, backgroundColor: '#ffffff', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e8e8e8' },
-  masterToggleContainer: { paddingLeft: 16 },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -160,6 +160,63 @@ export const scheduleNotificationAsync = async (
   });
 };
 
+// Add this function before the sendTestNotification function
+export const scheduleCardRenewalNotifications = async (
+  userId: string,
+  preferences: NotificationPreferences,
+  isTest: boolean = false
+): Promise<(string | null)[]> => {
+  if (!preferences.renewalRemindersEnabled) {
+    console.log('[Notifications] Card renewal notifications are disabled.');
+    return [];
+  }
+
+  try {
+    // Fetch user's cards with renewal dates
+    const { data: dbUserCards, error: userCardsError } = await getUserCards(userId);
+    if (userCardsError) throw userCardsError;
+    if (!dbUserCards || dbUserCards.length === 0) {
+      console.log('[Notifications] User has no cards, skipping renewal notifications.');
+      return [];
+    }
+
+    // Filter to cards with renewal dates
+    const cardsWithRenewalDates = (dbUserCards as UserCard[]).filter((card) => card.renewal_date);
+    if (cardsWithRenewalDates.length === 0) {
+      console.log('[Notifications] No cards with renewal dates found.');
+      return [];
+    }
+
+    const tasks: Promise<string | null>[] = [];
+
+    for (const card of cardsWithRenewalDates) {
+      if (!card.renewal_date) continue;
+
+      let notificationDate: Date;
+      if (isTest) {
+        notificationDate = new Date();
+        notificationDate.setSeconds(notificationDate.getSeconds() + 6); // Set 6 seconds from now for test
+      } else {
+        const renewalDate = new Date(card.renewal_date);
+        notificationDate = new Date(renewalDate);
+        notificationDate.setDate(renewalDate.getDate() - 7); // 7 days before renewal
+        notificationDate.setHours(10, 0, 0, 0); // 10 AM
+      }
+
+      if (notificationDate > new Date() || isTest) {
+        const title = `💳 Card Renewal Reminder`;
+        const body = `${card.card_name} renews in 7 days on ${new Date(card.renewal_date).toLocaleDateString()}.`;
+        tasks.push(scheduleNotificationAsync(title, body, notificationDate));
+      }
+    }
+
+    return Promise.all(tasks);
+  } catch (error) {
+    console.error('[Notifications] Error scheduling renewal notifications:', error);
+    return [];
+  }
+};
+
 /**
  * Schedules an immediate test notification.
  * @returns {Promise<string>} The ID of the scheduled notification, or an empty string if permissions are denied.
@@ -171,62 +228,37 @@ export const sendTestNotification = async (userId: string, preferences: Notifica
     return [];
   }
 
-  console.log('[Notifications] Sending a test notification for all enabled perk expiries.');
+  console.log('[Notifications] Sending test notifications for all enabled types.');
   
   const allPromises: Promise<(string | null)[]>[] = [];
 
   // Monthly
-  if (preferences.perkExpiryRemindersEnabled && preferences.monthlyPerkExpiryReminderDays && preferences.monthlyPerkExpiryReminderDays.length > 0) {
+  if (preferences.perkExpiryRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 1, true));
   }
   // Quarterly
-  if (preferences.quarterlyPerkExpiryReminderDays && preferences.quarterlyPerkExpiryReminderDays.length > 0) {
+  if (preferences.quarterlyPerkRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 3, true));
   }
   // Semi-Annual
-  if (preferences.semiAnnualPerkExpiryReminderDays && preferences.semiAnnualPerkExpiryReminderDays.length > 0) {
+  if (preferences.semiAnnualPerkRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 6, true));
   }
   // Annual
-  if (preferences.annualPerkExpiryReminderDays && preferences.annualPerkExpiryReminderDays.length > 0) {
+  if (preferences.annualPerkRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 12, true));
   }
-
-  // Add card renewal test notifications
+  // Card Renewal
   if (preferences.renewalRemindersEnabled) {
-    try {
-      // Fetch user's cards with renewal dates
-      const { data: dbUserCards, error: userCardsError } = await getUserCards(userId);
-      if (userCardsError) throw userCardsError;
-      
-      if (dbUserCards && dbUserCards.length > 0) {
-        // Filter to cards with renewal dates
-        const cardsWithRenewalDates = (dbUserCards as UserCard[]).filter((card) => card.renewal_date);
-        
-        if (cardsWithRenewalDates.length > 0) {
-          // Schedule a test notification for the first card with a renewal date
-          const testCard = cardsWithRenewalDates[0];
-          const testDate = new Date();
-          testDate.setSeconds(testDate.getSeconds() + 10); // Set 10 seconds from now
-          
-          if (testCard.renewal_date) {
-            allPromises.push(Promise.resolve([
-              await scheduleNotificationAsync(
-                `💳 Card Renewal Reminder`,
-                `${testCard.card_name} renews in 7 days on ${new Date(testCard.renewal_date).toLocaleDateString()}.`,
-                testDate
-              )
-            ]));
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[Notifications] Error scheduling renewal test notification:', error);
-    }
+    allPromises.push(scheduleCardRenewalNotifications(userId, preferences, true));
   }
-  
+  // Perk Reset
+  if (preferences.perkResetConfirmationEnabled) {
+    allPromises.push(Promise.resolve([await schedulePerkResetNotification(userId, preferences)]));
+  }
+
   const results = await Promise.all(allPromises);
-  return results.flat(); // Flatten the array of arrays of notification IDs
+  return results.flat();
 };
 
 /**
@@ -479,4 +511,71 @@ export const schedulePerkExpiryNotifications = async (
   });
 
   return Promise.all(tasks);
+};
+
+export const schedulePerkResetNotification = async (
+  userId: string,
+  preferences: NotificationPreferences
+): Promise<string | null> => {
+  if (!preferences.perkResetConfirmationEnabled) {
+    console.log('[Notifications] Perk reset notifications are disabled.');
+    return null;
+  }
+
+  try {
+    // Get the user's cards and their perks
+    const { data: dbUserCards, error: userCardsError } = await getUserCards(userId);
+    if (userCardsError) throw userCardsError;
+    if (!dbUserCards || dbUserCards.length === 0) {
+      console.log('[Notifications] User has no cards, skipping perk reset notification.');
+      return null;
+    }
+
+    // Filter app's card data to just the user's cards
+    const userCardSet = new Set(dbUserCards.map((c: UserCard) => c.card_name));
+    const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
+
+    // Calculate total value of perks that will reset
+    let totalMonthlyValue = 0;
+    let monthlyPerkCount = 0;
+    let otherPeriodsResetting = false;
+
+    const now = new Date();
+    const isLastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() === now.getDate();
+    const isLastDayOfQuarter = isLastDayOfMonth && ((now.getMonth() + 1) % 3 === 0);
+    const isLastDayOfHalfYear = isLastDayOfMonth && ((now.getMonth() + 1) % 6 === 0);
+    const isLastDayOfYear = isLastDayOfMonth && now.getMonth() === 11;
+
+    currentUserAppCards.forEach((appCard: Card) => {
+      appCard.benefits.forEach((benefit: Benefit) => {
+        if (benefit.periodMonths === 1) {
+          totalMonthlyValue += benefit.value;
+          monthlyPerkCount++;
+        } else if (
+          (benefit.periodMonths === 3 && isLastDayOfQuarter) ||
+          (benefit.periodMonths === 6 && isLastDayOfHalfYear) ||
+          (benefit.periodMonths === 12 && isLastDayOfYear)
+        ) {
+          otherPeriodsResetting = true;
+        }
+      });
+    });
+
+    // Schedule notification for tomorrow morning at 9 AM
+    const notificationDate = new Date();
+    notificationDate.setDate(notificationDate.getDate() + 1);
+    notificationDate.setHours(9, 0, 0, 0);
+
+    let title = "🎉 Your Perks Have Reset!";
+    let body = `${monthlyPerkCount} monthly perks worth $${totalMonthlyValue.toFixed(0)} are ready to use.`;
+    
+    if (otherPeriodsResetting) {
+      body += " Some quarterly, semi-annual, or annual perks have also reset!";
+    }
+
+    return scheduleNotificationAsync(title, body, notificationDate);
+  } catch (error) {
+    console.error('[Notifications] Error scheduling perk reset notification:', error);
+    return null;
+  }
 }; 
