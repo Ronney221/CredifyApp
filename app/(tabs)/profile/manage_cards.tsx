@@ -52,6 +52,9 @@ export default function ManageCardsScreen() {
   const flatListRef = useRef<FlatList<Card>>(null);
   const [newlyAddedCardIdForScroll, setNewlyAddedCardIdForScroll] = useState<string | null>(null);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [removingCardId, setRemovingCardId] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
 
   const ESTIMATED_CARD_ROW_HEIGHT = 80;
 
@@ -81,6 +84,28 @@ export default function ManageCardsScreen() {
     setIsEditMode(!isEditMode);
   }, [isEditMode]);
 
+  const animateCardRemoval = useCallback((onComplete: () => void) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+      Animated.timing(translateX, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+    ]).start(() => {
+      // Reset animations for next use
+      fadeAnim.setValue(1);
+      translateX.setValue(0);
+      onComplete();
+    });
+  }, [fadeAnim, translateX]);
+
   const handleRemoveCardWithConfirmation = useCallback((cardId: string) => {
     const card = selectedCardObjects.find(c => c.id === cardId);
     if (!card) return;
@@ -97,21 +122,30 @@ export default function ManageCardsScreen() {
             if (Platform.OS === 'ios') {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
-            handleRemoveCard(cardId);
-            // Save changes immediately after removal
-            if (user?.id) {
-              const updatedCards = selectedCardObjects.filter(c => c.id !== cardId);
-              const { error } = await updateCardOrder(user.id, updatedCards.map(c => c.id));
-              if (error) {
-                console.error('Error saving cards after removal:', error);
-                Alert.alert("Error", "Failed to save changes. Please try again.");
+            
+            // Set the removing card ID to trigger animation
+            setRemovingCardId(cardId);
+            
+            // Start the removal animation
+            animateCardRemoval(async () => {
+              // After animation completes, update state and save to database
+              handleRemoveCard(cardId);
+              setRemovingCardId(null);
+              
+              if (user?.id) {
+                const updatedCards = selectedCardObjects.filter(c => c.id !== cardId);
+                const { error } = await saveUserCards(user.id, updatedCards, renewalDates);
+                if (error) {
+                  console.error('Error saving cards after removal:', error);
+                  Alert.alert("Error", "Failed to save changes. Please try again.");
+                }
               }
-            }
+            });
           }
         }
       ]
     );
-  }, [selectedCardObjects, handleRemoveCard, user?.id]);
+  }, [selectedCardObjects, handleRemoveCard, user?.id, renewalDates, animateCardRemoval]);
 
   const handleDragEnd = useCallback(async ({ data }: { data: Card[] }) => {
     if (Platform.OS === 'ios') {
@@ -251,9 +285,15 @@ export default function ManageCardsScreen() {
       subtitle = `Next renewal ${formattedDate}`;
     }
 
+    const isRemoving = removingCardId === card.id;
+    const animatedStyle = isRemoving ? {
+      opacity: fadeAnim,
+      transform: [{ translateX: translateX }]
+    } : undefined;
+
     return (
       <ScaleDecorator>
-        <View style={styles.cardContainer}>
+        <Animated.View style={[styles.cardContainer, animatedStyle]}>
           <CardRow
             key={card.id}
             card={card}
@@ -268,10 +308,10 @@ export default function ManageCardsScreen() {
             isActive={isActive}
             drag={drag}
           />
-        </View>
+        </Animated.View>
       </ScaleDecorator>
     );
-  }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation]);
+  }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation, removingCardId, fadeAnim, translateX]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
