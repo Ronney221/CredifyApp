@@ -102,7 +102,7 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
       <TouchableOpacity 
         activeOpacity={0.8} 
         onPress={handleToggle} 
-        disabled={!item.onToggleExpand}
+        disabled={!item.onToggleExpand || item.dimmed}
         style={[styles.sectionHeader, item.dimmed && styles.dimmed]}
       >
         <View style={[styles.iconContainer, { backgroundColor: item.iconColor }]}>
@@ -119,14 +119,15 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
             <Switch
               value={masterToggle.value}
               onValueChange={masterToggle.onValueChange}
+              disabled={item.dimmed}
               trackColor={{ false: '#767577', true: Colors.light.tint }}
-              thumbColor={'#ffffff'}
+              thumbColor={item.dimmed ? '#f4f3f4' : '#ffffff'}
               ios_backgroundColor="#3e3e3e"
             />
         )}
       </TouchableOpacity>
 
-      {item.isExpanded && item.renewalOptions && masterToggle?.value && (
+      {item.isExpanded && item.renewalOptions && masterToggle?.value && !item.dimmed && (
         <View style={styles.childTogglesContainer}>
             <TouchableOpacity style={[styles.toggleRow, styles.noBorder]} onPress={() => setRenewalModalVisible(true)}>
               <Text style={styles.toggleLabel}>Remind Me</Text>

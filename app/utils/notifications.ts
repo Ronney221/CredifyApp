@@ -1,18 +1,38 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../../lib/supabase'; // Corrected path
-import { Card, allCards, Benefit, APP_SCHEMES } from '../../src/data/card-data'; // Corrected path, removed unused CardPerk
+import { Card, allCards, Benefit } from '../../src/data/card-data'; // Corrected path, removed unused CardPerk
 import { getUserCards, getRedemptionsForPeriod } from '../../lib/database';
 
 export interface NotificationPreferences {
-  perkExpiryRemindersEnabled?: boolean;
-  renewalRemindersEnabled?: boolean;
-  perkResetConfirmationEnabled?: boolean;
-  monthlyPerkExpiryReminderDays?: number[]; // New: e.g., [1, 3, 7]
-  weeklyDigestEnabled?: boolean;
+  perkExpiryRemindersEnabled: boolean;
+  renewalRemindersEnabled: boolean;
+  perkResetConfirmationEnabled: boolean;
+  weeklyDigestEnabled: boolean;
+  quarterlyPerkRemindersEnabled: boolean;
+  semiAnnualPerkRemindersEnabled: boolean;
+  annualPerkRemindersEnabled: boolean;
+  monthlyPerkExpiryReminderDays?: number[];
   quarterlyPerkExpiryReminderDays?: number[];
   semiAnnualPerkExpiryReminderDays?: number[];
   annualPerkExpiryReminderDays?: number[];
+}
+
+interface UserCard {
+  card_name: string;
+  renewal_date?: string;
+}
+
+interface PerkDefinition {
+  id: string;
+  name: string;
+  value: number;
+}
+
+interface ExpensivePerk {
+  name: string;
+  value: number;
+  cardName: string;
 }
 
 const generateEngagingText = (
@@ -171,6 +191,39 @@ export const sendTestNotification = async (userId: string, preferences: Notifica
   if (preferences.annualPerkExpiryReminderDays && preferences.annualPerkExpiryReminderDays.length > 0) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 12, true));
   }
+
+  // Add card renewal test notifications
+  if (preferences.renewalRemindersEnabled) {
+    try {
+      // Fetch user's cards with renewal dates
+      const { data: dbUserCards, error: userCardsError } = await getUserCards(userId);
+      if (userCardsError) throw userCardsError;
+      
+      if (dbUserCards && dbUserCards.length > 0) {
+        // Filter to cards with renewal dates
+        const cardsWithRenewalDates = (dbUserCards as UserCard[]).filter((card) => card.renewal_date);
+        
+        if (cardsWithRenewalDates.length > 0) {
+          // Schedule a test notification for the first card with a renewal date
+          const testCard = cardsWithRenewalDates[0];
+          const testDate = new Date();
+          testDate.setSeconds(testDate.getSeconds() + 10); // Set 10 seconds from now
+          
+          if (testCard.renewal_date) {
+            allPromises.push(Promise.resolve([
+              await scheduleNotificationAsync(
+                `💳 Card Renewal Reminder`,
+                `${testCard.card_name} renews in 7 days on ${new Date(testCard.renewal_date).toLocaleDateString()}.`,
+                testDate
+              )
+            ]));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Notifications] Error scheduling renewal test notification:', error);
+    }
+  }
   
   const results = await Promise.all(allPromises);
   return results.flat(); // Flatten the array of arrays of notification IDs
@@ -256,13 +309,18 @@ const getPeriodBoundaries = (periodMonths: number, now: Date): { start: Date, en
   }
 };
 
-const getReminderDaysForPeriod = (periodMonths: number, preferences: NotificationPreferences): number[] => {
+const getSmartReminderDays = (periodMonths: number): number[] => {
   switch (periodMonths) {
-    case 1: return preferences.monthlyPerkExpiryReminderDays || [];
-    case 3: return preferences.quarterlyPerkExpiryReminderDays || [];
-    case 6: return preferences.semiAnnualPerkExpiryReminderDays || [];
-    case 12: return preferences.annualPerkExpiryReminderDays || [];
-    default: return [];
+    case 1:  // Monthly
+      return [1, 3, 7];  // Remind 1, 3, and 7 days before end of month
+    case 3:  // Quarterly
+      return [7, 14];    // Remind 7 and 14 days before end of quarter
+    case 6:  // Semi-Annual
+      return [14, 30];   // Remind 14 and 30 days before end of period
+    case 12: // Annual
+      return [30, 60];   // Remind 30 and 60 days before end of year
+    default:
+      return [7];        // Default to 7 days for unknown periods
   }
 };
 
@@ -275,16 +333,32 @@ export const schedulePerkExpiryNotifications = async (
   const now = new Date();
   const { start, end: endOfPeriod } = getPeriodBoundaries(periodMonths, now);
   
-  const reminderDays = getReminderDaysForPeriod(periodMonths, preferences);
-  if (reminderDays.length === 0 && !isTest) { // Allow tests to proceed even with no days set
-      console.log(`[Notifications] No reminder days configured for period ${periodMonths}.`);
-      return [];
+  // Check if reminders are enabled for this period
+  let isEnabled = false;
+  switch (periodMonths) {
+    case 1:
+      isEnabled = preferences.perkExpiryRemindersEnabled;
+      break;
+    case 3:
+      isEnabled = preferences.quarterlyPerkRemindersEnabled;
+      break;
+    case 6:
+      isEnabled = preferences.semiAnnualPerkRemindersEnabled;
+      break;
+    case 12:
+      isEnabled = preferences.annualPerkRemindersEnabled;
+      break;
+  }
+
+  if (!isEnabled && !isTest) {
+    console.log(`[Notifications] ${periodMonths}-month reminders are disabled.`);
+    return [];
   }
   
   let totalAvailableValue = 0;
   let availablePerksCount = 0;
   let allPerksRedeemed = true;
-  let mostExpensiveAvailablePerk: { name: string; value: number; cardName: string } | null = null;
+  let mostExpensiveAvailablePerk: ExpensivePerk | null = null;
   
   try {
     console.log(`[Notifications] Fetching data for user ${userId} for ${periodMonths}-month perk reminders.`);
@@ -298,8 +372,8 @@ export const schedulePerkExpiryNotifications = async (
     }
     
     // 2. Filter app's card data to just the user's cards
-    const userCardSet = new Set(dbUserCards.map((c: any) => c.card_name));
-    const currentUserAppCards: Card[] = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
+    const userCardSet = new Set(dbUserCards.map((c: UserCard) => c.card_name));
+    const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
     const userPerkDefinitionIds = currentUserAppCards
       .flatMap(card => card.benefits)
       .filter(benefit => benefit.periodMonths === periodMonths)
@@ -314,14 +388,15 @@ export const schedulePerkExpiryNotifications = async (
     const { data: perkDefinitions, error: perkDefError } = await supabase
       .from('perk_definitions')
       .select('id, name, value')
-      .in('id', userPerkDefinitionIds);
+      .in('id', userPerkDefinitionIds)
+      .returns<PerkDefinition[]>();
     if (perkDefError) throw perkDefError;
     if (!perkDefinitions) throw new Error(`No perk definitions found for period ${periodMonths}`);
     
     // 4. Fetch redemptions for the current period
     const { data: periodRedemptions, error: redemptionError } = await getRedemptionsForPeriod(userId, start, endOfPeriod);
     if (redemptionError) throw redemptionError;
-    const redeemedPerkDefIds = new Set(periodRedemptions?.map((r: any) => r.perk_id) || []);
+    const redeemedPerkDefIds = new Set(periodRedemptions?.map((r: { perk_id: string }) => r.perk_id) || []);
     
     // 5. Calculate available perks
     let currentMostExpensiveValue = 0;
@@ -335,7 +410,11 @@ export const schedulePerkExpiryNotifications = async (
             allPerksRedeemed = false;
             if (benefit.value > currentMostExpensiveValue) {
               currentMostExpensiveValue = benefit.value;
-              mostExpensiveAvailablePerk = { name: definition.name, value: benefit.value, cardName: appCard.name };
+              mostExpensiveAvailablePerk = {
+                name: definition.name,
+                value: benefit.value,
+                cardName: appCard.name
+              };
             }
           }
         }
@@ -362,8 +441,10 @@ export const schedulePerkExpiryNotifications = async (
     return [];
   }
 
-  // 6. Schedule notifications
+  // Use smart reminder days instead of preferences
+  const reminderDays = getSmartReminderDays(periodMonths);
   const tasks: Promise<string | null>[] = [];
+
   reminderDays.forEach((daysBefore, index) => {
     if (daysBefore <= 0) return;
 
@@ -375,7 +456,7 @@ export const schedulePerkExpiryNotifications = async (
       reminderDate.setSeconds(now.getSeconds() + baseDelay + index * 2);
     } else {
       reminderDate = new Date(endOfPeriod);
-      reminderDate.setDate(endOfPeriod.getDate() - (daysBefore - 1)); // e.g. 1 day before end of 31st is 31st
+      reminderDate.setDate(endOfPeriod.getDate() - (daysBefore - 1));
       reminderDate.setHours(10, 0, 0, 0); // 10 AM
     }
     

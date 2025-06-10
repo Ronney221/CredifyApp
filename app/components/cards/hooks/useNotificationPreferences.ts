@@ -15,32 +15,72 @@ interface ToggleProps {
 }
 
 export const useNotificationPreferences = () => {
-  const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(true);
-  const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(true);
+  const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(false);
+  const [quarterlyPerkRemindersEnabled, setQuarterlyPerkRemindersEnabled] = useState(false);
+  const [semiAnnualPerkRemindersEnabled, setSemiAnnualPerkRemindersEnabled] = useState(false);
+  const [annualPerkRemindersEnabled, setAnnualPerkRemindersEnabled] = useState(false);
+  const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(false);
   const [renewalReminderDays, setRenewalReminderDays] = useState(7);
   const [perkResetConfirmationEnabled, setPerkResetConfirmationEnabled] = useState(true);
   const [weeklyDigestEnabled, setWeeklyDigestEnabled] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  const handleSectionToggle = (key: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleRenewalReminderToggle = (value: boolean) => {
+    setRenewalRemindersEnabled(value);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleResetConfirmationToggle = (value: boolean) => {
+    setPerkResetConfirmationEnabled(value);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleWeeklyDigestToggle = (value: boolean) => {
+    setWeeklyDigestEnabled(value);
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const getPreferences = (): NotificationPreferences => ({
+    perkExpiryRemindersEnabled,
+    quarterlyPerkRemindersEnabled,
+    semiAnnualPerkRemindersEnabled,
+    annualPerkRemindersEnabled,
+    renewalRemindersEnabled,
+    perkResetConfirmationEnabled,
+    weeklyDigestEnabled,
+    monthlyPerkExpiryReminderDays: [1, 3, 7],
+    quarterlyPerkExpiryReminderDays: [7, 14],
+    semiAnnualPerkExpiryReminderDays: [14, 30],
+    annualPerkExpiryReminderDays: [30, 60]
+  });
+
   const [remind1DayBeforeMonthly, setRemind1DayBeforeMonthly] = useState(true);
   const [remind3DaysBeforeMonthly, setRemind3DaysBeforeMonthly] = useState(true);
   const [remind7DaysBeforeMonthly, setRemind7DaysBeforeMonthly] = useState(true);
-
-  // State for different perk periods
-  const [quarterlyPerkRemindersEnabled, setQuarterlyPerkRemindersEnabled] = useState(true);
   const [remind7DaysBeforeQuarterly, setRemind7DaysBeforeQuarterly] = useState(true);
   const [remind14DaysBeforeQuarterly, setRemind14DaysBeforeQuarterly] = useState(true);
-  const [semiAnnualPerkRemindersEnabled, setSemiAnnualPerkRemindersEnabled] = useState(true);
   const [remind14DaysBeforeSemiAnnual, setRemind14DaysBeforeSemiAnnual] = useState(true);
   const [remind30DaysBeforeSemiAnnual, setRemind30DaysBeforeSemiAnnual] = useState(true);
-  const [annualPerkRemindersEnabled, setAnnualPerkRemindersEnabled] = useState(true);
   const [remind30DaysBeforeAnnual, setRemind30DaysBeforeAnnual] = useState(true);
   const [remind60DaysBeforeAnnual, setRemind60DaysBeforeAnnual] = useState(true);
   
   const [uniquePerkPeriods, setUniquePerkPeriods] = useState<number[]>([]);
-
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    'perk_expiry_monthly': true,
-    'card_renewal': true,
-  });
 
   // Load unique perk periods from AsyncStorage
   useEffect(() => {
@@ -65,8 +105,8 @@ export const useNotificationPreferences = () => {
         const jsonValue = await AsyncStorage.getItem(NOTIFICATION_PREFS_KEY);
         if (jsonValue != null) {
           const prefs = JSON.parse(jsonValue);
-          setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : true);
-          setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : true);
+          setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : false);
+          setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : false);
           setRenewalReminderDays(prefs.renewalReminderDays !== undefined ? prefs.renewalReminderDays : 7);
           setPerkResetConfirmationEnabled(prefs.perkResetConfirmationEnabled !== undefined ? prefs.perkResetConfirmationEnabled : true);
           setWeeklyDigestEnabled(prefs.weeklyDigestEnabled !== undefined ? prefs.weeklyDigestEnabled : false);
@@ -74,13 +114,13 @@ export const useNotificationPreferences = () => {
           setRemind3DaysBeforeMonthly(prefs.remind3DaysBeforeMonthly !== undefined ? prefs.remind3DaysBeforeMonthly : true);
           setRemind7DaysBeforeMonthly(prefs.remind7DaysBeforeMonthly !== undefined ? prefs.remind7DaysBeforeMonthly : true);
           
-          setQuarterlyPerkRemindersEnabled(prefs.quarterlyPerkRemindersEnabled !== undefined ? prefs.quarterlyPerkRemindersEnabled : true);
+          setQuarterlyPerkRemindersEnabled(prefs.quarterlyPerkRemindersEnabled !== undefined ? prefs.quarterlyPerkRemindersEnabled : false);
           setRemind7DaysBeforeQuarterly(prefs.remind7DaysBeforeQuarterly !== undefined ? prefs.remind7DaysBeforeQuarterly : true);
           setRemind14DaysBeforeQuarterly(prefs.remind14DaysBeforeQuarterly !== undefined ? prefs.remind14DaysBeforeQuarterly : true);
-          setSemiAnnualPerkRemindersEnabled(prefs.semiAnnualPerkRemindersEnabled !== undefined ? prefs.semiAnnualPerkRemindersEnabled : true);
+          setSemiAnnualPerkRemindersEnabled(prefs.semiAnnualPerkRemindersEnabled !== undefined ? prefs.semiAnnualPerkRemindersEnabled : false);
           setRemind14DaysBeforeSemiAnnual(prefs.remind14DaysBeforeSemiAnnual !== undefined ? prefs.remind14DaysBeforeSemiAnnual : true);
           setRemind30DaysBeforeSemiAnnual(prefs.remind30DaysBeforeSemiAnnual !== undefined ? prefs.remind30DaysBeforeSemiAnnual : true);
-          setAnnualPerkRemindersEnabled(prefs.annualPerkRemindersEnabled !== undefined ? prefs.annualPerkRemindersEnabled : true);
+          setAnnualPerkRemindersEnabled(prefs.annualPerkRemindersEnabled !== undefined ? prefs.annualPerkRemindersEnabled : false);
           setRemind30DaysBeforeAnnual(prefs.remind30DaysBeforeAnnual !== undefined ? prefs.remind30DaysBeforeAnnual : true);
           setRemind60DaysBeforeAnnual(prefs.remind60DaysBeforeAnnual !== undefined ? prefs.remind60DaysBeforeAnnual : true);
         }
@@ -173,13 +213,6 @@ export const useNotificationPreferences = () => {
     remind60DaysBeforeAnnual,
   ]);
 
-  const handleSectionToggle = (sectionKey: string) => {
-    setExpandedSections(prev => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
   const sendTestNotification = async (userId: string) => {
     try {
       const monthlyPerkExpiryReminderDays: number[] = [];
@@ -227,191 +260,68 @@ export const useNotificationPreferences = () => {
     }
   };
 
-  const handlePerkExpiryMasterToggle = (value: boolean) => {
-    setPerkExpiryRemindersEnabled(value);
-    setRemind1DayBeforeMonthly(value);
-    setRemind3DaysBeforeMonthly(value);
-    setRemind7DaysBeforeMonthly(value);
-    
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
-  const handleQuarterlyPerkMasterToggle = (value: boolean) => {
-    setQuarterlyPerkRemindersEnabled(value);
-    setRemind7DaysBeforeQuarterly(value);
-    setRemind14DaysBeforeQuarterly(value);
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
-  const handleSemiAnnualPerkMasterToggle = (value: boolean) => {
-    setSemiAnnualPerkRemindersEnabled(value);
-    setRemind14DaysBeforeSemiAnnual(value);
-    setRemind30DaysBeforeSemiAnnual(value);
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
-  const handleAnnualPerkMasterToggle = (value: boolean) => {
-    setAnnualPerkRemindersEnabled(value);
-    setRemind30DaysBeforeAnnual(value);
-    setRemind60DaysBeforeAnnual(value);
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
-  const handleRenewalReminderToggle = (value: boolean) => {
-    setRenewalRemindersEnabled(value);
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
-  const handleResetConfirmationToggle = (value: boolean) => {
-    setPerkResetConfirmationEnabled(value);
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
-  const handleWeeklyDigestToggle = (value: boolean) => {
-    setWeeklyDigestEnabled(value);
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
-
   const buildNotificationItems = (anyRenewalDateSet: boolean) => {
     const notificationItems: any[] = [];
 
-    // Monthly Perks (assuming period 1 month is always possible or default)
-    const monthlyPerkToggles: ToggleProps[] = perkExpiryRemindersEnabled ? [
-      { label: "1 day before", value: remind1DayBeforeMonthly, onValueChange: setRemind1DayBeforeMonthly, disabled: !perkExpiryRemindersEnabled },
-      { label: "3 days before", value: remind3DaysBeforeMonthly, onValueChange: setRemind3DaysBeforeMonthly, disabled: !perkExpiryRemindersEnabled },
-      { label: "7 days before", value: remind7DaysBeforeMonthly, onValueChange: setRemind7DaysBeforeMonthly, disabled: !perkExpiryRemindersEnabled },
-    ] : [];
-
-    const buildMonthlyPerkHelperText = () => {
-      if (!perkExpiryRemindersEnabled) return ["Turn on to get reminded"];
-      const activeDays = [
-        remind1DayBeforeMonthly && "1",
-        remind3DaysBeforeMonthly && "3",
-        remind7DaysBeforeMonthly && "7",
-      ].filter(Boolean);
-      if (activeDays.length === 0) return ["Select reminder days below"];
-      return [`We'll alert you ${activeDays.join(" / ")} days before.`];
-    };
+    // Consolidated Perk Expiry Reminders
+    const periodToggles: ToggleProps[] = [];
     
-    notificationItems.push({ 
-      key: 'perk_expiry_monthly',
-      isExpanded: expandedSections['perk_expiry_monthly'],
-      onToggleExpand: () => handleSectionToggle('perk_expiry_monthly'),
-      iconName: "alarm-outline" as const, 
-      title: "Monthly Perk Expiry Reminders", 
-      details: buildMonthlyPerkHelperText(),
-      toggles: [
-        { label: "Enable monthly reminders", value: perkExpiryRemindersEnabled, onValueChange: handlePerkExpiryMasterToggle, isMaster: true },
-        ...monthlyPerkToggles
-      ],
+    // Always show monthly toggle
+    periodToggles.push({
+      label: "Monthly Perks",
+      value: perkExpiryRemindersEnabled,
+      onValueChange: setPerkExpiryRemindersEnabled,
+    });
+
+    // Quarterly toggle if user has quarterly perks
+    if (uniquePerkPeriods.includes(3)) {
+      periodToggles.push({
+        label: "Quarterly Perks",
+        value: quarterlyPerkRemindersEnabled,
+        onValueChange: setQuarterlyPerkRemindersEnabled,
+      });
+    }
+
+    // Semi-Annual toggle if user has semi-annual perks
+    if (uniquePerkPeriods.includes(6)) {
+      periodToggles.push({
+        label: "Semi-Annual Perks",
+        value: semiAnnualPerkRemindersEnabled,
+        onValueChange: setSemiAnnualPerkRemindersEnabled,
+      });
+    }
+
+    // Annual toggle if user has annual perks
+    if (uniquePerkPeriods.includes(12)) {
+      periodToggles.push({
+        label: "Annual Perks",
+        value: annualPerkRemindersEnabled,
+        onValueChange: setAnnualPerkRemindersEnabled,
+      });
+    }
+
+    const buildPerkExpiryHelperText = () => {
+      const enabledPeriods = [];
+      if (perkExpiryRemindersEnabled) enabledPeriods.push("Monthly");
+      if (uniquePerkPeriods.includes(3) && quarterlyPerkRemindersEnabled) enabledPeriods.push("Quarterly");
+      if (uniquePerkPeriods.includes(6) && semiAnnualPerkRemindersEnabled) enabledPeriods.push("Semi-Annual");
+      if (uniquePerkPeriods.includes(12) && annualPerkRemindersEnabled) enabledPeriods.push("Annual");
+      if (enabledPeriods.length === 0) return ["No reminders enabled"];
+      return [`Active reminders: ${enabledPeriods.join(", ")}`];
+    };
+
+    notificationItems.push({
+      key: 'perk_expiry',
+      isExpanded: expandedSections['perk_expiry'],
+      onToggleExpand: () => handleSectionToggle('perk_expiry'),
+      iconName: "alarm-outline" as const,
+      title: "Perk Expiry Reminders",
+      details: buildPerkExpiryHelperText(),
+      toggles: periodToggles,
       iconColor: "#FF9500",
     });
 
-    // Quarterly Perks
-    if (uniquePerkPeriods.includes(3)) {
-      const quarterlyToggles: ToggleProps[] = quarterlyPerkRemindersEnabled ? [
-        { label: "7 days before", value: remind7DaysBeforeQuarterly, onValueChange: setRemind7DaysBeforeQuarterly, disabled: !quarterlyPerkRemindersEnabled },
-        { label: "14 days before", value: remind14DaysBeforeQuarterly, onValueChange: setRemind14DaysBeforeQuarterly, disabled: !quarterlyPerkRemindersEnabled },
-      ] : [];
-      const buildQuarterlyHelperText = () => {
-        if (!quarterlyPerkRemindersEnabled) return ["Turn on to get reminded"];
-        const activeDays = [
-          remind7DaysBeforeQuarterly && "7",
-          remind14DaysBeforeQuarterly && "14",
-        ].filter(Boolean);
-        if (activeDays.length === 0) return ["Select reminder days below"];
-        return [`We'll alert you ${activeDays.join(" / ")} days before.`];
-      };
-      notificationItems.push({
-        key: 'perk_expiry_quarterly',
-        isExpanded: expandedSections['perk_expiry_quarterly'],
-        onToggleExpand: () => handleSectionToggle('perk_expiry_quarterly'),
-        iconName: "alarm-outline" as const,
-        title: "Quarterly Perk Expiry Reminders",
-        details: buildQuarterlyHelperText(),
-        toggles: [
-          { label: "Enable quarterly reminders", value: quarterlyPerkRemindersEnabled, onValueChange: handleQuarterlyPerkMasterToggle, isMaster: true },
-          ...quarterlyToggles
-        ],
-        iconColor: "#FF9500",
-      });
-    }
-
-    // Semi-Annual Perks
-    if (uniquePerkPeriods.includes(6)) {
-      const semiAnnualToggles: ToggleProps[] = semiAnnualPerkRemindersEnabled ? [
-        { label: "14 days before", value: remind14DaysBeforeSemiAnnual, onValueChange: setRemind14DaysBeforeSemiAnnual, disabled: !semiAnnualPerkRemindersEnabled },
-        { label: "30 days before", value: remind30DaysBeforeSemiAnnual, onValueChange: setRemind30DaysBeforeSemiAnnual, disabled: !semiAnnualPerkRemindersEnabled },
-      ] : [];
-      const buildSemiAnnualHelperText = () => {
-        if (!semiAnnualPerkRemindersEnabled) return ["Turn on to get reminded"];
-        const activeDays = [
-          remind14DaysBeforeSemiAnnual && "14",
-          remind30DaysBeforeSemiAnnual && "30",
-        ].filter(Boolean);
-        if (activeDays.length === 0) return ["Select reminder days below"];
-        return [`We'll alert you ${activeDays.join(" / ")} days before.`];
-      };
-      notificationItems.push({
-        key: 'perk_expiry_semi_annual',
-        isExpanded: expandedSections['perk_expiry_semi_annual'],
-        onToggleExpand: () => handleSectionToggle('perk_expiry_semi_annual'),
-        iconName: "alarm-outline" as const,
-        title: "Semi-Annual Perk Expiry Reminders",
-        details: buildSemiAnnualHelperText(),
-        toggles: [
-          { label: "Enable semi-annual reminders", value: semiAnnualPerkRemindersEnabled, onValueChange: handleSemiAnnualPerkMasterToggle, isMaster: true },
-          ...semiAnnualToggles
-        ],
-        iconColor: "#FF9500",
-      });
-    }
-
-    // Annual Perks
-    if (uniquePerkPeriods.includes(12)) {
-      const annualToggles: ToggleProps[] = annualPerkRemindersEnabled ? [
-        { label: "30 days before", value: remind30DaysBeforeAnnual, onValueChange: setRemind30DaysBeforeAnnual, disabled: !annualPerkRemindersEnabled },
-        { label: "60 days before", value: remind60DaysBeforeAnnual, onValueChange: setRemind60DaysBeforeAnnual, disabled: !annualPerkRemindersEnabled },
-      ] : [];
-      const buildAnnualHelperText = () => {
-        if (!annualPerkRemindersEnabled) return ["Turn on to get reminded"];
-        const activeDays = [
-          remind30DaysBeforeAnnual && "30",
-          remind60DaysBeforeAnnual && "60",
-        ].filter(Boolean);
-        if (activeDays.length === 0) return ["Select reminder days below"];
-        return [`We'll alert you ${activeDays.join(" / ")} days before.`];
-      };
-      notificationItems.push({
-        key: 'perk_expiry_annual',
-        isExpanded: expandedSections['perk_expiry_annual'],
-        onToggleExpand: () => handleSectionToggle('perk_expiry_annual'),
-        iconName: "alarm-outline" as const,
-        title: "Annual Perk Expiry Reminders",
-        details: buildAnnualHelperText(),
-        toggles: [
-          { label: "Enable annual reminders", value: annualPerkRemindersEnabled, onValueChange: handleAnnualPerkMasterToggle, isMaster: true },
-          ...annualToggles
-        ],
-        iconColor: "#FF9500",
-      });
-    }
-
-    // Other settings
+    // Other settings (Card Renewal, Reset Confirmations, Weekly Digest)
     notificationItems.push(
       { 
         key: 'card_renewal',
