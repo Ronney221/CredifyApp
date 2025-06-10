@@ -12,6 +12,7 @@ import {
   Easing,
   LayoutChangeEvent,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -33,6 +34,7 @@ import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
+import { updateCardOrder } from '../../../lib/database';
 
 export default function ManageCardsScreen() {
   const router = useRouter();
@@ -180,12 +182,28 @@ export default function ManageCardsScreen() {
     index,
   });
 
-  const handleDragEnd = useCallback(({ data }: { data: Card[] }) => {
+  const handleDragEnd = useCallback(async ({ data }: { data: Card[] }) => {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setSelectedCards(data.map(card => card.id));
-  }, []);
+    
+    const newOrder = data.map(card => card.id);
+    setSelectedCards(newOrder);
+
+    // Save the new order to the database
+    if (user?.id) {
+      const { error } = await updateCardOrder(user.id, newOrder);
+      if (error) {
+        console.error('Error saving card order:', error);
+        // Optionally show an error message to the user
+        Alert.alert(
+          "Error",
+          "Failed to save card order. The order will be restored on next app launch.",
+          [{ text: "OK" }]
+        );
+      }
+    }
+  }, [user?.id]);
 
   const renderItem = useCallback(({ item: card, drag, isActive }: RenderItemParams<Card>) => {
     const formattedDate = formatDate(renewalDates[card.id]);

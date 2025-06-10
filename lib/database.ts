@@ -12,6 +12,7 @@ interface UserCard {
   annual_fee: number;
   is_active: boolean;
   renewal_date?: string;
+  display_order: number;
 }
 
 interface PerkRedemption {
@@ -33,7 +34,8 @@ export async function getUserCards(userId: string) {
       .from('user_credit_cards')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
 
     if (error) {
       console.error('Database error fetching user cards:', error);
@@ -68,18 +70,19 @@ export async function saveUserCards(
       return { error: deactivateError };
     }
 
-    // Prepare cards for insertion
-    const cardsToInsert = selectedCards.map(card => {
+    // Prepare cards for insertion with display_order
+    const cardsToInsert = selectedCards.map((card, index) => {
       const cardData = {
         user_id: userId,
         card_name: card.name,
-        card_brand: card.id.split('_')[0], // Extract brand from card ID (e.g., 'amex_gold' -> 'amex')
-        card_category: 'rewards', // Default category
+        card_brand: card.id.split('_')[0],
+        card_category: 'rewards',
         annual_fee: card.annualFee || 0,
         is_active: true,
-        renewal_date: renewalDates[card.id] ? renewalDates[card.id].toISOString() : null
+        renewal_date: renewalDates[card.id] ? renewalDates[card.id].toISOString() : null,
+        display_order: index // Add display_order based on array index
       };
-      console.log('Preparing card for insertion:', card.name);
+      console.log('Preparing card for insertion:', card.name, 'with order:', index);
       return cardData;
     });
 
@@ -673,5 +676,60 @@ export async function getRedemptionsForPeriod(userId: string, startDate: Date, e
   } catch (error) {
     console.error('Unexpected error fetching redemptions for period:', error);
     return { data: null, error };
+  }
+}
+
+// Add a new function to update card order
+export async function updateCardOrder(userId: string, cardIds: string[]) {
+  try {
+    // Get the current active cards
+    const { data: existingCards, error: fetchError } = await supabase
+      .from('user_credit_cards')
+      .select('id, card_name')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (fetchError) {
+      console.error('Error fetching existing cards:', fetchError);
+      return { error: fetchError };
+    }
+
+    // Create a map of card names to database IDs
+    const cardNameToId = new Map(existingCards?.map(card => [card.card_name, card.id]));
+
+    // Prepare the updates
+    const updates = cardIds.map((cardId, index) => {
+      const card = allCards.find(c => c.id === cardId);
+      if (!card) return null;
+      
+      const dbId = cardNameToId.get(card.name);
+      if (!dbId) return null;
+
+      return {
+        id: dbId,
+        display_order: index
+      };
+    }).filter(Boolean);
+
+    // Update each card's display_order
+    for (const update of updates) {
+      if (!update) continue;
+      
+      const { error } = await supabase
+        .from('user_credit_cards')
+        .update({ display_order: update.display_order })
+        .eq('id', update.id)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error updating card order:', error);
+        return { error };
+      }
+    }
+
+    return { data: true, error: null };
+  } catch (error) {
+    console.error('Unexpected error updating card order:', error);
+    return { error };
   }
 } 

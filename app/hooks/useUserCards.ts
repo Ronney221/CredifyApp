@@ -4,6 +4,18 @@ import { Card, allCards } from '../../src/data/card-data';
 import { getUserCards } from '../../lib/database';
 import { CardPerk } from '../../src/data/card-data';
 
+interface UserCard {
+  id: string;
+  user_id: string;
+  card_name: string;
+  card_brand: string;
+  card_category: string;
+  annual_fee: number;
+  is_active: boolean;
+  renewal_date?: string;
+  display_order: number;
+}
+
 interface UserCardsHookResult {
   userCardsWithPerks: { card: Card; perks: CardPerk[] }[];
   isLoading: boolean;
@@ -43,44 +55,53 @@ export function useUserCards(): UserCardsHookResult {
         throw dbError;
       }
 
-      let finalSelectedIds: string[] = [];
+      let finalCards: { card: Card; perks: CardPerk[] }[] = [];
       if (userCardsFromDb && userCardsFromDb.length > 0) {
-        finalSelectedIds = allCards
-          .filter(card => userCardsFromDb.some(uc => uc.card_name === card.name))
-          .map(card => card.id);
-        console.log('[useUserCards] Fetched card IDs from DB for authenticated user:', finalSelectedIds);
+        // Create a map of card names to their database records (which include display_order)
+        const cardNameToDbRecord = new Map(
+          userCardsFromDb.map(dbCard => [dbCard.card_name, dbCard])
+        );
+
+        // Filter and map allCards to match the database records
+        const matchedCards = allCards
+          .filter(card => cardNameToDbRecord.has(card.name))
+          .map(card => ({
+            card,
+            dbRecord: cardNameToDbRecord.get(card.name)!
+          }));
+
+        // Sort by display_order from the database
+        matchedCards.sort((a, b) => 
+          (a.dbRecord.display_order || 0) - (b.dbRecord.display_order || 0)
+        );
+
+        // Transform to final format with proper perk transformation
+        finalCards = matchedCards.map(({ card }) => ({
+          card,
+          perks: card.benefits.map(benefit => ({
+            ...benefit,
+            cardId: card.id,
+            status: 'available' as const,
+            streakCount: 0,
+            coldStreakCount: 0,
+          }))
+        }));
+
+        console.log('[useUserCards] Processed cards with order:', 
+          finalCards.map(c => `${c.card.name} (${cardNameToDbRecord.get(c.card.name)?.display_order})`));
       } else {
         console.log('[useUserCards] No cards found in DB for authenticated user.');
       }
 
-      if (finalSelectedIds.length === 0) {
-        console.log('[useUserCards] No selected card IDs to process, setting empty userCardsWithPerks.');
-        setUserCardsWithPerks([]);
-      } else {
-        const cardsWithPerks = allCards
-          .filter(card => finalSelectedIds.includes(card.id))
-          .map(card => ({
-            card,
-            perks: card.benefits.map(benefit => ({
-              ...benefit,
-              cardId: card.id,
-              status: 'available' as const,
-              streakCount: 0,
-              coldStreakCount: 0,
-            })),
-          }));
-        setUserCardsWithPerks(cardsWithPerks);
-        console.log('[useUserCards] Successfully processed cardsWithPerks:', cardsWithPerks.length);
-      }
-
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to load user cards'));
-      console.error('Error loading user cards in useUserCards:', err);
-    } finally {
-      if (!initialLoadDoneRef.current) {
-        setIsLoading(false);
-        initialLoadDoneRef.current = true;
-      }
+      setUserCardsWithPerks(finalCards);
+      initialLoadDoneRef.current = true;
+      setIsLoading(false);
+      setIsRefreshing(false);
+      setError(null);
+    } catch (error) {
+      console.error('[useUserCards] Error loading cards:', error);
+      setError(error as Error);
+      setIsLoading(false);
       setIsRefreshing(false);
     }
   }, []);
