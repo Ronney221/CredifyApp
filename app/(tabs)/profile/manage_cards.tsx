@@ -34,7 +34,7 @@ import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
-import { updateCardOrder } from '../../../lib/database';
+import { updateCardOrder, saveUserCards } from '../../../lib/database';
 
 export default function ManageCardsScreen() {
   const router = useRouter();
@@ -52,6 +52,9 @@ export default function ManageCardsScreen() {
   const flatListRef = useRef<FlatList<Card>>(null);
   const [newlyAddedCardIdForScroll, setNewlyAddedCardIdForScroll] = useState<string | null>(null);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [removingCardId, setRemovingCardId] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
 
   const ESTIMATED_CARD_ROW_HEIGHT = 80;
 
@@ -62,14 +65,10 @@ export default function ManageCardsScreen() {
     setRenewalDates,
     isLoading,
     isSaving,
-    deletedCard,
     getScaleValue,
     formatDate,
-    hasChanges,
     selectedCardObjects,
     handleRemoveCard,
-    handleDiscardChanges,
-    handleSaveChanges,
   } = cardManagement;
 
   useEffect(() => {
@@ -82,15 +81,97 @@ export default function ManageCardsScreen() {
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    
-    if (isEditMode && hasChanges) {
-      setIsEditMode(false);
-    } else if (isEditMode && !hasChanges) {
-      setIsEditMode(false);
-    } else {
-      setIsEditMode(true);
+    setIsEditMode(!isEditMode);
+  }, [isEditMode]);
+
+  const animateCardRemoval = useCallback((onComplete: () => void) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+      Animated.timing(translateX, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+    ]).start(async () => {
+      // Call onComplete first to update state
+      await onComplete();
+      // Reset animations after a small delay to ensure state updates have processed
+      setTimeout(() => {
+        fadeAnim.setValue(1);
+        translateX.setValue(0);
+        setRemovingCardId(null);
+      }, 50);
+    });
+  }, [fadeAnim, translateX]);
+
+  const handleRemoveCardWithConfirmation = useCallback((cardId: string) => {
+    const card = selectedCardObjects.find(c => c.id === cardId);
+    if (!card) return;
+
+    Alert.alert(
+      "Remove Card",
+      `Are you sure you want to remove ${card.name}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            if (Platform.OS === 'ios') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }
+            
+            // Set the removing card ID to trigger animation
+            setRemovingCardId(cardId);
+            
+            // Start the removal animation
+            animateCardRemoval(async () => {
+              // Remove the card from state first
+              handleRemoveCard(cardId);
+              
+              // Then save to database
+              if (user?.id) {
+                const updatedCards = selectedCardObjects.filter(c => c.id !== cardId);
+                const { error } = await saveUserCards(user.id, updatedCards, renewalDates);
+                if (error) {
+                  console.error('Error saving cards after removal:', error);
+                  Alert.alert("Error", "Failed to save changes. Please try again.");
+                }
+              }
+            });
+          }
+        }
+      ]
+    );
+  }, [selectedCardObjects, handleRemoveCard, user?.id, renewalDates, animateCardRemoval]);
+
+  const handleDragEnd = useCallback(async ({ data }: { data: Card[] }) => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, [isEditMode, hasChanges]);
+    
+    const newOrder = data.map(card => card.id);
+    setSelectedCards(newOrder);
+
+    // Save the new order to the database immediately
+    if (user?.id) {
+      const { error } = await updateCardOrder(user.id, newOrder);
+      if (error) {
+        console.error('Error saving card order:', error);
+        Alert.alert(
+          "Error",
+          "Failed to save card order. Please try reordering again.",
+          [{ text: "OK" }]
+        );
+      }
+    }
+  }, [user?.id]);
 
   const showDatePicker = (cardId: string) => {
     setCurrentEditingCardId(cardId);
@@ -146,16 +227,31 @@ export default function ManageCardsScreen() {
     setAddCardModalVisible(true);
   }, []);
 
-  const handleDoneAddCardModal = () => {
+  const handleDoneAddCardModal = async () => {
     const newCardIds = Array.from(tempSelectedCardIdsInModal);
     if (newCardIds.length > 0) {
-      const firstNewCardId = newCardIds[0];
-      setSelectedCards(prev => {
-        const currentIds = new Set(prev);
-        newCardIds.forEach(id => currentIds.add(id));
-        return Array.from(currentIds);
+      const updatedSelectedCards = [...selectedCards];
+      newCardIds.forEach(id => {
+        if (!updatedSelectedCards.includes(id)) {
+          updatedSelectedCards.push(id);
+        }
       });
-      setNewlyAddedCardIdForScroll(firstNewCardId); 
+      setSelectedCards(updatedSelectedCards);
+      setNewlyAddedCardIdForScroll(newCardIds[0]);
+
+      // Save the changes to the database
+      if (user?.id) {
+        const updatedCards = updatedSelectedCards.map(id => allCards.find(c => c.id === id)).filter(Boolean) as Card[];
+        const { error } = await saveUserCards(user.id, updatedCards, renewalDates);
+        if (error) {
+          console.error('Error saving new cards:', error);
+          Alert.alert(
+            "Error",
+            "Failed to save new cards. Please try again.",
+            [{ text: "OK" }]
+          );
+        }
+      }
     }
     setAddCardModalVisible(false);
     setTempSelectedCardIdsInModal(new Set());
@@ -182,29 +278,6 @@ export default function ManageCardsScreen() {
     index,
   });
 
-  const handleDragEnd = useCallback(async ({ data }: { data: Card[] }) => {
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    
-    const newOrder = data.map(card => card.id);
-    setSelectedCards(newOrder);
-
-    // Save the new order to the database
-    if (user?.id) {
-      const { error } = await updateCardOrder(user.id, newOrder);
-      if (error) {
-        console.error('Error saving card order:', error);
-        // Optionally show an error message to the user
-        Alert.alert(
-          "Error",
-          "Failed to save card order. The order will be restored on next app launch.",
-          [{ text: "OK" }]
-        );
-      }
-    }
-  }, [user?.id]);
-
   const renderItem = useCallback(({ item: card, drag, isActive }: RenderItemParams<Card>) => {
     const formattedDate = formatDate(renewalDates[card.id]);
     let subtitle;
@@ -216,9 +289,27 @@ export default function ManageCardsScreen() {
       subtitle = `Next renewal ${formattedDate}`;
     }
 
+    const isRemoving = removingCardId === card.id;
+    const animatedStyle = isRemoving ? {
+      opacity: fadeAnim,
+      transform: [
+        { translateX: translateX },
+        { 
+          scale: fadeAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.8, 1],
+          })
+        }
+      ],
+    } : undefined;
+
     return (
       <ScaleDecorator>
-        <View style={styles.cardContainer}>
+        <Animated.View style={[
+          styles.cardContainer,
+          animatedStyle,
+          isRemoving && { position: 'relative', zIndex: -1 }
+        ]}>
           <CardRow
             key={card.id}
             card={card}
@@ -228,42 +319,42 @@ export default function ManageCardsScreen() {
             subtitle={subtitle}
             subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
             showRemoveButton={isEditMode}
-            onRemove={handleRemoveCard}
+            onRemove={handleRemoveCardWithConfirmation}
             isEditMode={isEditMode}
             isActive={isActive}
             drag={drag}
           />
-        </View>
+        </Animated.View>
       </ScaleDecorator>
     );
-  }, [isEditMode, renewalDates, handleCardPress, handleRemoveCard]);
+  }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation, removingCardId, fadeAnim, translateX]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
-        headerRight: () => (
-            !isEditMode ? (
-                <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
-                    <Ionicons name="add" size={28} color={Colors.light.tint} />
-                </TouchableOpacity>
-            ) : null
-        ),
-        headerLeft: () => {
-            if (selectedCards.length === 0 || (isEditMode && hasChanges)) {
-                return null;
-            }
+      headerRight: () => (
+        !isEditMode ? (
+          <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
+            <Ionicons name="add" size={28} color={Colors.light.tint} />
+          </TouchableOpacity>
+        ) : null
+      ),
+      headerLeft: () => {
+        if (selectedCards.length === 0) {
+          return null;
+        }
 
-            return (
-                <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
-                    <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
-                        {isEditMode ? 'Done' : 'Edit'}
-                    </Text>
-                </TouchableOpacity>
-            );
-        },
-        headerTitle: 'Manage Cards',
-        headerShown: true,
+        return (
+          <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
+            <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
+              {isEditMode ? 'Done' : 'Edit'}
+            </Text>
+          </TouchableOpacity>
+        );
+      },
+      headerTitle: 'Manage Cards',
+      headerShown: true,
     });
-  }, [navigation, isEditMode, hasChanges, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal]);
+  }, [navigation, isEditMode, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal]);
 
   if (isLoading) {
     return (
@@ -284,7 +375,7 @@ export default function ManageCardsScreen() {
           ListHeaderComponent={
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitleYourCards}>Your Cards</Text>
+                <Text style={styles.sectionTitleYourCards}>YOUR CARDS</Text>
               </View>
               {selectedCardObjects.length === 0 && (
                 <EmptyState onAddCard={handleOpenAddCardModal} />
@@ -298,13 +389,6 @@ export default function ManageCardsScreen() {
           dragItemOverflow={true}
           dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
           activationDistance={0}
-        />
-
-        <SaveFooter
-          visible={hasChanges}
-          onSave={handleSaveChanges}
-          onDiscard={handleDiscardChanges}
-          isSaving={isSaving}
         />
       </SafeAreaView>
 
@@ -337,16 +421,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.systemGroupedBackground },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 96 },
-  section: { marginBottom: 8 },
+  section: { marginBottom: 16, paddingTop: 12 },
   sectionHeader: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   sectionTitleYourCards: { 
     fontSize: 13, 
-    fontWeight: 'normal', 
+    letterSpacing: 0.5,
+    fontWeight: '500', 
     color: Colors.light.secondaryLabel, 
     textTransform: 'uppercase' 
   },
@@ -354,6 +439,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     borderRadius: 10,
     overflow: 'hidden',
+    marginBottom: 12,
   },
   separator: {
     height: 12,
