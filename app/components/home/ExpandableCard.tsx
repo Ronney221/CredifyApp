@@ -230,13 +230,29 @@ const ExpandableCardComponent = ({
     const nowHasRedeemedPerks = perks.some(p => p.status === 'redeemed');
 
     // If the card is expanded and we just transitioned from 0 redeemed to 1+ redeemed
-    if (isExpanded && nowHasRedeemedPerks && !hadRedeemedPerks.current) {
+    // Only show undo hint if onboarding is not showing and has been shown before
+    if (isExpanded && 
+        nowHasRedeemedPerks && 
+        !hadRedeemedPerks.current && 
+        !showOnboarding && 
+        hasShownOnboarding) {
       setShowUndoHint(true);
     }
     
     // Update the ref for the next render
     hadRedeemedPerks.current = nowHasRedeemedPerks;
-  }, [perks, isExpanded]);
+  }, [perks, isExpanded, showOnboarding, hasShownOnboarding]);
+
+  // New effect to show undo hint after onboarding is dismissed
+  useEffect(() => {
+    if (!showOnboarding && 
+        hasShownOnboarding && 
+        isExpanded && 
+        perks.some(p => p.status === 'redeemed') && 
+        !showUndoHint) {
+      setShowUndoHint(true);
+    }
+  }, [showOnboarding, hasShownOnboarding, isExpanded, perks]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
