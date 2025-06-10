@@ -39,6 +39,8 @@ interface CardRowProps {
   showRemoveButton?: boolean;
   onRemove?: (cardId: string) => void;
   isEditMode?: boolean;
+  isActive?: boolean;
+  drag?: () => void;
 }
 
 export const CardRow: React.FC<CardRowProps> = ({
@@ -53,6 +55,8 @@ export const CardRow: React.FC<CardRowProps> = ({
   showRemoveButton = false,
   onRemove,
   isEditMode = false,
+  isActive = false,
+  drag,
 }) => {
   const networkColor = getCardNetworkColor(card);
 
@@ -136,15 +140,23 @@ export const CardRow: React.FC<CardRowProps> = ({
         isSelected && mode === 'onboard' && styles.cardRowSelected,
         disabled && styles.cardRowDisabled,
         isEditMode && styles.cardRowEditMode,
+        isActive && styles.cardRowActive,
       ]}
       onPress={() => !disabled && onPress(card.id)}
       activeOpacity={0.7}
-      disabled={disabled}
+      disabled={disabled || isEditMode}
     >
-      {isEditMode && (
-        <View style={styles.grabberIconContainer}>
-          <Ionicons name="reorder-three-outline" size={28} color={Colors.light.secondaryLabel} />
-        </View>
+      {isEditMode && showRemoveButton && onRemove && (
+        <TouchableOpacity 
+          onPress={() => onRemove(card.id)} 
+          style={styles.removeButton}
+        >
+          <Ionicons 
+            name="remove-circle-outline" 
+            size={24} 
+            color={Colors.light.error} 
+          />
+        </TouchableOpacity>
       )}
       
       {renderCardIcon()}
@@ -164,7 +176,20 @@ export const CardRow: React.FC<CardRowProps> = ({
         )}
       </View>
       
-      {renderRightElement()}
+      {isEditMode && (
+        <TouchableOpacity 
+          onPressIn={drag}
+          style={styles.grabberIconContainer}
+        >
+          <Ionicons 
+            name="reorder-three-outline" 
+            size={28} 
+            color={Colors.light.secondaryLabel} 
+          />
+        </TouchableOpacity>
+      )}
+      
+      {!isEditMode && renderRightElement()}
     </TouchableOpacity>
   );
 };
@@ -186,8 +211,19 @@ const styles = StyleSheet.create({
   cardRowEditMode: {
     opacity: 0.9,
   },
+  cardRowActive: {
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   grabberIconContainer: {
-    paddingRight: 12,
+    paddingLeft: 8,
+    paddingRight: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -252,6 +288,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   removeButton: {
-    padding: 4,
+    paddingRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 

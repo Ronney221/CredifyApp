@@ -29,6 +29,10 @@ import {
   useCardManagement,
 } from '../../components/cards';
 import { MotiView } from 'moti';
+import DraggableFlatList, { 
+  ScaleDecorator,
+  RenderItemParams,
+} from 'react-native-draggable-flatlist';
 
 export default function ManageCardsScreen() {
   const router = useRouter();
@@ -176,6 +180,46 @@ export default function ManageCardsScreen() {
     index,
   });
 
+  const handleDragEnd = useCallback(({ data }: { data: Card[] }) => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setSelectedCards(data.map(card => card.id));
+  }, []);
+
+  const renderItem = useCallback(({ item: card, drag, isActive }: RenderItemParams<Card>) => {
+    const formattedDate = formatDate(renewalDates[card.id]);
+    let subtitle;
+    if (formattedDate === 'Set renewal date ›') {
+      subtitle = formattedDate;
+    } else if (card.annualFee) {
+      subtitle = `$${card.annualFee} • Next renewal ${formattedDate}`;
+    } else {
+      subtitle = `Next renewal ${formattedDate}`;
+    }
+
+    return (
+      <ScaleDecorator>
+        <View style={styles.cardContainer}>
+          <CardRow
+            key={card.id}
+            card={card}
+            isSelected={false}
+            onPress={isEditMode ? () => {} : handleCardPress}
+            mode="manage"
+            subtitle={subtitle}
+            subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
+            showRemoveButton={isEditMode}
+            onRemove={handleRemoveCard}
+            isEditMode={isEditMode}
+            isActive={isActive}
+            drag={drag}
+          />
+        </View>
+      </ScaleDecorator>
+    );
+  }, [isEditMode, renewalDates, handleCardPress, handleRemoveCard]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
         headerRight: () => (
@@ -214,39 +258,11 @@ export default function ManageCardsScreen() {
   return (
     <>
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <FlatList
+        <DraggableFlatList
           data={selectedCardObjects}
-          renderItem={({ item: card }) => {
-            const formattedDate = formatDate(renewalDates[card.id]);
-            let subtitle;
-            if (formattedDate === 'Set renewal date ›') {
-                subtitle = formattedDate;
-            } else if (card.annualFee) {
-                subtitle = `$${card.annualFee} • Next renewal ${formattedDate}`;
-            } else {
-                subtitle = `Next renewal ${formattedDate}`;
-            }
-
-            const cardContent = isEditMode ? (
-              <CardRow
-                key={card.id} card={card} isSelected={false} onPress={() => {}} mode="manage"
-                subtitle={subtitle}
-                subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                showRemoveButton={true} onRemove={handleRemoveCard} isEditMode={true}
-              />
-            ) : (
-              <CardRow
-                key={card.id} card={card} isSelected={false} onPress={handleCardPress} mode="manage"
-                subtitle={subtitle}
-                subtitleStyle={renewalDates[card.id] ? 'normal' : 'placeholder'}
-                showRemoveButton={false} isEditMode={false}
-              />
-            );
-            
-            return <View style={styles.cardContainer}>{cardContent}</View>
-          }}
+          onDragEnd={handleDragEnd}
           keyExtractor={(card) => card.id}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          renderItem={renderItem}
           ListHeaderComponent={
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -257,11 +273,13 @@ export default function ManageCardsScreen() {
               )}
             </View>
           }
-          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          ref={flatListRef}
-          onLayout={handleScrollViewLayout} getItemLayout={getItemLayout}
+          onLayout={handleScrollViewLayout}
+          getItemLayout={getItemLayout}
+          dragItemOverflow={true}
+          dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
+          activationDistance={0}
         />
 
         <SaveFooter
@@ -273,17 +291,22 @@ export default function ManageCardsScreen() {
       </SafeAreaView>
 
       <AddCardModal
-        visible={addCardModalVisible} onClose={handleDoneAddCardModal}
+        visible={addCardModalVisible}
+        onClose={handleDoneAddCardModal}
         selectedCardIds={selectedCards}
         tempSelectedCardIds={tempSelectedCardIdsInModal}
-        searchQuery={modalSearchQuery} onSearchChange={setModalSearchQuery}
-        onCardPress={handleAddCard} getScaleValue={getScaleValue}
+        searchQuery={modalSearchQuery}
+        onSearchChange={setModalSearchQuery}
+        onCardPress={handleAddCard}
+        getScaleValue={getScaleValue}
       />
 
       {currentEditingCardId && (
         <DateTimePickerModal
-          isVisible={isDatePickerVisible} mode="date"
-          onConfirm={handleConfirmDate} onCancel={hideDatePicker}
+          isVisible={isDatePickerVisible}
+          mode="date"
+          onConfirm={handleConfirmDate}
+          onCancel={hideDatePicker}
           date={renewalDates[currentEditingCardId] || new Date()}
         />
       )}
