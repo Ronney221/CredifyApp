@@ -20,7 +20,10 @@ import { Colors } from '../../../constants/Colors';
 import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import {
+  launchImageLibraryAsync,
+  requestMediaLibraryPermissionsAsync,
+} from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import { uploadAvatar, updateUserProfile } from '../../../lib/supabase';
 
@@ -124,7 +127,7 @@ export default function EditProfileScreen() {
   };
 
   const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await requestMediaLibraryPermissionsAsync();
     
     if (status !== 'granted') {
       Alert.alert(
@@ -135,8 +138,8 @@ export default function EditProfileScreen() {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await launchImageLibraryAsync({
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -339,7 +342,7 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0,
   },
   saveButtonText: {
     color: Colors.light.textOnAccent,

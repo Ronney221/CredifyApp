@@ -48,7 +48,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Import notification functions
 import {
   requestPermissionsAsync,
-  scheduleMonthlyPerkResetNotifications,
+  schedulePerkExpiryNotifications,
   scheduleCardRenewalReminder,
   cancelAllScheduledNotificationsAsync,
   NotificationPreferences,
@@ -442,8 +442,14 @@ export default function Dashboard() {
     }
 
     await cancelAllScheduledNotificationsAsync();
-    // Pass user ID and the full prefs object (which now includes monthlyPerkExpiryReminderDays if set)
-    await scheduleMonthlyPerkResetNotifications(user?.id, prefs);
+    
+    // Schedule notifications for each unique perk period the user has
+    if (user?.id) {
+      console.log(`[Dashboard] Scheduling perk expiry notifications for periods: ${uniquePerkPeriodsForToggle.join(', ')}`);
+      for (const period of uniquePerkPeriodsForToggle) {
+        await schedulePerkExpiryNotifications(user.id, prefs, period);
+      }
+    }
 
     if (params.renewalDates && params.selectedCardIds) {
       try {
