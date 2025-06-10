@@ -23,6 +23,7 @@ import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, 
 import { useRouter } from 'expo-router';
 import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
+import OnboardingSheet from './OnboardingSheet';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -88,6 +89,8 @@ const ExpandableCardComponent = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showUndoHint, setShowUndoHint] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasShownOnboarding, setHasShownOnboarding] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const [autoRedeemUpdateKey, setAutoRedeemUpdateKey] = useState(0);
   const { user } = useAuth();
@@ -168,10 +171,10 @@ const ExpandableCardComponent = ({
         withDelay(1000, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
         // Second nudge after 1.5s
-        withDelay(1500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withDelay(2500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
         // Third nudge after 1.5s
-        withDelay(1500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withDelay(2500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
@@ -201,10 +204,10 @@ const ExpandableCardComponent = ({
         withDelay(1000, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
         // Second nudge after 1.5s
-        withDelay(1500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withDelay(2500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
         // Third nudge after 1.5s
-        withDelay(1500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withDelay(2500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
@@ -314,7 +317,6 @@ const ExpandableCardComponent = ({
     // Optimistic UI update - immediate feedback
     console.log(`[ExpandableCard] Calling setPerkStatus with:`, { cardId: card.id, perkId: perk.id, action });
     setPerkStatus?.(card.id, perk.id, action);
-    // DO NOT call onPerkStatusChange here immediately.
 
     if (action === 'redeemed') {
       console.log(`[ExpandableCard] Proceeding with redeemed for ${perk.name}`);
@@ -333,6 +335,12 @@ const ExpandableCardComponent = ({
             Alert.alert('Error', 'Failed to track perk redemption.');
           }
           return;
+        }
+        
+        // Show onboarding sheet after first successful redemption
+        if (!hasShownOnboarding) {
+          setShowOnboarding(true);
+          setHasShownOnboarding(true);
         }
         
         // Call onPerkStatusChange on successful DB operation
@@ -623,47 +631,53 @@ const ExpandableCardComponent = ({
   };
 
   return (
-    <Reanimated.View 
-      style={[styles.cardContainer, isActive && styles.activeCard]} 
-      layout={Layout.springify().duration(300)}
-      onLayout={(event) => {
-        const { height } = event.nativeEvent.layout;
-       // console.log(`ExpandableCard (${card.name} - ${isExpanded ? 'Expanded' : 'Collapsed'}) height: ${height}`);
-      }}
-    >
-      <CardHeader
-        card={card}
-        isExpanded={isExpanded}
-        isActive={!!isActive}
-        isFullyRedeemed={isFullyRedeemed}
-        unredeemedPerksCount={unredeemedPerks.length}
-        cumulativeSavedValue={cumulativeSavedValue}
-        monthlyPerkStats={monthlyPerkStats}
-        onPress={handleExpand}
-      />
+    <>
+      <Reanimated.View 
+        style={[styles.cardContainer, isActive && styles.activeCard]} 
+        layout={Layout.springify().duration(300)}
+        onLayout={(event) => {
+          const { height } = event.nativeEvent.layout;
+        }}
+      >
+        <CardHeader
+          card={card}
+          isExpanded={isExpanded}
+          isActive={!!isActive}
+          isFullyRedeemed={isFullyRedeemed}
+          unredeemedPerksCount={unredeemedPerks.length}
+          cumulativeSavedValue={cumulativeSavedValue}
+          monthlyPerkStats={monthlyPerkStats}
+          onPress={handleExpand}
+        />
 
-      {isExpanded && (
-        <Reanimated.View 
-          style={styles.perksListContainer} 
-          layout={Layout.springify().duration(300)}
-        >
-          <View style={styles.perksGroupContainer}>
-            {perks.filter(p => p.status === 'available').length > 0 && (
-              <>
-                <Text style={styles.sectionLabel}>Available Perks</Text>
-                {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
-              </>
-            )}
-            {perks.filter(p => p.status === 'redeemed').length > 0 && (
-              <>
-                <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-                {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
-              </>
-            )}
-          </View>
-        </Reanimated.View>
-      )}
-    </Reanimated.View>
+        {isExpanded && (
+          <Reanimated.View 
+            style={styles.perksListContainer} 
+            layout={Layout.springify().duration(300)}
+          >
+            <View style={styles.perksGroupContainer}>
+              {perks.filter(p => p.status === 'available').length > 0 && (
+                <>
+                  <Text style={styles.sectionLabel}>Available Perks</Text>
+                  {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
+                </>
+              )}
+              {perks.filter(p => p.status === 'redeemed').length > 0 && (
+                <>
+                  <Text style={styles.sectionLabel}>Redeemed Perks</Text>
+                  {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
+                </>
+              )}
+            </View>
+          </Reanimated.View>
+        )}
+      </Reanimated.View>
+
+      <OnboardingSheet
+        visible={showOnboarding}
+        onDismiss={() => setShowOnboarding(false)}
+      />
+    </>
   );
 };
 
