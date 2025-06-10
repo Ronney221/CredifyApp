@@ -163,9 +163,7 @@ const PerkDonutDisplayManagerInner = (
         progress: 0,
         amount: '$0',
         label: String(defaultDisplayName).toUpperCase(),
-        detailLineOne: '$0 redeemed',
-        detailLineTwo: '$0 available',
-        perksCount: '0 of 0',
+        combinedStatsText: '0 of 0 • $0 / $0 • Resets in 0 days',
         progressPercentageText: '0% Used', // Default percentage
         color: Colors.light.tint,
         displayName: String(defaultDisplayName)
@@ -189,15 +187,19 @@ const PerkDonutDisplayManagerInner = (
     
     const displayName = getDonutDisplayName(activeSegmentKey);
 
+    // Calculate days until reset (this is a placeholder - you'll need to implement the actual logic)
+    const daysUntilReset = 20; // Replace with actual calculation
+
+    // Format the combined stats text
+    const combinedStatsText = `${currentAggregates.redeemedCount} of ${currentAggregates.totalCount} • $${currentAggregates.redeemedValue.toFixed(0)} / $${currentAggregates.possibleValue.toFixed(0)} • Resets in ${daysUntilReset} days`;
+
     return {
       value: currentAggregates.redeemedValue,
       total: currentAggregates.possibleValue,
       progress: progress,
       amount: `$${currentAggregates.redeemedValue.toFixed(0)}`,
       label: String(displayName).toUpperCase(),
-      detailLineOne: `$${currentAggregates.redeemedValue.toFixed(0)} redeemed`,
-      detailLineTwo: `$${currentAggregates.possibleValue.toFixed(0)} available`,
-      perksCount: `${currentAggregates.redeemedCount} of ${currentAggregates.totalCount}`,
+      combinedStatsText,
       progressPercentageText: `${percentageUsed}% Used`,
       color: activeSegmentKey === 1 ? '#007A7F' : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
       displayName: String(displayName)
@@ -237,9 +239,7 @@ const PerkDonutDisplayManagerInner = (
         progress={activeData.progress}
         amount={activeData.amount}
         label={activeData.label}
-        detailLineOne={activeData.detailLineOne}
-        detailLineTwo={activeData.detailLineTwo}
-        perksCount={activeData.perksCount}
+        combinedStatsText={activeData.combinedStatsText}
         progressPercentageText={activeData.progressPercentageText}
         color={activeData.color}
         backgroundColor={Platform.OS === 'android' ? '#f0f0f0' : '#ECECEC'} // This BG is for the donut itself
