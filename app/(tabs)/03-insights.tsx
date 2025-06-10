@@ -123,8 +123,8 @@ interface MonthSummaryCardProps {
 }
 
 const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({ summary, isExpanded, onToggleExpand, perkStatusFilter, isFirstOverallCard, isEven }) => {
-  const feeCoveragePercentage = summary.cardFeesProportion > 0 
-    ? (summary.totalRedeemedValue / summary.cardFeesProportion) * 100 
+  const feeCoveragePercentage = summary.totalPotentialValue > 0 
+    ? (summary.totalRedeemedValue / summary.totalPotentialValue) * 100 
     : 0;
   const rotation = useSharedValue(0);
 
