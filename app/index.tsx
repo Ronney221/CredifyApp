@@ -17,7 +17,6 @@ import { useRouter, useFocusEffect, Link } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import LottieView from 'lottie-react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../lib/supabase';
 
 const { height } = Dimensions.get('window');
 
@@ -76,31 +75,12 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (!loading && user) {
-      // Check if user has selected any cards
-      const checkUserCards = async () => {
-        try {
-          const { data: userCards, error } = await supabase
-            .from('user_cards')
-            .select('card_id')
-            .eq('user_id', user.id);
-
-          if (error) throw error;
-
-          // If user has cards, go to dashboard, otherwise go to card selection
-          if (userCards && userCards.length > 0) {
-            router.replace('/(tabs)/01-dashboard');
-          } else {
-            router.replace('/(onboarding)/card-select');
-          }
-        } catch (error) {
-          console.error('Error checking user cards:', error);
-          // On error, default to card selection
-          router.replace('/(onboarding)/card-select');
-        }
-      };
-
-      checkUserCards();
+      console.log('User session found, redirecting to app');
+      router.replace('/(tabs)/01-dashboard');
+    } else if (!loading && !user) {
+      console.log('No user session found, showing welcome screen.');
     }
+    // If !loading && !user, the WelcomeScreen UI (auth options) is shown.
   }, [user, loading, router]);
 
   useEffect(() => {

@@ -172,7 +172,7 @@ const ExpandableCardComponent = ({
       redeemHintOpacity.value = withSequence(
         withTiming(1, { duration: 0 }), // Appear
         // Delay = 1s (pre-nudge) + 0.5s (nudge) + 1s (post-nudge) = 2.5s
-        withDelay(2500, withTiming(0, { duration: 1000 })) 
+        withDelay(5000, withTiming(0, { duration: 1000 })) 
       );
     } else {
       // Stop any pending animations when the hint is hidden (e.g., on collapse)
