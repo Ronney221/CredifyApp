@@ -59,7 +59,7 @@ const Typography = StyleSheet.create({
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { user, loading, signInGoogle } = useAuth();
+  const { user, loading, signInGoogle, signInApple } = useAuth();
   const lottieRef = useRef<LottieView>(null);
   const insets = useSafeAreaInsets();
 
@@ -97,13 +97,13 @@ export default function WelcomeScreen() {
 
   const handleContinue = () => {
     const options = [
-      'Sign in with Apple (Coming Soon)',
+      'Sign in with Apple',
       'Sign in with Google',
       'Sign in with Email',
       'Cancel',
     ];
     const destructiveButtonIndex = undefined;
-    const cancelButtonIndex = 3; // Adjusted due to removal of 'Skip for now'
+    const cancelButtonIndex = 3;
 
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -113,11 +113,11 @@ export default function WelcomeScreen() {
         },
         (buttonIndex) => {
           if (buttonIndex === 0) {
-            Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.');
+            signInApple();
           } else if (buttonIndex === 1) {
-            signInGoogle(); // This will lead to onboarding via login.tsx/signup.tsx logic
+            signInGoogle();
           } else if (buttonIndex === 2) {
-            router.push('/(auth)/login'); // This will lead to onboarding via login.tsx/signup.tsx logic
+            router.push('/(auth)/login');
           }
         }
       );
@@ -126,9 +126,9 @@ export default function WelcomeScreen() {
         "Continue",
         "Choose an option to continue:",
         [
-          { text: "Sign in with Apple (Coming Soon)", onPress: () => Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.') },
-          { text: "Sign in with Google", onPress: () => signInGoogle() }, // Leads to onboarding
-          { text: "Sign in with Email", onPress: () => router.push('/(auth)/login') }, // Leads to onboarding
+          { text: "Sign in with Apple", onPress: () => signInApple() },
+          { text: "Sign in with Google", onPress: () => signInGoogle() },
+          { text: "Sign in with Email", onPress: () => router.push('/(auth)/login') },
           { text: "Cancel", style: "cancel" },
         ],
         { cancelable: true }
@@ -200,13 +200,12 @@ export default function WelcomeScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.socialButton, styles.disabledButton]} 
-            onPress={() => Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.')}
+            style={styles.socialButton} 
+            onPress={() => signInApple()}
             activeOpacity={0.8}
-            disabled={true}
           >
-            <Ionicons name="logo-apple" size={20} color="#999" />
-            <Text style={[Typography.headline, styles.socialButtonText, styles.disabledText]}>
+            <Ionicons name="logo-apple" size={20} color="#000" />
+            <Text style={[Typography.headline, styles.socialButtonText]}>
               Continue with Apple
             </Text>
           </TouchableOpacity>
@@ -314,14 +313,6 @@ const styles = StyleSheet.create({
   socialButtonText: {
     color: '#1c1c1e',
     marginLeft: 12,
-  },
-  disabledButton: {
-    backgroundColor: '#f2f2f2',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  disabledText: {
-    color: '#999',
   },
   emailButton: {
     paddingVertical: 12,
