@@ -41,7 +41,6 @@ import { useAutoRedemptions } from '../hooks/useAutoRedemptions';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
-import CardExpanderFooter from '../components/home/CardExpanderFooter';
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -158,7 +157,6 @@ const COLLAPSED_HEADER_HEIGHT = 50;
 const HEADER_SCROLL_DISTANCE = INITIAL_HEADER_HEIGHT - COLLAPSED_HEADER_HEIGHT;
 
 // Constants for FlatList card rendering & expansion
-const DEFAULT_CARDS_VISIBLE = 4;
 const ESTIMATED_COLLAPSED_CARD_HEIGHT = 109; // Updated from 96, based on Amex Gold (larger) collapsed height
 const ESTIMATED_EXPANDED_CARD_HEIGHT = 555; // Updated from 316, based on Amex Gold (max observed) expanded height
 
@@ -194,9 +192,6 @@ export default function Dashboard() {
 
   // State for unique perk periods, default to monthly and annual if not found
   const [uniquePerkPeriodsForToggle, setUniquePerkPeriodsForToggle] = useState<number[]>([1, 12]); // Renamed for clarity
-
-  // State for managing card list expansion (previously in StackedCardDisplay)
-  const [isCardListExpanded, setIsCardListExpanded] = useState(false);
 
   // State for the ActionHintPill content, derived from nextActionablePerkToHighlight
   const [headerPillContent, setHeaderPillContent] = useState<(CardPerk & { cardId: string; cardName: string; cycleEndDate: Date; daysRemaining: number }) | null>(null);
@@ -725,8 +720,8 @@ export default function Dashboard() {
   }, [processedCardsFromPerkStatus]);
 
   const cardsListData = useMemo(() => {
-    return isCardListExpanded ? sortedCards : sortedCards.slice(0, DEFAULT_CARDS_VISIBLE);
-  }, [isCardListExpanded, sortedCards]);
+    return sortedCards;
+  }, [sortedCards]);
 
   // Log for debugging, ensure it's called when sortedCards is defined
   if (!isUserCardsInitialLoading) {
@@ -792,22 +787,6 @@ export default function Dashboard() {
     uniquePerkPeriodsForToggle,
     listHeaderHeight
   ]);
-
-  const renderListFooter = useCallback(() => {
-    const hiddenCardsCount = sortedCards.length - cardsListData.length;
-    return (
-      <>
-        {/* Card Expander Footer */}
-        {(sortedCards.length > DEFAULT_CARDS_VISIBLE) && (
-          <CardExpanderFooter
-            hiddenCardsCount={hiddenCardsCount}
-            isExpanded={isCardListExpanded}
-            onToggleExpanded={() => setIsCardListExpanded(!isCardListExpanded)}
-          />
-        )}
-      </>
-    );
-  }, [sortedCards, cardsListData, isCardListExpanded]);
 
   // Only show full-screen loader on the very first load of user cards.
   // Subsequent refreshes (isUserCardsRefreshing) or savings calculations (isCalculatingSavings)
@@ -880,7 +859,6 @@ export default function Dashboard() {
             renderItem={renderExpandableCardItem}
             keyExtractor={(item) => item.card.id}
             ListHeaderComponent={listHeaderElement} // Use the memoized element
-            ListFooterComponent={renderListFooter}
             contentContainerStyle={styles.flatListContentContainer} // New style for FlatList specific content padding
             style={styles.flatListOverallStyle} // Style for the FlatList container itself
             showsVerticalScrollIndicator={false}
@@ -919,7 +897,6 @@ export default function Dashboard() {
                 <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
               </TouchableOpacity>
             </View>
-            {renderListFooter()}
           </ScrollView>
         )}
 
