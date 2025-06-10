@@ -9,9 +9,10 @@ interface YearlyProgressProps {
   totalRedeemed: number;
   totalPotential: number;
   trendData: number[];
+  monthlyData?: { redeemed: number; potential: number }[];
 }
 
-const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, totalPotential, trendData }) => {
+const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, totalPotential, trendData, monthlyData }) => {
   const progress = totalPotential > 0 ? (totalRedeemed / totalPotential) * 100 : 0;
   const clampedProgress = Math.max(0, Math.min(100, progress));
 
@@ -31,7 +32,10 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, to
       </View>
       
       <View style={styles.trendContainer}>
-        <MiniBarChart data={trendData} />
+        <MiniBarChart 
+          data={trendData} 
+          rawData={monthlyData}
+        />
       </View>
     </View>
   );

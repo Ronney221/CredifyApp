@@ -231,6 +231,11 @@ export default function InsightsScreen() {
       (month.totalRedeemedValue / month.totalPotentialValue) * 100
     ).slice(0, 6).reverse();
 
+    const monthlyData = section.data.map(month => ({
+      redeemed: month.totalRedeemedValue,
+      potential: month.totalPotentialValue
+    })).slice(0, 6).reverse();
+
     return (
       <View style={styles.sectionHeaderContainer}>
         <YearlyProgress
@@ -238,6 +243,7 @@ export default function InsightsScreen() {
           totalRedeemed={section.totalRedeemedForYear}
           totalPotential={section.totalPotentialForYear}
           trendData={trendData}
+          monthlyData={monthlyData}
         />
       </View>
     );
