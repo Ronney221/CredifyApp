@@ -98,11 +98,15 @@ export default function ManageCardsScreen() {
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
-    ]).start(() => {
-      // Reset animations for next use
-      fadeAnim.setValue(1);
-      translateX.setValue(0);
-      onComplete();
+    ]).start(async () => {
+      // Call onComplete first to update state
+      await onComplete();
+      // Reset animations after a small delay to ensure state updates have processed
+      setTimeout(() => {
+        fadeAnim.setValue(1);
+        translateX.setValue(0);
+        setRemovingCardId(null);
+      }, 50);
     });
   }, [fadeAnim, translateX]);
 
@@ -118,7 +122,7 @@ export default function ManageCardsScreen() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: async () => {
+          onPress: () => {
             if (Platform.OS === 'ios') {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
@@ -128,10 +132,10 @@ export default function ManageCardsScreen() {
             
             // Start the removal animation
             animateCardRemoval(async () => {
-              // After animation completes, update state and save to database
+              // Remove the card from state first
               handleRemoveCard(cardId);
-              setRemovingCardId(null);
               
+              // Then save to database
               if (user?.id) {
                 const updatedCards = selectedCardObjects.filter(c => c.id !== cardId);
                 const { error } = await saveUserCards(user.id, updatedCards, renewalDates);
@@ -288,12 +292,24 @@ export default function ManageCardsScreen() {
     const isRemoving = removingCardId === card.id;
     const animatedStyle = isRemoving ? {
       opacity: fadeAnim,
-      transform: [{ translateX: translateX }]
+      transform: [
+        { translateX: translateX },
+        { 
+          scale: fadeAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.8, 1],
+          })
+        }
+      ],
     } : undefined;
 
     return (
       <ScaleDecorator>
-        <Animated.View style={[styles.cardContainer, animatedStyle]}>
+        <Animated.View style={[
+          styles.cardContainer,
+          animatedStyle,
+          isRemoving && { position: 'relative', zIndex: -1 }
+        ]}>
           <CardRow
             key={card.id}
             card={card}
