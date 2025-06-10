@@ -3,11 +3,32 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { CardPerk } from '../../../../src/data/card-data';
+import { CardPerk, calculatePerkExpiryDate } from '../../../../src/data/card-data';
 
 const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
 const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
 const AUTO_REDEEM_CHEVRON = '#C4B2DE';   // Lighter purple for chevron
+
+// Function to format the time until expiry
+const getTimeUntilExpiry = (perk: CardPerk): string => {
+  if (!perk.periodMonths) return '';
+  
+  const expiryDate = calculatePerkExpiryDate(perk.periodMonths);
+  const now = new Date();
+  const daysLeft = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const monthsLeft = Math.floor(daysLeft / 30);
+  const remainingDays = daysLeft % 30;
+
+  if (daysLeft <= 0) {
+    return 'Expired';
+  } else if (daysLeft <= 7) {
+    return `${daysLeft}d left`;
+  } else if (monthsLeft > 0) {
+    return remainingDays > 0 ? `${monthsLeft}mo ${remainingDays}d` : `${monthsLeft}mo`;
+  } else {
+    return `${daysLeft}d`;
+  }
+};
 
 interface PerkRowProps {
   perk: CardPerk;
@@ -54,17 +75,17 @@ const PerkRow: React.FC<PerkRowProps> = ({
     currency: 'USD',
   });
 
+  // Calculate days left for both period text and styling
+  const expiryDate = perk.periodMonths ? calculatePerkExpiryDate(perk.periodMonths) : null;
+  const daysLeft = expiryDate 
+    ? Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
   let periodText = '';
   if (isAutoRedeemed) {
-    periodText = 'Monthly Auto-Redemption';
-  } else {
-    switch (perk.periodMonths) {
-      case 1: periodText = 'Monthly'; break;
-      case 3: periodText = 'Quarterly'; break;
-      case 6: periodText = 'Semi-Annual'; break;
-      case 12: periodText = 'Annual'; break;
-      default: periodText = perk.periodMonths ? `Every ${perk.periodMonths} months` : '';
-    }
+    periodText = 'Auto-Redeem';
+  } else if (!isRedeemed) { // Only show expiry time on available perks
+    periodText = getTimeUntilExpiry(perk);
   }
 
   let displayDescription = perk.description
@@ -110,16 +131,13 @@ const PerkRow: React.FC<PerkRowProps> = ({
               />
             </View>
             <View style={styles.perkTextContainerInsideItem}> 
-              <View style={styles.perkNameAndPeriodContainer}> 
-                <Text style={[
-                  styles.perkName, 
-                  isRedeemed && !isAutoRedeemed && styles.perkNameRedeemed,
-                  isRedeemed && isAutoRedeemed && styles.perkNameAutoRedeemed
-                ]}>
-                  {perk.name}
-                </Text>
-                {periodText ? <Text style={styles.perkPeriodTag}>{periodText}</Text> : null}
-              </View>
+              <Text style={[
+                styles.perkName, 
+                isRedeemed && !isAutoRedeemed && styles.perkNameRedeemed,
+                isRedeemed && isAutoRedeemed && styles.perkNameAutoRedeemed
+              ]}>
+                {perk.name}
+              </Text>
               <Text style={[
                 styles.perkDescription, 
                 isRedeemed && !isAutoRedeemed && styles.perkDescriptionRedeemed,
@@ -150,6 +168,17 @@ const PerkRow: React.FC<PerkRowProps> = ({
               )}
             </View>
             <View style={styles.perkValueContainer}>
+              {periodText && (
+                <Text style={[
+                  styles.perkPeriodTag,
+                  isRedeemed && !isAutoRedeemed && styles.perkPeriodTagRedeemed,
+                  isRedeemed && isAutoRedeemed && styles.perkPeriodTagAutoRedeemed,
+                  periodText === 'Expired' && styles.perkPeriodTagExpired,
+                  daysLeft !== null && daysLeft <= 7 && styles.perkPeriodTagUrgent
+                ]}>
+                  {periodText}
+                </Text>
+              )}
               <Text style={[
                 styles.perkValue, 
                 isRedeemed && !isAutoRedeemed && styles.perkValueRedeemed,
@@ -217,22 +246,29 @@ const styles = StyleSheet.create({
     marginRight: 8,
     justifyContent: 'center',
   },
-  perkNameAndPeriodContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    marginBottom: 2,
-  },
   perkName: {
     fontSize: 15,
     fontWeight: '500',
     color: '#1c1c1e',
-    marginRight: 6,
+    marginBottom: 2,
   },
   perkPeriodTag: {
     fontSize: 11,
     fontWeight: '500',
     color: '#8A8A8E',
+    marginBottom: 2,
+  },
+  perkPeriodTagRedeemed: {
+    color: '#AEAEB2',
+  },
+  perkPeriodTagAutoRedeemed: {
+    color: AUTO_REDEEM_FOREGROUND,
+  },
+  perkPeriodTagExpired: {
+    color: '#FF3B30', // iOS red color for expired status
+  },
+  perkPeriodTagUrgent: {
+    color: '#FF9500', // iOS orange color for urgent (7 days or less)
   },
   perkNameRedeemed: {
     color: '#8E8E93',
@@ -249,6 +285,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     paddingLeft: 8,
     alignItems: 'flex-end',
+    justifyContent: 'flex-end',
   },
   perkValue: {
     fontSize: 22,

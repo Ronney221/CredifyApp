@@ -238,14 +238,14 @@ export default function InsightsScreen() {
                                section.year === insightsData.yearSections[0].year && 
                                index === 0;
     return (
-      <MonthSummaryCard
+        <MonthSummaryCard
         summary={item}
         isExpanded={expandedMonthKey === item.monthKey}
         onToggleExpand={() => handleToggleMonth(item.monthKey)}
         perkStatusFilter={perkStatusFilter}
         isFirstOverallCard={isFirstOverallCard}
         isEven={index % 2 === 0}
-      />
+        />
     );
   };
 
@@ -282,120 +282,120 @@ export default function InsightsScreen() {
 
   if (!isDataLoaded) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+        <SafeAreaView style={styles.container}>
+            <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.light.tint} />
           <Text style={styles.loadingText}>Loading insights...</Text>
-        </View>
-      </SafeAreaView>
+            </View>
+        </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <FilterChipRow
-        perkStatusFilter={perkStatusFilter}
-        setPerkStatusFilter={setPerkStatusFilter}
-        selectedCardIds={selectedCardIds}
-        availableCards={insightsData.availableCardsForFilter}
-        onManageFilters={() => setFilterModalVisible(true)}
-        activeFilterCount={activeFilterCount}
-      />
-
-      <OnboardingHint />
-
-      {insightsData.yearSections.length > 0 ? (
-        <SectionList
-          sections={insightsData.yearSections}
-          keyExtractor={(item) => item.monthKey}
-          renderItem={renderMonthSummaryCard}
-          renderSectionHeader={renderSectionHeader}
-          stickySectionHeadersEnabled={true}
-          initialNumToRender={6}
-          contentContainerStyle={styles.historySection}
-          ListHeaderComponent={
-            <>
-              <CardRoiLeaderboard cardRois={insightsData.cardRois} />
-              {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
-                <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
-              )}
-              <View style={{height: 10}}/>
-            </>
-          }
-          showsVerticalScrollIndicator={false}
+        <FilterChipRow
+          perkStatusFilter={perkStatusFilter}
+          setPerkStatusFilter={setPerkStatusFilter}
+          selectedCardIds={selectedCardIds}
+          availableCards={insightsData.availableCardsForFilter}
+          onManageFilters={() => setFilterModalVisible(true)}
+          activeFilterCount={activeFilterCount}
         />
-      ) : (
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateText}>No insights to display.</Text>
-          {(selectedCardIds.length === 0 || activeFilterCount > 0) && 
-            <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>}
-        </View>
-      )}
 
-      {/* Filter Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isFilterModalVisible}
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Filter Insights</Text>
-            
-            <Text style={styles.filterSectionTitle}>PERK STATUS</Text>
-            <View style={styles.filterOptionRow}>
-              {(['all', 'redeemed', 'missed'] as PerkStatusFilter[]).map(status => (
-                <TouchableOpacity 
-                  key={status} 
-                  style={[styles.filterButton, perkStatusFilter === status && styles.filterButtonSelected]}
-                  onPress={() => setPerkStatusFilter(status)}
-                >
-                  <Text style={[styles.filterButtonText, perkStatusFilter === status && styles.filterButtonTextSelected]}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        <OnboardingHint />
+
+        {insightsData.yearSections.length > 0 ? (
+        <SectionList
+            sections={insightsData.yearSections}
+            keyExtractor={(item) => item.monthKey}
+            renderItem={renderMonthSummaryCard}
+            renderSectionHeader={renderSectionHeader}
+            stickySectionHeadersEnabled={true}
+          initialNumToRender={6}
+            contentContainerStyle={styles.historySection}
+            ListHeaderComponent={
+              <>
+                <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+                {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
+                  <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
+                )}
+                <View style={{height: 10}}/>
+              </>
+            }
+            showsVerticalScrollIndicator={false}
+            />
+        ) : (
+            <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>No insights to display.</Text>
+                 {(selectedCardIds.length === 0 || activeFilterCount > 0) && 
+                    <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>}
             </View>
+        )}
 
-            <Text style={styles.filterSectionTitle}>CARD</Text>
-            <ScrollView style={styles.cardsScrollView}>
-              {[...insightsData.availableCardsForFilter]
-                .sort((a, b) => b.activityCount - a.activityCount)
-                .map(card => {
-                  const isSelected = selectedCardIds.includes(card.id);
-                  return (
-                    <TouchableOpacity key={card.id} style={styles.cardFilterRow} onPress={() => toggleCardSelection(card.id)}>
-                      <View style={styles.checkboxContainer}>
-                        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                          {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                        </View>
-                      </View>
-                      <View style={styles.cardNameContainer}>
-                        <Text style={styles.cardFilterName}>{card.name}</Text>
-                        {card.activityCount > 0 && (
-                          <Text style={styles.cardActivityLabel}>{card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}</Text>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-              })}
-            </ScrollView>
+        {/* Filter Modal */}
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isFilterModalVisible}
+            onRequestClose={() => setFilterModalVisible(false)}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>Filter Insights</Text>
+                    
+                    <Text style={styles.filterSectionTitle}>PERK STATUS</Text>
+                    <View style={styles.filterOptionRow}>
+                        {(['all', 'redeemed', 'missed'] as PerkStatusFilter[]).map(status => (
+                            <TouchableOpacity 
+                                key={status} 
+                                style={[styles.filterButton, perkStatusFilter === status && styles.filterButtonSelected]}
+                                onPress={() => setPerkStatusFilter(status)}
+                            >
+                                <Text style={[styles.filterButtonText, perkStatusFilter === status && styles.filterButtonTextSelected]}>
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
 
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={[styles.footerButton, styles.clearButton]} onPress={() => {
+                    <Text style={styles.filterSectionTitle}>CARD</Text>
+                    <ScrollView style={styles.cardsScrollView}>
+                      {[...insightsData.availableCardsForFilter]
+                        .sort((a, b) => b.activityCount - a.activityCount)
+                        .map(card => {
+                          const isSelected = selectedCardIds.includes(card.id);
+                          return (
+                              <TouchableOpacity key={card.id} style={styles.cardFilterRow} onPress={() => toggleCardSelection(card.id)}>
+                                  <View style={styles.checkboxContainer}>
+                                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                                        {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                                    </View>
+                                  </View>
+                                  <View style={styles.cardNameContainer}>
+                                    <Text style={styles.cardFilterName}>{card.name}</Text>
+                                    {card.activityCount > 0 && (
+                                      <Text style={styles.cardActivityLabel}>{card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}</Text>
+                                    )}
+                                  </View>
+                              </TouchableOpacity>
+                          );
+                      })}
+                    </ScrollView>
+
+                    <View style={styles.modalFooter}>
+                      <TouchableOpacity style={[styles.footerButton, styles.clearButton]} onPress={() => {
                 setSelectedCardIds(defaultCardsForFilter.map(c => c.id));
                 setPerkStatusFilter('all');
-              }}>
-                <Text style={[styles.footerButtonText, styles.clearButtonText]}>Clear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.footerButton, styles.applyButton]} onPress={() => setFilterModalVisible(false)}>
-                <Text style={[styles.footerButtonText, styles.applyButtonText]}>Apply</Text>
-              </TouchableOpacity>
+                      }}>
+                        <Text style={[styles.footerButtonText, styles.clearButtonText]}>Clear</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.footerButton, styles.applyButton]} onPress={() => setFilterModalVisible(false)}>
+                        <Text style={[styles.footerButtonText, styles.applyButtonText]}>Apply</Text>
+                      </TouchableOpacity>
+                    </View>
+                </View>
             </View>
-          </View>
-        </View>
-      </Modal>
+        </Modal>
     </SafeAreaView>
   );
 }
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#8e8e93',
   },
-  historySection: {
+  historySection: { 
     paddingHorizontal: 15,
     paddingBottom: 80,
   },
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   filterButtonTextSelected: {
-    color: Colors.light.background,
+    color: Colors.light.background, 
   },
   cardFilterRow: {
     flexDirection: 'row',

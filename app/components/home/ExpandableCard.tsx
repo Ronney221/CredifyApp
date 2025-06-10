@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
+import { Card, CardPerk, openPerkTarget, calculatePerkExpiryDate } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
 import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase, setAutoRedemption, debugAutoRedemptions } from '../../../lib/database';
@@ -70,6 +70,22 @@ const showToast = (message: string, onUndo?: () => void) => {
         onUndo();
       }
     },
+  });
+};
+
+// Add sorting function
+const sortPerks = (perks: CardPerk[]): CardPerk[] => {
+  return [...perks].sort((a, b) => {
+    // Get expiry dates
+    const aExpiry = calculatePerkExpiryDate(a.periodMonths || 0);
+    const bExpiry = calculatePerkExpiryDate(b.periodMonths || 0);
+    
+    // First sort by expiry date
+    const expiryDiff = aExpiry.getTime() - bExpiry.getTime();
+    if (expiryDiff !== 0) return expiryDiff;
+    
+    // If same expiry date, sort by value (lower first)
+    return a.value - b.value;
   });
 };
 
@@ -675,7 +691,7 @@ const ExpandableCardComponent = ({
               {perks.filter(p => p.status === 'available').length > 0 && (
                 <>
                   <Text style={styles.sectionLabel}>Available Perks</Text>
-                  {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
+                  {sortPerks(perks.filter(p => p.status === 'available')).map(p => renderPerkRow(p, true))}
                 </>
               )}
               {perks.filter(p => p.status === 'redeemed').length > 0 && (
