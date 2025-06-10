@@ -157,22 +157,28 @@ const ExpandableCardComponent = ({
   const undoHintOpacity = useSharedValue(0);
 
   useEffect(() => {
-    // This effect creates a one-time haptic/visual nudge for the redeem hint.
+    // This effect creates a three-time haptic/visual nudge for the redeem hint.
     if (showSwipeHint) {
       // Trigger haptic feedback when the hint is about to animate
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
-      // Nudge animation starts after a 1-second delay
+      // Three nudge animations with 1.5s between each
       nudgeAnimation.value = withSequence(
+        // First nudge after 1s
         withDelay(1000, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Second nudge after 1.5s
+        withDelay(1500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Third nudge after 1.5s
+        withDelay(1500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
-      // Appear instantly, then fade out for 1s after a delay
+      // Appear instantly, then fade out after 10s
       redeemHintOpacity.value = withSequence(
         withTiming(1, { duration: 0 }), // Appear
-        // Delay = 1s (pre-nudge) + 0.5s (nudge) + 1s (post-nudge) = 2.5s
-        withDelay(5000, withTiming(0, { duration: 1000 })) 
+        withDelay(10000, withTiming(0, { duration: 1000 })) // 10s display + 1s fade
       );
     } else {
       // Stop any pending animations when the hint is hidden (e.g., on collapse)
@@ -184,22 +190,28 @@ const ExpandableCardComponent = ({
   }, [showSwipeHint, nudgeAnimation, redeemHintOpacity]);
 
   useEffect(() => {
-    // This effect creates a one-time haptic/visual nudge for the undo hint.
+    // This effect creates a three-time haptic/visual nudge for the undo hint.
     if (showUndoHint) {
       // Trigger haptic feedback when the hint is about to animate
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      // Nudge left animation starts after a 1-second delay
+      // Three nudge left animations with 1.5s between each
       undoNudgeAnimation.value = withSequence(
+        // First nudge after 1s
         withDelay(1000, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Second nudge after 1.5s
+        withDelay(1500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Third nudge after 1.5s
+        withDelay(1500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
-      // Appear instantly, then fade out for 1s after a delay
+      // Appear instantly, then fade out after 10s
       undoHintOpacity.value = withSequence(
         withTiming(1, { duration: 0 }), // Appear
-        // Delay = 1s (pre-nudge) + 0.5s (nudge) + 1s (post-nudge) = 2.5s
-        withDelay(2500, withTiming(0, { duration: 1000 }))
+        withDelay(10000, withTiming(0, { duration: 1000 })) // 10s display + 1s fade
       );
     } else {
       // Stop any pending animations when the hint is hidden
