@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
 import { Colors } from '../../../constants/Colors';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 interface MiniBarChartProps {
   data: number[]; // Expects an array of 6 numbers (percentages)
@@ -23,8 +24,11 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const { width: screenWidth } = useWindowDimensions();
   const chartWidth = screenWidth - 60;
   const maxValue = Math.max(...data, 1);
-  const chartHeight = height - 45; // Reduced height to accommodate legend
-  
+  const chartHeight = height - 40;
+
+  // Calculate the width each bar section takes up
+  const sectionWidth = chartWidth / (data.length);
+
   // Get last 6 months abbreviated names
   const getLastSixMonths = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -82,10 +86,57 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
     };
   };
 
+  // Calculate points for the line chart
+  const getLinePoints = () => {
+    const points: { x: number, y: number }[] = [];
+    
+    data.forEach((value, index) => {
+      // Center of each bar section
+      const x = (sectionWidth * index) + (sectionWidth / 2);
+      const y = chartHeight - (Math.max(4, (value / maxValue) * chartHeight)) + 20;
+      points.push({ x, y });
+    });
+    
+    return points;
+  };
+
+  // Generate the SVG path
+  const generatePath = (points: { x: number, y: number }[]) => {
+    if (points.length < 2) return '';
+    
+    const line = points.map((point, index) => {
+      if (index === 0) {
+        return `M ${point.x} ${point.y}`;
+      }
+      // Use curve commands for smooth line
+      const prevPoint = points[index - 1];
+      const midX = (prevPoint.x + point.x) / 2;
+      return `Q ${midX} ${prevPoint.y} ${point.x} ${point.y}`;
+    }).join(' ');
+    
+    return line;
+  };
+
+  const linePoints = getLinePoints();
+  const pathData = generatePath(linePoints);
+
   return (
     <View style={[styles.container, { width: screenWidth - 30, height: height + 20 }]}>
       <View style={styles.chartContent}>
         <View style={[styles.barsContainer, { width: chartWidth }]}>
+          {/* Line chart overlay - Moved BEHIND bars */}
+          <View style={[StyleSheet.absoluteFill, { zIndex: 1 }]}>
+            <Svg width={chartWidth} height={chartHeight + 20}>
+              <Path
+                d={pathData}
+                stroke={Colors.light.tint}
+                strokeWidth="2"
+                fill="none"
+                opacity={0.8}
+              />
+            </Svg>
+          </View>
+
           {data.map((value, index) => {
             const barHeight = Math.max(4, (value / maxValue) * chartHeight);
             const isLastBar = index === data.length - 1;
@@ -96,8 +147,9 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                 style={[
                   styles.barColumn,
                   {
-                    width: barWidth + barSpacing,
+                    width: sectionWidth,
                     alignItems: 'center',
+                    zIndex: 2, // Ensure bars are above the line
                   }
                 ]}
               >
@@ -131,6 +183,23 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
               </TouchableOpacity>
             );
           })}
+
+          {/* Dots overlay - Moved to TOP layer */}
+          <View style={[StyleSheet.absoluteFill, { zIndex: 3, pointerEvents: 'none' }]}>
+            <Svg width={chartWidth} height={chartHeight + 20}>
+              {linePoints.map((point, index) => (
+                <Circle
+                  key={index}
+                  cx={point.x}
+                  cy={point.y}
+                  r="3"
+                  fill={Colors.light.background}
+                  stroke={Colors.light.tint}
+                  strokeWidth="1.5"
+                />
+              ))}
+            </Svg>
+          </View>
         </View>
       </View>
       <View style={styles.legendContainer}>
@@ -152,11 +221,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
+    backgroundColor: Colors.light.background, // Ensure white background
   },
   barColumn: {
     justifyContent: 'flex-end',
     position: 'relative',
-    minWidth: 32, // Ensure minimum width for month labels
+    minWidth: 32,
   },
   valueLabelContainer: {
     height: 16,
