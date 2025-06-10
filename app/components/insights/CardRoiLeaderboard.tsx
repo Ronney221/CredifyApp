@@ -45,10 +45,14 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
               <Text style={styles.cardName}>{roi.name}</Text>
             </View>
             <View style={styles.roiInfo}>
-              <Text style={styles.savedAmount}>
-                ${roi.totalRedeemed.toFixed(0)}
-                {roi.annualFee > 0 && <Text style={styles.feeText}> / ${roi.annualFee.toFixed(0)} fee</Text>}
-              </Text>
+              <View style={styles.roiTextContainer}>
+                <Text style={[styles.roiPercentage, roi.roiPercentage >= 100 ? styles.roiPercentageSuccess : null]}>
+                  {Math.round(roi.roiPercentage)}%
+                </Text>
+                <Text style={styles.roiValues}>
+                  ${roi.totalRedeemed.toFixed(0)} / ${roi.annualFee.toFixed(0)}
+                </Text>
+              </View>
               <ProgressBar progress={roi.roiPercentage} />
             </View>
           </View>
@@ -97,6 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 12,
   },
   rank: {
     fontSize: 16,
@@ -112,16 +117,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-end',
   },
-  savedAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.tint,
+  roiTextContainer: {
+    alignItems: 'flex-end',
     marginBottom: 4,
   },
-  feeText: {
+  roiPercentage: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.tint,
+  },
+  roiPercentageSuccess: {
+    color: '#34C759',
+  },
+  roiValues: {
     fontSize: 12,
-    fontWeight: '400',
     color: Colors.light.icon,
+    marginTop: 2,
   },
   progressBarContainer: {
     height: 6,
