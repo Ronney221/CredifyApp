@@ -16,13 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { Card, CardPerk, openPerkTarget } from '../../../src/data/card-data';
+import { Card, CardPerk, openPerkTarget, calculatePerkExpiryDate } from '../../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
 import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase, setAutoRedemption, debugAutoRedemptions } from '../../../lib/database';
 import { useRouter } from 'expo-router';
 import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
+import OnboardingSheet from './OnboardingSheet';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -72,6 +73,22 @@ const showToast = (message: string, onUndo?: () => void) => {
   });
 };
 
+// Add sorting function
+const sortPerks = (perks: CardPerk[]): CardPerk[] => {
+  return [...perks].sort((a, b) => {
+    // Get expiry dates
+    const aExpiry = calculatePerkExpiryDate(a.periodMonths || 0);
+    const bExpiry = calculatePerkExpiryDate(b.periodMonths || 0);
+    
+    // First sort by expiry date
+    const expiryDiff = aExpiry.getTime() - bExpiry.getTime();
+    if (expiryDiff !== 0) return expiryDiff;
+    
+    // If same expiry date, sort by value (lower first)
+    return a.value - b.value;
+  });
+};
+
 const ExpandableCardComponent = ({
   card,
   perks,
@@ -88,6 +105,8 @@ const ExpandableCardComponent = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showUndoHint, setShowUndoHint] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasShownOnboarding, setHasShownOnboarding] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const [autoRedeemUpdateKey, setAutoRedeemUpdateKey] = useState(0);
   const { user } = useAuth();
@@ -157,22 +176,28 @@ const ExpandableCardComponent = ({
   const undoHintOpacity = useSharedValue(0);
 
   useEffect(() => {
-    // This effect creates a one-time haptic/visual nudge for the redeem hint.
+    // This effect creates a three-time haptic/visual nudge for the redeem hint.
     if (showSwipeHint) {
       // Trigger haptic feedback when the hint is about to animate
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
-      // Nudge animation starts after a 1-second delay
+      // Three nudge animations with 1.5s between each
       nudgeAnimation.value = withSequence(
+        // First nudge after 1s
         withDelay(1000, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Second nudge after 1.5s
+        withDelay(2500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Third nudge after 1.5s
+        withDelay(2500, withTiming(10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
-      // Appear instantly, then fade out for 1s after a delay
+      // Appear instantly, then fade out after 10s
       redeemHintOpacity.value = withSequence(
         withTiming(1, { duration: 0 }), // Appear
-        // Delay = 1s (pre-nudge) + 0.5s (nudge) + 1s (post-nudge) = 2.5s
-        withDelay(2500, withTiming(0, { duration: 1000 })) 
+        withDelay(10000, withTiming(0, { duration: 1000 })) // 10s display + 1s fade
       );
     } else {
       // Stop any pending animations when the hint is hidden (e.g., on collapse)
@@ -184,22 +209,28 @@ const ExpandableCardComponent = ({
   }, [showSwipeHint, nudgeAnimation, redeemHintOpacity]);
 
   useEffect(() => {
-    // This effect creates a one-time haptic/visual nudge for the undo hint.
+    // This effect creates a three-time haptic/visual nudge for the undo hint.
     if (showUndoHint) {
       // Trigger haptic feedback when the hint is about to animate
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      // Nudge left animation starts after a 1-second delay
+      // Three nudge left animations with 1.5s between each
       undoNudgeAnimation.value = withSequence(
+        // First nudge after 1s
         withDelay(1000, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Second nudge after 1.5s
+        withDelay(2500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
+        withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) }),
+        // Third nudge after 1.5s
+        withDelay(2500, withTiming(-10, { duration: 250, easing: Easing.inOut(Easing.ease) })),
         withTiming(0, { duration: 250, easing: Easing.inOut(Easing.ease) })
       );
 
-      // Appear instantly, then fade out for 1s after a delay
+      // Appear instantly, then fade out after 10s
       undoHintOpacity.value = withSequence(
         withTiming(1, { duration: 0 }), // Appear
-        // Delay = 1s (pre-nudge) + 0.5s (nudge) + 1s (post-nudge) = 2.5s
-        withDelay(2500, withTiming(0, { duration: 1000 }))
+        withDelay(10000, withTiming(0, { duration: 1000 })) // 10s display + 1s fade
       );
     } else {
       // Stop any pending animations when the hint is hidden
@@ -215,13 +246,29 @@ const ExpandableCardComponent = ({
     const nowHasRedeemedPerks = perks.some(p => p.status === 'redeemed');
 
     // If the card is expanded and we just transitioned from 0 redeemed to 1+ redeemed
-    if (isExpanded && nowHasRedeemedPerks && !hadRedeemedPerks.current) {
+    // Only show undo hint if onboarding is not showing and has been shown before
+    if (isExpanded && 
+        nowHasRedeemedPerks && 
+        !hadRedeemedPerks.current && 
+        !showOnboarding && 
+        hasShownOnboarding) {
       setShowUndoHint(true);
     }
     
     // Update the ref for the next render
     hadRedeemedPerks.current = nowHasRedeemedPerks;
-  }, [perks, isExpanded]);
+  }, [perks, isExpanded, showOnboarding, hasShownOnboarding]);
+
+  // New effect to show undo hint after onboarding is dismissed
+  useEffect(() => {
+    if (!showOnboarding && 
+        hasShownOnboarding && 
+        isExpanded && 
+        perks.some(p => p.status === 'redeemed') && 
+        !showUndoHint) {
+      setShowUndoHint(true);
+    }
+  }, [showOnboarding, hasShownOnboarding, isExpanded, perks]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
@@ -302,7 +349,6 @@ const ExpandableCardComponent = ({
     // Optimistic UI update - immediate feedback
     console.log(`[ExpandableCard] Calling setPerkStatus with:`, { cardId: card.id, perkId: perk.id, action });
     setPerkStatus?.(card.id, perk.id, action);
-    // DO NOT call onPerkStatusChange here immediately.
 
     if (action === 'redeemed') {
       console.log(`[ExpandableCard] Proceeding with redeemed for ${perk.name}`);
@@ -321,6 +367,12 @@ const ExpandableCardComponent = ({
             Alert.alert('Error', 'Failed to track perk redemption.');
           }
           return;
+        }
+        
+        // Show onboarding sheet after first successful redemption
+        if (!hasShownOnboarding) {
+          setShowOnboarding(true);
+          setHasShownOnboarding(true);
         }
         
         // Call onPerkStatusChange on successful DB operation
@@ -611,47 +663,53 @@ const ExpandableCardComponent = ({
   };
 
   return (
-    <Reanimated.View 
-      style={[styles.cardContainer, isActive && styles.activeCard]} 
-      layout={Layout.springify().duration(300)}
-      onLayout={(event) => {
-        const { height } = event.nativeEvent.layout;
-       // console.log(`ExpandableCard (${card.name} - ${isExpanded ? 'Expanded' : 'Collapsed'}) height: ${height}`);
-      }}
-    >
-      <CardHeader
-        card={card}
-        isExpanded={isExpanded}
-        isActive={!!isActive}
-        isFullyRedeemed={isFullyRedeemed}
-        unredeemedPerksCount={unredeemedPerks.length}
-        cumulativeSavedValue={cumulativeSavedValue}
-        monthlyPerkStats={monthlyPerkStats}
-        onPress={handleExpand}
-      />
+    <>
+      <Reanimated.View 
+        style={[styles.cardContainer, isActive && styles.activeCard]} 
+        layout={Layout.springify().duration(300)}
+        onLayout={(event) => {
+          const { height } = event.nativeEvent.layout;
+        }}
+      >
+        <CardHeader
+          card={card}
+          isExpanded={isExpanded}
+          isActive={!!isActive}
+          isFullyRedeemed={isFullyRedeemed}
+          unredeemedPerksCount={unredeemedPerks.length}
+          cumulativeSavedValue={cumulativeSavedValue}
+          monthlyPerkStats={monthlyPerkStats}
+          onPress={handleExpand}
+        />
 
-      {isExpanded && (
-        <Reanimated.View 
-          style={styles.perksListContainer} 
-          layout={Layout.springify().duration(300)}
-        >
-          <View style={styles.perksGroupContainer}>
-            {perks.filter(p => p.status === 'available').length > 0 && (
-              <>
-                <Text style={styles.sectionLabel}>Available Perks</Text>
-                {perks.filter(p => p.status === 'available').map(p => renderPerkRow(p, true))}
-              </>
-            )}
-            {perks.filter(p => p.status === 'redeemed').length > 0 && (
-              <>
-                <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-                {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
-              </>
-            )}
-          </View>
-        </Reanimated.View>
-      )}
-    </Reanimated.View>
+        {isExpanded && (
+          <Reanimated.View 
+            style={styles.perksListContainer} 
+            layout={Layout.springify().duration(300)}
+          >
+            <View style={styles.perksGroupContainer}>
+              {perks.filter(p => p.status === 'available').length > 0 && (
+                <>
+                  <Text style={styles.sectionLabel}>Available Perks</Text>
+                  {sortPerks(perks.filter(p => p.status === 'available')).map(p => renderPerkRow(p, true))}
+                </>
+              )}
+              {perks.filter(p => p.status === 'redeemed').length > 0 && (
+                <>
+                  <Text style={styles.sectionLabel}>Redeemed Perks</Text>
+                  {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
+                </>
+              )}
+            </View>
+          </Reanimated.View>
+        )}
+      </Reanimated.View>
+
+      <OnboardingSheet
+        visible={showOnboarding}
+        onDismiss={() => setShowOnboarding(false)}
+      />
+    </>
   );
 };
 

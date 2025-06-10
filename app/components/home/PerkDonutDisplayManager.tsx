@@ -44,15 +44,31 @@ interface PerkDonutDisplayManagerProps {
 const getPeriodDisplayName = (periodMonths: number): string => {
   switch (periodMonths) {
     case 1:
-      return 'Monthly Perks';
+      return '1 M';
     case 3:
-      return 'Quarterly Perks';
+      return '3 M';
     case 6:
-      return '6-Month Perks';
+      return '6 M';
     case 12:
-      return 'Annual Perks';
+      return '1 Y';
     default:
-      return `${periodMonths}-Month Perks`;
+      return `${periodMonths} M`;
+  }
+};
+
+// New function for donut display labels
+const getDonutDisplayName = (periodMonths: number): string => {
+  switch (periodMonths) {
+    case 1:
+      return 'Monthly Redeemed';
+    case 3:
+      return 'Quarterly Redeemed';
+    case 6:
+      return 'Semi-Annual Redeemed';
+    case 12:
+      return 'Annual Redeemed';
+    default:
+      return `${periodMonths}-Month Redeemed`;
   }
 };
 
@@ -139,18 +155,15 @@ const PerkDonutDisplayManagerInner = (
   }, []); // No dependencies, as setActiveSegmentKey is stable
 
   const activeData = useMemo(() => {
-    // console.log('PDM: Recalculating activeData. Deps:', activeSegmentKey, periodAggregates);
     if (!periodAggregates || typeof periodAggregates !== 'object' || Object.keys(periodAggregates).length === 0) {
-      const defaultDisplayName = getPeriodDisplayName(activeSegmentKey || 1);
+      const defaultDisplayName = getDonutDisplayName(activeSegmentKey || 1);
       return {
         value: 0,
         total: 0,
         progress: 0,
         amount: '$0',
         label: String(defaultDisplayName).toUpperCase(),
-        detailLineOne: '$0 redeemed',
-        detailLineTwo: '$0 available',
-        perksCount: '0 of 0',
+        combinedStatsText: '0 of 0 • $0 / $0 • Resets in 0 days',
         progressPercentageText: '0% Used', // Default percentage
         color: Colors.light.tint,
         displayName: String(defaultDisplayName)
@@ -172,7 +185,13 @@ const PerkDonutDisplayManagerInner = (
       ? Math.round((currentAggregates.redeemedCount / currentAggregates.totalCount) * 100)
       : 0;
     
-    const displayName = getPeriodDisplayName(activeSegmentKey);
+    const displayName = getDonutDisplayName(activeSegmentKey);
+
+    // Calculate days until reset (this is a placeholder - you'll need to implement the actual logic)
+    const daysUntilReset = 20; // Replace with actual calculation
+
+    // Format the combined stats text
+    const combinedStatsText = `${currentAggregates.redeemedCount} of ${currentAggregates.totalCount} • $${currentAggregates.redeemedValue.toFixed(0)} / $${currentAggregates.possibleValue.toFixed(0)} • Resets in ${daysUntilReset} days`;
 
     return {
       value: currentAggregates.redeemedValue,
@@ -180,14 +199,12 @@ const PerkDonutDisplayManagerInner = (
       progress: progress,
       amount: `$${currentAggregates.redeemedValue.toFixed(0)}`,
       label: String(displayName).toUpperCase(),
-      detailLineOne: `$${currentAggregates.redeemedValue.toFixed(0)} redeemed`,
-      detailLineTwo: `$${currentAggregates.possibleValue.toFixed(0)} available`,
-      perksCount: `${currentAggregates.redeemedCount} of ${currentAggregates.totalCount}`,
+      combinedStatsText,
       progressPercentageText: `${percentageUsed}% Used`,
       color: activeSegmentKey === 1 ? '#007A7F' : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
       displayName: String(displayName)
     };
-  }, [activeSegmentKey, periodAggregates]); // Removed Colors.light.tint as it's constant
+  }, [activeSegmentKey, periodAggregates]);
 
   if (!user) {
     return (
@@ -222,9 +239,7 @@ const PerkDonutDisplayManagerInner = (
         progress={activeData.progress}
         amount={activeData.amount}
         label={activeData.label}
-        detailLineOne={activeData.detailLineOne}
-        detailLineTwo={activeData.detailLineTwo}
-        perksCount={activeData.perksCount}
+        combinedStatsText={activeData.combinedStatsText}
         progressPercentageText={activeData.progressPercentageText}
         color={activeData.color}
         backgroundColor={Platform.OS === 'android' ? '#f0f0f0' : '#ECECEC'} // This BG is for the donut itself

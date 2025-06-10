@@ -20,9 +20,7 @@ interface ProgressDonutProps {
   backgroundColor?: string;
   amount: string;
   label: string;
-  detailLineOne: string;
-  detailLineTwo: string;
-  perksCount?: string; // e.g., "3 of 8"
+  combinedStatsText: string; // New prop for combined stats
   progressPercentageText?: string; // e.g., "37% Used"
 }
 
@@ -37,13 +35,11 @@ export default function ProgressDonut({
   backgroundColor = '#ECECEC',
   amount,
   label,
-  detailLineOne,
-  detailLineTwo,
-  perksCount,
+  combinedStatsText,
   progressPercentageText,
 }: ProgressDonutProps) {
   // Log all incoming text-related props at the beginning of the function
-  console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, detailLineOne, detailLineTwo, perksCount, progressPercentageText });
+  console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, combinedStatsText, progressPercentageText });
 
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
@@ -76,14 +72,12 @@ export default function ProgressDonut({
     if (previousAmount.current !== amount) {
       // Spring animation: scale 1 → 1.06 → 1
       amountScale.value = withSpring(1.06, {
-        duration: 150,
         dampingRatio: 0.6,
       }, () => {
         // Trigger haptic feedback on animation start
         runOnJS(triggerHapticFeedback)();
         
         amountScale.value = withSpring(1, {
-          duration: 200,
           dampingRatio: 0.8,
         });
       });
@@ -139,20 +133,14 @@ export default function ProgressDonut({
           />
         </Svg>
         
-        {(progressPercentageText || perksCount) && (
+        {progressPercentageText && (
           <View style={styles.centerTextContainer}>
-            {progressPercentageText && (
-              <Text style={styles.progressPercentageText}>{progressPercentageText}</Text>
-            )}
-            {perksCount && (
-              <Text style={styles.perksCountText}>{perksCount}</Text>
-            )}
+            <Text style={styles.progressPercentageText}>{progressPercentageText}</Text>
           </View>
         )}
       </View>
       
-      <Text style={styles.detailLine}>{detailLineOne}</Text>
-      <Text style={styles.detailLine}>{detailLineTwo}</Text>
+      <Text style={styles.combinedStatsText}>{combinedStatsText}</Text>
     </View>
   );
 }
@@ -160,7 +148,6 @@ export default function ProgressDonut({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginTop: 28,
     marginBottom: 12,
   },
   amount: {
@@ -201,18 +188,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 2,
   },
-  perksCountText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-  detailLine: {
+  combinedStatsText: {
     fontSize: 15,
     fontWeight: '500',
     color: '#3C3C4399',
     textAlign: 'center',
     letterSpacing: -0.24,
-    marginTop: 2,
+    marginTop: 12,
   },
 }); 

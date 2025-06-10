@@ -914,7 +914,7 @@ export default function Dashboard() {
               </Text>
               <TouchableOpacity
                 style={styles.addFirstCardButton}
-                onPress={() => router.push("/(tabs)/02-cards")}
+                onPress={() => router.push("/(tabs)/profile/manage_cards")}
               >
                 <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
               </TouchableOpacity>

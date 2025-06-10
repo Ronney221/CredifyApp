@@ -31,6 +31,8 @@ export interface CardPerk extends Benefit {
   status: 'available' | 'redeemed';
   streakCount: number;
   coldStreakCount: number;
+  lastRedeemed?: string; // ISO date string of last redemption
+  definition_id: string;
 }
 
 export interface MultiChoicePerkConfig {
@@ -958,4 +960,37 @@ export function isCalendarReset(benefit: Benefit): boolean {
   return benefit.period === 'yearly' || 
          benefit.name.toLowerCase().includes('calendar') ||
          (benefit.description?.toLowerCase().includes('calendar') ?? false);
+}
+
+// Utility function to calculate perk expiry date
+export function calculatePerkExpiryDate(periodMonths: number): Date {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-11
+
+  switch (periodMonths) {
+    case 1: // Monthly - expires on 1st of next month
+      const nextMonth = new Date(currentYear, currentMonth + 1, 1);
+      return nextMonth;
+
+    case 3: // Quarterly - expires on next quarter start (Jan 1, Apr 1, Jul 1, Oct 1)
+      const currentQuarter = Math.floor(currentMonth / 3);
+      const nextQuarterMonth = (currentQuarter + 1) * 3;
+      const nextQuarterYear = nextQuarterMonth >= 12 ? currentYear + 1 : currentYear;
+      return new Date(nextQuarterYear, nextQuarterMonth % 12, 1);
+
+    case 6: // Semi-annual - expires on next semi-annual date (Jan 1 or Jul 1)
+      const isFirstHalf = currentMonth < 6;
+      if (isFirstHalf) {
+        return new Date(currentYear, 6, 1); // July 1st
+      } else {
+        return new Date(currentYear + 1, 0, 1); // Jan 1st next year
+      }
+
+    case 12: // Annual - expires on Jan 1st next year
+      return new Date(currentYear + 1, 0, 1);
+
+    default:
+      return new Date(currentYear, currentMonth + periodMonths, 1);
+  }
 } 
