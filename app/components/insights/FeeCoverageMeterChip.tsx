@@ -22,7 +22,7 @@ export const FeeCoverageMeterChip: React.FC<MeterChipProps> = ({ value, displayT
     iconName = 'arrow-up-circle-outline';
   }
 
-  const chipText = displayTextType === 'full' ? `${value.toFixed(0)}% fee coverage` : `${value.toFixed(0)}%`;
+  const chipText = displayTextType === 'full' ? `${value.toFixed(0)}% of credits utilized` : `${value.toFixed(0)}%`;
 
   return (
     <View style={[styles.meterChipBase, chipStyle]}>

@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Colors } from '../../../constants/Colors';
 import { MonthlyRedemptionSummary, PerkStatusFilter } from '../../../src/data/dummy-insights';
 import { FeeCoverageMeterChip } from './FeeCoverageMeterChip';
+import { useRouter } from 'expo-router';
 
 interface MonthSummaryCardProps {
   summary: MonthlyRedemptionSummary;
@@ -23,6 +24,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   isFirstOverallCard,
   isEven,
 }) => {
+  const router = useRouter();
   const feeCoveragePercentage = summary.totalPotentialValue > 0 
     ? (summary.totalRedeemedValue / summary.totalPotentialValue) * 100 
     : 0;
@@ -36,11 +38,15 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     return { transform: [{ rotate: `${rotation.value}deg` }] };
   });
 
-  const filteredPerkDetails = summary.perkDetails.filter(perk => 
-    perkStatusFilter === 'all' ? true : perk.status === perkStatusFilter
-  );
+  const filteredPerkDetails = summary.perkDetails
+    .filter(perk => perkStatusFilter === 'all' ? true : perk.status === perkStatusFilter)
+    .sort((a, b) => b.value - a.value); // Sort by value in descending order
 
   const showCelebratoryEmptyState = perkStatusFilter !== 'all' && filteredPerkDetails.length === 0;
+
+  const handleRemindMe = (perkId: string) => {
+    router.push('/profile/notifications');
+  };
 
   return (
     <Pressable onPress={onToggleExpand} hitSlop={{top:8,left:8,right:8,bottom:8}}>
@@ -86,26 +92,45 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   Nice! You did not miss any perks for this filter.
                 </Text>
               </View>
-            ) : filteredPerkDetails.length > 0 ? filteredPerkDetails.map(perk => (
-              <View key={perk.id} style={styles.perkDetailItem}>
-                <Ionicons 
-                  name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
-                  size={20} 
-                  color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED} 
-                  style={styles.perkStatusIcon}
-                />
-                <View style={styles.perkNameContainer}>
-                  <Text style={styles.perkName}>{perk.name}</Text>
-                  <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
-                </View>
-                <Text style={[
-                    styles.perkStatusText, 
-                    perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
-                ]}>
-                  {perk.status === 'redeemed' ? 'Redeemed' : 'Missed'}
-                </Text>
-              </View>
-            )) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
+            ) : filteredPerkDetails.length > 0 ? (
+              <>
+                {/* Add Remind Me button if there are missed perks */}
+                {filteredPerkDetails.some(perk => perk.status !== 'redeemed') && (
+                  <TouchableOpacity 
+                    onPress={() => handleRemindMe('')}
+                    style={styles.monthRemindButton}
+                  >
+                    <Ionicons name="notifications-outline" size={16} color={Colors.light.tint} />
+                    <Text style={styles.monthRemindButtonText}>Set reminders for missed perks</Text>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.light.tint} />
+                  </TouchableOpacity>
+                )}
+                
+                {/* Perk list */}
+                {filteredPerkDetails.map(perk => (
+                  <View key={perk.id} style={styles.perkDetailItem}>
+                    <Ionicons 
+                      name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
+                      size={20} 
+                      color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED} 
+                      style={styles.perkStatusIcon}
+                    />
+                    <View style={styles.perkContentContainer}>
+                      <View style={styles.perkNameRow}>
+                        <Text style={styles.perkName}>{perk.name}</Text>
+                        <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
+                      </View>
+                      <Text style={[
+                        styles.perkStatusText, 
+                        perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
+                      ]}>
+                        {perk.status === 'redeemed' ? 'Redeemed' : 'Missed'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
           </Animated.View>
         )}
       </View>
@@ -187,30 +212,37 @@ const styles = StyleSheet.create({
   },
   perkDetailItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
+    alignItems: 'flex-start',
+    paddingVertical: 12,
   },
   perkStatusIcon: {
     marginRight: 10,
+    marginTop: 2, // Align with first line of text
   },
-  perkNameContainer: {
+  perkContentContainer: {
     flex: 1,
+  },
+  perkNameRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'baseline',
+    gap: 4,
+    marginBottom: 2,
   },
   perkName: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.light.text,
-    marginRight: 4,
   },
   perkValueDimmed: {
-    fontSize: 13,
-    color: SUBTLE_GRAY_TEXT,
+    fontSize: 15,
+    color: Colors.light.tint,
+    fontWeight: '600',
   },
   perkStatusText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    marginLeft: 'auto',
+    opacity: 0.8,
   },
   redeemedText: {
     color: SUCCESS_GREEN,
@@ -237,5 +269,22 @@ const styles = StyleSheet.create({
     color: Colors.light.icon,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  monthRemindButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  monthRemindButtonText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.light.tint,
+    marginLeft: 8,
+    fontWeight: '500',
   },
 }); 
