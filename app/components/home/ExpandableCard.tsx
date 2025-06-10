@@ -285,7 +285,8 @@ const ExpandableCardComponent = ({
   }));
 
   const firstAvailablePerkId = useMemo(() => {
-    return perks.find(p => p.status === 'available')?.id;
+    const sortedAvailablePerks = sortPerks(perks.filter(p => p.status === 'available'));
+    return sortedAvailablePerks[0]?.id;
   }, [perks]);
 
   const firstRedeemedPerkId = useMemo(() => {
