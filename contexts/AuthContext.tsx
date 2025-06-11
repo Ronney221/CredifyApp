@@ -35,10 +35,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setUser(initialSession?.user || null);
-      setLoading(false);
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        setSession(initialSession);
+        setUser(initialSession?.user || null);
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     getInitialSession();
@@ -49,7 +54,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Auth state changed:', event, 'Session:', currentSession);
         setSession(currentSession);
         setUser(currentSession?.user || null);
-        setLoading(false);
       }
     );
 
@@ -57,24 +61,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
-    const result = await signInWithGoogle();
-    setLoading(false);
-    return result;
+    try {
+      const result = await signInWithGoogle();
+      return result;
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      return { data: null, error };
+    }
   };
 
   const handleAppleSignIn = async () => {
-    setLoading(true);
-    const result = await signInWithApple();
-    setLoading(false);
-    return result;
+    try {
+      const result = await signInWithApple();
+      return result;
+    } catch (error) {
+      console.error('Apple sign in error:', error);
+      return { data: null, error };
+    }
   };
 
   const handleSignOut = async () => {
     setLoading(true);
-    const result = await signOut();
-    setLoading(false);
-    return result;
+    try {
+      const result = await signOut();
+      return result;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateUserMetadata = async (metadata: object): Promise<boolean> => {
@@ -85,16 +98,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       if (error) {
         console.error('Error updating user metadata:', error.message);
-        setLoading(false);
         return false;
       }
-      // Manually update the local user state for immediate UI reflection
+      
       if (updatedUserData?.user) {
-        setUser(updatedUserData.user); // Update the user in our context
+        setUser(updatedUserData.user);
         console.log('[AuthContext] User state manually updated after metadata change:', updatedUserData.user);
       } else {
-        // If for some reason updatedUserData.user is null, try to refresh the session to get the latest user data
-        // This is a fallback, ideally updatedUserData.user is populated.
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (currentSession?.user) {
           setUser(currentSession.user);
@@ -102,12 +112,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       console.log('User metadata updated successfully via context. Updated user object from Supabase:', updatedUserData.user);
-      setLoading(false);
       return true;
     } catch (e) {
       console.error('Unexpected error during metadata update:', e);
-      setLoading(false);
       return false;
+    } finally {
+      setLoading(false);
     }
   };
 

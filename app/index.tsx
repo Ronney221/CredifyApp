@@ -64,6 +64,7 @@ export default function WelcomeScreen() {
   const lottieRef = useRef<LottieView>(null);
   const insets = useSafeAreaInsets();
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -76,17 +77,22 @@ export default function WelcomeScreen() {
   );
 
   useEffect(() => {
-    if (!loading && user) {
-      console.log('User session found, redirecting to app');
-      router.replace('/(tabs)/01-dashboard');
-    } else if (!loading && !user) {
-      console.log('No user session found, showing welcome screen.');
+    AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      setIsCheckingSession(false);
+      if (user) {
+        console.log('User session found, redirecting to app');
+        router.replace('/(tabs)/01-dashboard');
+      } else {
+        console.log('No user session found, showing welcome screen.');
+      }
     }
-    // If !loading && !user, the WelcomeScreen UI (auth options) is shown.
   }, [user, loading, router]);
 
   useEffect(() => {
-    // Ensure animation plays properly on mount
     const timer = setTimeout(() => {
       if (lottieRef.current) {
         lottieRef.current.reset();
@@ -97,48 +103,23 @@ export default function WelcomeScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
-  }, []);
-
-  const handleContinue = () => {
-    const options = [
-      'Sign in with Apple',
-      'Sign in with Google',
-      'Cancel',
-    ];
-    const destructiveButtonIndex = undefined;
-    const cancelButtonIndex = 2;
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: options,
-          cancelButtonIndex: cancelButtonIndex,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            signInApple();
-          } else if (buttonIndex === 1) {
-            signInGoogle();
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        "Continue",
-        "Choose an option to continue:",
-        [
-          { text: "Sign in with Apple", onPress: () => signInApple() },
-          { text: "Sign in with Google", onPress: () => signInGoogle() },
-          { text: "Cancel", style: "cancel" },
-        ],
-        { cancelable: true }
-      );
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInGoogle();
+    } catch (error) {
+      console.error('Google sign in error:', error);
     }
   };
 
-  if (loading) {
+  const handleAppleSignIn = async () => {
+    try {
+      await signInApple();
+    } catch (error) {
+      console.error('Apple sign in error:', error);
+    }
+  };
+
+  if (isCheckingSession) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
@@ -156,8 +137,7 @@ export default function WelcomeScreen() {
       <View style={[
         styles.content,
         {
-          // Adjust top padding to follow 8-point grid
-          paddingTop: Math.max(168 - insets.top, 24), // Increased padding: 21x8 or 3x8
+          paddingTop: Math.max(168 - insets.top, 24),
         }
       ]}>
         <View style={styles.topSection}>
@@ -193,7 +173,7 @@ export default function WelcomeScreen() {
         <View style={styles.bottomSection}>
           <TouchableOpacity 
             style={styles.socialButton} 
-            onPress={() => signInGoogle()}
+            onPress={handleGoogleSignIn}
             activeOpacity={0.8}
           >
             <Ionicons name="logo-google" size={20} color="#4285f4" />
@@ -208,7 +188,7 @@ export default function WelcomeScreen() {
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
               cornerRadius={12}
               style={[styles.socialButton, { height: 50, marginHorizontal: 16 }]}
-              onPress={signInApple}
+              onPress={handleAppleSignIn}
             />
           )}
 
