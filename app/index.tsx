@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useRouter, useFocusEffect, Link } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import LottieView from 'lottie-react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 const { height } = Dimensions.get('window');
 
@@ -62,6 +63,7 @@ export default function WelcomeScreen() {
   const { user, loading, signInGoogle, signInApple } = useAuth();
   const lottieRef = useRef<LottieView>(null);
   const insets = useSafeAreaInsets();
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,6 +95,10 @@ export default function WelcomeScreen() {
     }, 100);
 
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
   }, []);
 
   const handleContinue = () => {
@@ -195,16 +201,16 @@ export default function WelcomeScreen() {
               Continue with Google
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.socialButton} 
-            onPress={() => signInApple()}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="logo-apple" size={20} color="#000" />
-            <Text style={[Typography.headline, styles.socialButtonText]}>
-              Continue with Apple
-            </Text>
-          </TouchableOpacity>
+          
+          {Platform.OS === 'ios' && isAppleAuthAvailable && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={12}
+              style={[styles.socialButton, { height: 50, marginHorizontal: 16 }]}
+              onPress={signInApple}
+            />
+          )}
 
           <View style={styles.termsContainer}>
             <Text 

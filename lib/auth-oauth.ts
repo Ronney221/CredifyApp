@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from './supabase';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -68,12 +69,39 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// Placeholder for Apple Sign In (disabled for now)
 export const signInWithApple = async () => {
-  return { 
-    data: null, 
-    error: { message: 'Apple Sign In is temporarily disabled. Please use email or Google authentication.' } 
-  };
+  try {
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    if (credential.identityToken) {
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+
+      if (error) {
+        console.error('Supabase Apple Sign In error:', error);
+        return { data: null, error };
+      }
+
+      console.log('Apple Sign In successful:', data);
+      return { data, error: null };
+    } else {
+      console.error('No identity token received from Apple');
+      return { data: null, error: { message: 'No identity token received from Apple' } };
+    }
+  } catch (e: any) {
+    console.error('Apple Sign In error:', e);
+    if (e.code === 'ERR_REQUEST_CANCELED') {
+      return { data: null, error: { message: 'Sign in was cancelled' } };
+    }
+    return { data: null, error: e };
+  }
 };
 
 // OAuth configuration helpers
