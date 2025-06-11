@@ -1,18 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, signInWithEmail, signUpWithEmail, signOut } from '../lib/supabase';
+import { supabase, signOut } from '../lib/supabase';
 import { signInWithGoogle, signInWithApple } from '../lib/auth-oauth';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
-  signUp: (email: string, password: string) => Promise<{ data: any; error: any }>;
   signInGoogle: () => Promise<{ data: any; error: any }>;
   signInApple: () => Promise<{ data: any; error: any }>;
   logOut: () => Promise<{ error: any }>;
-  resetPassword: (email: string) => Promise<{ data: any; error: any }>;
   updateUserMetadata: (metadata: object) => Promise<boolean>;
 }
 
@@ -59,20 +56,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleSignIn = async (email: string, password: string) => {
-    setLoading(true);
-    const result = await signInWithEmail(email, password);
-    setLoading(false);
-    return result;
-  };
-
-  const handleSignUp = async (email: string, password: string) => {
-    setLoading(true);
-    const result = await signUpWithEmail(email, password);
-    setLoading(false);
-    return result;
-  };
-
   const handleGoogleSignIn = async () => {
     setLoading(true);
     const result = await signInWithGoogle();
@@ -92,11 +75,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const result = await signOut();
     setLoading(false);
     return result;
-  };
-
-  const handleResetPassword = async (email: string) => {
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email);
-    return { data, error };
   };
 
   const handleUpdateUserMetadata = async (metadata: object): Promise<boolean> => {
@@ -137,12 +115,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     session,
     loading,
-    signIn: handleSignIn,
-    signUp: handleSignUp,
     signInGoogle: handleGoogleSignIn,
     signInApple: handleAppleSignIn,
     logOut: handleSignOut,
-    resetPassword: handleResetPassword,
     updateUserMetadata: handleUpdateUserMetadata,
   };
 

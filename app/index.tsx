@@ -99,11 +99,10 @@ export default function WelcomeScreen() {
     const options = [
       'Sign in with Apple',
       'Sign in with Google',
-      'Sign in with Email',
       'Cancel',
     ];
     const destructiveButtonIndex = undefined;
-    const cancelButtonIndex = 3;
+    const cancelButtonIndex = 2;
 
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -116,8 +115,6 @@ export default function WelcomeScreen() {
             signInApple();
           } else if (buttonIndex === 1) {
             signInGoogle();
-          } else if (buttonIndex === 2) {
-            router.push('/(auth)/login');
           }
         }
       );
@@ -128,7 +125,6 @@ export default function WelcomeScreen() {
         [
           { text: "Sign in with Apple", onPress: () => signInApple() },
           { text: "Sign in with Google", onPress: () => signInGoogle() },
-          { text: "Sign in with Email", onPress: () => router.push('/(auth)/login') },
           { text: "Cancel", style: "cancel" },
         ],
         { cancelable: true }
@@ -209,13 +205,6 @@ export default function WelcomeScreen() {
               Continue with Apple
             </Text>
           </TouchableOpacity>
-          {/* <TouchableOpacity
-            style={styles.emailButton}
-            onPress={() => router.push('/(auth)/login')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.emailButtonText}>Continue with email</Text>
-          </TouchableOpacity> */}
 
           <View style={styles.termsContainer}>
             <Text 
@@ -313,16 +302,6 @@ const styles = StyleSheet.create({
   socialButtonText: {
     color: '#1c1c1e',
     marginLeft: 12,
-  },
-  emailButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 24, // Increased bottom margin for more space
-  },
-  emailButtonText: {
-    color: '#007aff',
-    fontSize: 16,
-    fontWeight: '500',
   },
   termsContainer: {
     paddingHorizontal: 16, // Multiple of 8 (2x8)
