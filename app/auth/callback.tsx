@@ -17,7 +17,7 @@ export default function AuthCallback() {
         
         if (error) {
           console.error('OAuth error:', error);
-          router.replace('/(auth)/login');
+          router.replace('/');
           return;
         }
 
@@ -29,18 +29,18 @@ export default function AuthCallback() {
 
           if (sessionError) {
             console.error('Session error:', sessionError);
-            router.replace('/(auth)/login');
+            router.replace('/');
           } else {
             console.log('Authentication successful:', data);
-            router.replace('/(tabs)/cards');
+            router.replace('/(tabs)/01-dashboard');
           }
         } else {
-          console.log('No access token found, redirecting to login');
-          router.replace('/(auth)/login');
+          console.log('No access token found, redirecting to index');
+          router.replace('/');
         }
       } catch (error) {
         console.error('Callback handler error:', error);
-        router.replace('/(auth)/login');
+        router.replace('/');
       }
     };
 

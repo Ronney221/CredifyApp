@@ -213,11 +213,11 @@ export default function WelcomeScreen() {
               maxFontSizeMultiplier={1.5}
             >
               By continuing, you agree to our{' '}
-              <Link href="/(auth)/terms" asChild>
+              <Link href="/legal/terms" asChild>
                 <Text style={styles.termsLink}>Terms of Service</Text>
               </Link>
               {' '}and{' '}
-              <Link href="/(auth)/terms" asChild>
+              <Link href="/legal/terms" asChild>
                 <Text style={styles.termsLink}>Privacy Policy</Text>
               </Link>
             </Text>
