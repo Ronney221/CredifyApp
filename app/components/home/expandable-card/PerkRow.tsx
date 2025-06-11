@@ -92,10 +92,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
   let periodText = '';
   if (isAutoRedeemed) {
     periodText = 'Auto-Redeem';
-  } else if (!isRedeemed && !isPartiallyRedeemed) { // Only show expiry time on available perks
+  } else if (!isRedeemed) { // Changed condition to include partially redeemed perks
     periodText = getTimeUntilExpiry(perk);
-  } else if (isPartiallyRedeemed && formattedRemainingValue) {
-    periodText = `${formattedRemainingValue} remaining`;
   }
 
   let displayDescription = perk.description
@@ -141,7 +139,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
                   isRedeemed 
                     ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline')
                     : isPartiallyRedeemed
-                    ? 'cut-outline'
+                    ? 'hourglass-outline'
                     : 'pricetag-outline'
                 }
                 size={26} 
@@ -209,12 +207,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 isRedeemed && isAutoRedeemed && styles.perkValueAutoRedeemed,
                 isPartiallyRedeemed && styles.perkValuePartiallyRedeemed
               ]}>
-                {formattedValue}
-                {isPartiallyRedeemed && formattedRemainingValue && (
-                  <Text style={styles.remainingValueText}>
-                    {` (${formattedRemainingValue})`}
-                  </Text>
-                )}
+                {isPartiallyRedeemed && formattedRemainingValue ? formattedRemainingValue : formattedValue}
+                {isPartiallyRedeemed}
               </Text>
             </View>
             <Ionicons 
@@ -268,6 +262,19 @@ const styles = StyleSheet.create({
   },
   perkContainerPartiallyRedeemed: {
     backgroundColor: PARTIAL_REDEEM_BACKGROUND,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   perkIconContainer: {
     marginRight: 12,

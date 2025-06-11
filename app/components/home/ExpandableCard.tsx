@@ -157,8 +157,10 @@ const ExpandableCardComponent = ({
     sortIndex
   });
   
-  // Corrected: Count all types of unredeemed perks
-  const unredeemedPerks = perks.filter(p => p.status === 'available');
+  // Count perks that still have value to redeem (available or partially redeemed)
+  const unredeemedPerks = perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed');
+  const hasUnredeemedPerks = unredeemedPerks.length > 0;
+  const isFullyRedeemed = !hasUnredeemedPerks;
 
   console.log(`${card.name} status (LOG POINT EC-1):`, {
     unredeemedPerksCount: unredeemedPerks.length,
@@ -167,9 +169,6 @@ const ExpandableCardComponent = ({
     cumulativeSavedValue
   });
   
-  const hasUnredeemedPerks = unredeemedPerks.length > 0;
-  const isFullyRedeemed = !hasUnredeemedPerks;
-
   const nudgeAnimation = useSharedValue(0);
   const undoNudgeAnimation = useSharedValue(0);
   const redeemHintOpacity = useSharedValue(0);
@@ -689,10 +688,10 @@ const ExpandableCardComponent = ({
             layout={Layout.springify().duration(300)}
           >
             <View style={styles.perksGroupContainer}>
-              {perks.filter(p => p.status === 'available').length > 0 && (
+              {perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed').length > 0 && (
                 <>
                   <Text style={styles.sectionLabel}>Available Perks</Text>
-                  {sortPerks(perks.filter(p => p.status === 'available')).map(p => renderPerkRow(p, true))}
+                  {sortPerks(perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed')).map(p => renderPerkRow(p, true))}
                 </>
               )}
               {perks.filter(p => p.status === 'redeemed').length > 0 && (
