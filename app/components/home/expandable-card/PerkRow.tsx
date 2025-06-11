@@ -208,7 +208,11 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 isPartiallyRedeemed && styles.perkValuePartiallyRedeemed
               ]}>
                 {isPartiallyRedeemed && formattedRemainingValue ? formattedRemainingValue : formattedValue}
-                {isPartiallyRedeemed}
+                {isPartiallyRedeemed && (
+                  <Text style={styles.remainingValueText}>
+                    {` (of ${formattedValue})`}
+                  </Text>
+                )}
               </Text>
             </View>
             <Ionicons 

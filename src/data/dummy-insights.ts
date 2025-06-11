@@ -1,4 +1,5 @@
 import { allCards, Benefit } from './card-data';
+import { getRedemptionsForPeriod } from '../../lib/database';
 
 export type PerkStatusFilter = 'all' | 'redeemed' | 'missed';
 
@@ -6,7 +7,7 @@ export type PerkStatusFilter = 'all' | 'redeemed' | 'missed';
 
 export interface PerkRedemptionDetail {
   id: string;
-  name:string;
+  name: string;
   value: number;
   status: 'redeemed' | 'missed';
   period: Benefit['period'];
@@ -57,13 +58,15 @@ export interface InsightsData {
 }
 
 // --- DUMMY DATA GENERATION ---
-export const generateDummyInsightsData = (
-  selectedCards: string[]
-): Omit<InsightsData, 'availableCardsForFilter' | 'currentFeeCoverageStreak' | 'cardRois'> & {
+export const generateDummyInsightsData = async (
+  selectedCards: string[],
+  processedCardsWithPerks?: { card: { id: string; name: string; benefits: Benefit[]; annualFee: number }; perks: { id: string; definition_id: string; name: string; value: number; status: 'redeemed' | 'available'; period: Benefit['period'] }[] }[],
+  userId?: string
+): Promise<Omit<InsightsData, 'availableCardsForFilter' | 'currentFeeCoverageStreak' | 'cardRois'> & {
   currentFeeCoverageStreak?: number;
   availableCardsForFilter: { id: string; name: string; activityCount: number }[];
   cardRois: CardROI[];
-} => {
+}> => {
   const insightsCards = allCards.filter(
     card => selectedCards.includes(card.id)
   );
@@ -93,6 +96,20 @@ export const generateDummyInsightsData = (
     };
   }
 
+  // Get historical redemption data for the past 6 months
+  let historicalRedemptions: { perk_id: string; redemption_date: string }[] = [];
+  if (userId) {
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1); // 6 months ago
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // End of current month
+    const result = await getRedemptionsForPeriod(userId, startDate, endDate);
+    if (result.data && !result.error) {
+      historicalRedemptions = result.data.map(r => ({
+        perk_id: r.perk_id,
+        redemption_date: r.redemption_date || new Date().toISOString() // Fallback to current date if missing
+      }));
+    }
+  }
+
   for (let i = 5; i >= 0; i--) { 
     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const yearStr = date.getFullYear().toString();
@@ -120,43 +137,98 @@ export const generateDummyInsightsData = (
     // Generate dummy coverage trend for the last 12 months
     const coverageTrend: number[] = Array.from({ length: 12 }, () => Math.floor(Math.random() * 101));
 
-    insightsCards.forEach(card => {
-      card.benefits.forEach(perk => {
-        if (perk.period === 'monthly') {
-          allMonthlyPerksAvailableThisMonth++;
-          const isRedeemed = Math.random() > 0.4;
-          monthTotalPotential += perk.value;
-          
-          // Create a unique ID for each perk detail that includes card, month, and perk info
-          const perkDetailId = `${card.id}_${perk.definition_id}_${monthKey}`;
-          
-          currentMonthPerkDetails.push({
-            id: perkDetailId,
-            name: perk.name,
-            value: perk.value,
-            status: isRedeemed ? 'redeemed' : 'missed',
-            period: perk.period,
-          });
+    // For current month, use real data if available
+    const isCurrentMonth = i === 0 && processedCardsWithPerks;
+    
+    if (isCurrentMonth && processedCardsWithPerks) {
+      // Filter to only selected cards
+      const selectedProcessedCards = processedCardsWithPerks.filter(
+        cardData => selectedCards.includes(cardData.card.id)
+      );
 
-          if (isRedeemed) {
-            monthTotalRedeemed += perk.value;
-            monthPerksRedeemed++;
-            allMonthlyPerksRedeemedThisMonthCount++;
-            perkRedemptionStreaks[perk.definition_id] = (perkRedemptionStreaks[perk.definition_id] || 0) + 1;
-            // Track card-specific activity
-            if (!cardActivity[card.id]) {
-              cardActivity[card.id] = { redemptions: 0, totalValue: 0 };
+      selectedProcessedCards.forEach(cardData => {
+        cardData.perks.forEach(perk => {
+          if (perk.period === 'monthly') {
+            allMonthlyPerksAvailableThisMonth++;
+            monthTotalPotential += perk.value;
+            
+            const perkDetailId = `${cardData.card.id}_${perk.definition_id}_${monthKey}`;
+            
+            // Map 'available' status to 'missed' for display
+            const displayStatus = perk.status === 'redeemed' ? 'redeemed' : 'missed';
+            
+            currentMonthPerkDetails.push({
+              id: perkDetailId,
+              name: perk.name,
+              value: perk.value,
+              status: displayStatus,
+              period: perk.period,
+            });
+
+            if (displayStatus === 'redeemed') {
+              monthTotalRedeemed += perk.value;
+              monthPerksRedeemed++;
+              allMonthlyPerksRedeemedThisMonthCount++;
+              
+              // Track card-specific activity
+              if (!cardActivity[cardData.card.id]) {
+                cardActivity[cardData.card.id] = { redemptions: 0, totalValue: 0 };
+              }
+              cardActivity[cardData.card.id].redemptions++;
+              cardActivity[cardData.card.id].totalValue += perk.value;
+            } else {
+              monthPerksMissed++;
             }
-            cardActivity[card.id].redemptions++;
-            cardActivity[card.id].totalValue += perk.value;
-          } else {
-            monthPerksMissed++;
-            perkRedemptionStreaks[perk.definition_id] = 0; // Reset streak
           }
-        }
-        // TODO: Handle yearly/semi-annual/quarterly perks appropriately if they factor into monthly views
+        });
       });
-    });
+    } else {
+      // Use historical data for past months
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      insightsCards.forEach(card => {
+        card.benefits.forEach(perk => {
+          if (perk.period === 'monthly') {
+            allMonthlyPerksAvailableThisMonth++;
+            monthTotalPotential += perk.value;
+            
+            const perkDetailId = `${card.id}_${perk.definition_id}_${monthKey}`;
+            
+            // Check if this perk was redeemed in this month
+            const wasRedeemed = historicalRedemptions.some(r => 
+              r.perk_id === perk.definition_id &&
+              new Date(r.redemption_date) >= monthStart &&
+              new Date(r.redemption_date) <= monthEnd
+            );
+            
+            currentMonthPerkDetails.push({
+              id: perkDetailId,
+              name: perk.name,
+              value: perk.value,
+              status: wasRedeemed ? 'redeemed' : 'missed',
+              period: perk.period,
+            });
+
+            if (wasRedeemed) {
+              monthTotalRedeemed += perk.value;
+              monthPerksRedeemed++;
+              allMonthlyPerksRedeemedThisMonthCount++;
+              perkRedemptionStreaks[perk.definition_id] = (perkRedemptionStreaks[perk.definition_id] || 0) + 1;
+              
+              if (!cardActivity[card.id]) {
+                cardActivity[card.id] = { redemptions: 0, totalValue: 0 };
+              }
+              cardActivity[card.id].redemptions++;
+              cardActivity[card.id].totalValue += perk.value;
+            } else {
+              monthPerksMissed++;
+              perkRedemptionStreaks[perk.definition_id] = 0;
+            }
+          }
+        });
+      });
+    }
     
     const allCurrentMonthlyPerksRedeemed = allMonthlyPerksAvailableThisMonth > 0 && allMonthlyPerksRedeemedThisMonthCount === allMonthlyPerksAvailableThisMonth;
 
@@ -168,16 +240,15 @@ export const generateDummyInsightsData = (
       perksRedeemedCount: monthPerksRedeemed,
       perksMissedCount: monthPerksMissed,
       perkDetails: currentMonthPerkDetails,
-      cardFeesProportion: monthlyFeeProrationTarget > 0 ? monthlyFeeProrationTarget : 0.01, // Avoid division by zero for feeProration
+      cardFeesProportion: monthlyFeeProrationTarget > 0 ? monthlyFeeProrationTarget : 0.01,
       allMonthlyPerksRedeemedThisMonth: allCurrentMonthlyPerksRedeemed,
-      coverageTrend, // Added
+      coverageTrend,
     };
-    // Add to the beginning of the array for that year to keep months in reverse chronological order within the year section
+
     monthlyDataByYear[yearStr].شهرs.unshift(monthSummary);
     monthlyDataByYear[yearStr].yearTotalRedeemed += monthTotalRedeemed;
     monthlyDataByYear[yearStr].yearTotalPotential += monthTotalPotential;
 
-    // Achievement Calculations
     if (monthlyFeeProrationTarget > 0 && monthTotalRedeemed >= monthlyFeeProrationTarget) {
       consecutiveFeeCoverageMonths++;
     } else {
@@ -236,8 +307,8 @@ export const generateDummyInsightsData = (
       }
     }
   }
-   // Add a fallback if no achievements yet
-   if (achievements.length === 0 && insightsCards.length > 0) {
+
+  if (achievements.length === 0 && insightsCards.length > 0) {
     achievements.push({
       id: `getting_started_${Date.now()}`,
       emoji: '🚀',
@@ -246,12 +317,11 @@ export const generateDummyInsightsData = (
     });
   }
 
-  // Convert monthlyDataByYear to yearSections, sorted by year descending (most recent year first)
   const yearSections: YearSection[] = Object.keys(monthlyDataByYear)
-    .sort((a, b) => parseInt(b) - parseInt(a)) // Sort years descending
+    .sort((a, b) => parseInt(b) - parseInt(a))
     .map(year => ({
       year: year,
-      data: monthlyDataByYear[year].شهرs, // Months are already reverse chrono
+      data: monthlyDataByYear[year].شهرs,
       totalRedeemedForYear: monthlyDataByYear[year].yearTotalRedeemed,
       totalPotentialForYear: monthlyDataByYear[year].yearTotalPotential,
     }));
@@ -265,7 +335,7 @@ export const generateDummyInsightsData = (
   const cardRois: CardROI[] = insightsCards.map(card => {
     const totalRedeemed = cardActivity[card.id]?.totalValue || 0;
     const annualFee = card.annualFee || 0;
-    const roiPercentage = annualFee > 0 ? (totalRedeemed / annualFee) * 100 : (totalRedeemed > 0 ? 100 : 0); // Handle $0 fee
+    const roiPercentage = annualFee > 0 ? (totalRedeemed / annualFee) * 100 : (totalRedeemed > 0 ? 100 : 0);
 
     return {
       id: card.id,

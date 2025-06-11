@@ -284,13 +284,84 @@ export default function InsightsScreen() {
     });
   };
 
-  const insightsData = useMemo(() => {
-    if (!isDataLoaded) {
-      const defaultCardsWithActivity = defaultCardsForFilter.map(card => ({ ...card, activityCount: 0 }));
-      return { yearSections: [], achievements: [], availableCardsForFilter: defaultCardsWithActivity, currentFeeCoverageStreak: 0, cardRois: [] };
+  const [insightsData, setInsightsData] = useState<InsightsData>({
+    yearSections: [],
+    achievements: [],
+    availableCardsForFilter: [],
+    currentFeeCoverageStreak: 0,
+    cardRois: []
+  });
+
+  useEffect(() => {
+    async function loadInsightsData() {
+      if (!isDataLoaded) {
+        const defaultCardsWithActivity = defaultCardsForFilter.map(card => ({ ...card, activityCount: 0 }));
+        setInsightsData({ 
+          yearSections: [], 
+          achievements: [], 
+          availableCardsForFilter: defaultCardsWithActivity, 
+          currentFeeCoverageStreak: 0, 
+          cardRois: [] 
+        });
+        return;
+      }
+    
+      console.log('[InsightsScreen] Debug - Raw userCardsWithPerks:', JSON.stringify(userCardsWithPerks, null, 2));
+
+      // Transform userCardsWithPerks to match the expected type
+      const processedCards = userCardsWithPerks.map(({ card, perks }) => ({
+        card: {
+          id: card.id,
+          name: card.name,
+          benefits: card.benefits,
+          annualFee: card.annualFee || 0,
+        },
+        perks: perks.map(perk => {
+          console.log(`[InsightsScreen] Debug - Processing perk ${perk.name}:`, {
+            originalStatus: perk.status,
+            id: perk.id,
+            definition_id: perk.definition_id,
+            value: perk.value,
+            period: perk.period
+          });
+          
+          return {
+            id: perk.id,
+            definition_id: perk.definition_id,
+            name: perk.name,
+            value: perk.value,
+            status: perk.status,
+            period: perk.period,
+          };
+        }),
+      }));
+
+      console.log('[InsightsScreen] Debug - Processed cards:', JSON.stringify(processedCards, null, 2));
+
+      const result = await generateDummyInsightsData(selectedCardIds, processedCards, user?.id);
+
+      // Log the first month's data to verify what's being displayed
+      if (result.yearSections.length > 0 && result.yearSections[0].data.length > 0) {
+        const currentMonth = result.yearSections[0].data[0];
+        console.log('[InsightsScreen] Debug - Current month data:', {
+          monthYear: currentMonth.monthYear,
+          totalRedeemed: currentMonth.totalRedeemedValue,
+          totalPotential: currentMonth.totalPotentialValue,
+          perksRedeemed: currentMonth.perksRedeemedCount,
+          perksMissed: currentMonth.perksMissedCount,
+          perkDetails: currentMonth.perkDetails.map(p => ({
+            name: p.name,
+            status: p.status,
+            value: p.value
+          }))
+        });
+      }
+
+      setInsightsData(result);
     }
-    return generateDummyInsightsData(selectedCardIds);
-  }, [selectedCardIds, isDataLoaded]);
+
+    loadInsightsData();
+  }, [selectedCardIds, isDataLoaded, userCardsWithPerks, user?.id]);
 
   // Set the default expanded month when data loads
   useEffect(() => {

@@ -39,10 +39,13 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   });
 
   const filteredPerkDetails = summary.perkDetails
-    .filter(perk => perkStatusFilter === 'all' ? true : perk.status === perkStatusFilter)
+    .filter(perk => {
+      if (perkStatusFilter === 'all') return true;
+      return perk.status === perkStatusFilter;
+    })
     .sort((a, b) => b.value - a.value); // Sort by value in descending order
 
-  const showCelebratoryEmptyState = perkStatusFilter !== 'all' && filteredPerkDetails.length === 0;
+  const showCelebratoryEmptyState = perkStatusFilter === 'redeemed' && filteredPerkDetails.length === 0;
 
   const handleRemindMe = (perkId: string) => {
     router.push('/profile/notifications');

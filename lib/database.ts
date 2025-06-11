@@ -30,6 +30,11 @@ interface PerkRedemption {
   is_auto_redemption: boolean;
 }
 
+interface PerkWithStatus extends Benefit {
+  status?: 'available' | 'redeemed' | 'partially_redeemed';
+  remaining_value?: number;
+}
+
 export async function getUserCards(userId: string) {
   try {
     console.log('Fetching cards for user:', userId);
@@ -135,7 +140,7 @@ export async function hasUserSelectedCards(userId: string): Promise<boolean> {
 export async function trackPerkRedemption(
   userId: string,
   cardId: string,
-  perk: Benefit,
+  perk: PerkWithStatus,
   valueRedeemed: number,
   parentRedemptionId?: string
 ) {
@@ -146,11 +151,12 @@ export async function trackPerkRedemption(
       perkId: perk.id,
       perkName: perk.name,
       value: valueRedeemed,
-      parentRedemptionId
+      parentRedemptionId,
+      currentStatus: perk.status,
+      remainingValue: perk.remaining_value
     });
 
     // First, find the perk definition
-    console.log('Looking up perk definition for perk ID:', perk.definition_id);
     const { data: perkDef, error: perkDefError } = await supabase
       .from('perk_definitions')
       .select('id, name, value')
@@ -166,11 +172,24 @@ export async function trackPerkRedemption(
       return { error: new Error(`Perk definition not found for ID: ${perk.definition_id} (Name: ${perk.name})`) };
     }
 
+    // Check if perk is already fully redeemed
+    const { data: existingRedemption, error: existingError } = await supabase
+      .from('perk_redemptions')
+      .select('id, status, remaining_value, value_redeemed')
+      .eq('user_id', userId)
+      .eq('perk_id', perk.definition_id)
+      .eq('status', 'redeemed')
+      .single();
+
+    if (existingRedemption && !existingError) {
+      return { error: new Error('Perk already redeemed this period') };
+    }
+
     // If this is a partial redemption (has parent), verify parent exists and has sufficient remaining value
     if (parentRedemptionId) {
       const { data: parentRedemption, error: parentError } = await supabase
         .from('perk_redemptions')
-        .select('remaining_value')
+        .select('remaining_value, status')
         .eq('id', parentRedemptionId)
         .single();
 
@@ -182,6 +201,11 @@ export async function trackPerkRedemption(
       if (parentRedemption.remaining_value < valueRedeemed) {
         console.error('Insufficient remaining value for partial redemption');
         return { error: new Error('Insufficient remaining value for partial redemption') };
+      }
+
+      // If parent is already fully redeemed, don't allow further redemptions
+      if (parentRedemption.status === 'redeemed') {
+        return { error: new Error('Parent perk is already fully redeemed') };
       }
     }
 
@@ -231,13 +255,28 @@ export async function trackPerkRedemption(
     const totalValue = perkDef.value;
     const remainingValue = isPartialRedemption ? perkDef.value - valueRedeemed : 0;
 
-    // Insert the redemption record
-    const { data, error } = await supabase
+    // If transitioning from partial to full redemption, delete the partial redemption first
+    if (perk.status === 'partially_redeemed' && !isPartialRedemption) {
+      const { error: deleteError } = await supabase
+        .from('perk_redemptions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('perk_id', perk.definition_id)
+        .eq('status', 'partially_redeemed');
+
+      if (deleteError) {
+        console.error('Error deleting partial redemption:', deleteError);
+        return { error: new Error('Failed to delete partial redemption') };
+      }
+    }
+
+    // Insert the new redemption
+    const { error: insertError } = await supabase
       .from('perk_redemptions')
       .insert({
         user_id: userId,
         user_card_id: userCardToUse.id,
-        perk_id: perkDef.id,
+        perk_id: perk.definition_id,
         redemption_date: now.toISOString(),
         reset_date: resetDate.toISOString(),
         status,
@@ -246,19 +285,16 @@ export async function trackPerkRedemption(
         remaining_value: remainingValue,
         parent_redemption_id: parentRedemptionId,
         is_auto_redemption: false
-      })
-      .select()
-      .single();
+      });
 
-    if (error) {
-      console.error('Error inserting redemption record:', error);
-      return { error };
+    if (insertError) {
+      console.error('Error inserting redemption:', insertError);
+      return { error: insertError };
     }
 
-    console.log('Successfully tracked perk redemption:', data);
-    return { data, error: null };
+    return { error: null };
   } catch (error) {
-    console.error('Unexpected error tracking perk redemption:', error);
+    console.error('Unexpected error in trackPerkRedemption:', error);
     return { error };
   }
 }

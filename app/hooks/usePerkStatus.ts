@@ -15,6 +15,7 @@ interface PeriodAggregate {
   possibleValue: number;
   redeemedCount: number;
   totalCount: number;
+  partiallyRedeemedCount: number;
 }
 
 interface PerkStatusHookResult {
@@ -161,7 +162,7 @@ export function usePerkStatus(
             }
 
             if (!newPeriodAggregates[perk.periodMonths]) {
-              newPeriodAggregates[perk.periodMonths] = { redeemedValue: 0, possibleValue: 0, redeemedCount: 0, totalCount: 0 };
+              newPeriodAggregates[perk.periodMonths] = { redeemedValue: 0, possibleValue: 0, redeemedCount: 0, totalCount: 0, partiallyRedeemedCount: 0 };
             }
 
             let isRedeemedThisCycle = false;
@@ -204,7 +205,13 @@ export function usePerkStatus(
 
               newCumulative[cardData.card.id] = (newCumulative[cardData.card.id] || 0) + redeemedValue;
               newPeriodAggregates[perk.periodMonths].redeemedValue += redeemedValue;
-              newPeriodAggregates[perk.periodMonths].redeemedCount++;
+              
+              // Only increment redeemedCount for fully redeemed perks
+              if (perkStatus === 'redeemed') {
+                newPeriodAggregates[perk.periodMonths].redeemedCount++;
+              } else if (perkStatus === 'partially_redeemed') {
+                newPeriodAggregates[perk.periodMonths].partiallyRedeemedCount++;
+              }
             }
             
             return { 
@@ -297,7 +304,7 @@ export function usePerkStatus(
               return { 
                 ...p, 
                 status: newStatus,
-                remaining_value: remainingValue
+                remaining_value: newStatus === 'available' ? undefined : remainingValue
               };
             }
             return p;
@@ -336,21 +343,28 @@ export function usePerkStatus(
       setPeriodAggregates(prevAggregates => {
         const newAggregates = JSON.parse(JSON.stringify(prevAggregates));
         if (!newAggregates[periodMonths]) {
-          newAggregates[periodMonths] = { redeemedValue: 0, possibleValue: 0, redeemedCount: 0, totalCount: 0 };
+          newAggregates[periodMonths] = { redeemedValue: 0, possibleValue: 0, redeemedCount: 0, totalCount: 0, partiallyRedeemedCount: 0 };
         }
         const aggregate = newAggregates[periodMonths];
 
         if (newStatus === 'redeemed' && !originalStatusIsRedeemed) {
           aggregate.redeemedValue += perkValue;
           aggregate.redeemedCount++;
+          if (originalStatusIsPartiallyRedeemed) {
+            aggregate.partiallyRedeemedCount = Math.max(0, aggregate.partiallyRedeemedCount - 1);
+          }
         } else if (newStatus === 'partially_redeemed' && !originalStatusIsRedeemed && !originalStatusIsPartiallyRedeemed) {
           const redeemedValue = perkValue - (remainingValue || 0);
           aggregate.redeemedValue += redeemedValue;
-          aggregate.redeemedCount++;
+          aggregate.partiallyRedeemedCount++;
         } else if (newStatus === 'available' && (originalStatusIsRedeemed || originalStatusIsPartiallyRedeemed)) {
           const valueToSubtract = originalStatusIsPartiallyRedeemed ? (perkValue - (remainingValue || 0)) : perkValue;
           aggregate.redeemedValue = Math.max(0, aggregate.redeemedValue - valueToSubtract);
-          aggregate.redeemedCount = Math.max(0, aggregate.redeemedCount - 1);
+          if (originalStatusIsRedeemed) {
+            aggregate.redeemedCount = Math.max(0, aggregate.redeemedCount - 1);
+          } else if (originalStatusIsPartiallyRedeemed) {
+            aggregate.partiallyRedeemedCount = Math.max(0, aggregate.partiallyRedeemedCount - 1);
+          }
         }
         console.log(`[usePerkStatus] Optimistic update for period ${periodMonths}:`, aggregate);
         return newAggregates;

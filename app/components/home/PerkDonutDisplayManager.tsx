@@ -15,6 +15,7 @@ interface PeriodAggregate {
   possibleValue: number;
   redeemedCount: number;
   totalCount: number;
+  partiallyRedeemedCount: number; // Added to track partial redemptions
 }
 
 // TODO: [PARENT OPTIMIZATION NOTES]
@@ -154,6 +155,32 @@ const PerkDonutDisplayManagerInner = (
     setActiveSegmentKey(Number(key));
   }, []); // No dependencies, as setActiveSegmentKey is stable
 
+  // Helper function to calculate days until reset - MOVED BEFORE activeData useMemo
+  const calculateDaysUntilReset = useCallback((periodMonths: number) => {
+    const today = new Date();
+    let resetDate = new Date();
+
+    switch (periodMonths) {
+      case 1: // Monthly
+        resetDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        break;
+      case 3: // Quarterly
+        resetDate = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3 + 3, 1);
+        break;
+      case 6: // Semi-annual
+        resetDate = new Date(today.getFullYear(), Math.floor(today.getMonth() / 6) * 6 + 6, 1);
+        break;
+      case 12: // Annual
+        resetDate = new Date(today.getFullYear() + 1, 0, 1);
+        break;
+      default:
+        resetDate = new Date(today.getFullYear(), today.getMonth() + periodMonths, 1);
+    }
+
+    const daysUntilReset = Math.ceil((resetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntilReset;
+  }, []);
+
   const activeData = useMemo(() => {
     if (!periodAggregates || typeof periodAggregates !== 'object' || Object.keys(periodAggregates).length === 0) {
       const defaultDisplayName = getDonutDisplayName(activeSegmentKey || 1);
@@ -164,7 +191,7 @@ const PerkDonutDisplayManagerInner = (
         amount: '$0',
         label: String(defaultDisplayName).toUpperCase(),
         combinedStatsText: '0 of 0 • $0 / $0 • Resets in 0 days',
-        progressPercentageText: '0% Used', // Default percentage
+        progressPercentageText: '0% Used',
         color: Colors.light.tint,
         displayName: String(defaultDisplayName)
       };
@@ -174,37 +201,58 @@ const PerkDonutDisplayManagerInner = (
       redeemedValue: 0, 
       possibleValue: 0, 
       redeemedCount: 0, 
-      totalCount: 0 
+      totalCount: 0,
+      partiallyRedeemedCount: 0 // Add this to track partial redemptions
     };
 
+    // Calculate progress based on monetary values
     const progress = currentAggregates.possibleValue > 0 
       ? currentAggregates.redeemedValue / currentAggregates.possibleValue 
       : 0;
 
-    const percentageUsed = currentAggregates.totalCount > 0
-      ? Math.round((currentAggregates.redeemedCount / currentAggregates.totalCount) * 100)
+    // Calculate percentage used based on monetary values instead of counts
+    const percentageUsed = currentAggregates.possibleValue > 0
+      ? Math.round((currentAggregates.redeemedValue / currentAggregates.possibleValue) * 100)
       : 0;
     
     const displayName = getDonutDisplayName(activeSegmentKey);
 
-    // Calculate days until reset (this is a placeholder - you'll need to implement the actual logic)
-    const daysUntilReset = 20; // Replace with actual calculation
+    // Format currency values
+    const redeemedValueFormatted = currentAggregates.redeemedValue.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
 
-    // Format the combined stats text
-    const combinedStatsText = `${currentAggregates.redeemedCount} of ${currentAggregates.totalCount} • $${currentAggregates.redeemedValue.toFixed(0)} / $${currentAggregates.possibleValue.toFixed(0)} • Resets in ${daysUntilReset} days`;
+    const possibleValueFormatted = currentAggregates.possibleValue.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+
+    // Calculate days until reset based on period
+    const daysUntilReset = calculateDaysUntilReset(activeSegmentKey);
+
+    // Only count fully redeemed perks in the X of Y count
+    const fullyRedeemedCount = currentAggregates.redeemedCount - (currentAggregates.partiallyRedeemedCount || 0);
+
+    // Format the combined stats text with proper currency formatting
+    const combinedStatsText = `${fullyRedeemedCount} of ${currentAggregates.totalCount} • ${redeemedValueFormatted} / ${possibleValueFormatted} • Resets in ${daysUntilReset} days`;
 
     return {
       value: currentAggregates.redeemedValue,
       total: currentAggregates.possibleValue,
       progress: progress,
-      amount: `$${currentAggregates.redeemedValue.toFixed(0)}`,
+      amount: redeemedValueFormatted,
       label: String(displayName).toUpperCase(),
       combinedStatsText,
       progressPercentageText: `${percentageUsed}% Used`,
       color: activeSegmentKey === 1 ? '#007A7F' : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
       displayName: String(displayName)
     };
-  }, [activeSegmentKey, periodAggregates]);
+  }, [activeSegmentKey, periodAggregates, calculateDaysUntilReset]);
 
   if (!user) {
     return (

@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler } from 'react-native-gesture-handler';
+import Toast from 'react-native-root-toast';
 import Animated, {
   useAnimatedGestureHandler,
   useAnimatedStyle,
@@ -33,6 +34,40 @@ interface PerkActionModalProps {
   onMarkRedeemed: (partialAmount?: number) => void;
   onMarkAvailable: () => void;
 }
+
+const showToast = (message: string, onUndo?: () => void) => {
+  const toastMessage = onUndo 
+    ? `${message}\nTap to undo`
+    : message;
+
+  const toast = Toast.show(toastMessage, {
+    duration: onUndo ? 4000 : 2000,
+    position: Toast.positions.BOTTOM - 80, // Move up by 80 pixels from bottom
+    shadow: true,
+    animation: true,
+    hideOnPress: true,
+    delay: 0,
+    containerStyle: {
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 64,
+      backgroundColor: '#1c1c1e',
+    },
+    textStyle: {
+      fontSize: 14,
+      fontWeight: '500',
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    onPress: () => {
+      if (onUndo) {
+        Toast.hide(toast);
+        onUndo();
+      }
+    },
+  });
+};
 
 export default function PerkActionModal({
   visible,
@@ -54,11 +89,17 @@ export default function PerkActionModal({
     if (visible) {
       translateY.value = withTiming(0, { duration: 300 });
       opacity.value = withTiming(1, { duration: 300 });
+      // Set initial slider value for partial redemptions
+      if (perk?.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
+        const redeemedAmount = perk.value - perk.remaining_value;
+        setSliderValue(redeemedAmount);
+        setPartialAmount(redeemedAmount.toFixed(2));
+      }
     } else {
       translateY.value = withTiming(1000, { duration: 300 });
       opacity.value = withTiming(0, { duration: 300 });
     }
-  }, [visible]);
+  }, [visible, perk]);
   
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -86,12 +127,40 @@ export default function PerkActionModal({
 
   const handleMarkRedeemed = () => {
     handleDismiss();
+    const previousStatus = perk?.status;
+    const previousValue = perk?.remaining_value;
+    const isPartiallyRedeemed = previousStatus === 'partially_redeemed';
+
     onMarkRedeemed();
+    showToast(
+      `${perk?.name} marked as redeemed`,
+      () => {
+        if (isPartiallyRedeemed && previousValue !== undefined) {
+          // Restore partial redemption state with the correct amount
+          onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
+        } else {
+          onMarkAvailable();
+        }
+      }
+    );
   };
 
   const handleMarkAvailable = () => {
     handleDismiss();
+    const previousStatus = perk?.status;
+    const previousValue = perk?.remaining_value;
     onMarkAvailable();
+    showToast(
+      `${perk?.name} marked as available`,
+      () => {
+        if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
+          // Restore partial redemption
+          onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
+        } else if (previousStatus === 'redeemed') {
+          onMarkRedeemed();
+        }
+      }
+    );
   };
 
   const handlePartialRedeem = () => {
@@ -103,8 +172,24 @@ export default function PerkActionModal({
       );
       return;
     }
+
     handleDismiss();
+    const previousStatus = perk?.status;
+    const previousValue = perk?.remaining_value;
+    const isPartiallyRedeemed = previousStatus === 'partially_redeemed';
+
     onMarkRedeemed(amount);
+    showToast(
+      `${perk?.name} partially redeemed: $${amount.toFixed(2)}`,
+      () => {
+        if (isPartiallyRedeemed && previousValue !== undefined) {
+          // Restore previous partial redemption with the correct amount
+          onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
+        } else {
+          onMarkAvailable();
+        }
+      }
+    );
   };
 
   const handleSliderChange = (value: number) => {
@@ -268,18 +353,21 @@ export default function PerkActionModal({
             ) : showChoices ? (
               <View style={styles.choicesContainer}>
                 <TouchableOpacity
+                  testID="full-redemption-button"
                   style={[styles.button, styles.choiceButton]}
                   onPress={handleMarkRedeemed}
                 >
                   <Text style={styles.buttonText}>Full Redemption</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID="partial-redemption-button"
                   style={[styles.button, styles.choiceButton]}
                   onPress={() => setShowPartialRedeem(true)}
                 >
                   <Text style={styles.buttonText}>Partial Redemption</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID="cancel-button"
                   style={[styles.button, styles.cancelButton]}
                   onPress={() => setShowChoices(false)}
                 >
@@ -290,6 +378,7 @@ export default function PerkActionModal({
               <View style={styles.buttons}>
                 {!isRedeemed && (
                   <TouchableOpacity
+                    testID="continue-redemption-button"
                     style={[styles.button, styles.primaryButton]}
                     onPress={() => setShowChoices(true)}
                   >
@@ -300,6 +389,7 @@ export default function PerkActionModal({
                 )}
                 {isRedeemed && (
                   <TouchableOpacity
+                    testID="mark-available-button"
                     style={[styles.button, styles.secondaryButton]}
                     onPress={handleMarkAvailable}
                   >
@@ -307,6 +397,7 @@ export default function PerkActionModal({
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
+                  testID="open-app-button"
                   style={[styles.button, styles.openButton]}
                   onPress={handleOpenApp}
                 >
