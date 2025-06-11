@@ -7,6 +7,9 @@ import {
   Modal,
   Pressable,
   Platform,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -17,7 +20,9 @@ import Animated, {
   useSharedValue,
   withSpring,
   runOnJS,
+  withTiming,
 } from 'react-native-reanimated';
+import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../../src/data/card-data';
 
 interface PerkActionModalProps {
@@ -25,7 +30,7 @@ interface PerkActionModalProps {
   perk: CardPerk | null;
   onDismiss: () => void;
   onOpenApp: (targetPerkName?: string) => void;
-  onMarkRedeemed: () => void;
+  onMarkRedeemed: (partialAmount?: number) => void;
   onMarkAvailable: () => void;
 }
 
@@ -38,48 +43,98 @@ export default function PerkActionModal({
   onMarkAvailable,
 }: PerkActionModalProps) {
   const [showChoices, setShowChoices] = useState(false);
-  const translateY = useSharedValue(0);
-  
-  const handlePanGesture = useAnimatedGestureHandler({
-    onStart: (_, context: { startY: number }) => {
-      context.startY = translateY.value;
-    },
-    onActive: (event, context: { startY: number }) => {
-      translateY.value = Math.max(0, context.startY + event.translationY);
-    },
-    onEnd: (event) => {
-      const shouldDismiss = event.translationY > 150 || event.velocityY > 1000;
-      
-      if (shouldDismiss) {
-        translateY.value = withSpring(500, {}, () => {
-          runOnJS(onDismiss)();
-          translateY.value = 0;
-        });
-      } else {
-        translateY.value = withSpring(0);
-      }
-    },
-  });
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
-  });
+  const [showPartialRedeem, setShowPartialRedeem] = useState(false);
+  const [partialAmount, setPartialAmount] = useState('');
+  const [sliderValue, setSliderValue] = useState(0);
+  const [isEditingNumber, setIsEditingNumber] = useState(false);
+  const translateY = useSharedValue(1000);
+  const opacity = useSharedValue(0);
   
   useEffect(() => {
     if (visible) {
-      setShowChoices(false);
-      translateY.value = 0;
+      translateY.value = withTiming(0, { duration: 300 });
+      opacity.value = withTiming(1, { duration: 300 });
+    } else {
+      translateY.value = withTiming(1000, { duration: 300 });
+      opacity.value = withTiming(0, { duration: 300 });
     }
   }, [visible]);
   
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const handleDismiss = () => {
+    translateY.value = withTiming(1000, { duration: 300 });
+    opacity.value = withTiming(0, { duration: 300 });
+    setTimeout(onDismiss, 300);
+    setShowChoices(false);
+    setShowPartialRedeem(false);
+    setPartialAmount('');
+    setSliderValue(0);
+    setIsEditingNumber(false);
+  };
+
+  const handleOpenApp = () => {
+    handleDismiss();
+    onOpenApp?.();
+  };
+
+  const handleMarkRedeemed = () => {
+    handleDismiss();
+    onMarkRedeemed();
+  };
+
+  const handleMarkAvailable = () => {
+    handleDismiss();
+    onMarkAvailable();
+  };
+
+  const handlePartialRedeem = () => {
+    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
+    if (isNaN(amount) || amount <= 0 || amount >= (perk?.value || 0)) {
+      Alert.alert(
+        'Invalid Amount',
+        'Please enter a valid amount that is greater than 0 and less than the total perk value.'
+      );
+      return;
+    }
+    handleDismiss();
+    onMarkRedeemed(amount);
+  };
+
+  const handleSliderChange = (value: number) => {
+    setSliderValue(value);
+    setPartialAmount(value.toFixed(2));
+    setIsEditingNumber(false);
+  };
+
+  const handlePartialAmountChange = (text: string) => {
+    setPartialAmount(text);
+    const numValue = parseFloat(text);
+    if (!isNaN(numValue) && numValue >= 0 && numValue < (perk?.value || 0)) {
+      setSliderValue(numValue);
+    }
+    setIsEditingNumber(true);
+  };
+
   if (!perk) return null;
 
+  const isRedeemed = perk.status === 'redeemed';
+  const isPartiallyRedeemed = perk.status === 'partially_redeemed';
   const formattedValue = perk.value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
   });
+
+  const formattedRemainingValue = perk.remaining_value ? perk.remaining_value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }) : null;
 
   // Check if this is a multi-choice perk
   const choices = multiChoicePerksConfig[perk.name];
@@ -127,260 +182,288 @@ export default function PerkActionModal({
 
   const appName = getAppName(perk);
 
-  const handlePrimaryAction = () => {
-    if (isMultiChoice && !showChoices) {
-      setShowChoices(true);
-    } else {
-      onOpenApp();
-    }
-  };
-
-  const handleChoiceSelect = (choice: { label: string; targetPerkName: string }) => {
-    onOpenApp(choice.targetPerkName);
-  };
-
   return (
     <Modal
-      visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onDismiss}
+      visible={visible}
+      onRequestClose={handleDismiss}
+      animationType="none"
     >
-      <Pressable style={styles.overlay} onPress={onDismiss}>
-        <BlurView intensity={20} style={styles.blurOverlay} />
-      </Pressable>
-      
-      <PanGestureHandler onGestureEvent={handlePanGesture}>
-        <Animated.View style={[styles.modalContainer, animatedStyle]}>
-          <View style={styles.modalContent}>
-            {/* Handle bar */}
-            <View style={styles.handleBar} />
-            
-            {/* Perk details */}
-            <View style={styles.perkHeader}>
-              <View style={styles.perkIconContainer}>
-                <Ionicons name="pricetag" size={28} color="#007AFF" />
-              </View>
-              <View style={styles.perkTextContainer}>
-                <Text style={styles.perkName}>{perk.name}</Text>
-                <Text style={styles.perkValue}>{formattedValue} remaining value</Text>
-              </View>
-            </View>
-
-            <Text style={styles.perkDescription}>{perk.description}</Text>
-
-            {/* Show choices if it's a multi-choice perk and user clicked the primary button */}
-            {isMultiChoice && showChoices && choices ? (
-              <View style={styles.choicesContainer}>
-                <Text style={styles.choicesTitle}>Choose an option:</Text>
-                {choices.map((choice, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.choiceButton}
-                    onPress={() => handleChoiceSelect(choice)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="open-outline" size={20} color="#007AFF" style={styles.buttonIcon} />
-                    <Text style={styles.choiceButtonText}>{choice.label}</Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={styles.backButton}
-                  onPress={() => setShowChoices(false)}
-                  activeOpacity={0.8}
+      <Animated.View style={[styles.overlay, overlayStyle]}>
+        <Pressable style={styles.overlayPress} onPress={handleDismiss} />
+      </Animated.View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, justifyContent: 'flex-end' }}
+      >
+        <Animated.View style={[styles.container, animatedStyle]}>
+          <View style={styles.handle} />
+          <View style={styles.content}>
+            <Text style={styles.title}>{perk.name}</Text>
+            <Text style={styles.value}>{formattedValue}</Text>
+            {isPartiallyRedeemed && formattedRemainingValue && (
+              <Text style={styles.remainingValue}>
+                {formattedRemainingValue} remaining
+              </Text>
+            )}
+            <Text style={styles.description}>{perk.description}</Text>
+            {showPartialRedeem ? (
+              <View style={styles.partialRedeemContainer}>
+                <Text style={styles.partialRedeemLabel}>Select amount to redeem:</Text>
+                <View style={styles.sliderContainer}>
+                  <Text style={styles.sliderValue}>$0</Text>
+                  <Slider
+                    style={styles.slider}
+                    minimumValue={0}
+                    maximumValue={perk?.value || 100}
+                    value={sliderValue}
+                    onValueChange={handleSliderChange}
+                    minimumTrackTintColor="#007AFF"
+                    maximumTrackTintColor="#E5E5EA"
+                    thumbTintColor="#007AFF"
+                    step={1}
+                  />
+                  <Text style={styles.sliderValue}>{formattedValue}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.amountContainer} 
+                  onPress={() => setIsEditingNumber(true)}
                 >
-                  <Ionicons name="arrow-back-outline" size={20} color="#666" style={styles.buttonIcon} />
-                  <Text style={styles.backButtonText}>Back</Text>
+                  <Text style={styles.amountLabel}>Amount: </Text>
+                  {isEditingNumber ? (
+                    <TextInput
+                      style={styles.amountInput}
+                      value={partialAmount}
+                      onChangeText={handlePartialAmountChange}
+                      keyboardType="decimal-pad"
+                      placeholder="Enter amount"
+                      autoFocus
+                    />
+                  ) : (
+                    <Text style={styles.amountValue}>
+                      ${sliderValue.toFixed(2)}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                <View style={styles.partialRedeemButtons}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.cancelButton]}
+                    onPress={() => {
+                      setShowPartialRedeem(false);
+                      setSliderValue(0);
+                      setPartialAmount('');
+                      setIsEditingNumber(false);
+                    }}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, styles.confirmButton]}
+                    onPress={handlePartialRedeem}
+                  >
+                    <Text style={[styles.buttonText, styles.confirmButtonText]}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : showChoices ? (
+              <View style={styles.choicesContainer}>
+                <TouchableOpacity
+                  style={[styles.button, styles.choiceButton]}
+                  onPress={handleMarkRedeemed}
+                >
+                  <Text style={styles.buttonText}>Full Redemption</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.choiceButton]}
+                  onPress={() => setShowPartialRedeem(true)}
+                >
+                  <Text style={styles.buttonText}>Partial Redemption</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.cancelButton]}
+                  onPress={() => setShowChoices(false)}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              /* Standard action buttons */
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={handlePrimaryAction}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="open-outline" size={20} color="white" style={styles.buttonIcon} />
-                  <Text style={styles.primaryButtonText}>
-                    {isMultiChoice ? 'Choose App' : `Open in ${appName}`}
-                  </Text>
-                </TouchableOpacity>
-
-                {perk.status === 'available' ? (
+              <View style={styles.buttons}>
+                {!isRedeemed && !isPartiallyRedeemed && (
                   <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={onMarkRedeemed}
-                    activeOpacity={0.8}
+                    style={[styles.button, styles.primaryButton]}
+                    onPress={() => setShowChoices(true)}
                   >
-                    <Ionicons name="checkmark-circle-outline" size={18} color="#007AFF" style={styles.buttonIcon} />
-                    <Text style={styles.secondaryButtonText}>Mark as Redeemed</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={onMarkAvailable}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="arrow-undo-outline" size={18} color="#007AFF" style={styles.buttonIcon} />
-                    <Text style={styles.secondaryButtonText}>Mark as Available</Text>
+                    <Text style={[styles.buttonText, styles.primaryButtonText]}>
+                      Mark as Redeemed
+                    </Text>
                   </TouchableOpacity>
                 )}
+                {(isRedeemed || isPartiallyRedeemed) && (
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton]}
+                    onPress={handleMarkAvailable}
+                  >
+                    <Text style={styles.buttonText}>Mark as Available</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.button, styles.openButton]}
+                  onPress={handleOpenApp}
+                >
+                  <Text style={[styles.buttonText, styles.openButtonText]}>
+                    Open {appName}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
         </Animated.View>
-      </PanGestureHandler>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  blurOverlay: {
+  overlayPress: {
     flex: 1,
   },
-  modalContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
+  container: {
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20, // Account for home indicator
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
   },
-  modalContent: {
-    padding: 20,
-    paddingTop: 12,
-  },
-  handleBar: {
-    width: 36,
+  handle: {
+    width: 40,
     height: 4,
-    backgroundColor: '#C7C7CC',
+    backgroundColor: '#E0E0E0',
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginTop: 8,
   },
-  perkHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+  content: {
+    padding: 24,
   },
-  perkIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F0F7FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  perkTextContainer: {
-    flex: 1,
-  },
-  perkName: {
-    fontSize: 18,
+  title: {
+    fontSize: 24,
     fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 2,
+    marginBottom: 8,
   },
-  perkValue: {
-    fontSize: 15,
+  value: {
+    fontSize: 20,
+    fontWeight: '600',
     color: '#007AFF',
-    fontWeight: '500',
+    marginBottom: 8,
   },
-  perkDescription: {
-    fontSize: 15,
-    color: '#666',
-    lineHeight: 22,
+  remainingValue: {
+    fontSize: 16,
+    color: '#FF9500',
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 16,
+    color: '#666666',
     marginBottom: 24,
   },
-  buttonContainer: {
+  buttons: {
     gap: 12,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButton: {
     backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    color: 'white',
-    fontSize: 17,
-    fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#F0F7FF',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#F2F2F7',
   },
-  secondaryButtonText: {
+  openButton: {
+    backgroundColor: '#E5F1FF',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+  },
+  openButtonText: {
     color: '#007AFF',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  buttonIcon: {
-    marginRight: 8,
   },
   choicesContainer: {
-    marginTop: 20,
-  },
-  choicesTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 12,
+    gap: 12,
   },
   choiceButton: {
-    backgroundColor: '#F0F7FF',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    backgroundColor: '#F2F2F7',
+  },
+  cancelButton: {
+    backgroundColor: '#F2F2F7',
+  },
+  partialRedeemContainer: {
+    gap: 16,
+  },
+  partialRedeemLabel: {
+    fontSize: 16,
+    color: '#000000',
+    marginBottom: 4,
+  },
+  sliderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+    gap: 8,
+    paddingHorizontal: 4,
   },
-  choiceButtonText: {
+  slider: {
+    flex: 1,
+    height: 40,
+  },
+  sliderValue: {
+    fontSize: 14,
+    color: '#8E8E93',
+    minWidth: 40,
+  },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    padding: 12,
+    borderRadius: 8,
+  },
+  amountLabel: {
+    fontSize: 16,
+    color: '#000000',
+  },
+  amountValue: {
+    fontSize: 16,
     color: '#007AFF',
-    fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  backButton: {
-    backgroundColor: '#F0F7FF',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+  amountInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+    padding: 0,
+  },
+  partialRedeemButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
     marginTop: 8,
   },
-  backButtonText: {
-    color: '#666',
-    fontSize: 15,
-    fontWeight: '500',
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+  },
+  confirmButtonText: {
+    color: '#FFFFFF',
   },
 }); 
