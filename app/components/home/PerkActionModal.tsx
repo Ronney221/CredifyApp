@@ -288,17 +288,17 @@ export default function PerkActionModal({
               </View>
             ) : (
               <View style={styles.buttons}>
-                {!isRedeemed && !isPartiallyRedeemed && (
+                {!isRedeemed && (
                   <TouchableOpacity
                     style={[styles.button, styles.primaryButton]}
                     onPress={() => setShowChoices(true)}
                   >
                     <Text style={[styles.buttonText, styles.primaryButtonText]}>
-                      Mark as Redeemed
+                      {isPartiallyRedeemed ? 'Continue Redemption' : 'Mark as Redeemed'}
                     </Text>
                   </TouchableOpacity>
                 )}
-                {(isRedeemed || isPartiallyRedeemed) && (
+                {isRedeemed && (
                   <TouchableOpacity
                     style={[styles.button, styles.secondaryButton]}
                     onPress={handleMarkAvailable}
@@ -311,7 +311,7 @@ export default function PerkActionModal({
                   onPress={handleOpenApp}
                 >
                   <Text style={[styles.buttonText, styles.openButtonText]}>
-                    Open {appName}
+                    Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
                   </Text>
                 </TouchableOpacity>
               </View>
