@@ -28,11 +28,13 @@ export interface Card {
 
 export interface CardPerk extends Benefit {
   cardId: string;
-  status: 'available' | 'redeemed';
+  status: 'available' | 'redeemed' | 'partially_redeemed';
   streakCount: number;
   coldStreakCount: number;
   lastRedeemed?: string; // ISO date string of last redemption
   definition_id: string;
+  remaining_value?: number; // Amount remaining for partially redeemed perks
+  parent_redemption_id?: string; // For linked partial redemptions
 }
 
 export interface MultiChoicePerkConfig {
