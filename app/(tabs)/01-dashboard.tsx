@@ -580,6 +580,7 @@ export default function Dashboard() {
     if (!selectedPerk || !selectedCardIdForModal || !user) return;
 
     const originalStatus = selectedPerk.status;
+    const isPartiallyRedeemed = originalStatus === 'partially_redeemed';
 
     // Close modal first
     handleModalDismiss();
@@ -594,16 +595,25 @@ export default function Dashboard() {
     const isPartialRedemption = partialAmount !== undefined && partialAmount < selectedPerk.value;
     const valueToRedeem = partialAmount ?? selectedPerk.value;
 
-    // Optimistic update: immediately update global UI state
-    setPerkStatus(
-      selectedCardIdForModal, 
-      selectedPerk.id, 
-      isPartialRedemption ? 'partially_redeemed' : 'redeemed',
-      isPartialRedemption ? selectedPerk.value - valueToRedeem : undefined
-    );
-    handlePerkStatusChange(); // Attempt to refresh donut with optimistic state
-
     try {
+      // If the perk was partially redeemed before, delete that redemption first
+      if (isPartiallyRedeemed && !isPartialRedemption) {
+        const { error: deleteError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+        if (deleteError) {
+          console.error('Error deleting partial redemption:', deleteError);
+          Alert.alert('Error', 'Failed to update perk redemption.');
+          return;
+        }
+      }
+
+      // Optimistic update: immediately update global UI state
+      setPerkStatus(
+        selectedCardIdForModal, 
+        selectedPerk.id, 
+        isPartialRedemption ? 'partially_redeemed' : 'redeemed',
+        isPartialRedemption ? selectedPerk.value - valueToRedeem : undefined
+      );
+
       // Background database operation
       const { error } = await trackPerkRedemption(
         user.id, 
@@ -617,7 +627,6 @@ export default function Dashboard() {
         console.error('Error tracking redemption in DB:', error);
         // Revert optimistic update on error
         setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-        handlePerkStatusChange(); // Refresh UI with reverted state
         
         if (typeof error === 'object' && error !== null && 'message' in error) {
           if ((error as any).message === 'Perk already redeemed this period') {
@@ -633,18 +642,29 @@ export default function Dashboard() {
         return;
       }
 
-      // DB operation successful
-      handlePerkStatusChange(); // Refresh UI with new state (final confirmation)
+      // Store current scroll position
+      const currentOffset = scrollY._value;
+
+      // Perform full refresh of data
+      await Promise.all([
+        refreshUserCards(),
+        refreshSavings(),
+        refreshAutoRedemptions()
+      ]);
+
+      // Restore scroll position after a short delay to allow for re-render
+      setTimeout(() => {
+        scrollY.setValue(currentOffset);
+      }, 100);
+
+      // Show toast after successful operation
       showToast(
         `${selectedPerk.name} ${isPartialRedemption ? 'partially' : ''} redeemed${isPartialRedemption ? ` ($${valueToRedeem})` : ''}.`
       ); 
       
     } catch (dbError) {
-      // Catch any unexpected errors from trackPerkRedemption or subsequent logic
       console.error('Unexpected error marking perk as redeemed:', dbError);
-      // Revert optimistic update on error  
       setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-      handlePerkStatusChange(); // Refresh UI with reverted state
       Alert.alert('Error', 'An unexpected error occurred while marking perk as redeemed.');
     }
   };
@@ -666,7 +686,6 @@ export default function Dashboard() {
 
     // Optimistic update: set perk to 'available'
     setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-    handlePerkStatusChange(); // Attempt to refresh donut with optimistic state
 
     try {
       // Background database operation to delete the redemption
@@ -676,20 +695,30 @@ export default function Dashboard() {
         console.error('Error deleting redemption in DB:', error);
         // Revert optimistic update on error
         setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-        handlePerkStatusChange(); // Refresh UI with reverted state
         Alert.alert('Error', 'Failed to mark perk as available in the database.');
         return;
       }
 
-      // DB operation successful
-      handlePerkStatusChange(); // Refresh UI with new 'available' state (final confirmation)
+      // Store current scroll position
+      const currentOffset = scrollY._value;
+
+      // Perform full refresh of data
+      await Promise.all([
+        refreshUserCards(),
+        refreshSavings(),
+        refreshAutoRedemptions()
+      ]);
+
+      // Restore scroll position after a short delay to allow for re-render
+      setTimeout(() => {
+        scrollY.setValue(currentOffset);
+      }, 100);
+
       showToast(`${selectedPerk.name} marked as available.`);
 
     } catch (dbError) {
       console.error('Unexpected error marking perk as available:', dbError);
-      // Revert optimistic update on error
       setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-      handlePerkStatusChange(); // Refresh UI with reverted state
       Alert.alert('Error', 'An unexpected error occurred while marking perk as available.');
     }
   };
