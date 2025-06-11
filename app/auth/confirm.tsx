@@ -24,20 +24,20 @@ export default function EmailConfirm() {
           if (error) {
             console.error('Email confirmation error:', error);
             setStatus('error');
-            setTimeout(() => router.replace('/(auth)/login'), 3000);
+            setTimeout(() => router.replace('/'), 3000);
           } else {
             console.log('Email confirmed successfully:', data);
             setStatus('success');
-            setTimeout(() => router.replace('/(tabs)/cards'), 2000);
+            setTimeout(() => router.replace('/(tabs)/01-dashboard'), 2000);
           }
         } else {
           setStatus('error');
-          setTimeout(() => router.replace('/(auth)/login'), 3000);
+          setTimeout(() => router.replace('/'), 3000);
         }
       } catch (error) {
         console.error('Confirmation handler error:', error);
         setStatus('error');
-        setTimeout(() => router.replace('/(auth)/login'), 3000);
+        setTimeout(() => router.replace('/'), 3000);
       }
     };
 
@@ -45,39 +45,13 @@ export default function EmailConfirm() {
   }, [params, router]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-      {status === 'confirming' && (
-        <>
-          <ActivityIndicator size="large" color="#007aff" />
-          <Text style={{ marginTop: 16, fontSize: 16, textAlign: 'center' }}>
-            Confirming your email...
-          </Text>
-        </>
-      )}
-      
-      {status === 'success' && (
-        <>
-          <Text style={{ fontSize: 24, marginBottom: 16, color: '#28a745' }}>✅</Text>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
-            Email Confirmed!
-          </Text>
-          <Text style={{ fontSize: 16, color: '#666', textAlign: 'center' }}>
-            Redirecting to your dashboard...
-          </Text>
-        </>
-      )}
-      
-      {status === 'error' && (
-        <>
-          <Text style={{ fontSize: 24, marginBottom: 16, color: '#dc3545' }}>❌</Text>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
-            Confirmation Failed
-          </Text>
-          <Text style={{ fontSize: 16, color: '#666', textAlign: 'center' }}>
-            Redirecting to login...
-          </Text>
-        </>
-      )}
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#007aff" />
+      <Text style={{ marginTop: 16, fontSize: 16 }}>
+        {status === 'confirming' && 'Confirming your email...'}
+        {status === 'success' && 'Email confirmed! Redirecting...'}
+        {status === 'error' && 'Error confirming email. Redirecting...'}
+      </Text>
     </View>
   );
 } 

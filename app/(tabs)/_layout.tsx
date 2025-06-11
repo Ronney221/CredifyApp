@@ -42,7 +42,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     // Other groups like (auth) or (onboarding) handle their own logic or are public.
     if (!user) {
       console.log('[TabLayout AuthGuard] User not authenticated, redirecting to login.');
-      router.replace('/(auth)/login');
+      router.replace('/');
     }
   }, [user, loading, router]);
 
