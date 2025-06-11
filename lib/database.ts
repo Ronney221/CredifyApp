@@ -22,8 +22,11 @@ interface PerkRedemption {
   perk_id: string;
   redemption_date: string;
   reset_date: string;
-  status: 'available' | 'redeemed';
+  status: 'available' | 'redeemed' | 'partially_redeemed';
   value_redeemed: number;
+  total_value: number;
+  remaining_value: number;
+  parent_redemption_id?: string;
   is_auto_redemption: boolean;
 }
 
@@ -133,7 +136,8 @@ export async function trackPerkRedemption(
   userId: string,
   cardId: string,
   perk: Benefit,
-  valueRedeemed: number
+  valueRedeemed: number,
+  parentRedemptionId?: string
 ) {
   try {
     console.log('Starting perk redemption tracking:', { 
@@ -141,14 +145,15 @@ export async function trackPerkRedemption(
       cardId, 
       perkId: perk.id,
       perkName: perk.name,
-      value: valueRedeemed 
+      value: valueRedeemed,
+      parentRedemptionId
     });
 
     // First, find the perk definition
     console.log('Looking up perk definition for perk ID:', perk.definition_id);
     const { data: perkDef, error: perkDefError } = await supabase
       .from('perk_definitions')
-      .select('id, name')
+      .select('id, name, value')
       .eq('id', perk.definition_id)
       .single();
 
@@ -161,35 +166,23 @@ export async function trackPerkRedemption(
       return { error: new Error(`Perk definition not found for ID: ${perk.definition_id} (Name: ${perk.name})`) };
     }
 
-    console.log('Found perk definition by ID:', {
-      id: perkDef.id,
-      name: perkDef.name,
-      matches: perkDef.name === perk.name
-    });
+    // If this is a partial redemption (has parent), verify parent exists and has sufficient remaining value
+    if (parentRedemptionId) {
+      const { data: parentRedemption, error: parentError } = await supabase
+        .from('perk_redemptions')
+        .select('remaining_value')
+        .eq('id', parentRedemptionId)
+        .single();
 
-    // Revised check for existing redemption in the current period
-    const { data: latestRedemption, error: latestRedemptionError } = await supabase
-      .from('perk_redemptions')
-      .select('id, redemption_date, reset_date')
-      .eq('user_id', userId)
-      .eq('perk_id', perkDef.id)
-      .order('redemption_date', { ascending: false })
-      .limit(1)
-      .maybeSingle(); // Use maybeSingle to handle no prior redemptions gracefully
+      if (parentError || !parentRedemption) {
+        console.error('Error finding parent redemption:', parentError);
+        return { error: new Error('Parent redemption not found') };
+      }
 
-    if (latestRedemptionError) {
-      console.error('Error fetching latest redemption:', latestRedemptionError);
-      return { error: latestRedemptionError };
-    }
-
-    if (latestRedemption && new Date(latestRedemption.reset_date) > new Date()) {
-      console.log('Perk already redeemed this cycle (reset_date in future):', {
-        perkName: perk.name,
-        perkDefinitionId: perkDef.id,
-        redemptionDate: latestRedemption.redemption_date,
-        resetDate: latestRedemption.reset_date,
-      });
-      return { error: new Error('Perk already redeemed this period') };
+      if (parentRedemption.remaining_value < valueRedeemed) {
+        console.error('Insufficient remaining value for partial redemption');
+        return { error: new Error('Insufficient remaining value for partial redemption') };
+      }
     }
 
     // Get the user's card ID from the database
@@ -201,41 +194,12 @@ export async function trackPerkRedemption(
       .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
       .eq('is_active', true);
 
-    if (cardError) {
-      console.error('Error querying user card:', {
-        error: cardError,
-        cardId,
-        brand: cardId.split('_')[0],
-        name: allCards.find(c => c.id === cardId)?.name
-      });
-      return { error: cardError };
-    }
-
-    if (!userCardsResult || userCardsResult.length === 0) {
-      console.error('User card not found:', {
-        cardId,
-        brand: cardId.split('_')[0],
-        name: allCards.find(c => c.id === cardId)?.name
-      });
+    if (cardError || !userCardsResult || userCardsResult.length === 0) {
+      console.error('Error finding user card:', cardError);
       return { error: new Error('User card not found') };
     }
 
-    let userCardToUse;
-    if (userCardsResult.length > 1) {
-      console.warn('Multiple active cards found for the same type, proceeding with the first one:', {
-        userId,
-        cardId,
-        brand: cardId.split('_')[0],
-        name: allCards.find(c => c.id === cardId)?.name,
-        count: userCardsResult.length,
-        foundCards: userCardsResult.map(c => c.id)
-      });
-      userCardToUse = userCardsResult[0];
-    } else {
-      userCardToUse = userCardsResult[0];
-    }
-    
-    console.log('Using user_card_id:', userCardToUse.id);
+    const userCardToUse = userCardsResult[0];
 
     // Calculate reset date based on period and type
     const now = new Date();
@@ -261,6 +225,12 @@ export async function trackPerkRedemption(
       resetDate.setMonth(resetDate.getMonth() + perk.periodMonths);
     }
 
+    // Determine redemption status and values
+    const isPartialRedemption = valueRedeemed < perkDef.value;
+    const status = isPartialRedemption ? 'partially_redeemed' : 'redeemed';
+    const totalValue = perkDef.value;
+    const remainingValue = isPartialRedemption ? perkDef.value - valueRedeemed : 0;
+
     // Insert the redemption record
     const { data, error } = await supabase
       .from('perk_redemptions')
@@ -270,8 +240,11 @@ export async function trackPerkRedemption(
         perk_id: perkDef.id,
         redemption_date: now.toISOString(),
         reset_date: resetDate.toISOString(),
-        status: 'redeemed',
+        status,
         value_redeemed: valueRedeemed,
+        total_value: totalValue,
+        remaining_value: remainingValue,
+        parent_redemption_id: parentRedemptionId,
         is_auto_redemption: false
       })
       .select()
@@ -360,13 +333,72 @@ export async function getAnnualRedemptions(userId: string) {
 export async function deletePerkRedemption(userId: string, perkDefinitionId: string) {
   try {
     console.log('[DB] Attempting to delete perk redemption:', { userId, perkDefinitionId });
-    // No longer need to find perkDef by name, we have the UUID (perkDefinitionId)
 
+    // First, check if this is a partial redemption with children
+    const { data: redemptionToDelete, error: findError } = await supabase
+      .from('perk_redemptions')
+      .select('id, parent_redemption_id, value_redeemed')
+      .eq('user_id', userId)
+      .eq('perk_id', perkDefinitionId)
+      .order('redemption_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (findError) {
+      console.error('Database error finding perk redemption:', findError);
+      return { error: findError };
+    }
+
+    // If this is a child redemption, update the parent's remaining value
+    if (redemptionToDelete?.parent_redemption_id) {
+      // First get the current parent redemption
+      const { data: parentRedemption, error: getParentError } = await supabase
+        .from('perk_redemptions')
+        .select('remaining_value')
+        .eq('id', redemptionToDelete.parent_redemption_id)
+        .single();
+
+      if (getParentError) {
+        console.error('Error getting parent redemption:', getParentError);
+        return { error: getParentError };
+      }
+
+      const newRemainingValue = (parentRedemption?.remaining_value || 0) + redemptionToDelete.value_redeemed;
+
+      const { error: updateParentError } = await supabase
+        .from('perk_redemptions')
+        .update({
+          remaining_value: newRemainingValue,
+          status: 'partially_redeemed'
+        })
+        .eq('id', redemptionToDelete.parent_redemption_id);
+
+      if (updateParentError) {
+        console.error('Error updating parent redemption:', updateParentError);
+        return { error: updateParentError };
+      }
+    }
+
+    // Delete any child redemptions if this is a parent
+    if (redemptionToDelete?.id) {
+      const { error: deleteChildrenError } = await supabase
+        .from('perk_redemptions')
+        .delete()
+        .eq('parent_redemption_id', redemptionToDelete.id);
+
+      if (deleteChildrenError) {
+        console.error('Error deleting child redemptions:', deleteChildrenError);
+        return { error: deleteChildrenError };
+      }
+    }
+
+    // Delete the redemption itself
     const { error: deleteError } = await supabase
       .from('perk_redemptions')
       .delete()
       .eq('user_id', userId)
-      .eq('perk_id', perkDefinitionId); // Use the provided perkDefinitionId (UUID)
+      .eq('perk_id', perkDefinitionId)
+      .eq('id', redemptionToDelete?.id);
 
     if (deleteError) {
       console.error('Database error deleting perk redemption:', { 
@@ -663,7 +695,7 @@ export async function getRedemptionsForPeriod(userId: string, startDate: Date, e
   try {
     const { data, error } = await supabase
       .from('perk_redemptions')
-      .select('perk_id')
+      .select('perk_id, redemption_date')
       .eq('user_id', userId)
       .gte('redemption_date', startDate.toISOString())
       .lte('redemption_date', endDate.toISOString());
