@@ -576,7 +576,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleMarkRedeemed = async () => {
+  const handleMarkRedeemed = async (partialAmount?: number) => {
     if (!selectedPerk || !selectedCardIdForModal || !user) return;
 
     const originalStatus = selectedPerk.status;
@@ -585,18 +585,33 @@ export default function Dashboard() {
     handleModalDismiss();
     await Promise.resolve(); // Allow modal dismissal to process
       
-      // Trigger haptic feedback immediately
-      if (Platform.OS === 'ios') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+    // Trigger haptic feedback immediately
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    // Determine if this is a partial redemption
+    const isPartialRedemption = partialAmount !== undefined && partialAmount < selectedPerk.value;
+    const valueToRedeem = partialAmount ?? selectedPerk.value;
 
     // Optimistic update: immediately update global UI state
-    setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+    setPerkStatus(
+      selectedCardIdForModal, 
+      selectedPerk.id, 
+      isPartialRedemption ? 'partially_redeemed' : 'redeemed',
+      isPartialRedemption ? selectedPerk.value - valueToRedeem : undefined
+    );
     handlePerkStatusChange(); // Attempt to refresh donut with optimistic state
 
     try {
       // Background database operation
-      const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
+      const { error } = await trackPerkRedemption(
+        user.id, 
+        selectedCardIdForModal, 
+        selectedPerk, 
+        valueToRedeem,
+        selectedPerk.parent_redemption_id
+      );
       
       if (error) {
         console.error('Error tracking redemption in DB:', error);
@@ -604,8 +619,14 @@ export default function Dashboard() {
         setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
         handlePerkStatusChange(); // Refresh UI with reverted state
         
-        if (typeof error === 'object' && error !== null && 'message'in error && (error as any).message === 'Perk already redeemed this period') {
-          Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+        if (typeof error === 'object' && error !== null && 'message' in error) {
+          if ((error as any).message === 'Perk already redeemed this period') {
+            Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
+          } else if ((error as any).message === 'Insufficient remaining value for partial redemption') {
+            Alert.alert('Invalid Amount', 'The amount you entered exceeds the remaining value.');
+          } else {
+            Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
+          }
         } else {
           Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
         }
@@ -614,7 +635,9 @@ export default function Dashboard() {
 
       // DB operation successful
       handlePerkStatusChange(); // Refresh UI with new state (final confirmation)
-      showToast(`${selectedPerk.name} marked as redeemed.`); // Simple toast, no undo here
+      showToast(
+        `${selectedPerk.name} ${isPartialRedemption ? 'partially' : ''} redeemed${isPartialRedemption ? ` ($${valueToRedeem})` : ''}.`
+      ); 
       
     } catch (dbError) {
       // Catch any unexpected errors from trackPerkRedemption or subsequent logic
