@@ -8,6 +8,8 @@ import { CardPerk, calculatePerkExpiryDate } from '../../../../src/data/card-dat
 const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
 const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
 const AUTO_REDEEM_CHEVRON = '#C4B2DE';   // Lighter purple for chevron
+const PARTIAL_REDEEM_FOREGROUND = '#FF9500'; // Orange for partial redemption
+const PARTIAL_REDEEM_BACKGROUND = '#FFF7E6';
 
 // Function to format the time until expiry
 const getTimeUntilExpiry = (perk: CardPerk): string => {
@@ -66,6 +68,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
   renderRightActions,
 }) => {
   const isRedeemed = perk.status === 'redeemed';
+  const isPartiallyRedeemed = perk.status === 'partially_redeemed';
   
   const shouldShowRedeemHintOnThisPerk = showSwipeHint && isFirstAvailablePerk;
   const shouldShowUndoHintOnThisPerk = showUndoHint && isFirstRedeemedPerk;
@@ -74,6 +77,11 @@ const PerkRow: React.FC<PerkRowProps> = ({
     style: 'currency',
     currency: 'USD',
   });
+
+  const formattedRemainingValue = perk.remaining_value ? perk.remaining_value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }) : null;
 
   // Calculate days left for both period text and styling
   const expiryDate = perk.periodMonths ? calculatePerkExpiryDate(perk.periodMonths) : null;
@@ -84,8 +92,10 @@ const PerkRow: React.FC<PerkRowProps> = ({
   let periodText = '';
   if (isAutoRedeemed) {
     periodText = 'Auto-Redeem';
-  } else if (!isRedeemed) { // Only show expiry time on available perks
+  } else if (!isRedeemed && !isPartiallyRedeemed) { // Only show expiry time on available perks
     periodText = getTimeUntilExpiry(perk);
+  } else if (isPartiallyRedeemed && formattedRemainingValue) {
+    periodText = `${formattedRemainingValue} remaining`;
   }
 
   let displayDescription = perk.description
@@ -95,7 +105,9 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const containerStyle = [
     styles.perkContainer,
     isRedeemed 
-      ? (isAutoRedeemed ? styles.perkContainerAutoRedeemed : styles.perkContainerRedeemed) 
+      ? (isAutoRedeemed ? styles.perkContainerAutoRedeemed : styles.perkContainerRedeemed)
+      : isPartiallyRedeemed
+      ? styles.perkContainerPartiallyRedeemed
       : styles.perkContainerAvailable
   ];
 
@@ -104,7 +116,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
       style={styles.perkContainerOuter}
       layout={Layout.springify()}
       entering={FadeIn.duration(200)}
-      exiting={FadeOut.duration(100)}
+      exiting={FadeOut.duration(200)}
     >
       <Swipeable
         ref={setSwipeableRef}
@@ -125,9 +137,21 @@ const PerkRow: React.FC<PerkRowProps> = ({
         >
             <View style={styles.perkIconContainer}>
               <Ionicons 
-                name={isRedeemed ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline') : 'pricetag-outline'}
+                name={
+                  isRedeemed 
+                    ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline')
+                    : isPartiallyRedeemed
+                    ? 'cut-outline'
+                    : 'pricetag-outline'
+                }
                 size={26} 
-                color={isRedeemed ? (isAutoRedeemed ? AUTO_REDEEM_FOREGROUND : '#8E8E93') : (isAutoRedeemed ? AUTO_REDEEM_FOREGROUND : '#007AFF')}
+                color={
+                  isRedeemed 
+                    ? (isAutoRedeemed ? AUTO_REDEEM_FOREGROUND : '#8E8E93')
+                    : isPartiallyRedeemed
+                    ? PARTIAL_REDEEM_FOREGROUND
+                    : '#007AFF'
+                }
               />
             </View>
             <View style={styles.perkTextContainerInsideItem}> 
@@ -182,9 +206,15 @@ const PerkRow: React.FC<PerkRowProps> = ({
               <Text style={[
                 styles.perkValue, 
                 isRedeemed && !isAutoRedeemed && styles.perkValueRedeemed,
-                isRedeemed && isAutoRedeemed && styles.perkValueAutoRedeemed
+                isRedeemed && isAutoRedeemed && styles.perkValueAutoRedeemed,
+                isPartiallyRedeemed && styles.perkValuePartiallyRedeemed
               ]}>
                 {formattedValue}
+                {isPartiallyRedeemed && formattedRemainingValue && (
+                  <Text style={styles.remainingValueText}>
+                    {` (${formattedRemainingValue})`}
+                  </Text>
+                )}
               </Text>
             </View>
             <Ionicons 
@@ -235,6 +265,9 @@ const styles = StyleSheet.create({
   },
   perkContainerAutoRedeemed: {
     backgroundColor: AUTO_REDEEM_BACKGROUND,
+  },
+  perkContainerPartiallyRedeemed: {
+    backgroundColor: PARTIAL_REDEEM_BACKGROUND,
   },
   perkIconContainer: {
     marginRight: 12,
@@ -307,6 +340,9 @@ const styles = StyleSheet.create({
   perkValueAutoRedeemed: { 
     color: AUTO_REDEEM_FOREGROUND,
   },
+  perkValuePartiallyRedeemed: {
+    color: PARTIAL_REDEEM_FOREGROUND,
+  },
   inlineHintContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -323,6 +359,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     marginLeft: 6,
+  },
+  remainingValueText: {
+    fontSize: 14,
+    color: '#8E8E93',
   },
 });
 
