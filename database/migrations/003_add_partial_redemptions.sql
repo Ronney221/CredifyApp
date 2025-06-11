@@ -21,11 +21,9 @@ SET total_value = value_redeemed,
     remaining_value = 0
 WHERE total_value = 0;
 
--- Add new status types for partial redemptions
+-- Create the redemption_status enum type
 DO $$ BEGIN
-    -- Check if the type exists
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'redemption_status') THEN
-        -- Create the enum type if it doesn't exist
         CREATE TYPE redemption_status AS ENUM (
             'pending',
             'redeemed',
@@ -33,15 +31,33 @@ DO $$ BEGIN
             'expired',
             'cancelled'
         );
-        
-        -- Convert status column to use the new enum
-        ALTER TABLE perk_redemptions
-        ALTER COLUMN status TYPE redemption_status USING status::redemption_status;
     ELSE
         -- Add new values to existing enum if it exists
         ALTER TYPE redemption_status ADD VALUE IF NOT EXISTS 'partially_redeemed' BEFORE 'expired';
     END IF;
 END $$;
+
+-- Remove the default value from the status column before conversion
+ALTER TABLE perk_redemptions ALTER COLUMN status DROP DEFAULT;
+
+-- Convert existing status values to match the enum values
+UPDATE perk_redemptions
+SET status = CASE 
+    WHEN status = 'redeemed' THEN 'redeemed'
+    WHEN status = 'pending' THEN 'pending'
+    WHEN status = 'expired' THEN 'expired'
+    WHEN status = 'cancelled' THEN 'cancelled'
+    ELSE 'redeemed'
+END;
+
+-- Convert the status column to use the enum type
+ALTER TABLE perk_redemptions 
+    ALTER COLUMN status TYPE redemption_status 
+    USING status::redemption_status;
+
+-- Add back a default value using the enum type
+ALTER TABLE perk_redemptions 
+    ALTER COLUMN status SET DEFAULT 'pending'::redemption_status;
 
 -- Add performance optimization indexes
 CREATE INDEX IF NOT EXISTS idx_perk_redemptions_user_date 
@@ -88,6 +104,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger for partial redemptions
+DROP TRIGGER IF EXISTS trigger_process_partial_redemption ON perk_redemptions;
 CREATE TRIGGER trigger_process_partial_redemption
     BEFORE INSERT ON perk_redemptions
     FOR EACH ROW
