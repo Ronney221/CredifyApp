@@ -202,18 +202,24 @@ const PerkDonutDisplayManagerInner = (
       possibleValue: 0, 
       redeemedCount: 0, 
       totalCount: 0,
-      partiallyRedeemedCount: 0 // Add this to track partial redemptions
+      partiallyRedeemedCount: 0
     };
 
-    // Calculate progress based on monetary values
-    const progress = currentAggregates.possibleValue > 0 
-      ? currentAggregates.redeemedValue / currentAggregates.possibleValue 
-      : 0;
+    // Calculate progress based on monetary values, ensuring we don't exceed 100%
+    const progress = Math.min(
+      currentAggregates.possibleValue > 0 
+        ? currentAggregates.redeemedValue / currentAggregates.possibleValue 
+        : 0,
+      1 // Cap at 100%
+    );
 
-    // Calculate percentage used based on monetary values instead of counts
-    const percentageUsed = currentAggregates.possibleValue > 0
-      ? Math.round((currentAggregates.redeemedValue / currentAggregates.possibleValue) * 100)
-      : 0;
+    // Calculate percentage used based on monetary values, ensuring we don't exceed 100%
+    const percentageUsed = Math.min(
+      currentAggregates.possibleValue > 0
+        ? Math.round((currentAggregates.redeemedValue / currentAggregates.possibleValue) * 100)
+        : 0,
+      100 // Cap at 100%
+    );
     
     const displayName = getDonutDisplayName(activeSegmentKey);
 
@@ -236,7 +242,7 @@ const PerkDonutDisplayManagerInner = (
     const daysUntilReset = calculateDaysUntilReset(activeSegmentKey);
 
     // Only count fully redeemed perks in the X of Y count
-    const fullyRedeemedCount = currentAggregates.redeemedCount - (currentAggregates.partiallyRedeemedCount || 0);
+    const fullyRedeemedCount = currentAggregates.redeemedCount;
 
     // Format the combined stats text with proper currency formatting
     const combinedStatsText = `${fullyRedeemedCount} of ${currentAggregates.totalCount} • ${redeemedValueFormatted} / ${possibleValueFormatted} • Resets in ${daysUntilReset} days`;
@@ -244,7 +250,7 @@ const PerkDonutDisplayManagerInner = (
     return {
       value: currentAggregates.redeemedValue,
       total: currentAggregates.possibleValue,
-      progress: progress,
+      progress,
       amount: redeemedValueFormatted,
       label: String(displayName).toUpperCase(),
       combinedStatsText,

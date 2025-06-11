@@ -338,17 +338,24 @@ const ExpandableCardComponent = ({
     const isPartiallyRedeemed = perk.status === 'partially_redeemed';
     const previousStatus = perk.status;
     const previousValue = perk.remaining_value;
+    const partiallyRedeemedAmount = isPartiallyRedeemed && previousValue !== undefined ? 
+      perk.value - previousValue : 0;
 
     try {
       if (action === 'redeemed') {
         // For partially redeemed perks, we need to delete the existing partial redemption first
         if (isPartiallyRedeemed) {
+          // First delete the partial redemption
           const { error: deleteError } = await deletePerkRedemption(user.id, perk.definition_id);
           if (deleteError) {
             console.error('Error deleting partial redemption:', deleteError);
             Alert.alert('Error', 'Failed to update perk redemption.');
             return;
           }
+          
+          // Update UI to reflect deletion of partial redemption
+          setPerkStatus?.(card.id, perk.id, 'available');
+          await onPerkStatusChange?.();
         }
 
         // Now track the full redemption
@@ -370,13 +377,19 @@ const ExpandableCardComponent = ({
               user.id, 
               card.id, 
               { ...perk, status: previousStatus }, 
-              perk.value - (previousValue || 0)
+              partiallyRedeemedAmount
             );
           }
           onPerkStatusChange?.();
           Alert.alert('Error', 'Failed to track perk redemption.');
           return;
         }
+
+        // After successful redemption, refresh all data
+        await Promise.all([
+          onPerkStatusChange?.(),
+          refreshAutoRedemptions?.()
+        ]);
 
         showToast(
           `${perk.name} marked as redeemed`,
@@ -401,7 +414,7 @@ const ExpandableCardComponent = ({
                   user.id, 
                   card.id, 
                   { ...perk, status: previousStatus }, 
-                  perk.value - previousValue
+                  partiallyRedeemedAmount
                 );
                 if (partialResult.error) {
                   setPerkStatus?.(card.id, perk.id, 'redeemed');
@@ -420,8 +433,7 @@ const ExpandableCardComponent = ({
             }
           }
         );
-      } else if (action === 'available') {
-        // For 'available' action
+      } else { // For 'available' action
         console.log(`[ExpandableCard] Setting perk ${perk.name} to fully available`);
         const previousStatus = perk.status;
         const previousValue = perk.remaining_value;
@@ -442,43 +454,46 @@ const ExpandableCardComponent = ({
           return;
         }
 
+        // After successful operation, refresh all data
+        await Promise.all([
+          onPerkStatusChange?.(),
+          refreshAutoRedemptions?.()
+        ]);
+
         showToast(
           `${perk.name} marked as available`,
           async () => {
             try {
-              // On undo, restore the previous state exactly
+              // Restore previous state
               setPerkStatus?.(card.id, perk.id, previousStatus, previousValue);
-
-              // Re-track the redemption with the correct amount
+              
+              // Re-track the redemption
               const result = await trackPerkRedemption(
                 user.id,
                 card.id,
                 { ...perk, status: previousStatus },
                 previousRedeemedAmount
               );
-
+              
               if (result.error) {
                 setPerkStatus?.(card.id, perk.id, 'available');
                 onPerkStatusChange?.();
-                console.error('Error restoring redemption:', result.error);
-                showToast('Error restoring redemption');
+                showToast('Error restoring previous state');
                 return;
               }
-
+              
               onPerkStatusChange?.();
             } catch (error) {
               setPerkStatus?.(card.id, perk.id, 'available');
               onPerkStatusChange?.();
-              console.error('Error restoring redemption:', error);
-              showToast('Error restoring redemption');
+              console.error('Error undoing available:', error);
+              showToast('Error restoring previous state');
             }
           }
         );
       }
-
-      onPerkStatusChange?.();
     } catch (error) {
-      console.error('Error in executePerkAction:', error);
+      console.error('Error in perk action:', error);
       setPerkStatus?.(card.id, perk.id, previousStatus, previousValue);
       onPerkStatusChange?.();
       Alert.alert('Error', 'An unexpected error occurred.');
