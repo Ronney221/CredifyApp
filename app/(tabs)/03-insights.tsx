@@ -4,12 +4,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors'; // Assuming you have a Colors constant
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
-import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'; // Added Reanimated imports
+import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming, useAnimatedScrollHandler } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 import YearlyProgress from '../components/insights/YearlyProgress'; // Import the new component
 import FilterChipRow from '../components/insights/FilterChipRow'; // Import the new component
 import CardRoiLeaderboard from '../components/insights/CardRoiLeaderboard'; // Import the new component
+import MiniBarChart from '../components/insights/MiniBarChart';
 import {
   generateDummyInsightsData,
   InsightsData,
@@ -194,6 +195,20 @@ const ISSUER_ORDER = [
   'Other'
 ];
 
+// Add after imports, before component
+// Helper functions for chronological data processing
+const parseMonthKey = (k: string): Date => {
+  const [y, m] = k.split('-').map(Number);
+  return new Date(y, m - 1); // month is 0-based
+};
+
+const rightPad = <T,>(arr: T[] = [], size = 6, fillValue: T): T[] => {
+  const res = new Array(size).fill(fillValue);
+  const offset = size - Math.min(arr.length, size);
+  arr.slice(-size).forEach((v, i) => (res[offset + i] = v));
+  return res;
+};
+
 export default function InsightsScreen() {
   const { user } = useAuth();
   const { 
@@ -208,6 +223,19 @@ export default function InsightsScreen() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const router = useRouter();
+
+  // Add scroll animation value
+  const scrollY = useSharedValue(0);
+  const headerScrollProgress = useSharedValue(0);
+
+  // Add scroll handler
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+      // Transition over 100px of scroll
+      headerScrollProgress.value = Math.min(1, Math.max(0, scrollY.value / 100));
+    },
+  });
 
   // Focus effect to refresh data when screen comes into focus
   useFocusEffect(
@@ -490,44 +518,113 @@ export default function InsightsScreen() {
     );
   }
 
+  // Prepare data for the first year section (current year)
+  const currentYearSection = insightsData.yearSections[0];
+  const currentYearData = currentYearSection ? {
+    year: currentYearSection.year,
+    totalRedeemed: currentYearSection.totalRedeemedForYear,
+    totalAnnualFees: insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0),
+  } : null;
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.headerContainer}>
-        <FilterChipRow
-          perkStatusFilter={perkStatusFilter}
-          setPerkStatusFilter={setPerkStatusFilter}
-          selectedCardIds={selectedCardIds}
-          availableCards={availableCardsForFilter}
-          onManageFilters={() => setFilterModalVisible(true)}
-          activeFilterCount={activeFilterCount}
+      {currentYearData && (
+        <YearlyProgress
+          year={currentYearData.year}
+          totalRedeemed={currentYearData.totalRedeemed}
+          totalAnnualFees={currentYearData.totalAnnualFees}
+          trendData={[]} // We'll move this to a separate component
+          scrollProgress={headerScrollProgress}
+          isSticky={true}
         />
-      </View>
+      )}
 
       {insightsData.yearSections.length > 0 ? (
-        <SectionList
-          sections={insightsData.yearSections}
-          keyExtractor={(item) => item.monthKey}
-          renderItem={renderMonthSummaryCard}
-          renderSectionHeader={renderSectionHeader}
-          stickySectionHeadersEnabled={true}
-          initialNumToRender={6}
-          contentContainerStyle={styles.historySection}
-          ListHeaderComponent={
-            <>
-              <OnboardingHint 
-                perkStatusFilter={perkStatusFilter}
-                selectedCardCount={selectedCardIds.length}
-                defaultSelectedCardIds={defaultSelectedCardIds}
-              />
-              <CardRoiLeaderboard cardRois={insightsData.cardRois} />
-              {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
-                <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
-              )}
-              <View style={{height: 10}}/>
-            </>
-          }
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-        />
+        >
+          {/* Card ROI Leaderboard - Now positioned at the top */}
+          <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+
+          {/* Monthly Performance Chart */}
+          <View style={styles.chartSection}>
+            <View style={styles.chartHeader}>
+              <Text style={styles.chartTitle}>Monthly Performance</Text>
+              <TouchableOpacity 
+                onPress={() => Alert.alert(
+                  "Monthly Performance",
+                  "This chart shows your total savings from redeemed perks each month."
+                )}
+              >
+                <Ionicons name="information-circle-outline" size={20} color={Colors.light.icon} />
+              </TouchableOpacity>
+            </View>
+            {currentYearSection && (
+              <React.Fragment>
+                {(() => {
+                  // Sort months chronologically (oldest to newest)
+                  const monthsChrono = [...currentYearSection.data]
+                    .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
+
+                  // Calculate percentage and raw data arrays
+                  const pct = monthsChrono.map(m => 
+                    (m.totalRedeemedValue / m.totalPotentialValue) * 100
+                  );
+                  const raw = monthsChrono.map(m => ({
+                    redeemed: m.totalRedeemedValue,
+                    potential: m.totalPotentialValue,
+                  }));
+
+                  // Debug output to verify alignment
+                  console.table(
+                    monthsChrono.map(m => ({
+                      key: m.monthKey,
+                      redeemed: m.totalRedeemedValue,
+                      potential: m.totalPotentialValue,
+                      pct: (m.totalRedeemedValue / m.totalPotentialValue) * 100
+                    }))
+                  );
+
+                  return (
+                    <MiniBarChart
+                      data={rightPad(pct, 6, 0)}
+                      rawData={rightPad(raw, 6, { redeemed: 0, potential: 0 })}
+                    />
+                  );
+                })()}
+              </React.Fragment>
+            )}
+          </View>
+
+          {/* Filter chips for monthly history */}
+          <View style={styles.monthlyHistoryHeader}>
+            <Text style={styles.sectionTitle}>Monthly History</Text>
+            <FilterChipRow
+              perkStatusFilter={perkStatusFilter}
+              setPerkStatusFilter={setPerkStatusFilter}
+              selectedCardIds={selectedCardIds}
+              availableCards={availableCardsForFilter}
+              onManageFilters={() => setFilterModalVisible(true)}
+              activeFilterCount={activeFilterCount}
+            />
+          </View>
+
+          {/* Monthly History List */}
+          {currentYearSection?.data.map((month, index) => (
+            <MonthSummaryCard
+              key={month.monthKey}
+              summary={month}
+              isExpanded={expandedMonthKey === month.monthKey}
+              onToggleExpand={() => handleToggleMonth(month.monthKey)}
+              perkStatusFilter={perkStatusFilter}
+              isFirstOverallCard={index === 0}
+              isEven={index % 2 === 0}
+            />
+          ))}
+        </Animated.ScrollView>
       ) : (
         <View style={styles.emptyStateContainer}>
           <View style={styles.emptyStateContent}>
@@ -1038,5 +1135,43 @@ const styles = StyleSheet.create({
   },
   clearSearchButton: {
     padding: 5,
+  },
+  scrollContent: {
+    paddingTop: 20,
+    paddingBottom: 80,
+  },
+  chartSection: {
+    marginTop: 20,
+    marginHorizontal: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  chartTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  monthlyHistoryHeader: {
+    marginTop: 30,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 15,
   },
 }); 
