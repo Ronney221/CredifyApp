@@ -32,7 +32,7 @@ export default function AuthCallback() {
             router.replace('/');
           } else {
             console.log('Authentication successful:', data);
-            router.replace('/(tabs)/01-dashboard');
+            router.replace('/(onboarding)/card-select');
           }
         } else {
           console.log('No access token found, redirecting to index');

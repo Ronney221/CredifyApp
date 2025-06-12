@@ -84,8 +84,8 @@ export default function WelcomeScreen() {
     if (!loading) {
       setIsCheckingSession(false);
       if (user) {
-        console.log('User session found, redirecting to app');
-        router.replace('/(tabs)/01-dashboard');
+        console.log('User session found, redirecting to onboarding');
+        router.replace('/(onboarding)/card-select');
       } else {
         console.log('No user session found, showing welcome screen.');
       }
@@ -153,6 +153,18 @@ export default function WelcomeScreen() {
           <Text style={[Typography.body, styles.description, { marginTop: 4 }]}>
             All in one place.
           </Text>
+          
+          <View style={styles.bulletList}>
+            <View style={styles.bulletItem}>
+              <Text style={[Typography.body, styles.bulletText]}>✓ Track expiring perks</Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={[Typography.body, styles.bulletText]}>✓ Get timely reminders</Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={[Typography.body, styles.bulletText]}>✓ Maximize your savings</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.middleSection}>
@@ -325,5 +337,17 @@ const styles = StyleSheet.create({
   appleButton: {
     height: '100%',
     width: '100%',
+  },
+  bulletList: {
+    marginTop: 4,
+    alignItems: 'flex-start',
+  },
+  bulletItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  bulletText: {
+    marginLeft: 8,
   },
 }); 
