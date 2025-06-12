@@ -176,20 +176,24 @@ export default function WelcomeScreen() {
             onPress={handleGoogleSignIn}
             activeOpacity={0.8}
           >
-            <Ionicons name="logo-google" size={20} color="#4285f4" />
-            <Text style={[Typography.headline, styles.socialButtonText]}>
-              Continue with Google
-            </Text>
+            <View style={styles.socialButtonContent}>
+              <Ionicons name="logo-google" size={20} color="#4285f4" />
+              <Text style={[Typography.headline, styles.socialButtonText]}>
+                Continue with Google
+              </Text>
+            </View>
           </TouchableOpacity>
           
           {Platform.OS === 'ios' && isAppleAuthAvailable && (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={12}
-              style={[styles.socialButton, { height: 50, marginHorizontal: 16 }]}
-              onPress={handleAppleSignIn}
-            />
+            <View style={styles.appleButtonWrapper}>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={12}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            </View>
           )}
 
           <View style={styles.termsContainer}>
@@ -270,11 +274,8 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.8 }],
   },
   socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#ffffff',
-    paddingVertical: 16,
+    height: 50, // Match Apple button height exactly
     borderRadius: 12,
     marginBottom: 16,
     shadowColor: '#000000',
@@ -282,12 +283,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    alignSelf: 'stretch',
     marginHorizontal: 16,
+  },
+  socialButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%', // Fill the full height
+    paddingHorizontal: 20, // Slightly more padding for better visual balance
   },
   socialButtonText: {
     color: '#1c1c1e',
-    marginLeft: 12,
+    marginLeft: 8, // Reduced spacing between icon and text for better visual balance
   },
   termsContainer: {
     paddingHorizontal: 16, // Multiple of 8 (2x8)
@@ -304,5 +311,19 @@ const styles = StyleSheet.create({
     color: '#007aff',
     textDecorationLine: 'underline',
     fontSize: Platform.OS === 'ios' ? 11 : 12,
+  },
+  appleButtonWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    height: 50,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  appleButton: {
+    height: '100%',
+    width: '100%',
   },
 }); 
