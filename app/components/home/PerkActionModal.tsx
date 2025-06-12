@@ -1,20 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  Pressable,
-  Platform,
-  TextInput,
-  Alert,
-  KeyboardAvoidingView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Platform, TextInput, Alert, KeyboardAvoidingView, ScrollView, Keyboard } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import Toast from 'react-native-root-toast';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedGestureHandler,
   useAnimatedStyle,
@@ -22,6 +12,8 @@ import Animated, {
   withSpring,
   runOnJS,
   withTiming,
+  interpolate,
+  useAnimatedProps,
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../../src/data/card-data';
@@ -36,13 +28,10 @@ interface PerkActionModalProps {
 }
 
 const showToast = (message: string, onUndo?: () => void) => {
-  const toastMessage = onUndo 
-    ? `${message}\nTap to undo`
-    : message;
-
+  const toastMessage = onUndo ? `${message}\nTap to undo` : message;
   const toast = Toast.show(toastMessage, {
     duration: onUndo ? 4000 : 2000,
-    position: Toast.positions.BOTTOM - 80, // Move up by 80 pixels from bottom
+    position: Toast.positions.BOTTOM,
     shadow: true,
     animation: true,
     hideOnPress: true,
@@ -69,6 +58,79 @@ const showToast = (message: string, onUndo?: () => void) => {
   });
 };
 
+const AnimatedSlider = Animated.createAnimatedComponent(Slider);
+
+// Add a new Tooltip component with smooth animation
+const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number }) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    const percentage = (value / maxValue) * 100;
+    return {
+      left: `${percentage}%`,
+      transform: [{ translateX: -25 }],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.tooltip, animatedStyle]}>
+      <View style={styles.tooltipArrow} />
+      <Text style={styles.tooltipText}>${value.toFixed(2)}</Text>
+    </Animated.View>
+  );
+};
+
+// Quick select chip component
+const QuickSelectChip = ({ label, onPress, isSelected }: { label: string; onPress: () => void; isSelected: boolean }) => (
+  <TouchableOpacity 
+    style={[
+      styles.quickSelectChip,
+      isSelected && styles.quickSelectChipSelected
+    ]} 
+    onPress={onPress}
+  >
+    <Text style={[
+      styles.quickSelectChipText,
+      isSelected && styles.quickSelectChipTextSelected
+    ]}>
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
+
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+// Helper to calculate yearly total based on frequency
+const calculateYearlyTotal = (perk: CardPerk | null): number => {
+  if (!perk) return 0;
+  
+  switch (perk.period) {
+    case 'monthly':
+      return perk.value * 12;
+    case 'quarterly':
+      return perk.value * 4;
+    case 'semi_annual':
+      return perk.value * 2;
+    case 'annual':
+      return perk.value;
+    default:
+      return perk.value; // Default to just the value if period is unknown
+  }
+};
+
+// Helper to format title case
+const toTitleCase = (str: string) => {
+  return str.split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
+};
+
 export default function PerkActionModal({
   visible,
   perk,
@@ -77,29 +139,47 @@ export default function PerkActionModal({
   onMarkRedeemed,
   onMarkAvailable,
 }: PerkActionModalProps) {
-  const [showChoices, setShowChoices] = useState(false);
-  const [showPartialRedeem, setShowPartialRedeem] = useState(false);
+  const [showCustomAmount, setShowCustomAmount] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<'full' | 'half' | 'custom' | null>('full');
   const [partialAmount, setPartialAmount] = useState('');
   const [sliderValue, setSliderValue] = useState(0);
   const [isEditingNumber, setIsEditingNumber] = useState(false);
   const translateY = useSharedValue(1000);
   const opacity = useSharedValue(0);
   
+  // Get the currently redeemed amount if partially redeemed
+  const getCurrentRedeemedAmount = useCallback(() => {
+    if (perk?.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
+      return perk.value - perk.remaining_value;
+    }
+    return 0;
+  }, [perk]);
+
+  // Reset state when modal becomes visible
   useEffect(() => {
     if (visible) {
       translateY.value = withTiming(0, { duration: 300 });
       opacity.value = withTiming(1, { duration: 300 });
-      // Set initial slider value for partial redemptions
-      if (perk?.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
-        const redeemedAmount = perk.value - perk.remaining_value;
-        setSliderValue(redeemedAmount);
-        setPartialAmount(redeemedAmount.toFixed(2));
+      
+      // Set initial values based on perk status
+      const currentRedeemedAmount = getCurrentRedeemedAmount();
+      if (perk?.status === 'partially_redeemed') {
+        setSelectedPreset('custom');
+        setShowCustomAmount(true);
+        setSliderValue(currentRedeemedAmount);
+        setPartialAmount(String(currentRedeemedAmount));
+      } else {
+        setSelectedPreset('full');
+        setSliderValue(perk?.value || 0);
+        setPartialAmount(String(perk?.value || 0));
+        setShowCustomAmount(false);
       }
+      setIsEditingNumber(false);
     } else {
       translateY.value = withTiming(1000, { duration: 300 });
       opacity.value = withTiming(0, { duration: 300 });
     }
-  }, [visible, perk]);
+  }, [visible, perk, getCurrentRedeemedAmount]);
   
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -113,8 +193,8 @@ export default function PerkActionModal({
     translateY.value = withTiming(1000, { duration: 300 });
     opacity.value = withTiming(0, { duration: 300 });
     setTimeout(onDismiss, 300);
-    setShowChoices(false);
-    setShowPartialRedeem(false);
+    setShowCustomAmount(false);
+    setSelectedPreset(null);
     setPartialAmount('');
     setSliderValue(0);
     setIsEditingNumber(false);
@@ -163,67 +243,86 @@ export default function PerkActionModal({
     );
   };
 
-  const handlePartialRedeem = () => {
-    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
-    if (isNaN(amount) || amount <= 0 || amount >= (perk?.value || 0)) {
-      Alert.alert(
-        'Invalid Amount',
-        'Please enter a valid amount that is greater than 0 and less than the total perk value.'
-      );
-      return;
-    }
-
-    handleDismiss();
-    const previousStatus = perk?.status;
-    const previousValue = perk?.remaining_value;
-    const isPartiallyRedeemed = previousStatus === 'partially_redeemed';
-
-    onMarkRedeemed(amount);
-    showToast(
-      `${perk?.name} partially redeemed: $${amount.toFixed(2)}`,
-      () => {
-        if (isPartiallyRedeemed && previousValue !== undefined) {
-          // Restore previous partial redemption with the correct amount
-          onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
-        } else {
-          onMarkAvailable();
-        }
+  const handlePresetSelect = useCallback((type: 'full' | 'half' | 'custom') => {
+    setSelectedPreset(type);
+    if (type === 'full') {
+      setSliderValue(perk?.value || 0);
+      setPartialAmount(String(perk?.value || 0));
+      setShowCustomAmount(false);
+    } else if (type === 'half') {
+      const halfValue = (perk?.value || 0) / 2;
+      setSliderValue(halfValue);
+      setPartialAmount(String(halfValue));
+      setShowCustomAmount(false);
+    } else if (type === 'custom') {
+      setShowCustomAmount(true);
+      if (perk?.status === 'partially_redeemed') {
+        const currentRedeemedAmount = getCurrentRedeemedAmount();
+        setSliderValue(currentRedeemedAmount);
+        setPartialAmount(String(currentRedeemedAmount));
+      } else {
+        // Start at half value for unredeemed perks
+        const halfValue = (perk?.value || 0) / 2;
+        setSliderValue(halfValue);
+        setPartialAmount(String(halfValue));
       }
-    );
-  };
+    }
+  }, [perk, getCurrentRedeemedAmount]);
 
   const handleSliderChange = (value: number) => {
-    setSliderValue(value);
-    setPartialAmount(value.toFixed(2));
+    // Round to nearest dollar
+    const roundedValue = Math.round(value);
+    
+    // Only allow 0 if already partially redeemed
+    if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
+      setSliderValue(1);
+      setPartialAmount('1.00');
+    } else {
+      setSliderValue(roundedValue);
+      setPartialAmount(roundedValue.toFixed(2));
+    }
     setIsEditingNumber(false);
   };
 
   const handlePartialAmountChange = (text: string) => {
     setPartialAmount(text);
-    const numValue = parseFloat(text);
-    if (!isNaN(numValue) && numValue >= 0 && numValue < (perk?.value || 0)) {
-      setSliderValue(numValue);
+    const numValue = Math.round(parseFloat(text)); // Round to nearest dollar
+    
+    if (!isNaN(numValue)) {
+      if (numValue === 0 && perk?.status !== 'partially_redeemed') {
+        setSliderValue(1);
+        setPartialAmount('1.00');
+      } else if (perk && numValue > perk.value) {
+        setSliderValue(perk.value);
+        setPartialAmount(perk.value.toFixed(2));
+      } else {
+        setSliderValue(numValue);
+      }
     }
     setIsEditingNumber(true);
   };
 
-  if (!perk) return null;
-
-  const isRedeemed = perk.status === 'redeemed';
-  const isPartiallyRedeemed = perk.status === 'partially_redeemed';
-  const formattedValue = perk.value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  });
-
-  const formattedRemainingValue = perk.remaining_value ? perk.remaining_value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }) : null;
-
-  // Check if this is a multi-choice perk
-  const choices = multiChoicePerksConfig[perk.name];
-  const isMultiChoice = choices && choices.length > 0;
+  const handleConfirmAction = () => {
+    Keyboard.dismiss();
+    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
+    if (isNaN(amount)) {
+      Alert.alert('Invalid Amount', 'Please enter a valid number.');
+      return;
+    }
+    
+    handleDismiss();
+    if (amount === 0 && perk?.status === 'partially_redeemed') {
+      onMarkAvailable();
+      showToast(`${perk?.name} marked as available`);
+    } else {
+      onMarkRedeemed(amount);
+      showToast(
+        amount === perk?.value 
+          ? `${perk?.name} fully redeemed` 
+          : `${perk?.name} partially redeemed: ${formatCurrency(amount)}`
+      );
+    }
+  };
 
   // Get the app name for the CTA button
   const getAppName = (perk: CardPerk): string => {
@@ -265,149 +364,169 @@ export default function PerkActionModal({
     return 'App'; // Generic fallback
   };
 
+  if (!perk) return null;
+
+  const isRedeemed = perk.status === 'redeemed';
+  const isPartiallyRedeemed = perk.status === 'partially_redeemed';
+  const formattedValue = perk.value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  });
+
+  const formattedRemainingValue = perk.remaining_value ? perk.remaining_value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }) : formattedValue;
+
   const appName = getAppName(perk);
 
   return (
     <Modal
       transparent
       visible={visible}
-      onRequestClose={handleDismiss}
+      onRequestClose={() => {
+        Keyboard.dismiss();
+        handleDismiss();
+      }}
       animationType="none"
     >
       <Animated.View style={[styles.overlay, overlayStyle]}>
-        <Pressable style={styles.overlayPress} onPress={handleDismiss} />
+        <Pressable style={styles.overlayPress} onPress={() => {
+          Keyboard.dismiss();
+          handleDismiss();
+        }} />
       </Animated.View>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, justifyContent: 'flex-end' }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
         <Animated.View style={[styles.container, animatedStyle]}>
           <View style={styles.handle} />
-          <View style={styles.content}>
-            <Text style={styles.title}>{perk.name}</Text>
-            <Text style={styles.value}>{formattedValue}</Text>
-            {isPartiallyRedeemed && formattedRemainingValue && (
-              <Text style={styles.remainingValue}>
-                {formattedRemainingValue} remaining
-              </Text>
-            )}
-            <Text style={styles.description}>{perk.description}</Text>
-            {showPartialRedeem ? (
-              <View style={styles.partialRedeemContainer}>
-                <Text style={styles.partialRedeemLabel}>Select amount to redeem:</Text>
-                <View style={styles.sliderContainer}>
-                  <Text style={styles.sliderValue}>$0</Text>
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={perk?.value || 100}
-                    value={sliderValue}
-                    onValueChange={handleSliderChange}
-                    minimumTrackTintColor="#007AFF"
-                    maximumTrackTintColor="#E5E5EA"
-                    thumbTintColor="#007AFF"
-                    step={1}
-                  />
-                  <Text style={styles.sliderValue}>{formattedValue}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.amountContainer} 
-                  onPress={() => setIsEditingNumber(true)}
-                >
-                  <Text style={styles.amountLabel}>Amount: </Text>
-                  {isEditingNumber ? (
-                    <TextInput
-                      style={styles.amountInput}
-                      value={partialAmount}
-                      onChangeText={handlePartialAmountChange}
-                      keyboardType="decimal-pad"
-                      placeholder="Enter amount"
-                      autoFocus
+          <ScrollView 
+            style={styles.scrollView}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.content}>
+              <Text style={styles.title}>{toTitleCase(perk.name)}</Text>
+              
+              <View style={styles.valueContainer}>
+                <Text style={styles.remainingValue}>
+                  Remaining: {formattedRemainingValue}
+                </Text>
+                <Text style={styles.maxValue}>
+                  Monthly credit: {formattedValue}{'\n'}
+                  (up to {formatCurrency(calculateYearlyTotal(perk))}/year)
+                </Text>
+              </View>
+              
+              <Text style={styles.description}>{perk.description}</Text>
+
+              {!isRedeemed && (
+                <>
+                  <View style={styles.quickSelectContainer}>
+                    <QuickSelectChip 
+                      label={`${formattedValue} (Full)`}
+                      onPress={() => handlePresetSelect('full')}
+                      isSelected={selectedPreset === 'full'}
                     />
-                  ) : (
-                    <Text style={styles.amountValue}>
-                      ${sliderValue.toFixed(2)}
-                    </Text>
+                    <QuickSelectChip 
+                      label={`${formatCurrency(perk.value / 2)} (Half)`}
+                      onPress={() => handlePresetSelect('half')}
+                      isSelected={selectedPreset === 'half'}
+                    />
+                    <QuickSelectChip 
+                      label="Custom"
+                      onPress={() => handlePresetSelect('custom')}
+                      isSelected={selectedPreset === 'custom'}
+                    />
+                  </View>
+
+                  {showCustomAmount && (
+                    <View style={styles.customAmountContainer}>
+                      <View style={styles.sliderContainer}>
+                        <Text style={styles.sliderValue}>
+                          {perk?.status === 'partially_redeemed' ? '$0' : '$1'}
+                        </Text>
+                        <View style={styles.sliderWrapper}>
+                          <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
+                          <AnimatedSlider
+                            style={styles.slider}
+                            minimumValue={perk?.status === 'partially_redeemed' ? 0 : 1}
+                            maximumValue={perk?.value || 0}
+                            value={sliderValue}
+                            onValueChange={handleSliderChange}
+                            minimumTrackTintColor="#007AFF"
+                            maximumTrackTintColor="#E5E5EA"
+                            thumbTintColor="#007AFF"
+                            step={1}
+                          />
+                        </View>
+                        <Text style={styles.sliderValue}>{formattedValue}</Text>
+                      </View>
+
+                      <TouchableOpacity 
+                        style={styles.amountContainer} 
+                        onPress={() => setIsEditingNumber(true)}
+                      >
+                        <Text style={styles.amountLabel}>Amount: </Text>
+                        {isEditingNumber ? (
+                          <TextInput
+                            style={styles.amountInput}
+                            value={partialAmount}
+                            onChangeText={handlePartialAmountChange}
+                            keyboardType="decimal-pad"
+                            placeholder="Enter amount"
+                            autoFocus
+                            returnKeyType="done"
+                            onSubmitEditing={Keyboard.dismiss}
+                          />
+                        ) : (
+                          <Text style={styles.amountValue}>
+                            {formatCurrency(sliderValue)}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   )}
-                </TouchableOpacity>
-                <View style={styles.partialRedeemButtons}>
+
                   <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={() => {
-                      setShowPartialRedeem(false);
-                      setSliderValue(0);
-                      setPartialAmount('');
-                      setIsEditingNumber(false);
-                    }}
-                  >
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, styles.confirmButton]}
-                    onPress={handlePartialRedeem}
-                  >
-                    <Text style={[styles.buttonText, styles.confirmButtonText]}>Confirm</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : showChoices ? (
-              <View style={styles.choicesContainer}>
-                <TouchableOpacity
-                  testID="full-redemption-button"
-                  style={[styles.button, styles.choiceButton]}
-                  onPress={handleMarkRedeemed}
-                >
-                  <Text style={styles.buttonText}>Full Redemption</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="partial-redemption-button"
-                  style={[styles.button, styles.choiceButton]}
-                  onPress={() => setShowPartialRedeem(true)}
-                >
-                  <Text style={styles.buttonText}>Partial Redemption</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="cancel-button"
-                  style={[styles.button, styles.cancelButton]}
-                  onPress={() => setShowChoices(false)}
-                >
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.buttons}>
-                {!isRedeemed && (
-                  <TouchableOpacity
-                    testID="continue-redemption-button"
                     style={[styles.button, styles.primaryButton]}
-                    onPress={() => setShowChoices(true)}
+                    onPress={handleConfirmAction}
                   >
                     <Text style={[styles.buttonText, styles.primaryButtonText]}>
-                      {isPartiallyRedeemed ? 'Continue Redemption' : 'Mark as Redeemed'}
+                      {sliderValue === 0 ? 'Mark as Available' : `Redeem ${formatCurrency(sliderValue)}`}
                     </Text>
                   </TouchableOpacity>
-                )}
-                {isRedeemed && (
-                  <TouchableOpacity
-                    testID="mark-available-button"
-                    style={[styles.button, styles.secondaryButton]}
-                    onPress={handleMarkAvailable}
-                  >
-                    <Text style={styles.buttonText}>Mark as Available</Text>
-                  </TouchableOpacity>
-                )}
+                </>
+              )}
+
+              {isRedeemed && (
                 <TouchableOpacity
-                  testID="open-app-button"
-                  style={[styles.button, styles.openButton]}
-                  onPress={handleOpenApp}
+                  style={[styles.button, styles.markAvailableButton]}
+                  onPress={() => {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    handleMarkAvailable();
+                  }}
                 >
-                  <Text style={[styles.buttonText, styles.openButtonText]}>
-                    Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
-                  </Text>
+                  <Text style={styles.buttonText}>Mark as Available</Text>
                 </TouchableOpacity>
-              </View>
-            )}
-          </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.button, styles.openButton]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  handleOpenApp();
+                }}
+              >
+                <Text style={[styles.buttonText, styles.openButtonText]}>
+                  Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
@@ -427,6 +546,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    maxHeight: '90%',
+  },
+  scrollView: {
+    flexGrow: 0,
   },
   handle: {
     width: 40,
@@ -440,72 +563,108 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  value: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#007AFF',
-    marginBottom: 8,
+    color: '#1C1C1E',
+    marginBottom: 12,
+  },
+  valueContainer: {
+    marginBottom: 16,
   },
   remainingValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#007AFF',
+    marginBottom: 4,
+  },
+  maxValue: {
     fontSize: 16,
-    color: '#FF9500',
-    marginBottom: 8,
+    color: '#666666',
+    lineHeight: 22,
   },
   description: {
     fontSize: 16,
     color: '#666666',
     marginBottom: 24,
+    lineHeight: 22,
   },
-  buttons: {
-    gap: 12,
+  quickSelectContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+  quickSelectChip: {
+    flex: 1,
+    marginHorizontal: 4,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    backgroundColor: 'transparent',
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  quickSelectChipSelected: {
+    backgroundColor: '#007AFF',
+  },
+  quickSelectChipText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  quickSelectChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  customAmountContainer: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
   },
   primaryButton: {
+    flex: 1,
     backgroundColor: '#007AFF',
   },
   secondaryButton: {
-    backgroundColor: '#F2F2F7',
-  },
-  openButton: {
-    backgroundColor: '#E5F1FF',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
   },
   primaryButtonText: {
     color: '#FFFFFF',
   },
-  openButtonText: {
+  secondaryButtonText: {
     color: '#007AFF',
   },
-  choicesContainer: {
-    gap: 12,
+  sliderWrapper: {
+    flex: 1,
+    paddingTop: 24,
   },
-  choiceButton: {
-    backgroundColor: '#F2F2F7',
+  tooltip: {
+    position: 'absolute',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 4,
+    paddingHorizontal: 8,
+    top: 0,
   },
-  cancelButton: {
-    backgroundColor: '#F2F2F7',
+  tooltipArrow: {
+    position: 'absolute',
+    bottom: -4,
+    left: '50%',
+    marginLeft: -4,
+    width: 8,
+    height: 8,
+    backgroundColor: '#007AFF',
+    transform: [{ rotate: '45deg' }],
   },
-  partialRedeemContainer: {
-    gap: 16,
-  },
-  partialRedeemLabel: {
-    fontSize: 16,
-    color: '#000000',
-    marginBottom: 4,
+  tooltipText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   sliderContainer: {
     flexDirection: 'row',
@@ -545,16 +704,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     padding: 0,
   },
-  partialRedeemButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+  openButton: {
+    backgroundColor: '#E5F1FF',
+    marginTop: 12,
   },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: '#007AFF',
+  openButtonText: {
+    color: '#007AFF',
   },
-  confirmButtonText: {
-    color: '#FFFFFF',
+  markAvailableButton: {
+    backgroundColor: '#F2F2F7',
+    marginBottom: 12,
+  },
+  button: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 
