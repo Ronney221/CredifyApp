@@ -7,7 +7,8 @@ import { Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAuth } from '@/contexts/AuthContext'; // Assuming path is correct
+import { useAuth } from '@/contexts/AuthContext';
+import { BlurView } from 'expo-blur';
 
 // Header Right Component for Insights Tab
 const InsightsHeaderRight = () => {
@@ -32,21 +33,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
 
   useEffect(() => {
-    // If loading, wait until auth state is resolved.
     if (loading) {
       return;
     }
 
-    // If not loading and no user, redirect to login.
-    // This guard is for the (tabs) group.
-    // Other groups like (auth) or (onboarding) handle their own logic or are public.
     if (!user) {
       console.log('[TabLayout AuthGuard] User not authenticated, redirecting to login.');
       router.replace('/');
     }
   }, [user, loading, router]);
 
-  // While loading auth state, show a loading indicator.
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -55,18 +51,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If there's no user and we haven't redirected yet (effect will handle redirect),
-  // show loading to prevent flash of content. Or, if user is null and effect already ran,
-  // this might prevent rendering children until redirect happens.
   if (!user) {
-     return (
+    return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.light.tint} />
       </View>
     );
   }
 
-  // If user is authenticated, render the children (the Tabs navigator).
   return <>{children}</>;
 }
 
@@ -74,37 +66,69 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
 
+  // Define tab bar styles for iOS
+  const iosTabBarStyle = {
+    backgroundColor: 'transparent',
+    borderTopColor: 'transparent',
+    height: 83,
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: 34,
+    paddingTop: 8,
+    elevation: 2, // Ensure tab bar content is above the blur
+    zIndex: 2, // Ensure tab bar content is above the blur
+  };
+
+  // Define tab bar styles for Android
+  const androidTabBarStyle = {
+    backgroundColor: '#FAFAFE',
+    borderTopColor: '#e0e0e0',
+    height: 56,
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: 0,
+    paddingTop: 0,
+    elevation: 2,
+    zIndex: 2,
+  };
+
+  // Define blur view styles to match tab bar position
+  const blurViewStyle = {
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 83,
+    elevation: 1, // Place blur behind tab bar content
+    zIndex: 1, // Place blur behind tab bar content
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#FAFAFE' }}>
-      <StatusBar 
-        style={barStyle} 
-        backgroundColor="#FAFAFE" 
-        translucent={true} 
+    <View style={{ flex: 1 }}>
+      <StatusBar
+        style={barStyle}
+        backgroundColor={Platform.OS === 'android' ? '#FAFAFE' : 'transparent'}
+        translucent={true}
       />
       <AuthGuard>
+        {Platform.OS === 'ios' && (
+          <BlurView
+            intensity={80}
+            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+            style={blurViewStyle}
+          />
+        )}
         <Tabs
           initialRouteName="01-dashboard"
           screenOptions={{
             headerShown: false,
             tabBarStyle: Platform.select({
-              ios: {
-                backgroundColor: '#FAFAFE',
-                borderTopColor: 'rgba(0, 0, 0, 0.1)',
-                height: 83,
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                paddingBottom: 34,
-                paddingTop: 8,
-              },
-              android: {
-                backgroundColor: '#FAFAFE',
-                borderTopColor: '#e0e0e0',
-                height: 56,
-                paddingBottom: 0,
-                paddingTop: 0,
-              },
+              ios: iosTabBarStyle,
+              android: androidTabBarStyle,
             }),
             tabBarItemStyle: {
               paddingVertical: 8,
@@ -127,11 +151,6 @@ export default function TabLayout() {
             name="02-cards"
             options={{
               href: null,
-              // title: 'Manage Cards',
-              // headerShown: true,
-              // tabBarIcon: ({ color, size }) => (
-              //   <Ionicons name="card-outline" size={size} color={color} />
-              // ),
             }}
           />
           <Tabs.Screen
@@ -189,6 +208,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff', // Or your app's default background
+    backgroundColor: '#ffffff',
   },
 });
