@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Platform, TextInput, Alert, KeyboardAvoidingView, ScrollView, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Platform, TextInput, Alert, KeyboardAvoidingView, ScrollView, Keyboard, InputAccessoryView, KeyboardAvoidingViewProps } from 'react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler } from 'react-native-gesture-handler';
 import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedGestureHandler,
   useAnimatedStyle,
@@ -162,6 +163,24 @@ const SegmentedControl = ({
   );
 };
 
+// Input accessory view ID
+const INPUT_ACCESSORY_ID = 'amountInputAccessory';
+
+// Helper to round to 2 decimal places
+const roundToCents = (value: number): number => {
+  return Math.round(value * 100) / 100;
+};
+
+// Helper to format currency with exactly 2 decimal places
+const formatExactCurrency = (amount: number): string => {
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
 export default function PerkActionModal({
   visible,
   perk,
@@ -170,21 +189,49 @@ export default function PerkActionModal({
   onMarkRedeemed,
   onMarkAvailable,
 }: PerkActionModalProps) {
+  const insets = useSafeAreaInsets();
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<'full' | 'half' | 'custom' | null>('full');
   const [partialAmount, setPartialAmount] = useState('');
   const [sliderValue, setSliderValue] = useState(0);
   const [isEditingNumber, setIsEditingNumber] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const translateY = useSharedValue(1000);
   const opacity = useSharedValue(0);
+  const sliderPosition = useSharedValue(0);
   
   // Get the currently redeemed amount if partially redeemed
   const getCurrentRedeemedAmount = useCallback(() => {
     if (perk?.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
-      return perk.value - perk.remaining_value;
+      return roundToCents(perk.value - perk.remaining_value);
     }
     return 0;
   }, [perk]);
+
+  // Keyboard event handlers
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setIsKeyboardVisible(true);
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   // Reset state when modal becomes visible
   useEffect(() => {
@@ -197,12 +244,16 @@ export default function PerkActionModal({
       if (perk?.status === 'partially_redeemed') {
         setSelectedPreset('custom');
         setShowCustomAmount(true);
-        setSliderValue(currentRedeemedAmount);
-        setPartialAmount(String(currentRedeemedAmount));
+        const roundedAmount = roundToCents(currentRedeemedAmount);
+        setSliderValue(roundedAmount);
+        setPartialAmount(formatExactCurrency(roundedAmount).replace(/[^0-9.]/g, ''));
+        sliderPosition.value = roundedAmount;
       } else {
         setSelectedPreset('full');
-        setSliderValue(perk?.value || 0);
-        setPartialAmount(String(perk?.value || 0));
+        const roundedAmount = roundToCents(perk?.value || 0);
+        setSliderValue(roundedAmount);
+        setPartialAmount(formatExactCurrency(roundedAmount).replace(/[^0-9.]/g, ''));
+        sliderPosition.value = roundedAmount;
         setShowCustomAmount(false);
       }
       setIsEditingNumber(false);
@@ -211,7 +262,101 @@ export default function PerkActionModal({
       opacity.value = withTiming(0, { duration: 300 });
     }
   }, [visible, perk, getCurrentRedeemedAmount]);
-  
+
+  const handleSliderChange = useCallback((value: number) => {
+    const roundedValue = roundToCents(value);
+    
+    // Only allow 0 if already partially redeemed
+    if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
+      setSliderValue(0.01);
+      setPartialAmount('0.01');
+      sliderPosition.value = withSpring(0.01);
+    } else {
+      setSliderValue(roundedValue);
+      setPartialAmount(roundedValue.toFixed(2));
+      sliderPosition.value = withSpring(roundedValue);
+    }
+    setIsEditingNumber(false);
+  }, [perk?.status]);
+
+  const handlePartialAmountChange = useCallback((text: string) => {
+    // Remove any non-numeric characters except decimal point
+    const sanitizedText = text.replace(/[^0-9.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = sanitizedText.split('.');
+    const formattedText = parts.length > 1 
+      ? `${parts[0]}.${parts[1].slice(0, 2)}`
+      : sanitizedText;
+    
+    setPartialAmount(formattedText);
+    
+    const numValue = parseFloat(formattedText);
+    if (!isNaN(numValue)) {
+      const roundedValue = roundToCents(numValue);
+      if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
+        setSliderValue(0.01);
+        sliderPosition.value = withSpring(0.01);
+      } else if (perk && roundedValue > perk.value) {
+        setSliderValue(perk.value);
+        sliderPosition.value = withSpring(perk.value);
+        setPartialAmount(perk.value.toFixed(2));
+      } else {
+        setSliderValue(roundedValue);
+        sliderPosition.value = withSpring(roundedValue);
+      }
+    }
+    setIsEditingNumber(true);
+  }, [perk]);
+
+  const handleDoneEditing = useCallback(() => {
+    Keyboard.dismiss();
+    setIsEditingNumber(false);
+    
+    // Ensure the value is properly formatted with 2 decimal places
+    const numValue = parseFloat(partialAmount);
+    if (!isNaN(numValue)) {
+      const roundedValue = roundToCents(numValue);
+      setPartialAmount(roundedValue.toFixed(2));
+      setSliderValue(roundedValue);
+      sliderPosition.value = withSpring(roundedValue);
+    }
+  }, [partialAmount]);
+
+  // Input accessory view for amount input
+  const InputAccessory = useCallback(() => (
+    <InputAccessoryView nativeID={INPUT_ACCESSORY_ID}>
+      <View style={styles.inputAccessory}>
+        <View style={styles.presetButtons}>
+          <TouchableOpacity
+            style={styles.presetButton}
+            onPress={() => {
+              Haptics.selectionAsync();
+              handlePartialAmountChange(String(perk?.value || 0));
+            }}
+          >
+            <Text style={styles.presetButtonText}>Full</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.presetButton}
+            onPress={() => {
+              Haptics.selectionAsync();
+              handlePartialAmountChange(String((perk?.value || 0) / 2));
+            }}
+          >
+            <Text style={styles.presetButtonText}>Half</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          style={styles.doneButton}
+          onPress={handleDoneEditing}
+        >
+          <Text style={styles.doneButtonText}>Done</Text>
+        </TouchableOpacity>
+      </View>
+    </InputAccessoryView>
+  ), [perk?.value, handleDoneEditing, handlePartialAmountChange]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
@@ -299,39 +444,6 @@ export default function PerkActionModal({
       }
     }
   }, [perk, getCurrentRedeemedAmount]);
-
-  const handleSliderChange = (value: number) => {
-    // Round to nearest dollar
-    const roundedValue = Math.round(value);
-    
-    // Only allow 0 if already partially redeemed
-    if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
-      setSliderValue(1);
-      setPartialAmount('1.00');
-    } else {
-      setSliderValue(roundedValue);
-      setPartialAmount(roundedValue.toFixed(2));
-    }
-    setIsEditingNumber(false);
-  };
-
-  const handlePartialAmountChange = (text: string) => {
-    setPartialAmount(text);
-    const numValue = Math.round(parseFloat(text)); // Round to nearest dollar
-    
-    if (!isNaN(numValue)) {
-      if (numValue === 0 && perk?.status !== 'partially_redeemed') {
-        setSliderValue(1);
-        setPartialAmount('1.00');
-      } else if (perk && numValue > perk.value) {
-        setSliderValue(perk.value);
-        setPartialAmount(perk.value.toFixed(2));
-      } else {
-        setSliderValue(numValue);
-      }
-    }
-    setIsEditingNumber(true);
-  };
 
   const handleConfirmAction = () => {
     Keyboard.dismiss();
@@ -490,7 +602,10 @@ export default function PerkActionModal({
                       </View>
 
                       <TouchableOpacity 
-                        style={styles.amountContainer} 
+                        style={[
+                          styles.amountContainer,
+                          isKeyboardVisible && styles.amountContainerKeyboard
+                        ]} 
                         onPress={() => setIsEditingNumber(true)}
                       >
                         <Text style={styles.amountLabel}>Amount: </Text>
@@ -503,14 +618,17 @@ export default function PerkActionModal({
                             placeholder="Enter amount"
                             autoFocus
                             returnKeyType="done"
-                            onSubmitEditing={Keyboard.dismiss}
+                            onSubmitEditing={handleDoneEditing}
+                            inputAccessoryViewID={INPUT_ACCESSORY_ID}
                           />
                         ) : (
                           <Text style={styles.amountValue}>
-                            {formatCurrency(sliderValue)}
+                            {formatExactCurrency(sliderValue)}
                           </Text>
                         )}
                       </TouchableOpacity>
+                      
+                      {Platform.OS === 'ios' && <InputAccessory />}
                     </Animated.View>
                   )}
 
@@ -584,6 +702,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
   },
   title: {
     fontSize: 20,
@@ -654,6 +773,7 @@ const styles = StyleSheet.create({
   customAmountContainer: {
     gap: 16,
     marginBottom: 24,
+    paddingTop: 8,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -724,6 +844,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     padding: 12,
     borderRadius: 8,
+    marginBottom: 24,
   },
   amountLabel: {
     fontSize: 16,
@@ -762,5 +883,44 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  inputAccessory: {
+    backgroundColor: '#F2F2F7',
+    borderTopWidth: 1,
+    borderTopColor: '#C7C7CC',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  presetButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  presetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#C7C7CC',
+  },
+  presetButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#007AFF',
+  },
+  doneButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  amountContainerKeyboard: {
+    marginBottom: 16,
   },
 }); 
