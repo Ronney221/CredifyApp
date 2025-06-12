@@ -429,6 +429,11 @@ export default function InsightsScreen() {
   };
 
   const renderSectionHeader = ({ section }: { section: YearSection }) => {
+    // Guard against empty data
+    if (!section.data || section.data.length === 0) {
+      return null;
+    }
+
     // Calculate trend data using only monthly perks
     const trendData = section.data.map(month => {
       const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
