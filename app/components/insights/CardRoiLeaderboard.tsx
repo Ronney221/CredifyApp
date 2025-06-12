@@ -50,7 +50,7 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
                   {Math.round(roi.roiPercentage)}%
                 </Text>
                 <Text style={styles.roiValues}>
-                  ${roi.totalRedeemed.toFixed(0)} / ${roi.annualFee.toFixed(0)}
+                  ${roi.totalRedeemed.toFixed(0)} / <Text style={styles.annualFeeLabel}>${roi.annualFee.toFixed(0)} Annual Fee</Text>
                 </Text>
               </View>
               <ProgressBar progress={roi.roiPercentage} />
@@ -133,6 +133,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.icon,
     marginTop: 2,
+  },
+  annualFeeLabel: {
+    color: Colors.light.icon,
+    fontStyle: 'normal',
   },
   progressBarContainer: {
     height: 6,
