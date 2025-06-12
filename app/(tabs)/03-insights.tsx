@@ -26,6 +26,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUserCards } from '../hooks/useUserCards';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -216,6 +217,7 @@ export default function InsightsScreen() {
     isLoading: isLoadingUserCards,
     refreshUserCards 
   } = useUserCards();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
   const sectionListRef = useRef<SectionList<MonthlyRedemptionSummary, YearSection>>(null);
@@ -507,6 +509,29 @@ export default function InsightsScreen() {
     Alert.alert('Share feature coming soon!');
   };
 
+  // Add useLayoutEffect for header configuration
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity 
+          onPress={() => setFilterModalVisible(true)}
+          style={styles.headerButton}
+        >
+          <Ionicons 
+            name="funnel-outline" 
+            size={22} 
+            color={Colors.light.text} 
+          />
+          {activeFilterCount > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, activeFilterCount]);
+
   if (isLoadingUserCards || !isDataLoaded) {
     return (
       <SafeAreaView style={styles.container}>
@@ -526,6 +551,90 @@ export default function InsightsScreen() {
     totalAnnualFees: insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0),
   } : null;
 
+  // Filter Modal Content
+  const renderFilterModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isFilterModalVisible}
+      onRequestClose={() => setFilterModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Performance Data</Text>
+            <TouchableOpacity 
+              onPress={() => setFilterModalVisible(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.filterSectionTitle}>SHOW CARDS</Text>
+          <View style={styles.selectAllRow}>
+            <TouchableOpacity 
+              style={styles.selectAllButton}
+              onPress={() => setSelectedCardIds(availableCardsForFilter.map(c => c.id))}
+            >
+              <Text style={styles.selectButtonText}>Select All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.selectAllButton}
+              onPress={() => setSelectedCardIds([])}
+            >
+              <Text style={styles.selectButtonText}>Deselect All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.cardsScrollView}>
+            {ISSUER_ORDER.map(issuer => {
+              const cards = groupedCards[issuer] || [];
+              if (cards.length === 0) return null;
+              
+              return (
+                <View key={`issuer-${issuer}`} style={styles.issuerSection}>
+                  <Text style={styles.issuerTitle}>{issuer}</Text>
+                  {cards.map(card => {
+                    const isSelected = selectedCardIds.includes(card.id);
+                    return (
+                      <TouchableOpacity 
+                        key={`card-${card.id}`}
+                        style={styles.cardFilterRow} 
+                        onPress={() => toggleCardSelection(card.id)}
+                      >
+                        <View style={styles.checkboxContainer}>
+                          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                            {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                          </View>
+                        </View>
+                        <View style={styles.cardNameContainer}>
+                          <Text style={styles.cardFilterName}>{card.name}</Text>
+                          {card.activityCount > 0 && (
+                            <Text style={styles.cardActivityLabel}>
+                              {card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          <TouchableOpacity 
+            style={styles.applyButton}
+            onPress={() => setFilterModalVisible(false)}
+          >
+            <Text style={styles.applyButtonText}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       {currentYearData && (
@@ -533,7 +642,7 @@ export default function InsightsScreen() {
           year={currentYearData.year}
           totalRedeemed={currentYearData.totalRedeemed}
           totalAnnualFees={currentYearData.totalAnnualFees}
-          trendData={[]} // We'll move this to a separate component
+          trendData={[]}
           scrollProgress={headerScrollProgress}
           isSticky={true}
         />
@@ -546,7 +655,6 @@ export default function InsightsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Card ROI Leaderboard - Now positioned at the top */}
           <CardRoiLeaderboard cardRois={insightsData.cardRois} />
 
           {/* Monthly Performance Chart */}
@@ -599,16 +707,12 @@ export default function InsightsScreen() {
             )}
           </View>
 
-          {/* Filter chips for monthly history */}
+          {/* Monthly History Section */}
           <View style={styles.monthlyHistoryHeader}>
             <Text style={styles.sectionTitle}>Monthly History</Text>
             <FilterChipRow
               perkStatusFilter={perkStatusFilter}
               setPerkStatusFilter={setPerkStatusFilter}
-              selectedCardIds={selectedCardIds}
-              availableCards={availableCardsForFilter}
-              onManageFilters={() => setFilterModalVisible(true)}
-              activeFilterCount={activeFilterCount}
             />
           </View>
 
@@ -664,120 +768,7 @@ export default function InsightsScreen() {
         </View>
       )}
 
-      {/* Filter Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isFilterModalVisible}
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter Insights</Text>
-              <TouchableOpacity 
-                onPress={() => setFilterModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={Colors.light.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.filterSectionTitle}>PERK STATUS</Text>
-            <View style={styles.filterOptionRow}>
-              {(['all', 'redeemed', 'missed'] as PerkStatusFilter[]).map(status => (
-                <TouchableOpacity 
-                  key={status} 
-                  style={[styles.filterButton, perkStatusFilter === status && styles.filterButtonSelected]}
-                  onPress={() => setPerkStatusFilter(status)}
-                >
-                  <Text style={[styles.filterButtonText, perkStatusFilter === status && styles.filterButtonTextSelected]}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.filterSectionTitle}>CARDS</Text>
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color={Colors.light.icon} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search cards..."
-                placeholderTextColor={Colors.light.icon}
-                value={cardSearchQuery}
-                onChangeText={setCardSearchQuery}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {cardSearchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setCardSearchQuery('')} style={styles.clearSearchButton}>
-                  <Ionicons name="close-circle" size={20} color={Colors.light.icon} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <ScrollView style={styles.cardsScrollView}>
-              {ISSUER_ORDER.map(issuer => {
-                const cards = groupedCards[issuer] || [];
-                const filteredCards = cards.filter(card => 
-                  card.name.toLowerCase().includes(cardSearchQuery.toLowerCase())
-                );
-                
-                if (filteredCards.length === 0) return null;
-                
-                return (
-                  <View key={`issuer-${issuer}`} style={styles.issuerSection}>
-                    <Text style={styles.issuerTitle}>{issuer}</Text>
-                    {filteredCards.map(card => {
-                      const isSelected = selectedCardIds.includes(card.id);
-                      return (
-                        <TouchableOpacity 
-                          key={`card-${card.id}`}
-                          style={styles.cardFilterRow} 
-                          onPress={() => toggleCardSelection(card.id)}
-                        >
-                          <View style={styles.checkboxContainer}>
-                            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                              {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                            </View>
-                          </View>
-                          <View style={styles.cardNameContainer}>
-                            <Text style={styles.cardFilterName}>{card.name}</Text>
-                            {card.activityCount > 0 && (
-                              <Text style={styles.cardActivityLabel}>
-                                {card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}
-                              </Text>
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                style={[styles.footerButton, styles.clearButton]} 
-                onPress={() => {
-                  setSelectedCardIds([]);
-                  setPerkStatusFilter('all');
-                  setCardSearchQuery('');
-                }}
-              >
-                <Text style={[styles.footerButtonText, styles.clearButtonText]}>Clear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.footerButton, styles.applyButton]} 
-                onPress={() => setFilterModalVisible(false)}
-              >
-                <Text style={[styles.footerButtonText, styles.applyButtonText]}>Apply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {renderFilterModal()}
     </SafeAreaView>
   );
 }
@@ -885,30 +876,24 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    width: '90%',
-    backgroundColor: '#F8F8F8',
-    borderRadius: 12,
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: Colors.light.text,
   },
   closeButton: {
@@ -923,167 +908,27 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  filterOptionRow: {
+  selectAllRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginBottom: 15,
   },
-  filterButton: {
+  selectAllButton: {
     paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: Colors.light.icon,
-  },
-  filterButtonSelected: {
-    backgroundColor: Colors.light.tint,
     borderColor: Colors.light.tint,
   },
-  filterButtonText: {
-    color: Colors.light.text,
-  },
-  filterButtonTextSelected: {
-    color: Colors.light.background, 
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.light.icon,
-    borderRadius: 8,
-    padding: 10,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
+  selectButtonText: {
+    color: Colors.light.tint,
+    fontSize: 14,
+    fontWeight: '500',
   },
   cardsScrollView: {
     maxHeight: 250,
     marginVertical: 10,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  footerButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clearButton: {
-    backgroundColor: '#E5E5EA',
-    marginRight: 10,
-  },
-  clearButtonText: {
-    color: Colors.light.text,
-  },
-  applyButton: {
-    backgroundColor: Colors.light.tint,
-  },
-  applyButtonText: {
-    color: '#FFFFFF',
-  },
-  footerButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  streakBadgeContainer: {
-    backgroundColor: ACCENT_YELLOW_BACKGROUND,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    alignSelf: 'center',
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  streakBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  placeholdersContainer: {
-    paddingHorizontal: 15,
-    paddingBottom: 20,
-    alignItems: 'center',
-  },
-  placeholderModuleContainer: {
-    width: '100%',
-    justifyContent: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
-    borderRadius: 8,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  skeletonStub: {
-    height: 48,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
-    borderRadius: 8,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  skeletonStubText: {
-    fontSize: 14,
-    color: Colors.light.icon, 
-    textAlign: 'center',
-  },
-  placeholderTitleSmall: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.light.icon,
-    marginBottom: 5,
-    textAlign: 'center',
-  },
-  dialPlaceholderText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: Colors.light.tint,
-  },
-  celebratoryEmptyState: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  celebratoryEmoji: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  celebratoryText: {
-    fontSize: 14,
-    color: Colors.light.icon,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  onboardingHintContainer: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  onboardingHintText: {
-    fontSize: 13,
-    color: Colors.light.icon,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   issuerSection: {
     marginBottom: 10,
@@ -1133,9 +978,6 @@ const styles = StyleSheet.create({
     color: Colors.light.icon,
     marginTop: 2,
   },
-  clearSearchButton: {
-    padding: 5,
-  },
   scrollContent: {
     paddingTop: 20,
     paddingBottom: 80,
@@ -1173,5 +1015,88 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.text,
     marginBottom: 15,
+  },
+  headerButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: Colors.light.tint,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.background,
+  },
+  headerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  placeholderModuleContainer: {
+    width: '100%',
+    justifyContent: 'center',
+    backgroundColor: CARD_BACKGROUND_COLOR,
+    borderRadius: 8,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  skeletonStub: {
+    height: 48,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: CARD_BACKGROUND_COLOR,
+    borderRadius: 8,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  skeletonStubText: {
+    fontSize: 14,
+    color: Colors.light.icon, 
+    textAlign: 'center',
+  },
+  onboardingHintContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  onboardingHintText: {
+    fontSize: 13,
+    color: Colors.light.icon,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  applyButton: {
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  applyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 }); 

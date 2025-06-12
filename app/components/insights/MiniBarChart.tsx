@@ -4,7 +4,7 @@ import { Colors } from '../../../constants/Colors';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 interface MiniBarChartProps {
-  data: number[]; // Expects an array of 6 numbers (percentages)
+  data: number[]; // Now represents dollar amounts saved
   rawData?: { redeemed: number; potential: number }[]; // Optional raw data for detailed view
   height?: number;
   barColor?: string;
@@ -58,7 +58,8 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const monthLabels = getLastSixMonths();
 
   // --- values -----------------------------------------------------------
-  const normalizedData = rightPad<number>(data, 6, 0);
+  // Now using the redeemed amount from rawData as our primary data
+  const normalizedData = rightPad(rawData.map(d => d.redeemed), 6, 0);
   const normalizedRaw = rightPad(rawData, 6, { redeemed: 0, potential: 0 });
   
   // Count months with actual data (non-zero values)
@@ -164,6 +165,10 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
             const barHeight = Math.max(4, (value / maxValue) * chartHeight);
             const isLastBar = index === normalizedData.length - 1;
             const hasData = value > 0;
+            const percentage = normalizedRaw[index].potential > 0 
+              ? (normalizedRaw[index].redeemed / normalizedRaw[index].potential) * 100 
+              : 0;
+
             return (
               <TouchableOpacity
                 key={index}
@@ -181,7 +186,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                   <Text style={[
                     styles.valueLabel,
                     !hasData && styles.emptyValueLabel
-                  ]}>{value.toFixed(0)}%</Text>
+                  ]}>{formatCurrency(value)}</Text>
                 </View>
                 <View
                   style={[
@@ -199,14 +204,17 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                   !hasData && styles.emptyMonthLabel
                 ]} numberOfLines={1}>{monthLabels[index]}</Text>
                 
-                {selectedBar === index && rawData && normalizedRaw[index]!.redeemed > 0 && (
+                {selectedBar === index && hasData && (
                   <View style={getTooltipStyle(index)}>
                     <Text style={styles.tooltipTitle}>{monthLabels[index]} Details</Text>
                     <Text style={styles.tooltipText}>
-                      Used: {formatCurrency(normalizedRaw[index].redeemed)}
+                      Saved: {formatCurrency(normalizedRaw[index].redeemed)}
                     </Text>
                     <Text style={styles.tooltipText}>
                       Available: {formatCurrency(normalizedRaw[index].potential)}
+                    </Text>
+                    <Text style={styles.tooltipPercentage}>
+                      {percentage.toFixed(0)}% of monthly perks redeemed
                     </Text>
                   </View>
                 )}
@@ -233,7 +241,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
         </View>
       </View>
       <View style={styles.legendContainer}>
-        <Text style={styles.legendText}>% of available credits used per month</Text>
+        <Text style={styles.legendText}>Monthly savings from redeemed perks</Text>
         {showSparseDataMessage && (
           <Text style={styles.encouragementText}>
             Keep tracking your perks to see your progress over time!
@@ -332,6 +340,13 @@ const styles = StyleSheet.create({
   },
   emptyMonthLabel: {
     opacity: 0.3,
+  },
+  tooltipPercentage: {
+    fontSize: 11,
+    color: Colors.light.icon,
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
 
