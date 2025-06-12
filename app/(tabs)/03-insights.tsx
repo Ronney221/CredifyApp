@@ -24,6 +24,7 @@ import { FeeCoverageMeterChip } from '../components/insights/FeeCoverageMeterChi
 import { useAuth } from '../../contexts/AuthContext';
 import { useUserCards } from '../hooks/useUserCards';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -119,7 +120,7 @@ const ForecastDialPlaceholder: React.FC = () => {
           </SvgText>
         </Svg>
       </View>
-      <Text style={{ fontSize: 12, color: Colors.light.text, marginTop: 4 }}>Break-Even</Text>
+      <Text style={{ fontSize: 12, color: Colors.light.tint, marginTop: 4 }}>Break-Even</Text>
     </View>
   );
 };
@@ -206,6 +207,7 @@ export default function InsightsScreen() {
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
+  const router = useRouter();
 
   // Focus effect to refresh data when screen comes into focus
   useFocusEffect(
@@ -523,9 +525,40 @@ export default function InsightsScreen() {
         />
       ) : (
         <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateText}>No insights to display.</Text>
-          {(selectedCardIds.length === 0 || activeFilterCount > 0) && 
-            <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>}
+          <View style={styles.emptyStateContent}>
+            <Ionicons name="bar-chart-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
+            <Text style={styles.emptyStateTitle}>No Insights Yet</Text>
+            <Text style={styles.emptyStateText}>
+              Track your credit card perks and rewards to see valuable insights about your redemptions.
+            </Text>
+            {(selectedCardIds.length === 0 || activeFilterCount > 0) ? (
+              <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>
+            ) : (
+              <>
+                <View style={styles.emptyStateBulletPoints}>
+                  <View style={styles.bulletPoint}>
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                    <Text style={styles.bulletText}>See monthly redemption trends</Text>
+                  </View>
+                  <View style={styles.bulletPoint}>
+                    <Ionicons name="trending-up" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                    <Text style={styles.bulletText}>Track your card ROI</Text>
+                  </View>
+                  <View style={styles.bulletPoint}>
+                    <Ionicons name="notifications-outline" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                    <Text style={styles.bulletText}>Get reminders for upcoming perks</Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.ctaButton}
+                  onPress={() => router.push("/home")}
+                >
+                  <Text style={styles.ctaButtonText}>Start Tracking Perks</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaButtonIcon} />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
       )}
 
@@ -683,18 +716,69 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    backgroundColor: Colors.light.background,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
+  emptyStateContent: {
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  emptyStateIcon: {
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
   },
   emptyStateSubText: {
     fontSize: 14,
     color: Colors.light.icon,
     textAlign: 'center',
+  },
+  emptyStateBulletPoints: {
+    alignSelf: 'stretch',
+    marginBottom: 32,
+  },
+  bulletPoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  bulletIcon: {
+    marginRight: 12,
+  },
+  bulletText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    flex: 1,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+  },
+  ctaButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+    marginRight: 8,
+  },
+  ctaButtonIcon: {
+    marginLeft: 4,
   },
   modalOverlay: {
     flex: 1,

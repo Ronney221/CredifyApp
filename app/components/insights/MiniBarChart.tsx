@@ -46,6 +46,10 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
 
   const monthLabels = getLastSixMonths();
 
+  // Count months with actual data (non-zero values)
+  const monthsWithData = data.filter(value => value > 0).length;
+  const showSparseDataMessage = monthsWithData > 0 && monthsWithData <= 2;
+
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
       style: 'currency',
@@ -121,7 +125,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const pathData = generatePath(linePoints);
 
   return (
-    <View style={[styles.container, { width: screenWidth - 30, height: height + 20 }]}>
+    <View style={[styles.container, { width: screenWidth - 30, height: height + (showSparseDataMessage ? 60 : 20) }]}>
       <View style={styles.chartContent}>
         <View style={[styles.barsContainer, { width: chartWidth }]}>
           {/* Line chart overlay - Moved BEHIND bars */}
@@ -204,6 +208,11 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
       </View>
       <View style={styles.legendContainer}>
         <Text style={styles.legendText}>% of available credits used per month</Text>
+        {showSparseDataMessage && (
+          <Text style={styles.encouragementText}>
+            Keep tracking your perks to see your progress over time!
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -283,6 +292,13 @@ const styles = StyleSheet.create({
   tooltipText: {
     fontSize: 11,
     color: Colors.light.text,
+    textAlign: 'center',
+  },
+  encouragementText: {
+    fontSize: 12,
+    color: Colors.light.tint,
+    fontStyle: 'italic',
+    marginTop: 8,
     textAlign: 'center',
   },
 });
