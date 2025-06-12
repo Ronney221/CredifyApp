@@ -340,9 +340,33 @@ export default function InsightsScreen() {
 
       const result = await generateDummyInsightsData(selectedCardIds, processedCards, user?.id);
 
+      // Filter out months with no activity (no redeemed perks)
+      const filteredYearSections = result.yearSections.map(yearSection => {
+        // Filter months where there is at least one redeemed perk
+        const filteredData = yearSection.data.filter(month => {
+          const hasRedeemedPerks = month.perkDetails.some(perk => perk.status === 'redeemed');
+          return hasRedeemedPerks;
+        });
+
+        // Recalculate the total redeemed value for the year based on filtered months
+        const totalRedeemedForYear = filteredData.reduce((sum, month) => sum + month.totalRedeemedValue, 0);
+
+        return {
+          ...yearSection,
+          data: filteredData,
+          totalRedeemedForYear
+        };
+      }).filter(yearSection => yearSection.data.length > 0); // Remove years with no data
+
+      // Update the result with filtered data
+      const filteredResult = {
+        ...result,
+        yearSections: filteredYearSections
+      };
+
       // Log the first month's data to verify what's being displayed
-      if (result.yearSections.length > 0 && result.yearSections[0].data.length > 0) {
-        const currentMonth = result.yearSections[0].data[0];
+      if (filteredResult.yearSections.length > 0 && filteredResult.yearSections[0].data.length > 0) {
+        const currentMonth = filteredResult.yearSections[0].data[0];
         console.log('[InsightsScreen] Debug - Current month data:', {
           monthYear: currentMonth.monthYear,
           totalRedeemed: currentMonth.totalRedeemedValue,
@@ -357,7 +381,7 @@ export default function InsightsScreen() {
         });
       }
 
-      setInsightsData(result);
+      setInsightsData(filteredResult);
     }
 
     loadInsightsData();
