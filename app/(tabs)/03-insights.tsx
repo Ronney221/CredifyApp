@@ -779,7 +779,7 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: 'transparent',
   },
   headerContainer: {
     backgroundColor: Colors.light.background,

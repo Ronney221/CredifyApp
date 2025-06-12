@@ -187,7 +187,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   fullScreenContainer: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: 'transparent',
   },
   safeArea: {
     flex: 1,
