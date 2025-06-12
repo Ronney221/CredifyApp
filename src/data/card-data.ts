@@ -5,7 +5,7 @@ export interface Benefit {
   id: string;
   name: string;
   value: number; // Can be monetary value or other unit
-  period: 'monthly' | 'quarterly' | 'semi_annual' | 'yearly';
+  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
   periodMonths: 1 | 3 | 6 | 12; // Number of months between resets
   resetType: 'calendar' | 'anniversary'; // Whether benefit resets on calendar year or card anniversary
   definition_id: string;
@@ -13,6 +13,15 @@ export interface Benefit {
   redemptionInstructions?: string; // How to redeem, e.g., link, in-app action
   appScheme?: keyof typeof APP_SCHEMES; // Link benefits to app schemes
   eligibleServices?: string[]; // Array of eligible services/merchants for redemption
+  category?: 'travel' | 'dining' | 'entertainment' | 'shopping' | 'other';
+  isActive?: boolean;
+  startDate?: string;
+  endDate?: string;
+  terms?: string;
+  redemptionUrl?: string;
+  imageUrl?: string;
+  merchantName?: string;
+  merchantLogo?: string;
 }
 
 export interface Card {
@@ -269,7 +278,7 @@ export const allCards: Card[] = [
         value: 50,
         period: 'semi_annual',
         periodMonths: 6,
-        resetType: 'anniversary',
+        resetType: 'calendar',
         definition_id: '008f140c-56fe-48f1-9e89-6c39391e3def',
         description: 'Up to $50 in statement credits twice per year (Jan–Jun and Jul–Dec; $100 total annually).',
         redemptionInstructions: 'Enroll, then use your Platinum Card at Saks Fifth Avenue (in-store or online). Unused semiannual credits do not carry over.',
@@ -278,7 +287,7 @@ export const allCards: Card[] = [
         id: 'platinum_clear',
         name: 'CLEAR® Plus Credit',
         value: 189,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
@@ -289,7 +298,7 @@ export const allCards: Card[] = [
         id: 'platinum_airline_fee',
         name: 'Airline Fee Credit',
         value: 200,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
@@ -300,7 +309,7 @@ export const allCards: Card[] = [
         id: 'platinum_hotel_credit',
         name: 'Hotel Credit (FHR/THC)',
         value: 200,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '37eeb419-2110-4ca2-ac70-0eebbd587530',
@@ -379,7 +388,7 @@ export const allCards: Card[] = [
         id: 'csr_travel',
         name: 'Travel Purchase Credit',
         value: 300,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
@@ -447,7 +456,7 @@ export const allCards: Card[] = [
         id: 'csp_hotel',
         name: 'Hotel Credit',
         value: 50,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '32a15587-31ef-473a-a73b-b40c68026419',
@@ -520,7 +529,7 @@ export const allCards: Card[] = [
         id: 'venturex_travel_credit',
         name: 'Capital One Travel Credit',
         value: 300,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '0faeed05-234e-4110-a710-b8cb41bb0f72',
@@ -532,7 +541,7 @@ export const allCards: Card[] = [
         id: 'venturex_anniversary',
         name: 'Anniversary Miles Bonus',
         value: 100,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'c6004d5f-c5c4-435e-b717-eb6cafd9a089',
@@ -594,7 +603,7 @@ export const allCards: Card[] = [
         id: 'green_clear',
         name: 'CLEAR® Plus Credit',
         value: 189,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
@@ -615,7 +624,7 @@ export const allCards: Card[] = [
         id: 'boa_pr_airline_incidental',
         name: 'Airline Incidental Credit',
         value: 100,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
@@ -636,7 +645,7 @@ export const allCards: Card[] = [
         id: 'boa_pre_airline_incidental',
         name: 'Airline Incidental Credits',
         value: 300,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
@@ -647,7 +656,7 @@ export const allCards: Card[] = [
         id: 'boa_pre_lifestyle',
         name: 'Lifestyle Convenience Credits',
         value: 150,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5261',
@@ -668,7 +677,7 @@ export const allCards: Card[] = [
         id: 'usb_ar_travel_dining',
         name: 'Travel/Dining Credit',
         value: 325,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
@@ -689,7 +698,7 @@ export const allCards: Card[] = [
         id: 'citi_prestige_travel',
         name: 'Travel Credit',
         value: 250,
-        period: 'yearly',
+        period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
@@ -946,20 +955,20 @@ export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
 
 // Helper function to get period in months
 export function getPeriodMonths(period: Benefit['period']): Benefit['periodMonths'] {
-  const periodMap: Record<Benefit['period'], Benefit['periodMonths']> = {
-    'monthly': 1,
-    'quarterly': 3,
-    'semi_annual': 6,
-    'yearly': 12,
-  };
-  return periodMap[period];
+  switch (period) {
+    case 'monthly': return 1;
+    case 'quarterly': return 3;
+    case 'semi_annual': return 6;
+    case 'annual': return 12;
+    default: return 1;
+  }
 }
 
 // Helper function to determine if a benefit resets on calendar year
 export function isCalendarReset(benefit: Benefit): boolean {
   // Most yearly credits reset on calendar year
   // Most monthly/quarterly credits reset on statement cycle
-  return benefit.period === 'yearly' || 
+  return benefit.period === 'annual' || 
          benefit.name.toLowerCase().includes('calendar') ||
          (benefit.description?.toLowerCase().includes('calendar') ?? false);
 }

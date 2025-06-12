@@ -16,6 +16,26 @@ interface MonthSummaryCardProps {
   isEven: boolean;
 }
 
+const getPeriodBadgeText = (period: string) => {
+  switch (period) {
+    case 'monthly': return 'Monthly';
+    case 'quarterly': return 'Quarterly';
+    case 'semi_annual': return 'Semi-Annual';
+    case 'annual': return 'Annual';
+    default: return period;
+  }
+};
+
+const getPeriodBadgeColor = (period: string): string => {
+  switch (period) {
+    case 'monthly': return Colors.light.tint;
+    case 'quarterly': return '#4CAF50'; // Green
+    case 'semi_annual': return '#FF9800'; // Orange
+    case 'annual': return '#9C27B0'; // Purple
+    default: return Colors.light.tint;
+  }
+};
+
 export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   summary,
   isExpanded,
@@ -25,9 +45,17 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   isEven,
 }) => {
   const router = useRouter();
-  const feeCoveragePercentage = summary.totalPotentialValue > 0 
-    ? (summary.totalRedeemedValue / summary.totalPotentialValue) * 100 
+  // Calculate fee coverage based on only monthly perks
+  const monthlyPerks = summary.perkDetails.filter(perk => perk.period === 'monthly');
+  const monthlyRedeemedValue = monthlyPerks.reduce((sum, perk) => 
+    perk.status === 'redeemed' ? sum + perk.value : sum, 0
+  );
+  const monthlyPotentialValue = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
+  
+  const feeCoveragePercentage = monthlyPotentialValue > 0 
+    ? (monthlyRedeemedValue / monthlyPotentialValue) * 100 
     : 0;
+
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -38,18 +66,65 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     return { transform: [{ rotate: `${rotation.value}deg` }] };
   });
 
-  const filteredPerkDetails = summary.perkDetails
+  // Separate perks into monthly and non-monthly
+  const monthlyPerkDetails = summary.perkDetails
+    .filter(perk => perk.period === 'monthly')
     .filter(perk => {
       if (perkStatusFilter === 'all') return true;
       return perk.status === perkStatusFilter;
     })
-    .sort((a, b) => b.value - a.value); // Sort by value in descending order
+    .sort((a, b) => b.value - a.value);
 
-  const showCelebratoryEmptyState = perkStatusFilter === 'redeemed' && filteredPerkDetails.length === 0;
+  // For non-monthly perks, only show if redeemed or expired this month
+  const nonMonthlyPerkDetails = summary.perkDetails
+    .filter(perk => perk.period !== 'monthly')
+    .filter(perk => {
+      // Always show redeemed perks
+      if (perk.status === 'redeemed') return true;
+      // For missed perks, only show if they expired this month
+      if (perk.status === 'missed') return perk.expiresThisMonth === true;
+      return false;
+    })
+    .filter(perk => {
+      if (perkStatusFilter === 'all') return true;
+      return perk.status === perkStatusFilter;
+    })
+    .sort((a, b) => b.value - a.value);
+
+  const showCelebratoryEmptyState = perkStatusFilter === 'redeemed' && 
+    monthlyPerkDetails.length === 0 && nonMonthlyPerkDetails.length === 0;
 
   const handleRemindMe = (perkId: string) => {
     router.push('/profile/notifications');
   };
+
+  const renderPerkItem = (perk: any, isMonthly: boolean) => (
+    <View key={perk.id} style={styles.perkDetailItem}>
+      <Ionicons 
+        name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
+        size={20} 
+        color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED} 
+        style={styles.perkStatusIcon}
+      />
+      <View style={styles.perkContentContainer}>
+        <View style={styles.perkNameRow}>
+          <Text style={styles.perkName}>{perk.name}</Text>
+          <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
+          {!isMonthly && (
+            <View style={[styles.periodBadge, { backgroundColor: getPeriodBadgeColor(perk.period) }]}>
+              <Text style={styles.periodBadgeText}>{getPeriodBadgeText(perk.period)}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[
+          styles.perkStatusText, 
+          perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
+        ]}>
+          {perk.status === 'redeemed' ? 'Redeemed' : 'Expired'}
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
     <Pressable onPress={onToggleExpand} hitSlop={{top:8,left:8,right:8,bottom:8}}>
@@ -61,8 +136,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
               <Text style={styles.monthRedeemedValue}>
                 ${summary.totalRedeemedValue.toFixed(0)} redeemed
               </Text>
-              {summary.totalPotentialValue > 0 && 
-                <Text style={styles.monthPotentialValue}> of ${summary.totalPotentialValue.toFixed(0)}</Text>}
+              {monthlyPotentialValue > 0 && (
+                <Text style={styles.monthPotentialValue}>
+                  {' '}(${monthlyRedeemedValue.toFixed(0)} from monthly perks)
+                </Text>
+              )}
             </View>
             <Text style={styles.monthPerkCount}>
               {summary.perksRedeemedCount} perks used
@@ -95,10 +173,10 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   Nice! You did not miss any perks for this filter.
                 </Text>
               </View>
-            ) : filteredPerkDetails.length > 0 ? (
+            ) : (monthlyPerkDetails.length > 0 || nonMonthlyPerkDetails.length > 0) ? (
               <>
                 {/* Add Remind Me button if there are missed perks */}
-                {filteredPerkDetails.some(perk => perk.status !== 'redeemed') && (
+                {[...monthlyPerkDetails, ...nonMonthlyPerkDetails].some(perk => perk.status !== 'redeemed') && (
                   <TouchableOpacity 
                     onPress={() => handleRemindMe('')}
                     style={styles.monthRemindButton}
@@ -109,29 +187,23 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   </TouchableOpacity>
                 )}
                 
-                {/* Perk list */}
-                {filteredPerkDetails.map(perk => (
-                  <View key={perk.id} style={styles.perkDetailItem}>
-                    <Ionicons 
-                      name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
-                      size={20} 
-                      color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED} 
-                      style={styles.perkStatusIcon}
-                    />
-                    <View style={styles.perkContentContainer}>
-                      <View style={styles.perkNameRow}>
-                        <Text style={styles.perkName}>{perk.name}</Text>
-                        <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
-                      </View>
-                      <Text style={[
-                        styles.perkStatusText, 
-                        perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
-                      ]}>
-                        {perk.status === 'redeemed' ? 'Redeemed' : 'Missed'}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
+                {/* Monthly Perks Section */}
+                {monthlyPerkDetails.length > 0 && (
+                  <>
+                    <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
+                    {monthlyPerkDetails.map(perk => renderPerkItem(perk, true))}
+                  </>
+                )}
+
+                {/* Non-Monthly Perks Section */}
+                {nonMonthlyPerkDetails.length > 0 && (
+                  <>
+                    <Text style={[styles.perkSectionTitle, { marginTop: monthlyPerkDetails.length > 0 ? 20 : 0 }]}>
+                      Additional Perks
+                    </Text>
+                    {nonMonthlyPerkDetails.map(perk => renderPerkItem(perk, false))}
+                  </>
+                )}
               </>
             ) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
           </Animated.View>
@@ -288,6 +360,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.tint,
     marginLeft: 8,
+    fontWeight: '500',
+  },
+  perkSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 10,
+    opacity: 0.8,
+  },
+  periodBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 6,
+  },
+  periodBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: '500',
   },
 }); 
