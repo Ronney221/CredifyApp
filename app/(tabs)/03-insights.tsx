@@ -339,7 +339,7 @@ export default function InsightsScreen() {
         return;
       }
     
-      console.log('[InsightsScreen] Debug - Raw userCardsWithPerks:', JSON.stringify(userCardsWithPerks, null, 2));
+      //console.log('[InsightsScreen] Debug - Raw userCardsWithPerks:', JSON.stringify(userCardsWithPerks, null, 2));
 
       // Transform userCardsWithPerks to match the expected type
       const processedCards = userCardsWithPerks.map(({ card, perks }) => ({
@@ -350,13 +350,13 @@ export default function InsightsScreen() {
           annualFee: card.annualFee || 0,
         },
         perks: perks.map(perk => {
-          console.log(`[InsightsScreen] Debug - Processing perk ${perk.name}:`, {
-            originalStatus: perk.status,
-            id: perk.id,
-            definition_id: perk.definition_id,
-            value: perk.value,
-            period: perk.period
-          });
+          // console.log(`[InsightsScreen] Debug - Processing perk ${perk.name}:`, {
+          //   originalStatus: perk.status,
+          //   id: perk.id,
+          //   definition_id: perk.definition_id,
+          //   value: perk.value,
+          //   period: perk.period
+          // });
           
           return {
             id: perk.id,
@@ -369,7 +369,7 @@ export default function InsightsScreen() {
         }),
       }));
 
-      console.log('[InsightsScreen] Debug - Processed cards:', JSON.stringify(processedCards, null, 2));
+      //console.log('[InsightsScreen] Debug - Processed cards:', JSON.stringify(processedCards, null, 2));
 
       const result = await generateDummyInsightsData(selectedCardIds, processedCards, user?.id);
 
@@ -400,18 +400,18 @@ export default function InsightsScreen() {
       // Log the first month's data to verify what's being displayed
       if (filteredResult.yearSections.length > 0 && filteredResult.yearSections[0].data.length > 0) {
         const currentMonth = filteredResult.yearSections[0].data[0];
-        console.log('[InsightsScreen] Debug - Current month data:', {
-          monthYear: currentMonth.monthYear,
-          totalRedeemed: currentMonth.totalRedeemedValue,
-          totalPotential: currentMonth.totalPotentialValue,
-          perksRedeemed: currentMonth.perksRedeemedCount,
-          perksMissed: currentMonth.perksMissedCount,
-          perkDetails: currentMonth.perkDetails.map(p => ({
-            name: p.name,
-            status: p.status,
-            value: p.value
-          }))
-        });
+        // console.log('[InsightsScreen] Debug - Current month data:', {
+        //   monthYear: currentMonth.monthYear,
+        //   totalRedeemed: currentMonth.totalRedeemedValue,
+        //   totalPotential: currentMonth.totalPotentialValue,
+        //   perksRedeemed: currentMonth.perksRedeemedCount,
+        //   perksMissed: currentMonth.perksMissedCount,
+        //   perkDetails: currentMonth.perkDetails.map(p => ({
+        //     name: p.name,
+        //     status: p.status,
+        //     value: p.value
+        //   }))
+        // });
       }
 
       setInsightsData(filteredResult);
