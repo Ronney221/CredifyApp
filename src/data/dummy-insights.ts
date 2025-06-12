@@ -2,7 +2,7 @@ import { allCards, Benefit } from './card-data';
 import { getRedemptionsForPeriod } from '../../lib/database';
 
 export type PerkPeriod = 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
-export type PerkStatus = 'redeemed' | 'missed' | 'available';
+export type PerkStatus = 'redeemed' | 'missed' | 'available' | 'partially_redeemed';
 export type PerkStatusFilter = 'all' | PerkStatus;
 
 // --- TYPE DEFINITIONS ---
@@ -16,7 +16,13 @@ export interface PerkRedemptionDetail {
   expiresThisMonth: boolean;
 }
 
-export interface PerkDetail extends PerkRedemptionDetail {
+export interface PerkDetail {
+  id: string;
+  name: string;
+  value: number;
+  status: 'redeemed' | 'available' | 'missed' | 'partially_redeemed';
+  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
+  expiresThisMonth?: boolean;
   reset_date?: string;
 }
 
@@ -68,7 +74,24 @@ export interface InsightsData {
 // --- DUMMY DATA GENERATION ---
 export const generateDummyInsightsData = async (
   selectedCards: string[],
-  processedCardsWithPerks?: { card: { id: string; name: string; benefits: Benefit[]; annualFee: number }; perks: { id: string; definition_id: string; name: string; value: number; status: 'redeemed' | 'available'; period: Benefit['period'] }[] }[],
+  processedCardsWithPerks?: { 
+    card: { 
+      id: string; 
+      name: string; 
+      benefits: Benefit[]; 
+      annualFee: number 
+    }; 
+    perks: { 
+      id: string; 
+      definition_id: string; 
+      name: string; 
+      value: number; 
+      status: 'redeemed' | 'available' | 'partially_redeemed'; 
+      period: Benefit['period'];
+      remaining_value?: number;
+      reset_date?: string;
+    }[] 
+  }[],
   userId?: string
 ): Promise<Omit<InsightsData, 'availableCardsForFilter' | 'currentFeeCoverageStreak' | 'cardRois'> & {
   currentFeeCoverageStreak?: number;

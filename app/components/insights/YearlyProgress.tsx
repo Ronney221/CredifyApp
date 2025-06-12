@@ -1,33 +1,49 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Colors } from '../../../constants/Colors';
 import MiniBarChart from './MiniBarChart';
+import { Ionicons } from '@expo/vector-icons';
 
 // --- YearlyProgress Component ---
 interface YearlyProgressProps {
   year: string;
   totalRedeemed: number;
-  totalPotential: number;
+  totalAnnualFees: number;
   trendData: number[];
   monthlyData?: { redeemed: number; potential: number }[];
 }
 
-const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, totalPotential, trendData, monthlyData }) => {
-  const progress = totalPotential > 0 ? (totalRedeemed / totalPotential) * 100 : 0;
+const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, totalAnnualFees, trendData, monthlyData }) => {
+  const progress = totalAnnualFees > 0 ? (totalRedeemed / totalAnnualFees) * 100 : 0;
   const clampedProgress = Math.max(0, Math.min(100, progress));
 
   const amountSaved = totalRedeemed.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  const potentialSavings = totalPotential.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const totalFees = totalAnnualFees.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   return (
     <View style={styles.container}>
       <View style={styles.mainContent}>
         <View style={styles.textRow}>
           <Text style={styles.yearText}>Saved so far in {year}</Text>
-          <Text style={styles.amountText}>{amountSaved} of {potentialSavings}</Text>
+          <View style={styles.amountRow}>
+            <Text style={styles.amountText}>{amountSaved} of {totalFees}</Text>
+            <TouchableOpacity 
+              style={styles.infoButton}
+              onPress={() => Alert.alert(
+                "Annual Fee Coverage",
+                "This shows how much value you've redeemed compared to the total annual fees of your selected cards. Break-even is 100%."
+              )}
+            >
+              <Ionicons name="information-circle-outline" size={16} color={Colors.light.icon} />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBarFill, { width: `${clampedProgress}%` }]} />
+          <View style={[
+            styles.progressBarFill, 
+            { width: `${clampedProgress}%` },
+            clampedProgress >= 100 && styles.progressBarSuccess
+          ]} />
         </View>
       </View>
       
@@ -60,9 +76,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.text,
   },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   amountText: {
     fontSize: 14,
     color: Colors.light.icon,
+  },
+  infoButton: {
+    padding: 4,
+    marginLeft: -4,
   },
   progressBarContainer: {
     height: 8,
@@ -74,6 +99,9 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.light.tint,
     borderRadius: 4,
+  },
+  progressBarSuccess: {
+    backgroundColor: '#34C759',
   },
   trendContainer: {
     marginTop: 10,

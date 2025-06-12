@@ -404,20 +404,23 @@ export default function InsightsScreen() {
 
   const renderSectionHeader = ({ section }: { section: YearSection }) => {
     const trendData = section.data.map(month => 
-      (month.totalRedeemedValue / month.totalPotentialValue) * 100
+      (month.totalRedeemedValue / month.cardFeesProportion) * 100
     ).slice(0, 6).reverse();
 
     const monthlyData = section.data.map(month => ({
       redeemed: month.totalRedeemedValue,
-      potential: month.totalPotentialValue
+      potential: month.cardFeesProportion * 12 // Convert monthly fee proportion to annual
     })).slice(0, 6).reverse();
+
+    // Calculate total annual fees for selected cards
+    const totalAnnualFees = insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0);
 
     return (
       <View style={styles.sectionHeaderContainer}>
         <YearlyProgress
           year={section.year}
           totalRedeemed={section.totalRedeemedForYear}
-          totalPotential={section.totalPotentialForYear}
+          totalAnnualFees={totalAnnualFees}
           trendData={trendData}
           monthlyData={monthlyData}
         />
