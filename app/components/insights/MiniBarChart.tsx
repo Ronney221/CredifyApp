@@ -12,9 +12,19 @@ interface MiniBarChartProps {
   barSpacing?: number;
 }
 
+/** Pads the front of `arr` with `fillValue` so the result length == size.
+ *  Result is *right-aligned* (latest item is last in the array). */
+function rightPad<T>(arr: T[] = [], size = 6, fillValue: T) {
+  const res = new Array(size).fill(fillValue);
+  const slice = arr.slice(-size);          // take the newest ≤ size items
+  const offset = size - slice.length;      // how many we must pad on the left
+  slice.forEach((v, i) => (res[offset + i] = v));
+  return res;
+}
+
 const MiniBarChart: React.FC<MiniBarChartProps> = ({
-  data,
-  rawData,
+  data = [],
+  rawData = [],
   height = 100,
   barColor = Colors.light.tint,
   barWidth = 16,
@@ -27,7 +37,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const chartHeight = height - 40;
 
   // Calculate the width each bar section takes up
-  const sectionWidth = chartWidth / (data.length);
+  const sectionWidth = chartWidth / 6; // Always 6 sections
 
   // Get last 6 months abbreviated names
   const getLastSixMonths = () => {
@@ -36,6 +46,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
     const currentMonth = today.getMonth();
     const lastSixMonths = [];
     
+    // Start from 5 months ago and go forward to current month
     for (let i = 5; i >= 0; i--) {
       const monthIndex = (currentMonth - i + 12) % 12;
       lastSixMonths.push(months[monthIndex]);
@@ -46,9 +57,17 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
 
   const monthLabels = getLastSixMonths();
 
+  // --- values -----------------------------------------------------------
+  const normalizedData = rightPad<number>(data, 6, 0);
+  const normalizedRaw = rightPad(rawData, 6, { redeemed: 0, potential: 0 });
+  
   // Count months with actual data (non-zero values)
-  const monthsWithData = data.filter(value => value > 0).length;
+  const monthsWithData = normalizedData.filter(value => value > 0).length;
   const showSparseDataMessage = monthsWithData > 0 && monthsWithData <= 2;
+
+  // Debug logging to help verify month alignment
+  console.log('Month Labels:', monthLabels);
+  console.log('Data Values:', data);
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
@@ -90,11 +109,11 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
     };
   };
 
-  // Calculate points for the line chart
+  // Calculate points for the line chart using normalized data
   const getLinePoints = () => {
     const points: { x: number, y: number }[] = [];
     
-    data.forEach((value, index) => {
+    normalizedData.forEach((value, index) => {
       // Center of each bar section
       const x = (sectionWidth * index) + (sectionWidth / 2);
       const y = chartHeight - (Math.max(4, (value / maxValue) * chartHeight)) + 20;
@@ -141,24 +160,28 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
             </Svg>
           </View>
 
-          {data.map((value, index) => {
+          {normalizedData.map((value, index) => {
             const barHeight = Math.max(4, (value / maxValue) * chartHeight);
-            const isLastBar = index === data.length - 1;
+            const isLastBar = index === normalizedData.length - 1;
+            const hasData = value > 0;
             return (
               <TouchableOpacity
                 key={index}
-                onPress={() => setSelectedBar(selectedBar === index ? null : index)}
+                onPress={() => hasData ? setSelectedBar(selectedBar === index ? null : index) : null}
                 style={[
                   styles.barColumn,
                   {
                     width: sectionWidth,
                     alignItems: 'center',
-                    zIndex: 2, // Ensure bars are above the line
+                    zIndex: 2,
                   }
                 ]}
               >
                 <View style={styles.valueLabelContainer}>
-                  <Text style={styles.valueLabel}>{value.toFixed(0)}%</Text>
+                  <Text style={[
+                    styles.valueLabel,
+                    !hasData && styles.emptyValueLabel
+                  ]}>{value.toFixed(0)}%</Text>
                 </View>
                 <View
                   style={[
@@ -167,20 +190,23 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                       width: barWidth,
                       height: barHeight,
                       backgroundColor: isLastBar ? barColor : Colors.light.icon,
-                      opacity: isLastBar ? 1 : 0.3,
+                      opacity: hasData ? (isLastBar ? 1 : 0.3) : 0.1,
                     },
                   ]}
                 />
-                <Text style={styles.monthLabel} numberOfLines={1}>{monthLabels[index]}</Text>
+                <Text style={[
+                  styles.monthLabel,
+                  !hasData && styles.emptyMonthLabel
+                ]} numberOfLines={1}>{monthLabels[index]}</Text>
                 
-                {selectedBar === index && rawData && rawData[index] && (
+                {selectedBar === index && rawData && normalizedRaw[index]!.redeemed > 0 && (
                   <View style={getTooltipStyle(index)}>
                     <Text style={styles.tooltipTitle}>{monthLabels[index]} Details</Text>
                     <Text style={styles.tooltipText}>
-                      Used: {formatCurrency(rawData[index].redeemed)}
+                      Used: {formatCurrency(normalizedRaw[index].redeemed)}
                     </Text>
                     <Text style={styles.tooltipText}>
-                      Available: {formatCurrency(rawData[index].potential)}
+                      Available: {formatCurrency(normalizedRaw[index].potential)}
                     </Text>
                   </View>
                 )}
@@ -300,6 +326,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 8,
     textAlign: 'center',
+  },
+  emptyValueLabel: {
+    opacity: 0.3,
+  },
+  emptyMonthLabel: {
+    opacity: 0.3,
   },
 });
 
