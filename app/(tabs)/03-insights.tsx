@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button, Pressable, Alert, ActivityIndicator, TextInput } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors'; // Assuming you have a Colors constant
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
@@ -221,7 +220,6 @@ export default function InsightsScreen() {
     refreshUserCards 
   } = useUserCards();
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
   const sectionListRef = useRef<SectionList<MonthlyRedemptionSummary, YearSection>>(null);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
@@ -537,12 +535,12 @@ export default function InsightsScreen() {
 
   if (isLoadingUserCards || !isDataLoaded) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.light.tint} />
           <Text style={styles.loadingText}>Loading your insights...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -639,7 +637,7 @@ export default function InsightsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       {currentYearData && (
         <YearlyProgress
           year={currentYearData.year}
@@ -658,7 +656,9 @@ export default function InsightsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+          <View style={styles.roiSection}>
+            <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+          </View>
 
           {/* Monthly Performance Chart */}
           <View style={styles.chartSection}>
@@ -772,7 +772,7 @@ export default function InsightsScreen() {
       )}
 
       {renderFilterModal()}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -982,11 +982,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scrollContent: {
-    paddingTop: 20,
     paddingBottom: TAB_BAR_OFFSET,
   },
+  roiSection: {
+    marginTop: 0,
+  },
   chartSection: {
-    marginTop: 20,
+    marginTop: 12,
     marginHorizontal: 15,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,

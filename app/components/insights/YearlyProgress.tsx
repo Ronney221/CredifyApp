@@ -50,14 +50,14 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
     const height = interpolate(
       scrollProgress.value,
       [0, 1],
-      [200, 60], // Adjust these values based on your desired expanded/collapsed heights
+      [160, 60], // Reduced from 200 to 160
       Extrapolate.CLAMP
     );
 
     const paddingVertical = interpolate(
       scrollProgress.value,
       [0, 1],
-      [20, 10],
+      [12, 8], // Reduced from 20,10 to 12,8
       Extrapolate.CLAMP
     );
 
@@ -162,12 +162,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: Colors.light.text,
-    marginBottom: 12,
+    marginBottom: 8, // Reduced from 12
   },
   roiContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2, // Reduced from 4
   },
   roiText: {
     fontSize: 32,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   savingsText: {
     fontSize: 16,
     color: Colors.light.icon,
-    marginBottom: 12,
+    marginBottom: 8, // Reduced from 12
   },
   progressBarContainer: {
     height: 8,
