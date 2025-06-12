@@ -16,6 +16,26 @@ interface MonthSummaryCardProps {
   isEven: boolean;
 }
 
+const getPeriodBadgeText = (period: string) => {
+  switch (period) {
+    case 'monthly': return 'Monthly';
+    case 'quarterly': return 'Quarterly';
+    case 'semi_annual': return 'Semi-Annual';
+    case 'annual': return 'Annual';
+    default: return period;
+  }
+};
+
+const getPeriodBadgeColor = (period: string): string => {
+  switch (period) {
+    case 'monthly': return Colors.light.tint;
+    case 'quarterly': return '#4CAF50'; // Green
+    case 'semi_annual': return '#FF9800'; // Orange
+    case 'annual': return '#9C27B0'; // Purple
+    default: return Colors.light.tint;
+  }
+};
+
 export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   summary,
   isExpanded,
@@ -55,8 +75,16 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     })
     .sort((a, b) => b.value - a.value);
 
+  // For non-monthly perks, only show if redeemed or expired this month
   const nonMonthlyPerkDetails = summary.perkDetails
     .filter(perk => perk.period !== 'monthly')
+    .filter(perk => {
+      // Always show redeemed perks
+      if (perk.status === 'redeemed') return true;
+      // For missed perks, only show if they expired this month
+      if (perk.status === 'missed') return perk.expiresThisMonth === true;
+      return false;
+    })
     .filter(perk => {
       if (perkStatusFilter === 'all') return true;
       return perk.status === perkStatusFilter;
@@ -83,8 +111,8 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           <Text style={styles.perkName}>{perk.name}</Text>
           <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
           {!isMonthly && (
-            <View style={styles.nonMonthlyBadge}>
-              <Text style={styles.nonMonthlyBadgeText}>Annual</Text>
+            <View style={[styles.periodBadge, { backgroundColor: getPeriodBadgeColor(perk.period) }]}>
+              <Text style={styles.periodBadgeText}>{getPeriodBadgeText(perk.period)}</Text>
             </View>
           )}
         </View>
@@ -92,7 +120,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           styles.perkStatusText, 
           perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
         ]}>
-          {perk.status === 'redeemed' ? 'Redeemed' : 'Missed'}
+          {perk.status === 'redeemed' ? 'Redeemed' : 'Expired'}
         </Text>
       </View>
     </View>
@@ -341,14 +369,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     opacity: 0.8,
   },
-  nonMonthlyBadge: {
-    backgroundColor: Colors.light.tint,
+  periodBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     marginLeft: 6,
   },
-  nonMonthlyBadgeText: {
+  periodBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '500',

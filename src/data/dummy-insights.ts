@@ -10,7 +10,8 @@ export interface PerkRedemptionDetail {
   name: string;
   value: number;
   status: 'redeemed' | 'missed';
-  period: Benefit['period'];
+  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
+  expiresThisMonth: boolean;
 }
 
 export interface MonthlyRedemptionSummary {
@@ -115,6 +116,7 @@ export const generateDummyInsightsData = async (
     const yearStr = date.getFullYear().toString();
     const monthYearDisplay = date.toLocaleString('default', { month: 'long', year: 'numeric' });
     const monthKey = `${yearStr}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
     if (!monthlyDataByYear[yearStr]) {
       monthlyDataByYear[yearStr] = { شهرs: [], yearTotalRedeemed: 0, yearTotalPotential: 0 };
@@ -141,7 +143,6 @@ export const generateDummyInsightsData = async (
     const isCurrentMonth = i === 0 && processedCardsWithPerks;
     
     if (isCurrentMonth && processedCardsWithPerks) {
-      // Filter to only selected cards
       const selectedProcessedCards = processedCardsWithPerks.filter(
         cardData => selectedCards.includes(cardData.card.id)
       );
@@ -158,6 +159,14 @@ export const generateDummyInsightsData = async (
           
           // Map 'available' status to 'missed' for display
           const displayStatus = perk.status === 'redeemed' ? 'redeemed' : 'missed';
+
+          // Determine if non-monthly perk expires this month
+          let expiresThisMonth = false;
+          if (perk.period !== 'monthly' && displayStatus === 'missed') {
+            const resetDate = new Date(perk.reset_date || '');
+            expiresThisMonth = resetDate.getMonth() === monthEnd.getMonth() && 
+                              resetDate.getFullYear() === monthEnd.getFullYear();
+          }
           
           currentMonthPerkDetails.push({
             id: perkDetailId,
@@ -165,6 +174,7 @@ export const generateDummyInsightsData = async (
             value: perk.value,
             status: displayStatus,
             period: perk.period,
+            expiresThisMonth
           });
 
           if (displayStatus === 'redeemed') {
@@ -188,7 +198,6 @@ export const generateDummyInsightsData = async (
     } else {
       // Use historical data for past months
       const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
       
       insightsCards.forEach(card => {
         card.benefits.forEach(perk => {
@@ -206,6 +215,24 @@ export const generateDummyInsightsData = async (
             new Date(r.redemption_date) >= monthStart &&
             new Date(r.redemption_date) <= monthEnd
           );
+
+          // Determine if non-monthly perk expires this month
+          let expiresThisMonth = false;
+          if (perk.period !== 'monthly' && !wasRedeemed) {
+            // For historical data, we'll consider a perk expired if it's the last month of its period
+            const periodMonths = perk.period === 'quarterly' ? 3 : 
+                               perk.period === 'semi_annual' ? 6 : 
+                               perk.period === 'annual' ? 12 : 1;
+            
+            const periodStart = new Date(monthStart);
+            periodStart.setMonth(periodStart.getMonth() - (periodStart.getMonth() % periodMonths));
+            const periodEnd = new Date(periodStart);
+            periodEnd.setMonth(periodStart.getMonth() + periodMonths - 1);
+            periodEnd.setDate(periodEnd.getDate() + 1);
+
+            expiresThisMonth = monthEnd.getMonth() === periodEnd.getMonth() && 
+                              monthEnd.getFullYear() === periodEnd.getFullYear();
+          }
           
           currentMonthPerkDetails.push({
             id: perkDetailId,
@@ -213,6 +240,7 @@ export const generateDummyInsightsData = async (
             value: perk.value,
             status: wasRedeemed ? 'redeemed' : 'missed',
             period: perk.period,
+            expiresThisMonth
           });
 
           if (wasRedeemed) {
