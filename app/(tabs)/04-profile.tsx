@@ -10,6 +10,7 @@ import {
   StyleProp,
   ViewStyle,
   Pressable,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
+
+// Constants
+const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
 
 interface ProfileRow {
   id: string;
@@ -139,46 +143,54 @@ const ProfileScreen = () => {
   ).join(' ') : 'User';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ProfileHeader
-        name={name}
-        email={user?.email || ''}
-        avatarUrl={user?.user_metadata?.avatar_url}
-        onPress={() => router.push('/(tabs)/profile/edit-profile')}
-      />
-      
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        renderSectionFooter={renderSectionFooter}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        contentContainerStyle={styles.listContent}
-        stickySectionHeadersEnabled={false}
-        bounces
-        alwaysBounceVertical
-        overScrollMode="never"
-        ListFooterComponent={() => (
-          <Pressable 
-            style={({ pressed }) => [
-              styles.signOutButton,
-              pressed && { opacity: 0.8 }
-            ]}
-            onPress={handleSignOut}
-          >
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </Pressable>
-        )}
-      />
-    </SafeAreaView>
+    <View style={styles.fullScreenContainer}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ProfileHeader
+          name={name}
+          email={user?.email || ''}
+          avatarUrl={user?.user_metadata?.avatar_url}
+          onPress={() => router.push('/(tabs)/profile/edit-profile')}
+        />
+        
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          renderSectionFooter={renderSectionFooter}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: TAB_BAR_OFFSET }
+          ]}
+          stickySectionHeadersEnabled={false}
+          bounces
+          alwaysBounceVertical
+          overScrollMode="never"
+          ListFooterComponent={() => (
+            <Pressable 
+              style={({ pressed }) => [
+                styles.signOutButton,
+                pressed && { opacity: 0.8 }
+              ]}
+              onPress={handleSignOut}
+            >
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </Pressable>
+          )}
+        />
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  fullScreenContainer: {
     flex: 1,
-    backgroundColor: Colors.light.systemGroupedBackground,
+    backgroundColor: '#FAFAFE',
+  },
+  safeArea: {
+    flex: 1,
   },
   listContent: {
     paddingHorizontal: 16,

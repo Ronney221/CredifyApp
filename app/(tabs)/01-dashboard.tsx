@@ -163,6 +163,20 @@ const ESTIMATED_EXPANDED_CARD_HEIGHT = 555; // Updated from 316, based on Amex G
 // Define the type for a single item in the cards list - MOVED HERE and defined explicitly
 type CardListItem = { card: Card; perks: CardPerk[] };
 
+// Add default notification preferences
+const defaultNotificationPreferences: NotificationPreferences = {
+  perkExpiryRemindersEnabled: true,
+  renewalRemindersEnabled: true,
+  perkResetConfirmationEnabled: true,
+  weeklyDigestEnabled: true,
+  monthlyPerkExpiryReminderDays: [7, 3, 1],
+  perkExpiryReminderTime: '09:00',
+  renewalReminderDays: [7],
+};
+
+// Add constant for tab bar offset
+const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
+
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
@@ -423,14 +437,12 @@ export default function Dashboard() {
       return;
     }
 
-    // Load preferences
-    let prefs: NotificationPreferences = {}; // Default to empty object (all true by default in scheduler)
+    // Load preferences with default values
+    let prefs: NotificationPreferences = { ...defaultNotificationPreferences };
     try {
       const jsonValue = await AsyncStorage.getItem(NOTIFICATION_PREFS_KEY);
       if (jsonValue != null) {
-        prefs = JSON.parse(jsonValue);
-        // The monthlyPerkExpiryReminderDays array is now directly in prefs if saved from 02-cards.tsx
-        // No need to reconstruct it here.
+        prefs = { ...defaultNotificationPreferences, ...JSON.parse(jsonValue) };
       }
     } catch (e) {
       console.error("[Dashboard] Failed to load notification prefs for scheduling.", e);
@@ -471,7 +483,7 @@ export default function Dashboard() {
         "Authentication Required",
         "Please log in to track perks.",
         [
-          { text: "Log In", onPress: () => router.push('/(auth)/login') },
+          { text: "Log In", onPress: () => router.push("/") },
           { text: "Cancel", style: "cancel" },
         ]
       );
@@ -642,8 +654,8 @@ export default function Dashboard() {
         return;
       }
 
-      // Store current scroll position
-      const currentOffset = scrollY._value;
+      // Store current scroll position using getValue()
+      const currentOffset = scrollY.getValue();
 
       // Perform full refresh of data
       await Promise.all([
@@ -699,8 +711,8 @@ export default function Dashboard() {
         return;
       }
 
-      // Store current scroll position
-      const currentOffset = scrollY._value;
+      // Store current scroll position using getValue()
+      const currentOffset = scrollY.getValue();
 
       // Perform full refresh of data
       await Promise.all([
@@ -983,18 +995,18 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
+    backgroundColor: '#FAFAFE',
   },
   animatedHeaderContainer: {
-    backgroundColor: '#FAFAFE',
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    paddingHorizontal: 16, 
-    position: 'absolute', 
+    paddingHorizontal: 16,
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
-    // overflow: 'hidden', // Avoid if it causes clipping, ensure children are managed
   },
   expandedHeaderContent: {
     height: INITIAL_HEADER_HEIGHT,
@@ -1166,14 +1178,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  flatListOverallStyle: { // New style for the FlatList component itself
-    flex: 1, // Ensure FlatList takes up available space
-    // The paddingTop to clear the absolute header will be handled by contentContainerStyle or ListHeaderComponent's structure
+  flatListOverallStyle: {
+    flex: 1,
   },
-  flatListContentContainer: { // New style for FlatList's content
-    paddingTop: INITIAL_HEADER_HEIGHT, // Content starts below the absolute positioned header
-    paddingBottom: 80, // Retain bottom padding
-    flexGrow: 1, // Important for ScrollView-like behavior if content is short
+  flatListContentContainer: {
+    paddingTop: INITIAL_HEADER_HEIGHT,
+    paddingBottom: TAB_BAR_OFFSET,
+    flexGrow: 1,
   },
   cardsSectionHeader: { // New style for the header within ListHeaderComponent
     flexDirection: 'row',

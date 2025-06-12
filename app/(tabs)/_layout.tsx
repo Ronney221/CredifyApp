@@ -66,22 +66,36 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
 
-  // Define tab bar styles for iOS
-  const iosTabBarStyle = {
+  // Define iOS pill-style tab bar
+  const iosPillTabBarStyle = {
     backgroundColor: 'transparent',
     borderTopColor: 'transparent',
-    height: 83,
     position: 'absolute' as const,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 34,
+    bottom: 20,
+    left: 10,
+    right: 10,
+    height: 60,
+    paddingBottom: 8,
     paddingTop: 8,
-    elevation: 2, // Ensure tab bar content is above the blur
-    zIndex: 2, // Ensure tab bar content is above the blur
+    borderRadius: 30,
+    elevation: 2,
+    zIndex: 2,
   };
 
-  // Define tab bar styles for Android
+  // Define iOS pill-style blur
+  const iosPillBlurStyle = {
+    position: 'absolute' as const,
+    bottom: 20,
+    left: 10,
+    right: 10,
+    height: 60,
+    borderRadius: 30,
+    overflow: 'hidden' as const,
+    elevation: 1,
+    zIndex: 1,
+  };
+
+  // Define Android tab bar style
   const androidTabBarStyle = {
     backgroundColor: '#FAFAFE',
     borderTopColor: '#e0e0e0',
@@ -96,17 +110,6 @@ export default function TabLayout() {
     zIndex: 2,
   };
 
-  // Define blur view styles to match tab bar position
-  const blurViewStyle = {
-    position: 'absolute' as const,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 83,
-    elevation: 1, // Place blur behind tab bar content
-    zIndex: 1, // Place blur behind tab bar content
-  };
-
   return (
     <View style={{ flex: 1 }}>
       <StatusBar
@@ -117,9 +120,9 @@ export default function TabLayout() {
       <AuthGuard>
         {Platform.OS === 'ios' && (
           <BlurView
-            intensity={80}
-            tint={colorScheme === 'dark' ? 'dark' : 'light'}
-            style={blurViewStyle}
+            intensity={50}
+            tint={'light'}
+            style={iosPillBlurStyle}
           />
         )}
         <Tabs
@@ -127,14 +130,17 @@ export default function TabLayout() {
           screenOptions={{
             headerShown: false,
             tabBarStyle: Platform.select({
-              ios: iosTabBarStyle,
+              ios: iosPillTabBarStyle,
               android: androidTabBarStyle,
             }),
             tabBarItemStyle: {
               paddingVertical: 8,
             },
             tabBarActiveTintColor: Colors.light.tint,
-            tabBarInactiveTintColor: '#8e8e93',
+            tabBarInactiveTintColor: Platform.select({
+              ios: 'rgba(0, 0, 0, 0.4)',
+              android: '#8e8e93',
+            }),
           }}
         >
           <Tabs.Screen
