@@ -143,54 +143,49 @@ const ProfileScreen = () => {
   ).join(' ') : 'User';
 
   return (
-    <View style={styles.fullScreenContainer}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ProfileHeader
-          name={name}
-          email={user?.email || ''}
-          avatarUrl={user?.user_metadata?.avatar_url}
-          onPress={() => router.push('/(tabs)/profile/edit-profile')}
-        />
-        
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          renderSectionHeader={renderSectionHeader}
-          renderSectionFooter={renderSectionFooter}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: TAB_BAR_OFFSET }
-          ]}
-          stickySectionHeadersEnabled={false}
-          bounces
-          alwaysBounceVertical
-          overScrollMode="never"
-          ListFooterComponent={() => (
-            <Pressable 
-              style={({ pressed }) => [
-                styles.signOutButton,
-                pressed && { opacity: 0.8 }
-              ]}
-              onPress={handleSignOut}
-            >
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </Pressable>
-          )}
-        />
-      </SafeAreaView>
-    </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ProfileHeader
+        name={name}
+        email={user?.email || ''}
+        avatarUrl={user?.user_metadata?.avatar_url}
+        onPress={() => router.push('/(tabs)/profile/edit-profile')}
+      />
+      
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        renderSectionFooter={renderSectionFooter}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: TAB_BAR_OFFSET }
+        ]}
+        stickySectionHeadersEnabled={false}
+        bounces
+        alwaysBounceVertical
+        overScrollMode="never"
+        ListFooterComponent={() => (
+          <Pressable 
+            style={({ pressed }) => [
+              styles.signOutButton,
+              pressed && { opacity: 0.8 }
+            ]}
+            onPress={handleSignOut}
+          >
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
+        )}
+      />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  fullScreenContainer: {
+  container: {
     flex: 1,
-    backgroundColor: 'transparent',
-  },
-  safeArea: {
-    flex: 1,
+    backgroundColor: '#FAFAFE',
   },
   listContent: {
     paddingHorizontal: 16,

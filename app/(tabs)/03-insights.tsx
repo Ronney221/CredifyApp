@@ -639,7 +639,7 @@ export default function InsightsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {currentYearData && (
         <YearlyProgress
           year={currentYearData.year}
@@ -779,7 +779,7 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#FAFAFE',
   },
   headerContainer: {
     backgroundColor: Colors.light.background,
