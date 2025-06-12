@@ -29,9 +29,9 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 
 export default function ProgressDonut({
   progress,
-  size = 150,
-  strokeWidth = 6,
-  color = Platform.OS === 'ios' ? '#007AFF' : 'dodgerblue',
+  size = 170,
+  strokeWidth = 16,
+  color = Platform.OS === 'ios' ? '#0A84FF' : '#007AFF',
   backgroundColor = '#ECECEC',
   amount,
   label,
@@ -103,9 +103,7 @@ export default function ProgressDonut({
 
   return (
     <View style={styles.container}>
-      <AnimatedText style={[styles.amount, animatedAmountStyle]}>{amount}</AnimatedText>
       <Text style={styles.label}>{label}</Text>
-      
       <View style={styles.donutContainer}>
         <Svg width={size} height={size}>
           {/* Background circle */}
@@ -132,14 +130,11 @@ export default function ProgressDonut({
             transform={`rotate(-90 ${center} ${center})`}
           />
         </Svg>
-        
-        {progressPercentageText && (
-          <View style={styles.centerTextContainer}>
-            <Text style={styles.progressPercentageText}>{progressPercentageText}</Text>
-          </View>
-        )}
+        {/* Dollar amount in the center of the donut */}
+        <View style={styles.centerTextContainer} pointerEvents="none">
+          <AnimatedText style={[styles.amount, animatedAmountStyle]}>{amount}</AnimatedText>
+        </View>
       </View>
-      
       <Text style={styles.combinedStatsText}>{combinedStatsText}</Text>
     </View>
   );
@@ -151,14 +146,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   amount: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#0A0A0A',
     textAlign: 'center',
     letterSpacing: 0.41,
   },
   label: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
     color: '#3C3C4399',
     marginTop: 4,

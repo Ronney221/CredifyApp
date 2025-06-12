@@ -245,7 +245,7 @@ const PerkDonutDisplayManagerInner = (
     const fullyRedeemedCount = currentAggregates.redeemedCount;
 
     // Format the combined stats text with proper currency formatting
-    const combinedStatsText = `${fullyRedeemedCount} of ${currentAggregates.totalCount} • ${redeemedValueFormatted} / ${possibleValueFormatted} • Resets in ${daysUntilReset} days`;
+    const combinedStatsText = `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks • Resets in ${daysUntilReset} days`;
 
     return {
       value: currentAggregates.redeemedValue,
@@ -294,9 +294,6 @@ const PerkDonutDisplayManagerInner = (
         amount={activeData.amount}
         label={activeData.label}
         combinedStatsText={activeData.combinedStatsText}
-        progressPercentageText={activeData.progressPercentageText}
-        color={activeData.color}
-        backgroundColor={Platform.OS === 'android' ? '#f0f0f0' : '#ECECEC'} // This BG is for the donut itself
       />
       <Text style={styles.annualFeesText}>
         {`Total Annual Card Fees: $${totalAnnualFees.toFixed(0)}`}
