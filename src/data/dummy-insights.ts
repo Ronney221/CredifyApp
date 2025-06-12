@@ -148,37 +148,40 @@ export const generateDummyInsightsData = async (
 
       selectedProcessedCards.forEach(cardData => {
         cardData.perks.forEach(perk => {
+          // For monthly perks, add to potential value
           if (perk.period === 'monthly') {
             allMonthlyPerksAvailableThisMonth++;
             monthTotalPotential += perk.value;
+          }
             
-            const perkDetailId = `${cardData.card.id}_${perk.definition_id}_${monthKey}`;
-            
-            // Map 'available' status to 'missed' for display
-            const displayStatus = perk.status === 'redeemed' ? 'redeemed' : 'missed';
-            
-            currentMonthPerkDetails.push({
-              id: perkDetailId,
-              name: perk.name,
-              value: perk.value,
-              status: displayStatus,
-              period: perk.period,
-            });
+          const perkDetailId = `${cardData.card.id}_${perk.definition_id}_${monthKey}`;
+          
+          // Map 'available' status to 'missed' for display
+          const displayStatus = perk.status === 'redeemed' ? 'redeemed' : 'missed';
+          
+          currentMonthPerkDetails.push({
+            id: perkDetailId,
+            name: perk.name,
+            value: perk.value,
+            status: displayStatus,
+            period: perk.period,
+          });
 
-            if (displayStatus === 'redeemed') {
-              monthTotalRedeemed += perk.value;
-              monthPerksRedeemed++;
+          if (displayStatus === 'redeemed') {
+            monthTotalRedeemed += perk.value;
+            monthPerksRedeemed++;
+            if (perk.period === 'monthly') {
               allMonthlyPerksRedeemedThisMonthCount++;
-              
-              // Track card-specific activity
-              if (!cardActivity[cardData.card.id]) {
-                cardActivity[cardData.card.id] = { redemptions: 0, totalValue: 0 };
-              }
-              cardActivity[cardData.card.id].redemptions++;
-              cardActivity[cardData.card.id].totalValue += perk.value;
-            } else {
-              monthPerksMissed++;
             }
+            
+            // Track card-specific activity
+            if (!cardActivity[cardData.card.id]) {
+              cardActivity[cardData.card.id] = { redemptions: 0, totalValue: 0 };
+            }
+            cardActivity[cardData.card.id].redemptions++;
+            cardActivity[cardData.card.id].totalValue += perk.value;
+          } else {
+            monthPerksMissed++;
           }
         });
       });
@@ -189,48 +192,52 @@ export const generateDummyInsightsData = async (
       
       insightsCards.forEach(card => {
         card.benefits.forEach(perk => {
+          // For monthly perks, add to potential value
           if (perk.period === 'monthly') {
             allMonthlyPerksAvailableThisMonth++;
             monthTotalPotential += perk.value;
-            
-            const perkDetailId = `${card.id}_${perk.definition_id}_${monthKey}`;
-            
-            // Check if this perk was redeemed in this month
-            const wasRedeemed = historicalRedemptions.some(r => 
-              r.perk_id === perk.definition_id &&
-              new Date(r.redemption_date) >= monthStart &&
-              new Date(r.redemption_date) <= monthEnd
-            );
-            
-            currentMonthPerkDetails.push({
-              id: perkDetailId,
-              name: perk.name,
-              value: perk.value,
-              status: wasRedeemed ? 'redeemed' : 'missed',
-              period: perk.period,
-            });
+          }
+          
+          const perkDetailId = `${card.id}_${perk.definition_id}_${monthKey}`;
+          
+          // Check if this perk was redeemed in this month
+          const wasRedeemed = historicalRedemptions.some(r => 
+            r.perk_id === perk.definition_id &&
+            new Date(r.redemption_date) >= monthStart &&
+            new Date(r.redemption_date) <= monthEnd
+          );
+          
+          currentMonthPerkDetails.push({
+            id: perkDetailId,
+            name: perk.name,
+            value: perk.value,
+            status: wasRedeemed ? 'redeemed' : 'missed',
+            period: perk.period,
+          });
 
-            if (wasRedeemed) {
-              monthTotalRedeemed += perk.value;
-              monthPerksRedeemed++;
+          if (wasRedeemed) {
+            monthTotalRedeemed += perk.value;
+            monthPerksRedeemed++;
+            if (perk.period === 'monthly') {
               allMonthlyPerksRedeemedThisMonthCount++;
-              perkRedemptionStreaks[perk.definition_id] = (perkRedemptionStreaks[perk.definition_id] || 0) + 1;
-              
-              if (!cardActivity[card.id]) {
-                cardActivity[card.id] = { redemptions: 0, totalValue: 0 };
-              }
-              cardActivity[card.id].redemptions++;
-              cardActivity[card.id].totalValue += perk.value;
-            } else {
-              monthPerksMissed++;
-              perkRedemptionStreaks[perk.definition_id] = 0;
             }
+            perkRedemptionStreaks[perk.definition_id] = (perkRedemptionStreaks[perk.definition_id] || 0) + 1;
+            
+            if (!cardActivity[card.id]) {
+              cardActivity[card.id] = { redemptions: 0, totalValue: 0 };
+            }
+            cardActivity[card.id].redemptions++;
+            cardActivity[card.id].totalValue += perk.value;
+          } else {
+            monthPerksMissed++;
+            perkRedemptionStreaks[perk.definition_id] = 0;
           }
         });
       });
     }
     
-    const allCurrentMonthlyPerksRedeemed = allMonthlyPerksAvailableThisMonth > 0 && allMonthlyPerksRedeemedThisMonthCount === allMonthlyPerksAvailableThisMonth;
+    const allCurrentMonthlyPerksRedeemed = allMonthlyPerksAvailableThisMonth > 0 && 
+      allMonthlyPerksRedeemedThisMonthCount === allMonthlyPerksAvailableThisMonth;
 
     const monthSummary: MonthlyRedemptionSummary = {
       monthKey,
@@ -249,7 +256,12 @@ export const generateDummyInsightsData = async (
     monthlyDataByYear[yearStr].yearTotalRedeemed += monthTotalRedeemed;
     monthlyDataByYear[yearStr].yearTotalPotential += monthTotalPotential;
 
-    if (monthlyFeeProrationTarget > 0 && monthTotalRedeemed >= monthlyFeeProrationTarget) {
+    // Only consider monthly perks for fee coverage streak
+    const monthlyRedeemedValue = currentMonthPerkDetails
+      .filter(p => p.period === 'monthly' && p.status === 'redeemed')
+      .reduce((sum, p) => sum + p.value, 0);
+
+    if (monthlyFeeProrationTarget > 0 && monthlyRedeemedValue >= monthlyFeeProrationTarget) {
       consecutiveFeeCoverageMonths++;
     } else {
       consecutiveFeeCoverageMonths = 0;
