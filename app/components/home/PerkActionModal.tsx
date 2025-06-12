@@ -110,22 +110,17 @@ const formatCurrency = (amount: number) => {
 const calculateYearlyTotal = (perk: CardPerk | null): number => {
   if (!perk) return 0;
   
-  // If no frequency is specified in the perk data, default to monthly
-  const frequency = perk.type?.toLowerCase() || 'monthly';
-  
-  switch (frequency) {
+  switch (perk.period) {
     case 'monthly':
       return perk.value * 12;
     case 'quarterly':
       return perk.value * 4;
-    case 'biannual':
-    case 'semi-annual':
+    case 'semi_annual':
       return perk.value * 2;
     case 'annual':
-    case 'yearly':
       return perk.value;
     default:
-      return perk.value * 12; // Default to monthly if frequency not specified
+      return perk.value; // Default to just the value if period is unknown
   }
 };
 
