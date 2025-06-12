@@ -10,6 +10,7 @@ import {
   TextInput,
   Alert,
   KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -36,13 +37,10 @@ interface PerkActionModalProps {
 }
 
 const showToast = (message: string, onUndo?: () => void) => {
-  const toastMessage = onUndo 
-    ? `${message}\nTap to undo`
-    : message;
-
+  const toastMessage = onUndo ? `${message}\nTap to undo` : message;
   const toast = Toast.show(toastMessage, {
     duration: onUndo ? 4000 : 2000,
-    position: Toast.positions.BOTTOM - 80, // Move up by 80 pixels from bottom
+    position: Toast.positions.BOTTOM,
     shadow: true,
     animation: true,
     hideOnPress: true,
@@ -69,6 +67,14 @@ const showToast = (message: string, onUndo?: () => void) => {
   });
 };
 
+// Add a new Tooltip component
+const SliderTooltip = ({ value, style }: { value: number; style?: any }) => (
+  <View style={[styles.tooltip, style]}>
+    <View style={styles.tooltipArrow} />
+    <Text style={styles.tooltipText}>${value.toFixed(2)}</Text>
+  </View>
+);
+
 export default function PerkActionModal({
   visible,
   perk,
@@ -77,7 +83,6 @@ export default function PerkActionModal({
   onMarkRedeemed,
   onMarkAvailable,
 }: PerkActionModalProps) {
-  const [showChoices, setShowChoices] = useState(false);
   const [showPartialRedeem, setShowPartialRedeem] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
   const [sliderValue, setSliderValue] = useState(0);
@@ -113,7 +118,6 @@ export default function PerkActionModal({
     translateY.value = withTiming(1000, { duration: 300 });
     opacity.value = withTiming(0, { duration: 300 });
     setTimeout(onDismiss, 300);
-    setShowChoices(false);
     setShowPartialRedeem(false);
     setPartialAmount('');
     setSliderValue(0);
@@ -207,24 +211,6 @@ export default function PerkActionModal({
     setIsEditingNumber(true);
   };
 
-  if (!perk) return null;
-
-  const isRedeemed = perk.status === 'redeemed';
-  const isPartiallyRedeemed = perk.status === 'partially_redeemed';
-  const formattedValue = perk.value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  });
-
-  const formattedRemainingValue = perk.remaining_value ? perk.remaining_value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }) : null;
-
-  // Check if this is a multi-choice perk
-  const choices = multiChoicePerksConfig[perk.name];
-  const isMultiChoice = choices && choices.length > 0;
-
   // Get the app name for the CTA button
   const getAppName = (perk: CardPerk): string => {
     if (perk.appScheme && APP_SCHEMES[perk.appScheme]) {
@@ -265,6 +251,20 @@ export default function PerkActionModal({
     return 'App'; // Generic fallback
   };
 
+  if (!perk) return null;
+
+  const isRedeemed = perk.status === 'redeemed';
+  const isPartiallyRedeemed = perk.status === 'partially_redeemed';
+  const formattedValue = perk.value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  });
+
+  const formattedRemainingValue = perk.remaining_value ? perk.remaining_value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }) : null;
+
   const appName = getAppName(perk);
 
   return (
@@ -283,131 +283,108 @@ export default function PerkActionModal({
       >
         <Animated.View style={[styles.container, animatedStyle]}>
           <View style={styles.handle} />
-          <View style={styles.content}>
-            <Text style={styles.title}>{perk.name}</Text>
-            <Text style={styles.value}>{formattedValue}</Text>
-            {isPartiallyRedeemed && formattedRemainingValue && (
-              <Text style={styles.remainingValue}>
-                {formattedRemainingValue} remaining
-              </Text>
-            )}
-            <Text style={styles.description}>{perk.description}</Text>
-            {showPartialRedeem ? (
-              <View style={styles.partialRedeemContainer}>
-                <Text style={styles.partialRedeemLabel}>Select amount to redeem:</Text>
-                <View style={styles.sliderContainer}>
-                  <Text style={styles.sliderValue}>$0</Text>
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={0}
-                    maximumValue={perk?.value || 100}
-                    value={sliderValue}
-                    onValueChange={handleSliderChange}
-                    minimumTrackTintColor="#007AFF"
-                    maximumTrackTintColor="#E5E5EA"
-                    thumbTintColor="#007AFF"
-                    step={1}
-                  />
-                  <Text style={styles.sliderValue}>{formattedValue}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.amountContainer} 
-                  onPress={() => setIsEditingNumber(true)}
-                >
-                  <Text style={styles.amountLabel}>Amount: </Text>
-                  {isEditingNumber ? (
-                    <TextInput
-                      style={styles.amountInput}
-                      value={partialAmount}
-                      onChangeText={handlePartialAmountChange}
-                      keyboardType="decimal-pad"
-                      placeholder="Enter amount"
-                      autoFocus
-                    />
-                  ) : (
-                    <Text style={styles.amountValue}>
-                      ${sliderValue.toFixed(2)}
-                    </Text>
+          <ScrollView style={styles.scrollView}>
+            <View style={styles.content}>
+              <Text style={styles.title}>{perk.name}</Text>
+              <Text style={styles.value}>{formattedValue}</Text>
+              {isPartiallyRedeemed && formattedRemainingValue && (
+                <Text style={styles.remainingValue}>
+                  {formattedRemainingValue} remaining
+                </Text>
+              )}
+              <Text style={styles.description}>{perk.description}</Text>
+              
+              {!isRedeemed ? (
+                <>
+                  {/* Redemption Buttons */}
+                  <View style={styles.redemptionButtons}>
+                    <TouchableOpacity
+                      style={[styles.button, styles.fullRedeemButton]}
+                      onPress={handleMarkRedeemed}
+                    >
+                      <Text style={[styles.buttonText, styles.fullRedeemText]}>Full Redemption</Text>
+                    </TouchableOpacity>
+                    {!showPartialRedeem && (
+                      <TouchableOpacity
+                        style={[styles.button, styles.partialRedeemButton]}
+                        onPress={() => setShowPartialRedeem(true)}
+                      >
+                        <Text style={[styles.buttonText, styles.partialRedeemText]}>Partial Redemption</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Partial Redemption Section */}
+                  {showPartialRedeem && (
+                    <View style={styles.partialRedeemContainer}>
+                      <Text style={styles.partialRedeemLabel}>Select amount to redeem:</Text>
+                      <View style={styles.sliderContainer}>
+                        <Text style={styles.sliderValue}>$0</Text>
+                        <View style={styles.sliderWrapper}>
+                          <SliderTooltip value={sliderValue} style={{ left: `${(sliderValue / (perk?.value || 100)) * 100}%` }} />
+                          <Slider
+                            style={styles.slider}
+                            minimumValue={0}
+                            maximumValue={perk?.value || 100}
+                            value={sliderValue}
+                            onValueChange={handleSliderChange}
+                            minimumTrackTintColor="#007AFF"
+                            maximumTrackTintColor="#E5E5EA"
+                            thumbTintColor="#007AFF"
+                            step={1}
+                          />
+                        </View>
+                        <Text style={styles.sliderValue}>{formattedValue}</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.amountContainer} 
+                        onPress={() => setIsEditingNumber(true)}
+                      >
+                        <Text style={styles.amountLabel}>Amount: </Text>
+                        {isEditingNumber ? (
+                          <TextInput
+                            style={styles.amountInput}
+                            value={partialAmount}
+                            onChangeText={handlePartialAmountChange}
+                            keyboardType="decimal-pad"
+                            placeholder="Enter amount"
+                            autoFocus
+                          />
+                        ) : (
+                          <Text style={styles.amountValue}>
+                            ${sliderValue.toFixed(2)}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.button, styles.confirmButton]}
+                        onPress={handlePartialRedeem}
+                      >
+                        <Text style={[styles.buttonText, styles.confirmButtonText]}>Confirm Partial Redemption</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
-                </TouchableOpacity>
-                <View style={styles.partialRedeemButtons}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={() => {
-                      setShowPartialRedeem(false);
-                      setSliderValue(0);
-                      setPartialAmount('');
-                      setIsEditingNumber(false);
-                    }}
-                  >
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, styles.confirmButton]}
-                    onPress={handlePartialRedeem}
-                  >
-                    <Text style={[styles.buttonText, styles.confirmButtonText]}>Confirm</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : showChoices ? (
-              <View style={styles.choicesContainer}>
+                </>
+              ) : (
                 <TouchableOpacity
-                  testID="full-redemption-button"
-                  style={[styles.button, styles.choiceButton]}
-                  onPress={handleMarkRedeemed}
+                  style={[styles.button, styles.markAvailableButton]}
+                  onPress={handleMarkAvailable}
                 >
-                  <Text style={styles.buttonText}>Full Redemption</Text>
+                  <Text style={styles.buttonText}>Mark as Available</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  testID="partial-redemption-button"
-                  style={[styles.button, styles.choiceButton]}
-                  onPress={() => setShowPartialRedeem(true)}
-                >
-                  <Text style={styles.buttonText}>Partial Redemption</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="cancel-button"
-                  style={[styles.button, styles.cancelButton]}
-                  onPress={() => setShowChoices(false)}
-                >
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.buttons}>
-                {!isRedeemed && (
-                  <TouchableOpacity
-                    testID="continue-redemption-button"
-                    style={[styles.button, styles.primaryButton]}
-                    onPress={() => setShowChoices(true)}
-                  >
-                    <Text style={[styles.buttonText, styles.primaryButtonText]}>
-                      {isPartiallyRedeemed ? 'Continue Redemption' : 'Mark as Redeemed'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {isRedeemed && (
-                  <TouchableOpacity
-                    testID="mark-available-button"
-                    style={[styles.button, styles.secondaryButton]}
-                    onPress={handleMarkAvailable}
-                  >
-                    <Text style={styles.buttonText}>Mark as Available</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  testID="open-app-button"
-                  style={[styles.button, styles.openButton]}
-                  onPress={handleOpenApp}
-                >
-                  <Text style={[styles.buttonText, styles.openButtonText]}>
-                    Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+              )}
+
+              {/* Open App Button - Always at the bottom */}
+              <TouchableOpacity
+                style={[styles.button, styles.openButton]}
+                onPress={handleOpenApp}
+              >
+                <Text style={[styles.buttonText, styles.openButtonText]}>
+                  Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
@@ -427,6 +404,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    maxHeight: '90%',
+  },
+  scrollView: {
+    flexGrow: 0,
   },
   handle: {
     width: 40,
@@ -460,47 +441,48 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginBottom: 24,
   },
-  buttons: {
+  redemptionButtons: {
+    flexDirection: 'column',
     gap: 12,
+    marginBottom: 24,
   },
   button: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryButton: {
+  fullRedeemButton: {
     backgroundColor: '#007AFF',
   },
-  secondaryButton: {
+  partialRedeemButton: {
+    backgroundColor: '#E5F1FF',
+  },
+  markAvailableButton: {
     backgroundColor: '#F2F2F7',
+    marginBottom: 12,
   },
   openButton: {
     backgroundColor: '#E5F1FF',
+    marginTop: 12,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
   },
-  primaryButtonText: {
+  fullRedeemText: {
     color: '#FFFFFF',
+  },
+  partialRedeemText: {
+    color: '#007AFF',
   },
   openButtonText: {
     color: '#007AFF',
   },
-  choicesContainer: {
-    gap: 12,
-  },
-  choiceButton: {
-    backgroundColor: '#F2F2F7',
-  },
-  cancelButton: {
-    backgroundColor: '#F2F2F7',
-  },
   partialRedeemContainer: {
     gap: 16,
+    marginBottom: 24,
   },
   partialRedeemLabel: {
     fontSize: 16,
@@ -545,16 +527,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     padding: 0,
   },
-  partialRedeemButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
   confirmButton: {
-    flex: 1,
     backgroundColor: '#007AFF',
   },
   confirmButtonText: {
     color: '#FFFFFF',
+  },
+  sliderWrapper: {
+    flex: 1,
+    paddingTop: 24, // Make room for the tooltip
+  },
+  tooltip: {
+    position: 'absolute',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 4,
+    paddingHorizontal: 8,
+    top: 0,
+    transform: [{ translateX: -25 }], // Center the tooltip over the thumb
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    bottom: -4,
+    left: '50%',
+    marginLeft: -4,
+    width: 8,
+    height: 8,
+    backgroundColor: '#007AFF',
+    transform: [{ rotate: '45deg' }],
+  },
+  tooltipText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
 }); 
