@@ -1,7 +1,9 @@
 import { allCards, Benefit } from './card-data';
 import { getRedemptionsForPeriod } from '../../lib/database';
 
-export type PerkStatusFilter = 'all' | 'redeemed' | 'missed';
+export type PerkPeriod = 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
+export type PerkStatus = 'redeemed' | 'missed' | 'available' | 'partially_redeemed';
+export type PerkStatusFilter = 'all' | PerkStatus;
 
 // --- TYPE DEFINITIONS ---
 
@@ -9,9 +11,19 @@ export interface PerkRedemptionDetail {
   id: string;
   name: string;
   value: number;
-  status: 'redeemed' | 'missed';
-  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
+  status: PerkStatus;
+  period: PerkPeriod;
   expiresThisMonth: boolean;
+}
+
+export interface PerkDetail {
+  id: string;
+  name: string;
+  value: number;
+  status: 'redeemed' | 'available' | 'missed' | 'partially_redeemed';
+  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
+  expiresThisMonth?: boolean;
+  reset_date?: string;
 }
 
 export interface MonthlyRedemptionSummary {
@@ -21,11 +33,12 @@ export interface MonthlyRedemptionSummary {
   totalPotentialValue: number;
   perksRedeemedCount: number;
   perksMissedCount: number;
-  perkDetails: PerkRedemptionDetail[];
+  perkDetails: PerkDetail[];
   cardFeesProportion: number; // For calculating "on pace for annual fee"
   allMonthlyPerksRedeemedThisMonth: boolean;
   coverageTrend: number[]; // Added for sparkline
   isEven?: boolean; // For alternating row colors
+  currentFeeCoverageStreak?: number;
 }
 
 export interface Achievement {
@@ -61,7 +74,24 @@ export interface InsightsData {
 // --- DUMMY DATA GENERATION ---
 export const generateDummyInsightsData = async (
   selectedCards: string[],
-  processedCardsWithPerks?: { card: { id: string; name: string; benefits: Benefit[]; annualFee: number }; perks: { id: string; definition_id: string; name: string; value: number; status: 'redeemed' | 'available'; period: Benefit['period'] }[] }[],
+  processedCardsWithPerks?: { 
+    card: { 
+      id: string; 
+      name: string; 
+      benefits: Benefit[]; 
+      annualFee: number 
+    }; 
+    perks: { 
+      id: string; 
+      definition_id: string; 
+      name: string; 
+      value: number; 
+      status: 'redeemed' | 'available' | 'partially_redeemed'; 
+      period: Benefit['period'];
+      remaining_value?: number;
+      reset_date?: string;
+    }[] 
+  }[],
   userId?: string
 ): Promise<Omit<InsightsData, 'availableCardsForFilter' | 'currentFeeCoverageStreak' | 'cardRois'> & {
   currentFeeCoverageStreak?: number;
@@ -126,7 +156,7 @@ export const generateDummyInsightsData = async (
     let monthTotalPotential = 0;
     let monthPerksRedeemed = 0;
     let monthPerksMissed = 0;
-    const currentMonthPerkDetails: PerkRedemptionDetail[] = [];
+    const currentMonthPerkDetails: PerkDetail[] = [];
     let allMonthlyPerksAvailableThisMonth = 0;
     let allMonthlyPerksRedeemedThisMonthCount = 0;
 
@@ -140,11 +170,19 @@ export const generateDummyInsightsData = async (
     const coverageTrend: number[] = Array.from({ length: 12 }, () => Math.floor(Math.random() * 101));
 
     // For current month, use real data if available
-    const isCurrentMonth = i === 0 && processedCardsWithPerks;
+    const isCurrentMonth = i === 0; // Current month should be determined by date only
     
     if (isCurrentMonth && processedCardsWithPerks) {
       const selectedProcessedCards = processedCardsWithPerks.filter(
         cardData => selectedCards.includes(cardData.card.id)
+      );
+
+      // Get current month's redemptions
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const wasRedeemed = (perkId: string) => historicalRedemptions.some(r => 
+        r.perk_id === perkId &&
+        new Date(r.redemption_date) >= monthStart &&
+        new Date(r.redemption_date) <= monthEnd
       );
 
       selectedProcessedCards.forEach(cardData => {
@@ -157,12 +195,13 @@ export const generateDummyInsightsData = async (
             
           const perkDetailId = `${cardData.card.id}_${perk.definition_id}_${monthKey}`;
           
-          // Map 'available' status to 'missed' for display
-          const displayStatus = perk.status === 'redeemed' ? 'redeemed' : 'missed';
+          // Check if this perk was redeemed in the current month
+          const isRedeemed = wasRedeemed(perk.definition_id);
+          const displayStatus = isRedeemed ? 'redeemed' : 'available';
 
           // Determine if non-monthly perk expires this month
           let expiresThisMonth = false;
-          if (perk.period !== 'monthly' && displayStatus === 'missed') {
+          if (perk.period !== 'monthly' && !isRedeemed) {
             const resetDate = new Date(perk.reset_date || '');
             expiresThisMonth = resetDate.getMonth() === monthEnd.getMonth() && 
                               resetDate.getFullYear() === monthEnd.getFullYear();
@@ -174,8 +213,9 @@ export const generateDummyInsightsData = async (
             value: perk.value,
             status: displayStatus,
             period: perk.period,
-            expiresThisMonth
-          });
+            expiresThisMonth,
+            reset_date: perk.reset_date || undefined
+          } as PerkDetail);
 
           if (displayStatus === 'redeemed') {
             monthTotalRedeemed += perk.value;
@@ -216,6 +256,10 @@ export const generateDummyInsightsData = async (
             new Date(r.redemption_date) <= monthEnd
           );
 
+          // For current month, show as 'available' instead of 'missed' if not redeemed
+          const displayStatus = wasRedeemed ? 'redeemed' : 
+                              isCurrentMonth ? 'available' : 'missed';
+
           // Determine if non-monthly perk expires this month
           let expiresThisMonth = false;
           if (perk.period !== 'monthly' && !wasRedeemed) {
@@ -238,12 +282,13 @@ export const generateDummyInsightsData = async (
             id: perkDetailId,
             name: perk.name,
             value: perk.value,
-            status: wasRedeemed ? 'redeemed' : 'missed',
+            status: displayStatus,
             period: perk.period,
-            expiresThisMonth
-          });
+            expiresThisMonth,
+            reset_date: undefined
+          } as PerkDetail);
 
-          if (wasRedeemed) {
+          if (displayStatus === 'redeemed') {
             monthTotalRedeemed += perk.value;
             monthPerksRedeemed++;
             if (perk.period === 'monthly') {

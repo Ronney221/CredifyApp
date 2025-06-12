@@ -4,12 +4,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors'; // Assuming you have a Colors constant
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
-import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'; // Added Reanimated imports
+import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming, useAnimatedScrollHandler } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 import YearlyProgress from '../components/insights/YearlyProgress'; // Import the new component
 import FilterChipRow from '../components/insights/FilterChipRow'; // Import the new component
 import CardRoiLeaderboard from '../components/insights/CardRoiLeaderboard'; // Import the new component
+import MiniBarChart from '../components/insights/MiniBarChart';
 import {
   generateDummyInsightsData,
   InsightsData,
@@ -24,6 +25,8 @@ import { FeeCoverageMeterChip } from '../components/insights/FeeCoverageMeterChi
 import { useAuth } from '../../contexts/AuthContext';
 import { useUserCards } from '../hooks/useUserCards';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -119,7 +122,7 @@ const ForecastDialPlaceholder: React.FC = () => {
           </SvgText>
         </Svg>
       </View>
-      <Text style={{ fontSize: 12, color: Colors.light.text, marginTop: 4 }}>Break-Even</Text>
+      <Text style={{ fontSize: 12, color: Colors.light.tint, marginTop: 4 }}>Break-Even</Text>
     </View>
   );
 };
@@ -193,6 +196,20 @@ const ISSUER_ORDER = [
   'Other'
 ];
 
+// Add after imports, before component
+// Helper functions for chronological data processing
+const parseMonthKey = (k: string): Date => {
+  const [y, m] = k.split('-').map(Number);
+  return new Date(y, m - 1); // month is 0-based
+};
+
+const rightPad = <T,>(arr: T[] = [], size = 6, fillValue: T): T[] => {
+  const res = new Array(size).fill(fillValue);
+  const offset = size - Math.min(arr.length, size);
+  arr.slice(-size).forEach((v, i) => (res[offset + i] = v));
+  return res;
+};
+
 export default function InsightsScreen() {
   const { user } = useAuth();
   const { 
@@ -200,12 +217,27 @@ export default function InsightsScreen() {
     isLoading: isLoadingUserCards,
     refreshUserCards 
   } = useUserCards();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [expandedMonthKey, setExpandedMonthKey] = useState<string | null>(null);
   const sectionListRef = useRef<SectionList<MonthlyRedemptionSummary, YearSection>>(null);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
+  const router = useRouter();
+
+  // Add scroll animation value
+  const scrollY = useSharedValue(0);
+  const headerScrollProgress = useSharedValue(0);
+
+  // Add scroll handler
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+      // Transition over 100px of scroll
+      headerScrollProgress.value = Math.min(1, Math.max(0, scrollY.value / 100));
+    },
+  });
 
   // Focus effect to refresh data when screen comes into focus
   useFocusEffect(
@@ -340,9 +372,33 @@ export default function InsightsScreen() {
 
       const result = await generateDummyInsightsData(selectedCardIds, processedCards, user?.id);
 
+      // Filter out months with no activity (no redeemed perks)
+      const filteredYearSections = result.yearSections.map(yearSection => {
+        // Filter months where there is at least one redeemed perk
+        const filteredData = yearSection.data.filter(month => {
+          const hasRedeemedPerks = month.perkDetails.some(perk => perk.status === 'redeemed');
+          return hasRedeemedPerks;
+        });
+
+        // Recalculate the total redeemed value for the year based on filtered months
+        const totalRedeemedForYear = filteredData.reduce((sum, month) => sum + month.totalRedeemedValue, 0);
+
+        return {
+          ...yearSection,
+          data: filteredData,
+          totalRedeemedForYear
+        };
+      }).filter(yearSection => yearSection.data.length > 0); // Remove years with no data
+
+      // Update the result with filtered data
+      const filteredResult = {
+        ...result,
+        yearSections: filteredYearSections
+      };
+
       // Log the first month's data to verify what's being displayed
-      if (result.yearSections.length > 0 && result.yearSections[0].data.length > 0) {
-        const currentMonth = result.yearSections[0].data[0];
+      if (filteredResult.yearSections.length > 0 && filteredResult.yearSections[0].data.length > 0) {
+        const currentMonth = filteredResult.yearSections[0].data[0];
         console.log('[InsightsScreen] Debug - Current month data:', {
           monthYear: currentMonth.monthYear,
           totalRedeemed: currentMonth.totalRedeemedValue,
@@ -357,7 +413,7 @@ export default function InsightsScreen() {
         });
       }
 
-      setInsightsData(result);
+      setInsightsData(filteredResult);
     }
 
     loadInsightsData();
@@ -403,21 +459,41 @@ export default function InsightsScreen() {
   };
 
   const renderSectionHeader = ({ section }: { section: YearSection }) => {
-    const trendData = section.data.map(month => 
-      (month.totalRedeemedValue / month.totalPotentialValue) * 100
-    ).slice(0, 6).reverse();
+    // Guard against empty data
+    if (!section.data || section.data.length === 0) {
+      return null;
+    }
 
-    const monthlyData = section.data.map(month => ({
-      redeemed: month.totalRedeemedValue,
-      potential: month.totalPotentialValue
-    })).slice(0, 6).reverse();
+    // Calculate trend data using only monthly perks
+    const trendData = section.data.map(month => {
+      const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
+      const monthlyRedeemed = monthlyPerks.reduce((sum, perk) => 
+        perk.status === 'redeemed' ? sum + perk.value : sum, 0
+      );
+      const monthlyPotential = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
+      return monthlyPotential > 0 ? (monthlyRedeemed / monthlyPotential) * 100 : 0;
+    }).slice(0, 6).reverse();
+
+    // Monthly data for the chart should also only include monthly perks
+    const monthlyData = section.data.map(month => {
+      const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
+      return {
+        redeemed: monthlyPerks.reduce((sum, perk) => 
+          perk.status === 'redeemed' ? sum + perk.value : sum, 0
+        ),
+        potential: monthlyPerks.reduce((sum, perk) => sum + perk.value, 0)
+      };
+    }).slice(0, 6).reverse();
+
+    // Calculate total annual fees for selected cards
+    const totalAnnualFees = insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0);
 
     return (
       <View style={styles.sectionHeaderContainer}>
         <YearlyProgress
           year={section.year}
           totalRedeemed={section.totalRedeemedForYear}
-          totalPotential={section.totalPotentialForYear}
+          totalAnnualFees={totalAnnualFees}
           trendData={trendData}
           monthlyData={monthlyData}
         />
@@ -433,6 +509,29 @@ export default function InsightsScreen() {
     Alert.alert('Share feature coming soon!');
   };
 
+  // Add useLayoutEffect for header configuration
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity 
+          onPress={() => setFilterModalVisible(true)}
+          style={styles.headerButton}
+        >
+          <Ionicons 
+            name="funnel-outline" 
+            size={22} 
+            color={Colors.light.text} 
+          />
+          {activeFilterCount > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, activeFilterCount]);
+
   if (isLoadingUserCards || !isDataLoaded) {
     return (
       <SafeAreaView style={styles.container}>
@@ -444,166 +543,232 @@ export default function InsightsScreen() {
     );
   }
 
+  // Prepare data for the first year section (current year)
+  const currentYearSection = insightsData.yearSections[0];
+  const currentYearData = currentYearSection ? {
+    year: currentYearSection.year,
+    totalRedeemed: currentYearSection.totalRedeemedForYear,
+    totalAnnualFees: insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0),
+  } : null;
+
+  // Filter Modal Content
+  const renderFilterModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isFilterModalVisible}
+      onRequestClose={() => setFilterModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Performance Data</Text>
+            <TouchableOpacity 
+              onPress={() => setFilterModalVisible(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.filterSectionTitle}>SHOW CARDS</Text>
+          <View style={styles.selectAllRow}>
+            <TouchableOpacity 
+              style={styles.selectAllButton}
+              onPress={() => setSelectedCardIds(availableCardsForFilter.map(c => c.id))}
+            >
+              <Text style={styles.selectButtonText}>Select All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.selectAllButton}
+              onPress={() => setSelectedCardIds([])}
+            >
+              <Text style={styles.selectButtonText}>Deselect All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.cardsScrollView}>
+            {ISSUER_ORDER.map(issuer => {
+              const cards = groupedCards[issuer] || [];
+              if (cards.length === 0) return null;
+              
+              return (
+                <View key={`issuer-${issuer}`} style={styles.issuerSection}>
+                  <Text style={styles.issuerTitle}>{issuer}</Text>
+                  {cards.map(card => {
+                    const isSelected = selectedCardIds.includes(card.id);
+                    return (
+                      <TouchableOpacity 
+                        key={`card-${card.id}`}
+                        style={styles.cardFilterRow} 
+                        onPress={() => toggleCardSelection(card.id)}
+                      >
+                        <View style={styles.checkboxContainer}>
+                          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                            {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                          </View>
+                        </View>
+                        <View style={styles.cardNameContainer}>
+                          <Text style={styles.cardFilterName}>{card.name}</Text>
+                          {card.activityCount > 0 && (
+                            <Text style={styles.cardActivityLabel}>
+                              {card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          <TouchableOpacity 
+            style={styles.applyButton}
+            onPress={() => setFilterModalVisible(false)}
+          >
+            <Text style={styles.applyButtonText}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.headerContainer}>
-        <FilterChipRow
-          perkStatusFilter={perkStatusFilter}
-          setPerkStatusFilter={setPerkStatusFilter}
-          selectedCardIds={selectedCardIds}
-          availableCards={availableCardsForFilter}
-          onManageFilters={() => setFilterModalVisible(true)}
-          activeFilterCount={activeFilterCount}
+      {currentYearData && (
+        <YearlyProgress
+          year={currentYearData.year}
+          totalRedeemed={currentYearData.totalRedeemed}
+          totalAnnualFees={currentYearData.totalAnnualFees}
+          trendData={[]}
+          scrollProgress={headerScrollProgress}
+          isSticky={true}
         />
-      </View>
+      )}
 
       {insightsData.yearSections.length > 0 ? (
-        <SectionList
-          sections={insightsData.yearSections}
-          keyExtractor={(item) => item.monthKey}
-          renderItem={renderMonthSummaryCard}
-          renderSectionHeader={renderSectionHeader}
-          stickySectionHeadersEnabled={true}
-          initialNumToRender={6}
-          contentContainerStyle={styles.historySection}
-          ListHeaderComponent={
-            <>
-              <OnboardingHint 
-                perkStatusFilter={perkStatusFilter}
-                selectedCardCount={selectedCardIds.length}
-                defaultSelectedCardIds={defaultSelectedCardIds}
-              />
-              <CardRoiLeaderboard cardRois={insightsData.cardRois} />
-              {insightsData.currentFeeCoverageStreak && insightsData.currentFeeCoverageStreak >= 2 && (
-                <StreakBadge streakCount={insightsData.currentFeeCoverageStreak} />
-              )}
-              <View style={{height: 10}}/>
-            </>
-          }
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-        />
+        >
+          <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+
+          {/* Monthly Performance Chart */}
+          <View style={styles.chartSection}>
+            <View style={styles.chartHeader}>
+              <Text style={styles.chartTitle}>Monthly Performance</Text>
+              <TouchableOpacity 
+                onPress={() => Alert.alert(
+                  "Monthly Performance",
+                  "This chart shows your total savings from redeemed perks each month."
+                )}
+              >
+                <Ionicons name="information-circle-outline" size={20} color={Colors.light.icon} />
+              </TouchableOpacity>
+            </View>
+            {currentYearSection && (
+              <React.Fragment>
+                {(() => {
+                  // Sort months chronologically (oldest to newest)
+                  const monthsChrono = [...currentYearSection.data]
+                    .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
+
+                  // Calculate percentage and raw data arrays
+                  const pct = monthsChrono.map(m => 
+                    (m.totalRedeemedValue / m.totalPotentialValue) * 100
+                  );
+                  const raw = monthsChrono.map(m => ({
+                    redeemed: m.totalRedeemedValue,
+                    potential: m.totalPotentialValue,
+                  }));
+
+                  // Debug output to verify alignment
+                  console.table(
+                    monthsChrono.map(m => ({
+                      key: m.monthKey,
+                      redeemed: m.totalRedeemedValue,
+                      potential: m.totalPotentialValue,
+                      pct: (m.totalRedeemedValue / m.totalPotentialValue) * 100
+                    }))
+                  );
+
+                  return (
+                    <MiniBarChart
+                      data={rightPad(pct, 6, 0)}
+                      rawData={rightPad(raw, 6, { redeemed: 0, potential: 0 })}
+                    />
+                  );
+                })()}
+              </React.Fragment>
+            )}
+          </View>
+
+          {/* Monthly History Section */}
+          <View style={styles.monthlyHistoryHeader}>
+            <Text style={styles.sectionTitle}>Monthly History</Text>
+            <FilterChipRow
+              perkStatusFilter={perkStatusFilter}
+              setPerkStatusFilter={setPerkStatusFilter}
+            />
+          </View>
+
+          {/* Monthly History List */}
+          {currentYearSection?.data.map((month, index) => (
+            <MonthSummaryCard
+              key={month.monthKey}
+              summary={month}
+              isExpanded={expandedMonthKey === month.monthKey}
+              onToggleExpand={() => handleToggleMonth(month.monthKey)}
+              perkStatusFilter={perkStatusFilter}
+              isFirstOverallCard={index === 0}
+              isEven={index % 2 === 0}
+            />
+          ))}
+        </Animated.ScrollView>
       ) : (
         <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateText}>No insights to display.</Text>
-          {(selectedCardIds.length === 0 || activeFilterCount > 0) && 
-            <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>}
+          <View style={styles.emptyStateContent}>
+            <Ionicons name="bar-chart-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
+            <Text style={styles.emptyStateTitle}>No Insights Yet</Text>
+            <Text style={styles.emptyStateText}>
+              Track your credit card perks and rewards to see valuable insights about your redemptions.
+            </Text>
+            {(selectedCardIds.length === 0 || activeFilterCount > 0) ? (
+              <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>
+            ) : (
+              <>
+                <View style={styles.emptyStateBulletPoints}>
+                  <View style={styles.bulletPoint}>
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                    <Text style={styles.bulletText}>See monthly redemption trends</Text>
+                  </View>
+                  <View style={styles.bulletPoint}>
+                    <Ionicons name="trending-up" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                    <Text style={styles.bulletText}>Track your card ROI</Text>
+                  </View>
+                  <View style={styles.bulletPoint}>
+                    <Ionicons name="notifications-outline" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                    <Text style={styles.bulletText}>Get reminders for upcoming perks</Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.ctaButton}
+                  onPress={() => router.push("/home")}
+                >
+                  <Text style={styles.ctaButtonText}>Start Tracking Perks</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaButtonIcon} />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
       )}
 
-      {/* Filter Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isFilterModalVisible}
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter Insights</Text>
-              <TouchableOpacity 
-                onPress={() => setFilterModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={Colors.light.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.filterSectionTitle}>PERK STATUS</Text>
-            <View style={styles.filterOptionRow}>
-              {(['all', 'redeemed', 'missed'] as PerkStatusFilter[]).map(status => (
-                <TouchableOpacity 
-                  key={status} 
-                  style={[styles.filterButton, perkStatusFilter === status && styles.filterButtonSelected]}
-                  onPress={() => setPerkStatusFilter(status)}
-                >
-                  <Text style={[styles.filterButtonText, perkStatusFilter === status && styles.filterButtonTextSelected]}>
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.filterSectionTitle}>CARDS</Text>
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color={Colors.light.icon} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search cards..."
-                placeholderTextColor={Colors.light.icon}
-                value={cardSearchQuery}
-                onChangeText={setCardSearchQuery}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {cardSearchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setCardSearchQuery('')} style={styles.clearSearchButton}>
-                  <Ionicons name="close-circle" size={20} color={Colors.light.icon} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <ScrollView style={styles.cardsScrollView}>
-              {ISSUER_ORDER.map(issuer => {
-                const cards = groupedCards[issuer] || [];
-                const filteredCards = cards.filter(card => 
-                  card.name.toLowerCase().includes(cardSearchQuery.toLowerCase())
-                );
-                
-                if (filteredCards.length === 0) return null;
-                
-                return (
-                  <View key={`issuer-${issuer}`} style={styles.issuerSection}>
-                    <Text style={styles.issuerTitle}>{issuer}</Text>
-                    {filteredCards.map(card => {
-                      const isSelected = selectedCardIds.includes(card.id);
-                      return (
-                        <TouchableOpacity 
-                          key={`card-${card.id}`}
-                          style={styles.cardFilterRow} 
-                          onPress={() => toggleCardSelection(card.id)}
-                        >
-                          <View style={styles.checkboxContainer}>
-                            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                              {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                            </View>
-                          </View>
-                          <View style={styles.cardNameContainer}>
-                            <Text style={styles.cardFilterName}>{card.name}</Text>
-                            {card.activityCount > 0 && (
-                              <Text style={styles.cardActivityLabel}>
-                                {card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}
-                              </Text>
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                style={[styles.footerButton, styles.clearButton]} 
-                onPress={() => {
-                  setSelectedCardIds([]);
-                  setPerkStatusFilter('all');
-                  setCardSearchQuery('');
-                }}
-              >
-                <Text style={[styles.footerButtonText, styles.clearButtonText]}>Clear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.footerButton, styles.applyButton]} 
-                onPress={() => setFilterModalVisible(false)}
-              >
-                <Text style={[styles.footerButtonText, styles.applyButtonText]}>Apply</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {renderFilterModal()}
     </SafeAreaView>
   );
 }
@@ -644,46 +809,91 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    backgroundColor: Colors.light.background,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
+  emptyStateContent: {
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  emptyStateIcon: {
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
   },
   emptyStateSubText: {
     fontSize: 14,
     color: Colors.light.icon,
     textAlign: 'center',
   },
+  emptyStateBulletPoints: {
+    alignSelf: 'stretch',
+    marginBottom: 32,
+  },
+  bulletPoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  bulletIcon: {
+    marginRight: 12,
+  },
+  bulletText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    flex: 1,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+  },
+  ctaButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+    marginRight: 8,
+  },
+  ctaButtonIcon: {
+    marginLeft: 4,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    width: '90%',
-    backgroundColor: '#F8F8F8',
-    borderRadius: 12,
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: Colors.light.text,
   },
   closeButton: {
@@ -698,167 +908,27 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  filterOptionRow: {
+  selectAllRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginBottom: 15,
   },
-  filterButton: {
+  selectAllButton: {
     paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: Colors.light.icon,
-  },
-  filterButtonSelected: {
-    backgroundColor: Colors.light.tint,
     borderColor: Colors.light.tint,
   },
-  filterButtonText: {
-    color: Colors.light.text,
-  },
-  filterButtonTextSelected: {
-    color: Colors.light.background, 
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.light.icon,
-    borderRadius: 8,
-    padding: 10,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
+  selectButtonText: {
+    color: Colors.light.tint,
+    fontSize: 14,
+    fontWeight: '500',
   },
   cardsScrollView: {
     maxHeight: 250,
     marginVertical: 10,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
-  footerButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clearButton: {
-    backgroundColor: '#E5E5EA',
-    marginRight: 10,
-  },
-  clearButtonText: {
-    color: Colors.light.text,
-  },
-  applyButton: {
-    backgroundColor: Colors.light.tint,
-  },
-  applyButtonText: {
-    color: '#FFFFFF',
-  },
-  footerButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  streakBadgeContainer: {
-    backgroundColor: ACCENT_YELLOW_BACKGROUND,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    alignSelf: 'center',
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  streakBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  placeholdersContainer: {
-    paddingHorizontal: 15,
-    paddingBottom: 20,
-    alignItems: 'center',
-  },
-  placeholderModuleContainer: {
-    width: '100%',
-    justifyContent: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
-    borderRadius: 8,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  skeletonStub: {
-    height: 48,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
-    borderRadius: 8,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  skeletonStubText: {
-    fontSize: 14,
-    color: Colors.light.icon, 
-    textAlign: 'center',
-  },
-  placeholderTitleSmall: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.light.icon,
-    marginBottom: 5,
-    textAlign: 'center',
-  },
-  dialPlaceholderText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: Colors.light.tint,
-  },
-  celebratoryEmptyState: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  celebratoryEmoji: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  celebratoryText: {
-    fontSize: 14,
-    color: Colors.light.icon,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  onboardingHintContainer: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  onboardingHintText: {
-    fontSize: 13,
-    color: Colors.light.icon,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   issuerSection: {
     marginBottom: 10,
@@ -908,7 +978,125 @@ const styles = StyleSheet.create({
     color: Colors.light.icon,
     marginTop: 2,
   },
-  clearSearchButton: {
-    padding: 5,
+  scrollContent: {
+    paddingTop: 20,
+    paddingBottom: 80,
+  },
+  chartSection: {
+    marginTop: 20,
+    marginHorizontal: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  chartTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  monthlyHistoryHeader: {
+    marginTop: 30,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 15,
+  },
+  headerButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: Colors.light.tint,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.background,
+  },
+  headerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  placeholderModuleContainer: {
+    width: '100%',
+    justifyContent: 'center',
+    backgroundColor: CARD_BACKGROUND_COLOR,
+    borderRadius: 8,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  skeletonStub: {
+    height: 48,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: CARD_BACKGROUND_COLOR,
+    borderRadius: 8,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  skeletonStubText: {
+    fontSize: 14,
+    color: Colors.light.icon, 
+    textAlign: 'center',
+  },
+  onboardingHintContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  onboardingHintText: {
+    fontSize: 13,
+    color: Colors.light.icon,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  applyButton: {
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  applyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 }); 

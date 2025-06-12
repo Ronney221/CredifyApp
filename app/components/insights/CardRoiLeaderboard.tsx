@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
 import { CardROI } from '../../../src/data/dummy-insights';
@@ -9,16 +9,22 @@ interface CardRoiLeaderboardProps {
 }
 
 const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => {
-  const clampedProgress = Math.max(0, Math.min(100, progress));
-  const isFeeCovered = progress >= 100;
-
+  const clampedProgress = Math.min(Math.max(progress, 0), 100);
+  const isZeroProgress = clampedProgress === 0;
+  
   return (
     <View style={styles.progressBarContainer}>
-      <View style={[
-        styles.progressBarFill, 
-        { width: `${clampedProgress}%` },
-        isFeeCovered ? styles.progressGreen : styles.progressBlue,
-      ]} />
+      {isZeroProgress ? (
+        <View style={styles.progressBarZero} />
+      ) : (
+        <View 
+          style={[
+            styles.progressBarFill,
+            { width: `${clampedProgress}%` },
+            clampedProgress >= 100 && styles.progressBarSuccess
+          ]} 
+        />
+      )}
     </View>
   );
 };
@@ -35,7 +41,14 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Card ROI for {new Date().getFullYear()}</Text>
-        <Ionicons name="help-circle-outline" size={20} color={Colors.light.icon} />
+        <TouchableOpacity 
+          onPress={() => Alert.alert(
+            "Card ROI",
+            "Return on Investment (ROI) shows how much value you've redeemed compared to your annual fee. A card with 100% ROI means you've redeemed benefits equal to its annual fee."
+          )}
+        >
+          <Ionicons name="help-circle-outline" size={20} color={Colors.light.icon} />
+        </TouchableOpacity>
       </View>
       <View style={styles.leaderboard}>
         {sortedRois.map((roi, index) => (
@@ -50,7 +63,7 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
                   {Math.round(roi.roiPercentage)}%
                 </Text>
                 <Text style={styles.roiValues}>
-                  ${roi.totalRedeemed.toFixed(0)} / ${roi.annualFee.toFixed(0)}
+                  ${roi.totalRedeemed.toFixed(0)} / <Text style={styles.annualFeeLabel}>${roi.annualFee.toFixed(0)} Annual Fee</Text>
                 </Text>
               </View>
               <ProgressBar progress={roi.roiPercentage} />
@@ -134,22 +147,31 @@ const styles = StyleSheet.create({
     color: Colors.light.icon,
     marginTop: 2,
   },
+  annualFeeLabel: {
+    color: Colors.light.icon,
+    fontStyle: 'normal',
+  },
   progressBarContainer: {
-    height: 6,
-    width: '100%',
+    height: 4,
     backgroundColor: '#E5E5EA',
-    borderRadius: 3,
+    borderRadius: 2,
     overflow: 'hidden',
+    marginTop: 4,
+    width: '100%',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
-  },
-  progressBlue: {
     backgroundColor: Colors.light.tint,
+    borderRadius: 2,
   },
-  progressGreen: {
-    backgroundColor: '#34C759', // A clear success green
+  progressBarSuccess: {
+    backgroundColor: '#34C759', // Success green for 100%+ ROI
+  },
+  progressBarZero: {
+    height: '100%',
+    backgroundColor: '#E5E5EA',
+    opacity: 0.5,
+    width: '100%',
   },
 });
 

@@ -35,6 +35,57 @@ interface PerkWithStatus extends Benefit {
   remaining_value?: number;
 }
 
+// Helper function to calculate reset date based on period
+const calculateResetDate = (period: string, periodMonths: number, resetType: 'calendar' | 'anniversary'): Date => {
+  const now = new Date();
+  const resetDate = new Date();
+  
+  if (resetType === 'calendar') {
+    // For calendar-based resets, align with calendar periods
+    switch (period) {
+      case 'monthly':
+        // Reset on first day of next month
+        resetDate.setMonth(now.getMonth() + 1, 1);
+        resetDate.setHours(0, 0, 0, 0);
+        break;
+      case 'quarterly':
+        // Reset on first day of next quarter
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        resetDate.setMonth((currentQuarter + 1) * 3, 1);
+        resetDate.setHours(0, 0, 0, 0);
+        if (resetDate <= now) {
+          resetDate.setMonth(resetDate.getMonth() + 3);
+        }
+        break;
+      case 'semi_annual':
+        // Reset on either January 1 or July 1
+        const isFirstHalf = now.getMonth() < 6;
+        resetDate.setMonth(isFirstHalf ? 6 : 0);
+        resetDate.setDate(1);
+        resetDate.setHours(0, 0, 0, 0);
+        if (resetDate <= now) {
+          resetDate.setFullYear(resetDate.getFullYear() + (isFirstHalf ? 0 : 1));
+        }
+        break;
+      case 'annual':
+        // Reset on January 1 of next year
+        resetDate.setFullYear(now.getFullYear() + 1, 0, 1);
+        resetDate.setHours(0, 0, 0, 0);
+        break;
+      default:
+        // For custom periods, add the period months
+        resetDate.setMonth(now.getMonth() + periodMonths);
+        resetDate.setDate(1);
+        resetDate.setHours(0, 0, 0, 0);
+    }
+  } else {
+    // For anniversary-based resets, simply add the period months to current date
+    resetDate.setMonth(now.getMonth() + periodMonths);
+  }
+  
+  return resetDate;
+};
+
 export async function getUserCards(userId: string) {
   try {
     console.log('Fetching cards for user:', userId);
@@ -159,7 +210,7 @@ export async function trackPerkRedemption(
     // First, find the perk definition
     const { data: perkDef, error: perkDefError } = await supabase
       .from('perk_definitions')
-      .select('id, name, value')
+      .select('id, name, value, period_months, reset_type')
       .eq('id', perk.definition_id)
       .single();
 
@@ -172,13 +223,26 @@ export async function trackPerkRedemption(
       return { error: new Error(`Perk definition not found for ID: ${perk.definition_id} (Name: ${perk.name})`) };
     }
 
-    // Check if perk is already fully redeemed
+    // Check if perk is already redeemed in the current period
+    const now = new Date();
+    const startOfPeriod = new Date();
+    startOfPeriod.setDate(1);
+    startOfPeriod.setHours(0, 0, 0, 0);
+    
+    if (perkDef.period_months > 1) {
+      // Adjust start date for multi-month periods
+      startOfPeriod.setMonth(Math.floor(now.getMonth() / perkDef.period_months) * perkDef.period_months);
+    }
+
     const { data: existingRedemption, error: existingError } = await supabase
       .from('perk_redemptions')
-      .select('id, status, remaining_value, value_redeemed')
+      .select('id, status, remaining_value, value_redeemed, reset_date')
       .eq('user_id', userId)
       .eq('perk_id', perk.definition_id)
-      .eq('status', 'redeemed')
+      .gte('redemption_date', startOfPeriod.toISOString())
+      .lt('reset_date', now.toISOString())
+      .order('redemption_date', { ascending: false })
+      .limit(1)
       .single();
 
     if (existingRedemption && !existingError) {
@@ -225,29 +289,12 @@ export async function trackPerkRedemption(
 
     const userCardToUse = userCardsResult[0];
 
-    // Calculate reset date based on period and type
-    const now = new Date();
-    let resetDate = new Date();
-
-    if (perk.resetType === 'calendar') {
-      switch (perk.period) {
-        case 'monthly':
-          resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-          break;
-        case 'quarterly':
-          resetDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1);
-          break;
-        case 'semi_annual':
-          resetDate = new Date(now.getFullYear(), Math.floor(now.getMonth() / 6) * 6 + 6, 1);
-          break;
-        case 'yearly':
-          resetDate = new Date(now.getFullYear() + 1, 0, 1);
-          break;
-      }
-    } else {
-      // Anniversary based - add months based on period
-      resetDate.setMonth(resetDate.getMonth() + perk.periodMonths);
-    }
+    // Calculate reset date based on perk period and type
+    const resetDate = calculateResetDate(
+      perk.period || 'monthly',
+      perkDef.period_months || 1,
+      perkDef.reset_type || 'calendar'
+    );
 
     // Determine redemption status and values
     const isPartialRedemption = valueRedeemed < perkDef.value;
@@ -270,7 +317,7 @@ export async function trackPerkRedemption(
       }
     }
 
-    // Insert the new redemption
+    // Insert the new redemption with the calculated reset date
     const { error: insertError } = await supabase
       .from('perk_redemptions')
       .insert({
@@ -302,18 +349,22 @@ export async function trackPerkRedemption(
 export async function getPerkRedemptions(
   userId: string,
   startDate?: Date,
-  endDate?: Date
+  endDate?: Date,
+  includeExpired: boolean = false
 ) {
   try {
-    console.log('Fetching perk redemptions:', { userId, startDate, endDate });
+    console.log('Fetching perk redemptions:', { userId, startDate, endDate, includeExpired });
 
     let query = supabase
       .from('perk_redemptions')
       .select(`
         *,
         perk_definitions (
+          id,
           name,
-          value
+          value,
+          period_months,
+          reset_type
         ),
         user_credit_cards (
           card_name,
@@ -322,12 +373,23 @@ export async function getPerkRedemptions(
       `)
       .eq('user_id', userId);
 
+    const now = new Date();
+
+    if (!includeExpired) {
+      // Only include redemptions that haven't expired (reset_date > now)
+      query = query.gt('reset_date', now.toISOString());
+    }
+
     if (startDate) {
       query = query.gte('redemption_date', startDate.toISOString());
     }
+    
     if (endDate) {
       query = query.lt('redemption_date', endDate.toISOString());
     }
+
+    // Order by redemption date descending to get most recent first
+    query = query.order('redemption_date', { ascending: false });
 
     const { data, error } = await query;
 
@@ -336,8 +398,23 @@ export async function getPerkRedemptions(
       return { error };
     }
 
-    console.log('Successfully fetched perk redemptions:', data?.length || 0);
-    return { data, error: null };
+    // Post-process the results to add period information
+    const processedData = data?.map(redemption => {
+      const periodStart = new Date(redemption.redemption_date);
+      const periodEnd = new Date(redemption.reset_date);
+      
+      return {
+        ...redemption,
+        period: {
+          start: periodStart,
+          end: periodEnd,
+          months: redemption.perk_definitions?.period_months || 1
+        }
+      };
+    });
+
+    console.log('Successfully fetched perk redemptions:', processedData?.length || 0);
+    return { data: processedData, error: null };
   } catch (error) {
     console.error('Unexpected error fetching perk redemptions:', error);
     return { error };
