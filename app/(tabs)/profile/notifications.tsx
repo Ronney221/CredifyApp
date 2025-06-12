@@ -18,6 +18,7 @@ import { useCardManagement } from '../../components/cards/hooks/useCardManagemen
 import { useAuth } from '../../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
+import { BlurView } from 'expo-blur';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -120,9 +121,9 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
               value={toggle.value}
               onValueChange={toggle.onValueChange}
               disabled={item.dimmed}
-              trackColor={{ false: '#767577', true: Colors.light.tint }}
-              thumbColor={item.dimmed ? '#f4f3f4' : '#ffffff'}
-              ios_backgroundColor="#3e3e3e"
+              trackColor={{ false: '#e9e9ea', true: Colors.light.tint }}
+              thumbColor={'#ffffff'}
+              ios_backgroundColor="#e9e9ea"
             />
           )
         )}
@@ -137,9 +138,9 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
                 value={toggle.value}
                 onValueChange={toggle.onValueChange}
                 disabled={toggle.disabled}
-                trackColor={{ false: '#767577', true: Colors.light.tint }}
-                thumbColor={toggle.disabled ? '#f4f3f4' : '#ffffff'}
-                ios_backgroundColor="#3e3e3e"
+                trackColor={{ false: '#e9e9ea', true: Colors.light.tint }}
+                thumbColor={'#ffffff'}
+                ios_backgroundColor="#e9e9ea"
               />
             </View>
           ))}
@@ -155,9 +156,9 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
                 value={toggle.value}
                 onValueChange={toggle.onValueChange}
                 disabled={toggle.disabled}
-                trackColor={{ false: '#767577', true: Colors.light.tint }}
-                thumbColor={toggle.disabled ? '#f4f3f4' : '#ffffff'}
-                ios_backgroundColor="#3e3e3e"
+                trackColor={{ false: '#e9e9ea', true: Colors.light.tint }}
+                thumbColor={'#ffffff'}
+                ios_backgroundColor="#e9e9ea"
               />
             </View>
           ))}
@@ -206,14 +207,20 @@ export default function NotificationSettingsScreen() {
               />
             ))}
           </View>
-           <TouchableOpacity 
-              onPress={() => user?.id && sendTestNotification(user.id)} 
-              style={[styles.testButton, !user?.id && styles.disabledButton]}
-              disabled={!user?.id}
-            >
-              <Ionicons name="paper-plane-outline" size={20} color={!user?.id ? '#c7c7cc' : Colors.light.tint} />
-              <Text style={[styles.testButtonText, !user?.id && styles.disabledButtonText]}>Test Perk Reminders</Text>
-            </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => user?.id && sendTestNotification(user.id)} 
+            style={[styles.testButton, !user?.id && styles.disabledButton]}
+            disabled={!user?.id}
+          >
+            <BlurView intensity={80} tint="light" style={styles.testButtonInner}>
+              <Ionicons name="rocket-outline" size={24} color={Colors.light.tint} />
+              <View style={styles.testButtonContent}>
+                <Text style={styles.testButtonTitle}>Test Perk Reminders</Text>
+                <Text style={styles.testButtonSubtitle}>See how your notifications will look</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.light.tint} />
+            </BlurView>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </>
@@ -221,38 +228,77 @@ export default function NotificationSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7' },
-  scrollView: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f2f2f7' 
+  },
+  scrollView: { 
+    flex: 1 
+  },
+  scrollContent: { 
+    padding: 20, 
+    paddingBottom: 40 
+  },
   sectionContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   section: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#c7c7cc',
+    borderBottomColor: '#e5e5ea',
   },
-  noBorder: { borderBottomWidth: 0 },
+  noBorder: { 
+    borderBottomWidth: 0 
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
   },
-  dimmed: { opacity: 0.5 },
+  dimmed: { 
+    opacity: 0.5 
+  },
   iconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  sectionHeaderText: { flex: 1 },
-  sectionTitle: { fontSize: 17, fontWeight: '600', color: '#000000' },
-  sectionDetails: { fontSize: 13, color: '#6e6e73', marginTop: 2 },
-  childTogglesContainer: { paddingLeft: 64, backgroundColor: '#ffffff', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e8e8e8' },
+  sectionHeaderText: { 
+    flex: 1 
+  },
+  sectionTitle: { 
+    fontSize: 17, 
+    fontWeight: '600', 
+    color: '#000000',
+    letterSpacing: -0.2,
+  },
+  sectionDetails: { 
+    fontSize: 13, 
+    color: '#6e6e73', 
+    marginTop: 2,
+    letterSpacing: -0.1,
+  },
+  childTogglesContainer: { 
+    paddingLeft: 64, 
+    backgroundColor: '#ffffff', 
+    borderTopWidth: StyleSheet.hairlineWidth, 
+    borderTopColor: '#e5e5ea' 
+  },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -260,14 +306,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e8e8e8',
+    borderBottomColor: '#e5e5ea',
   },
-  toggleLabel: { fontSize: 16, color: '#000000' },
+  toggleLabel: { 
+    fontSize: 16, 
+    color: '#000000',
+    letterSpacing: -0.2,
+  },
   previewContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 10,
+    backgroundColor: '#f2f2f7',
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#e0e0e0',
@@ -276,27 +326,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6e6e73',
     fontStyle: 'italic',
+    letterSpacing: -0.1,
+    flex: 1,
   },
   testButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  testButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginTop: 20,
+    padding: 20,
   },
-  testButtonText: {
-    fontSize: 16,
+  testButtonContent: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  testButtonTitle: {
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.light.tint,
-    marginLeft: 8,
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  testButtonSubtitle: {
+    fontSize: 13,
+    color: '#6e6e73',
+    letterSpacing: -0.1,
   },
   disabledButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  disabledButtonText: {
-    color: '#c7c7cc',
+    opacity: 0.5,
   },
   modalBackdrop: {
     flex: 1,
@@ -306,9 +372,14 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
     width: '80%',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalOption: {
     flexDirection: 'row',
@@ -317,9 +388,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e8e8e8',
+    borderBottomColor: '#e5e5ea',
   },
   modalOptionText: {
-    fontSize: 16,
+    fontSize: 17,
+    letterSpacing: -0.2,
   }
 }); 
