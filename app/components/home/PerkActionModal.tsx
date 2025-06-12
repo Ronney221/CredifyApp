@@ -129,10 +129,21 @@ const SegmentedControl = ({
   onChange: (value: AmountOption) => void;
   perk: CardPerk | null;
 }) => {
-  const segments: Array<{ value: AmountOption; label: string }> = [
-    { value: 'full', label: `${perk?.value ? formatCurrency(perk.value) : '$0'} (Full)` },
-    { value: 'half', label: `${perk?.value ? formatCurrency(perk.value / 2) : '$0'} (Half)` },
-    { value: 'custom', label: 'Custom' },
+  const segments: Array<{ value: AmountOption; topLabel: string; bottomLabel?: string }> = [
+    { 
+      value: 'full', 
+      topLabel: formatCurrency(perk?.value || 0),
+      bottomLabel: 'Full'
+    },
+    { 
+      value: 'half', 
+      topLabel: formatCurrency((perk?.value || 0) / 2),
+      bottomLabel: 'Half'
+    },
+    { 
+      value: 'custom', 
+      topLabel: 'Custom'
+    },
   ];
 
   return (
@@ -151,12 +162,22 @@ const SegmentedControl = ({
             onChange(segment.value);
           }}
         >
-          <Text style={[
-            styles.segmentText,
-            value === segment.value && styles.segmentTextSelected
-          ]}>
-            {segment.label}
-          </Text>
+          <View style={styles.segmentContent}>
+            <Text style={[
+              styles.segmentText,
+              value === segment.value && styles.segmentTextSelected
+            ]}>
+              {segment.topLabel}
+            </Text>
+            {segment.bottomLabel && (
+              <Text style={[
+                styles.segmentSubtext,
+                value === segment.value && styles.segmentTextSelected
+              ]}>
+                {segment.bottomLabel}
+              </Text>
+            )}
+          </View>
         </TouchableOpacity>
       ))}
     </View>
@@ -559,7 +580,10 @@ export default function PerkActionModal({
                   Remaining: {formattedRemainingValue}
                 </Text>
                 <Text style={styles.maxValue}>
-                  Monthly credit: {formattedValue}{'\n'}
+                  {perk.period === 'monthly' ? 'Monthly' :
+                   perk.period === 'quarterly' ? 'Quarterly' :
+                   perk.period === 'semi_annual' ? 'Semi-annual' :
+                   perk.period === 'annual' ? 'Annual' : 'Monthly'} credit: {formattedValue}{'\n'}
                   (up to {formatCurrency(calculateYearlyTotal(perk))}/year)
                 </Text>
               </View>
@@ -699,6 +723,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
+    marginBottom: 16,
   },
   content: {
     padding: 24,
@@ -706,43 +731,55 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1C1C1E',
-    marginBottom: 12,
+    marginBottom: 24,
+    letterSpacing: -0.5,
   },
   valueContainer: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   remainingValue: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#007AFF',
-    marginBottom: 4,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+    lineHeight: 38,
   },
   maxValue: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '400',
     color: '#666666',
-    lineHeight: 22,
+    lineHeight: 20,
+    letterSpacing: -0.24,
   },
   description: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '400',
     color: '#666666',
-    marginBottom: 24,
-    lineHeight: 22,
+    marginBottom: 32,
+    lineHeight: 20,
+    letterSpacing: -0.24,
   },
   segmentedControl: {
     flexDirection: 'row',
     backgroundColor: '#F2F2F7',
     borderRadius: 8,
     padding: 2,
-    marginBottom: 24,
+    marginBottom: 32,
+    height: 44, // Fixed height for consistency
   },
   segment: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  segmentContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
   segmentSelected: {
     backgroundColor: '#FFFFFF',
@@ -762,43 +799,49 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 6,
   },
   segmentText: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#666666',
+    letterSpacing: -0.08,
+    textAlign: 'center',
+  },
+  segmentSubtext: {
+    fontSize: 11,
     fontWeight: '500',
+    color: '#666666',
+    letterSpacing: -0.08,
+    marginTop: 2,
+    textAlign: 'center',
   },
   segmentTextSelected: {
     color: '#007AFF',
-    fontWeight: '600',
   },
   customAmountContainer: {
     gap: 16,
-    marginBottom: 24,
+    marginBottom: 32,
     paddingTop: 8,
   },
-  actionButtons: {
+  sliderContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: '#007AFF',
-  },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+    marginBottom: 24,
   },
   sliderWrapper: {
     flex: 1,
     paddingTop: 24,
+  },
+  slider: {
+    flex: 1,
+    height: 40,
+  },
+  sliderValue: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#8E8E93',
+    minWidth: 48,
+    textAlign: 'center',
   },
   tooltip: {
     position: 'absolute',
@@ -822,74 +865,45 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
-  },
-  sliderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 4,
-  },
-  slider: {
-    flex: 1,
-    height: 40,
-  },
-  sliderValue: {
-    fontSize: 14,
-    color: '#8E8E93',
-    minWidth: 40,
+    letterSpacing: -0.08,
   },
   amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F2F2F7',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 24,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 32,
+  },
+  amountContainerKeyboard: {
+    marginBottom: 16,
   },
   amountLabel: {
-    fontSize: 16,
-    color: '#000000',
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#666666',
+    letterSpacing: -0.24,
   },
   amountValue: {
-    fontSize: 16,
-    color: '#007AFF',
+    fontSize: 17,
     fontWeight: '600',
+    color: '#007AFF',
+    letterSpacing: -0.41,
   },
   amountInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#007AFF',
+    fontSize: 17,
     fontWeight: '600',
+    color: '#007AFF',
     padding: 0,
-  },
-  openButton: {
-    backgroundColor: '#E5F1FF',
-    marginTop: 12,
-  },
-  openButtonText: {
-    color: '#007AFF',
-  },
-  markAvailableButton: {
-    backgroundColor: '#F2F2F7',
-    marginBottom: 12,
-  },
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    letterSpacing: -0.41,
   },
   inputAccessory: {
     backgroundColor: '#F2F2F7',
     borderTopWidth: 1,
     borderTopColor: '#C7C7CC',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -900,27 +914,57 @@ const styles = StyleSheet.create({
   },
   presetButton: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#C7C7CC',
   },
   presetButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#007AFF',
+    letterSpacing: -0.08,
   },
   doneButton: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   doneButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: '#007AFF',
+    letterSpacing: -0.41,
   },
-  amountContainerKeyboard: {
+  button: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: -0.41,
+  },
+  openButton: {
+    backgroundColor: '#E5F1FF',
+    marginTop: 8,
+  },
+  openButtonText: {
+    color: '#007AFF',
+  },
+  markAvailableButton: {
+    backgroundColor: '#F2F2F7',
     marginBottom: 16,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
   },
 }); 
