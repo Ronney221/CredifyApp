@@ -202,6 +202,21 @@ const formatExactCurrency = (amount: number): string => {
   });
 };
 
+// Helper to parse decimal input, handling edge cases
+const parseDecimalInput = (text: string): number => {
+  // Remove all non-numeric characters except decimal point
+  const sanitized = text.replace(/[^0-9.]/g, '');
+  
+  // Ensure only one decimal point
+  const parts = sanitized.split('.');
+  const formattedText = parts.length > 1 
+    ? `${parts[0]}.${parts[1].slice(0, 2)}`
+    : sanitized;
+  
+  const value = parseFloat(formattedText);
+  return isNaN(value) ? 0 : value;
+};
+
 export default function PerkActionModal({
   visible,
   perk,
@@ -221,6 +236,7 @@ export default function PerkActionModal({
   const translateY = useSharedValue(1000);
   const opacity = useSharedValue(0);
   const sliderPosition = useSharedValue(0);
+  const sliderAnimation = useSharedValue(0);
   
   // Get the currently redeemed amount if partially redeemed
   const getCurrentRedeemedAmount = useCallback(() => {
@@ -284,6 +300,7 @@ export default function PerkActionModal({
     }
   }, [visible, perk, getCurrentRedeemedAmount]);
 
+  // Handle slider value change with animation
   const handleSliderChange = useCallback((value: number) => {
     const roundedValue = roundToCents(value);
     
@@ -291,57 +308,49 @@ export default function PerkActionModal({
     if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
       setSliderValue(0.01);
       setPartialAmount('0.01');
-      sliderPosition.value = withSpring(0.01);
+      sliderAnimation.value = withSpring(0.01);
+    } else if (perk && roundedValue > perk.value) {
+      setSliderValue(perk.value);
+      setPartialAmount(perk.value.toFixed(2));
+      sliderAnimation.value = withSpring(perk.value);
     } else {
       setSliderValue(roundedValue);
       setPartialAmount(roundedValue.toFixed(2));
-      sliderPosition.value = withSpring(roundedValue);
+      sliderAnimation.value = withSpring(roundedValue);
     }
     setIsEditingNumber(false);
-  }, [perk?.status]);
+  }, [perk?.status, perk?.value]);
 
+  // Handle text input changes
   const handlePartialAmountChange = useCallback((text: string) => {
-    // Remove any non-numeric characters except decimal point
-    const sanitizedText = text.replace(/[^0-9.]/g, '');
+    setPartialAmount(text);
+    const value = parseDecimalInput(text);
     
-    // Ensure only one decimal point
-    const parts = sanitizedText.split('.');
-    const formattedText = parts.length > 1 
-      ? `${parts[0]}.${parts[1].slice(0, 2)}`
-      : sanitizedText;
-    
-    setPartialAmount(formattedText);
-    
-    const numValue = parseFloat(formattedText);
-    if (!isNaN(numValue)) {
-      const roundedValue = roundToCents(numValue);
-      if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
-        setSliderValue(0.01);
-        sliderPosition.value = withSpring(0.01);
-      } else if (perk && roundedValue > perk.value) {
-        setSliderValue(perk.value);
-        sliderPosition.value = withSpring(perk.value);
-        setPartialAmount(perk.value.toFixed(2));
-      } else {
-        setSliderValue(roundedValue);
-        sliderPosition.value = withSpring(roundedValue);
-      }
+    if (value === 0 && perk?.status !== 'partially_redeemed') {
+      setSliderValue(0.01);
+      sliderAnimation.value = withSpring(0.01);
+    } else if (perk && value > perk.value) {
+      setSliderValue(perk.value);
+      sliderAnimation.value = withSpring(perk.value);
+      setPartialAmount(perk.value.toFixed(2));
+    } else {
+      setSliderValue(value);
+      sliderAnimation.value = withSpring(value);
     }
     setIsEditingNumber(true);
-  }, [perk]);
+  }, [perk?.status, perk?.value]);
 
+  // Handle done editing
   const handleDoneEditing = useCallback(() => {
     Keyboard.dismiss();
     setIsEditingNumber(false);
     
-    // Ensure the value is properly formatted with 2 decimal places
-    const numValue = parseFloat(partialAmount);
-    if (!isNaN(numValue)) {
-      const roundedValue = roundToCents(numValue);
-      setPartialAmount(roundedValue.toFixed(2));
-      setSliderValue(roundedValue);
-      sliderPosition.value = withSpring(roundedValue);
-    }
+    const value = parseDecimalInput(partialAmount);
+    const roundedValue = roundToCents(value);
+    
+    setPartialAmount(roundedValue.toFixed(2));
+    setSliderValue(roundedValue);
+    sliderAnimation.value = withSpring(roundedValue);
   }, [partialAmount]);
 
   // Input accessory view for amount input
@@ -612,45 +621,72 @@ export default function PerkActionModal({
                           <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
                           <AnimatedSlider
                             style={styles.slider}
-                            minimumValue={perk?.status === 'partially_redeemed' ? 0 : 1}
+                            minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.01}
                             maximumValue={perk?.value || 0}
-                            value={sliderValue}
+                            value={sliderAnimation}
                             onValueChange={handleSliderChange}
                             minimumTrackTintColor="#007AFF"
                             maximumTrackTintColor="#E5E5EA"
                             thumbTintColor="#007AFF"
-                            step={1}
+                            step={0.01}
                           />
                         </View>
-                        <Text style={styles.sliderValue}>{formattedValue}</Text>
+                        <Text style={styles.sliderValue}>{formatExactCurrency(perk?.value || 0)}</Text>
                       </View>
 
-                      <TouchableOpacity 
+                      <Animated.View 
                         style={[
                           styles.amountContainer,
-                          isKeyboardVisible && styles.amountContainerKeyboard
+                          isKeyboardVisible && styles.amountContainerKeyboard,
+                          { transform: [{ translateY: isKeyboardVisible ? -keyboardHeight / 2 : 0 }] }
                         ]} 
-                        onPress={() => setIsEditingNumber(true)}
                       >
                         <Text style={styles.amountLabel}>Amount: </Text>
-                        {isEditingNumber ? (
-                          <TextInput
-                            style={styles.amountInput}
-                            value={partialAmount}
-                            onChangeText={handlePartialAmountChange}
-                            keyboardType="decimal-pad"
-                            placeholder="Enter amount"
-                            autoFocus
-                            returnKeyType="done"
-                            onSubmitEditing={handleDoneEditing}
-                            inputAccessoryViewID={INPUT_ACCESSORY_ID}
-                          />
-                        ) : (
-                          <Text style={styles.amountValue}>
-                            {formatExactCurrency(sliderValue)}
-                          </Text>
-                        )}
-                      </TouchableOpacity>
+                        <TextInput
+                          style={styles.amountInput}
+                          value={isEditingNumber ? partialAmount : formatExactCurrency(sliderValue).replace(/[^0-9.]/g, '')}
+                          onChangeText={handlePartialAmountChange}
+                          onFocus={() => setIsEditingNumber(true)}
+                          keyboardType="decimal-pad"
+                          placeholder="0.00"
+                          returnKeyType="done"
+                          onSubmitEditing={handleDoneEditing}
+                          inputAccessoryViewID={INPUT_ACCESSORY_ID}
+                        />
+                      </Animated.View>
+
+                      {Platform.OS === 'ios' && (
+                        <InputAccessoryView nativeID={INPUT_ACCESSORY_ID}>
+                          <View style={styles.inputAccessory}>
+                            <View style={styles.presetButtons}>
+                              <TouchableOpacity
+                                style={styles.presetButton}
+                                onPress={() => {
+                                  Haptics.selectionAsync();
+                                  handlePartialAmountChange(String(perk?.value || 0));
+                                }}
+                              >
+                                <Text style={styles.presetButtonText}>Full</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.presetButton}
+                                onPress={() => {
+                                  Haptics.selectionAsync();
+                                  handlePartialAmountChange(String((perk?.value || 0) / 2));
+                                }}
+                              >
+                                <Text style={styles.presetButtonText}>Half</Text>
+                              </TouchableOpacity>
+                            </View>
+                            <TouchableOpacity
+                              style={styles.doneButton}
+                              onPress={handleDoneEditing}
+                            >
+                              <Text style={styles.doneButtonText}>Done</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </InputAccessoryView>
+                      )}
                       
                       {Platform.OS === 'ios' && <InputAccessory />}
                     </Animated.View>
@@ -826,11 +862,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 4,
-    marginBottom: 24,
+    marginBottom: 16, // 16pt spacing to amount field
   },
   sliderWrapper: {
     flex: 1,
     paddingTop: 24,
+    height: 48, // Fixed height for consistent touch target
   },
   slider: {
     flex: 1,
@@ -850,6 +887,7 @@ const styles = StyleSheet.create({
     padding: 4,
     paddingHorizontal: 8,
     top: 0,
+    zIndex: 1,
   },
   tooltipArrow: {
     position: 'absolute',
@@ -873,10 +911,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 32,
+    marginBottom: 24, // 24pt spacing to button
+    minHeight: 56, // Consistent height for touch target
   },
   amountContainerKeyboard: {
-    marginBottom: 16,
+    marginBottom: Platform.OS === 'ios' ? 24 : 16, // Extra space above keyboard
+    transform: [{ scale: 1.02 }], // Subtle emphasis when keyboard is shown
   },
   amountLabel: {
     fontSize: 15,
