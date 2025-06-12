@@ -35,6 +35,44 @@ interface PerkStatusHookResult {
   processNewMonth: (forcedDate?: Date) => void;
 }
 
+// Helper function to determine if a redemption is valid for the current period
+const isRedemptionValidForPeriod = (redemptionDate: Date, resetDate: Date | undefined, perkPeriodMonths: number): boolean => {
+  const now = new Date();
+  
+  // If we have a reset date and it's in the past, the redemption is no longer valid
+  if (resetDate && resetDate < now) {
+    return false;
+  }
+
+  // For perks without a reset date, determine validity based on period
+  if (!resetDate) {
+    const startOfCurrentPeriod = new Date();
+    startOfCurrentPeriod.setDate(1); // Start of month
+    
+    switch (perkPeriodMonths) {
+      case 1: // Monthly
+        startOfCurrentPeriod.setHours(0, 0, 0, 0);
+        break;
+      case 3: // Quarterly
+        startOfCurrentPeriod.setMonth(Math.floor(startOfCurrentPeriod.getMonth() / 3) * 3);
+        break;
+      case 6: // Semi-annual
+        startOfCurrentPeriod.setMonth(Math.floor(startOfCurrentPeriod.getMonth() / 6) * 6);
+        break;
+      case 12: // Annual
+        startOfCurrentPeriod.setMonth(0);
+        break;
+      default:
+        console.warn(`Unexpected period months: ${perkPeriodMonths}`);
+        return false;
+    }
+    
+    return redemptionDate >= startOfCurrentPeriod;
+  }
+
+  return true;
+};
+
 export function usePerkStatus(
   initialUserCardsWithPerks: { card: Card; perks: CardPerk[] }[]
 ): PerkStatusHookResult {
@@ -173,12 +211,10 @@ export function usePerkStatus(
             if (latestRedemption) {
               const redemptionDate = new Date(latestRedemption.redemption_date);
               const resetDate = latestRedemption.reset_date ? new Date(latestRedemption.reset_date) : undefined;
-              const now = new Date();
-
-              const isCurrentMonth = redemptionDate.getMonth() === now.getMonth() && 
-                                   redemptionDate.getFullYear() === now.getFullYear();
               
-              isRedeemedThisCycle = isCurrentMonth || (resetDate !== undefined && resetDate > now);
+              isRedeemedThisCycle = resetDate ? 
+                isRedemptionValidForPeriod(redemptionDate, resetDate, perk.periodMonths || 1) : 
+                false;
               
               if (isRedeemedThisCycle) {
                 perkStatus = latestRedemption.status;
@@ -188,8 +224,7 @@ export function usePerkStatus(
               console.log(`[usePerkStatus] Checking redemption for ${perk.name}:`, {
                 redemptionDate: redemptionDate.toISOString(),
                 resetDate: resetDate?.toISOString(),
-                isCurrentMonth,
-                hasValidResetDate: resetDate !== undefined && resetDate > now,
+                periodMonths: perk.periodMonths,
                 isRedeemedThisCycle,
                 status: perkStatus,
                 remainingValue
