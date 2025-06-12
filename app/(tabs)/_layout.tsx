@@ -1,6 +1,6 @@
 // app/_layout.tsx
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, View, StyleSheet, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Platform, TouchableOpacity } from 'react-native';
@@ -71,15 +71,19 @@ export default function TabLayout() {
     backgroundColor: 'transparent',
     borderTopColor: 'transparent',
     position: 'absolute' as const,
-    bottom: 20,
-    left: 20,
+    bottom: 20, // Sits above home indicator
+    left: 20, // Good width for most devices
     right: 20,
     height: 56,
     paddingBottom: 4,
     paddingTop: 4,
     borderRadius: 30,
-    elevation: 2,
+    elevation: 4, // Increased for more shadow
     zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
   };
 
   // Define iOS pill-style blur
@@ -95,13 +99,20 @@ export default function TabLayout() {
     zIndex: 1,
   };
 
+  // Overlay style for white contrast
+  const iosPillOverlayStyle = {
+    ...iosPillBlurStyle,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    zIndex: 2,
+  };
+
   // Define Android tab bar style
   const androidTabBarStyle = {
     backgroundColor: '#FAFAFE',
     borderTopColor: '#e0e0e0',
     height: 52,
     position: 'absolute' as const,
-    bottom: 0,
+    bottom: 0, // Android safe area
     left: 20,
     right: 20,
     paddingBottom: 0,
@@ -110,6 +121,15 @@ export default function TabLayout() {
     zIndex: 2,
     borderRadius: 30,
   };
+
+  // Animation for active tab icon
+  function AnimatedTabIcon({ name, color, size, focused }: { name: any; color: string; size: number; focused: boolean }) {
+    return (
+      <Animated.View style={{ transform: [{ scale: focused ? 1.12 : 1 }] }}>
+        <Ionicons name={name} size={size} color={color} />
+      </Animated.View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -120,11 +140,14 @@ export default function TabLayout() {
       />
       <AuthGuard>
         {Platform.OS === 'ios' && (
-          <BlurView
-            intensity={50}
-            tint={'light'}
-            style={iosPillBlurStyle}
-          />
+          <>
+            <BlurView
+              intensity={20} // Increased from 50
+              tint={'light'}
+              style={iosPillBlurStyle}
+            />
+            <View pointerEvents="none" style={iosPillOverlayStyle} />
+          </>
         )}
         <Tabs
           initialRouteName="01-dashboard"
@@ -135,13 +158,14 @@ export default function TabLayout() {
               android: androidTabBarStyle,
             }),
             tabBarItemStyle: {
-              paddingVertical: 4,
+              minHeight: 44,
+              minWidth: 44,
               justifyContent: 'center',
               alignItems: 'center',
             },
             tabBarActiveTintColor: Colors.light.tint,
             tabBarInactiveTintColor: Platform.select({
-              ios: 'rgba(0, 0, 0, 0.4)',
+              ios: 'rgba(0, 0, 0, 0.65)', // Increased opacity for readability
               android: '#8e8e93',
             }),
           }}
@@ -151,9 +175,10 @@ export default function TabLayout() {
             options={{
               title: 'Dashboard',
               headerShown: false,
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="home-outline" size={size} color={color} />
+              tabBarIcon: ({ color, size, focused }) => (
+                <AnimatedTabIcon name="home-outline" color={color} size={size} focused={focused} />
               ),
+              tabBarAccessibilityLabel: 'Dashboard',
             }}
           />
           <Tabs.Screen
@@ -168,9 +193,10 @@ export default function TabLayout() {
               title: 'Your Journey',
               headerShown: true,
               headerRight: () => <InsightsHeaderRight />,
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="analytics-outline" size={size} color={color} />
+              tabBarIcon: ({ color, size, focused }) => (
+                <AnimatedTabIcon name="analytics-outline" color={color} size={size} focused={focused} />
               ),
+              tabBarAccessibilityLabel: 'Your Journey',
             }}
           />
           <Tabs.Screen
@@ -178,8 +204,9 @@ export default function TabLayout() {
             options={{
               title: 'Profile',
               tabBarIcon: ({ color, focused, size }) => (
-                <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} />
+                <AnimatedTabIcon name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} focused={focused} />
               ),
+              tabBarAccessibilityLabel: 'Profile',
             }}
           />
           <Tabs.Screen
