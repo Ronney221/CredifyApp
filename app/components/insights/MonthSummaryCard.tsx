@@ -118,9 +118,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
         </View>
         <Text style={[
           styles.perkStatusText, 
-          perk.status === 'redeemed' ? styles.redeemedText : styles.missedText
+          perk.status === 'redeemed' ? styles.redeemedText : 
+          perk.status === 'available' ? styles.availableText : styles.missedText
         ]}>
-          {perk.status === 'redeemed' ? 'Redeemed' : 'Expired'}
+          {perk.status === 'redeemed' ? 'Redeemed' : 
+           perk.status === 'available' ? 'Available' : 'Expired'}
         </Text>
       </View>
     </View>
@@ -324,6 +326,9 @@ const styles = StyleSheet.create({
   },
   missedText: {
     color: ERROR_RED,
+  },
+  availableText: {
+    color: Colors.light.tint,
   },
   noPerksText: {
     fontSize: 14,
