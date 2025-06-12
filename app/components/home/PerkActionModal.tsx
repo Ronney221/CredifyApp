@@ -14,6 +14,8 @@ import Animated, {
   withTiming,
   interpolate,
   useAnimatedProps,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../../src/data/card-data';
@@ -78,24 +80,6 @@ const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number })
   );
 };
 
-// Quick select chip component
-const QuickSelectChip = ({ label, onPress, isSelected }: { label: string; onPress: () => void; isSelected: boolean }) => (
-  <TouchableOpacity 
-    style={[
-      styles.quickSelectChip,
-      isSelected && styles.quickSelectChipSelected
-    ]} 
-    onPress={onPress}
-  >
-    <Text style={[
-      styles.quickSelectChipText,
-      isSelected && styles.quickSelectChipTextSelected
-    ]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
-
 // Helper to format currency
 const formatCurrency = (amount: number) => {
   return amount.toLocaleString('en-US', {
@@ -129,6 +113,53 @@ const toTitleCase = (str: string) => {
   return str.split(' ').map(word => 
     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   ).join(' ');
+};
+
+// Segmented control option type
+type AmountOption = 'full' | 'half' | 'custom';
+
+// Segmented control component
+const SegmentedControl = ({ 
+  value, 
+  onChange,
+  perk,
+}: { 
+  value: AmountOption; 
+  onChange: (value: AmountOption) => void;
+  perk: CardPerk | null;
+}) => {
+  const segments: Array<{ value: AmountOption; label: string }> = [
+    { value: 'full', label: `${perk?.value ? formatCurrency(perk.value) : '$0'} (Full)` },
+    { value: 'half', label: `${perk?.value ? formatCurrency(perk.value / 2) : '$0'} (Half)` },
+    { value: 'custom', label: 'Custom' },
+  ];
+
+  return (
+    <View style={styles.segmentedControl}>
+      {segments.map((segment, index) => (
+        <TouchableOpacity
+          key={segment.value}
+          style={[
+            styles.segment,
+            value === segment.value && styles.segmentSelected,
+            index === 0 && styles.segmentFirst,
+            index === segments.length - 1 && styles.segmentLast,
+          ]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            onChange(segment.value);
+          }}
+        >
+          <Text style={[
+            styles.segmentText,
+            value === segment.value && styles.segmentTextSelected
+          ]}>
+            {segment.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
 };
 
 export default function PerkActionModal({
@@ -425,26 +456,18 @@ export default function PerkActionModal({
 
               {!isRedeemed && (
                 <>
-                  <View style={styles.quickSelectContainer}>
-                    <QuickSelectChip 
-                      label={`${formattedValue} (Full)`}
-                      onPress={() => handlePresetSelect('full')}
-                      isSelected={selectedPreset === 'full'}
-                    />
-                    <QuickSelectChip 
-                      label={`${formatCurrency(perk.value / 2)} (Half)`}
-                      onPress={() => handlePresetSelect('half')}
-                      isSelected={selectedPreset === 'half'}
-                    />
-                    <QuickSelectChip 
-                      label="Custom"
-                      onPress={() => handlePresetSelect('custom')}
-                      isSelected={selectedPreset === 'custom'}
-                    />
-                  </View>
+                  <SegmentedControl
+                    value={selectedPreset || 'full'}
+                    onChange={handlePresetSelect}
+                    perk={perk}
+                  />
 
-                  {showCustomAmount && (
-                    <View style={styles.customAmountContainer}>
+                  {selectedPreset === 'custom' && (
+                    <Animated.View 
+                      style={styles.customAmountContainer}
+                      entering={FadeIn.duration(200)}
+                      exiting={FadeOut.duration(200)}
+                    >
                       <View style={styles.sliderContainer}>
                         <Text style={styles.sliderValue}>
                           {perk?.status === 'partially_redeemed' ? '$0' : '$1'}
@@ -488,7 +511,7 @@ export default function PerkActionModal({
                           </Text>
                         )}
                       </TouchableOpacity>
-                    </View>
+                    </Animated.View>
                   )}
 
                   <TouchableOpacity
@@ -588,31 +611,45 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 22,
   },
-  quickSelectContainer: {
+  segmentedControl: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    padding: 2,
     marginBottom: 24,
   },
-  quickSelectChip: {
+  segment: {
     flex: 1,
-    marginHorizontal: 4,
     paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  quickSelectChipSelected: {
-    backgroundColor: '#007AFF',
+  segmentSelected: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 2,
   },
-  quickSelectChipText: {
-    fontSize: 16,
+  segmentFirst: {
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+  },
+  segmentLast: {
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+  },
+  segmentText: {
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '500',
+  },
+  segmentTextSelected: {
     color: '#007AFF',
     fontWeight: '600',
-  },
-  quickSelectChipTextSelected: {
-    color: '#FFFFFF',
   },
   customAmountContainer: {
     gap: 16,
