@@ -104,27 +104,46 @@ export default function PerkActionModal({
   onMarkAvailable,
 }: PerkActionModalProps) {
   const [showCustomAmount, setShowCustomAmount] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<'full' | 'half' | 'custom' | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<'full' | 'half' | 'custom' | null>('full');
   const [partialAmount, setPartialAmount] = useState('');
   const [sliderValue, setSliderValue] = useState(0);
   const [isEditingNumber, setIsEditingNumber] = useState(false);
   const translateY = useSharedValue(1000);
   const opacity = useSharedValue(0);
   
+  // Get the currently redeemed amount if partially redeemed
+  const getCurrentRedeemedAmount = useCallback(() => {
+    if (perk?.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
+      return perk.value - perk.remaining_value;
+    }
+    return 0;
+  }, [perk]);
+
+  // Reset state when modal becomes visible
   useEffect(() => {
     if (visible) {
       translateY.value = withTiming(0, { duration: 300 });
       opacity.value = withTiming(1, { duration: 300 });
-      setShowCustomAmount(false);
-      setSelectedPreset(null);
-      setPartialAmount('');
-      setSliderValue(0);
+      
+      // Set initial values based on perk status
+      const currentRedeemedAmount = getCurrentRedeemedAmount();
+      if (perk?.status === 'partially_redeemed') {
+        setSelectedPreset('custom');
+        setShowCustomAmount(true);
+        setSliderValue(currentRedeemedAmount);
+        setPartialAmount(String(currentRedeemedAmount));
+      } else {
+        setSelectedPreset('full');
+        setSliderValue(perk?.value || 0);
+        setPartialAmount(String(perk?.value || 0));
+        setShowCustomAmount(false);
+      }
       setIsEditingNumber(false);
     } else {
       translateY.value = withTiming(1000, { duration: 300 });
       opacity.value = withTiming(0, { duration: 300 });
     }
-  }, [visible, perk]);
+  }, [visible, perk, getCurrentRedeemedAmount]);
   
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -193,28 +212,71 @@ export default function PerkActionModal({
     if (type === 'full') {
       setSliderValue(perk?.value || 0);
       setPartialAmount(String(perk?.value || 0));
+      setShowCustomAmount(false);
     } else if (type === 'half') {
       const halfValue = (perk?.value || 0) / 2;
       setSliderValue(halfValue);
       setPartialAmount(String(halfValue));
+      setShowCustomAmount(false);
     } else if (type === 'custom') {
       setShowCustomAmount(true);
+      if (perk?.status === 'partially_redeemed') {
+        const currentRedeemedAmount = getCurrentRedeemedAmount();
+        setSliderValue(currentRedeemedAmount);
+        setPartialAmount(String(currentRedeemedAmount));
+      } else {
+        // Start at half value for unredeemed perks
+        const halfValue = (perk?.value || 0) / 2;
+        setSliderValue(halfValue);
+        setPartialAmount(String(halfValue));
+      }
     }
-  }, [perk]);
+  }, [perk, getCurrentRedeemedAmount]);
 
-  const handleSliderChange = (value: number) => {
+  const handleSliderChange = useCallback((value: number) => {
+    // Only allow 0 if already partially redeemed
+    if (value === 0 && perk?.status !== 'partially_redeemed') {
+      value = 1;
+    }
     setSliderValue(value);
     setPartialAmount(value.toFixed(2));
     setIsEditingNumber(false);
-  };
+  }, [perk?.status]);
 
-  const handlePartialAmountChange = (text: string) => {
+  const handlePartialAmountChange = useCallback((text: string) => {
     setPartialAmount(text);
     const numValue = parseFloat(text);
-    if (!isNaN(numValue) && numValue >= 0 && numValue < (perk?.value || 0)) {
-      setSliderValue(numValue);
+    if (!isNaN(numValue)) {
+      // Only allow 0 if already partially redeemed
+      if (numValue === 0 && perk?.status !== 'partially_redeemed') {
+        setSliderValue(1);
+        setPartialAmount('1.00');
+      } else {
+        setSliderValue(numValue);
+      }
     }
     setIsEditingNumber(true);
+  }, [perk?.status]);
+
+  const handleConfirmAction = () => {
+    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
+    if (isNaN(amount)) {
+      Alert.alert('Invalid Amount', 'Please enter a valid number.');
+      return;
+    }
+    
+    handleDismiss();
+    if (amount === 0 && perk?.status === 'partially_redeemed') {
+      onMarkAvailable();
+      showToast(`${perk?.name} marked as available`);
+    } else {
+      onMarkRedeemed(amount);
+      showToast(
+        amount === perk?.value 
+          ? `${perk?.name} fully redeemed` 
+          : `${perk?.name} partially redeemed: $${amount.toFixed(2)}`
+      );
+    }
   };
 
   // Get the app name for the CTA button
@@ -273,35 +335,6 @@ export default function PerkActionModal({
 
   const appName = getAppName(perk);
 
-  const handlePartialRedeem = () => {
-    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
-    if (isNaN(amount) || amount <= 0 || amount >= (perk?.value || 0)) {
-      Alert.alert(
-        'Invalid Amount',
-        'Please enter a valid amount that is greater than 0 and less than the total perk value.'
-      );
-      return;
-    }
-
-    handleDismiss();
-    const previousStatus = perk?.status;
-    const previousValue = perk?.remaining_value;
-    const isPartiallyRedeemed = previousStatus === 'partially_redeemed';
-
-    onMarkRedeemed(amount);
-    showToast(
-      `${perk?.name} partially redeemed: $${amount.toFixed(2)}`,
-      () => {
-        if (isPartiallyRedeemed && previousValue !== undefined) {
-          // Restore previous partial redemption with the correct amount
-          onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
-        } else {
-          onMarkAvailable();
-        }
-      }
-    );
-  };
-
   return (
     <Modal
       transparent
@@ -336,7 +369,7 @@ export default function PerkActionModal({
 
               {!isRedeemed && (
                 <>
-                  {/* Quick Select Chips */}
+                  {/* Quick Select Chips in a row */}
                   <View style={styles.quickSelectContainer}>
                     <QuickSelectChip 
                       label={`${formattedValue} (Full)`}
@@ -349,7 +382,7 @@ export default function PerkActionModal({
                       isSelected={selectedPreset === 'half'}
                     />
                     <QuickSelectChip 
-                      label="Custom..."
+                      label="Custom"
                       onPress={() => handlePresetSelect('custom')}
                       isSelected={selectedPreset === 'custom'}
                     />
@@ -364,8 +397,8 @@ export default function PerkActionModal({
                           <SliderTooltip value={sliderValue} maxValue={perk.value} />
                           <AnimatedSlider
                             style={styles.slider}
-                            minimumValue={0}
-                            maximumValue={perk.value}
+                            minimumValue={perk?.status === 'partially_redeemed' ? 0 : 1}
+                            maximumValue={perk?.value || 100}
                             value={sliderValue}
                             onValueChange={handleSliderChange}
                             minimumTrackTintColor="#007AFF"
@@ -400,23 +433,15 @@ export default function PerkActionModal({
                     </View>
                   )}
 
-                  {/* Action Buttons */}
-                  <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                      style={[styles.button, styles.secondaryButton]}
-                      onPress={handleDismiss}
-                    >
-                      <Text style={[styles.buttonText, styles.secondaryButtonText]}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.button, styles.primaryButton]}
-                      onPress={selectedPreset === 'custom' ? handlePartialRedeem : handleMarkRedeemed}
-                    >
-                      <Text style={[styles.buttonText, styles.primaryButtonText]}>
-                        {selectedPreset === 'custom' ? 'Confirm Amount' : 'Redeem'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  {/* Single Action Button */}
+                  <TouchableOpacity
+                    style={[styles.button, styles.primaryButton]}
+                    onPress={handleConfirmAction}
+                  >
+                    <Text style={[styles.buttonText, styles.primaryButtonText]}>
+                      {sliderValue === 0 ? 'Mark as Available' : 'Confirm'}
+                    </Text>
+                  </TouchableOpacity>
                 </>
               )}
 
@@ -502,17 +527,18 @@ const styles = StyleSheet.create({
   },
   quickSelectContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
   quickSelectChip: {
-    paddingHorizontal: 16,
+    flex: 1,
+    marginHorizontal: 4,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#007AFF',
     backgroundColor: 'transparent',
+    alignItems: 'center',
   },
   quickSelectChipSelected: {
     backgroundColor: '#007AFF',
