@@ -403,14 +403,26 @@ export default function InsightsScreen() {
   };
 
   const renderSectionHeader = ({ section }: { section: YearSection }) => {
-    const trendData = section.data.map(month => 
-      (month.totalRedeemedValue / month.cardFeesProportion) * 100
-    ).slice(0, 6).reverse();
+    // Calculate trend data using only monthly perks
+    const trendData = section.data.map(month => {
+      const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
+      const monthlyRedeemed = monthlyPerks.reduce((sum, perk) => 
+        perk.status === 'redeemed' ? sum + perk.value : sum, 0
+      );
+      const monthlyPotential = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
+      return monthlyPotential > 0 ? (monthlyRedeemed / monthlyPotential) * 100 : 0;
+    }).slice(0, 6).reverse();
 
-    const monthlyData = section.data.map(month => ({
-      redeemed: month.totalRedeemedValue,
-      potential: month.cardFeesProportion * 12 // Convert monthly fee proportion to annual
-    })).slice(0, 6).reverse();
+    // Monthly data for the chart should also only include monthly perks
+    const monthlyData = section.data.map(month => {
+      const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
+      return {
+        redeemed: monthlyPerks.reduce((sum, perk) => 
+          perk.status === 'redeemed' ? sum + perk.value : sum, 0
+        ),
+        potential: monthlyPerks.reduce((sum, perk) => sum + perk.value, 0)
+      };
+    }).slice(0, 6).reverse();
 
     // Calculate total annual fees for selected cards
     const totalAnnualFees = insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0);

@@ -48,6 +48,17 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({ year, totalRedeemed, to
       </View>
       
       <View style={styles.trendContainer}>
+        <View style={styles.trendHeader}>
+          <Text style={styles.trendTitle}>Monthly Perk Usage</Text>
+          <TouchableOpacity 
+            onPress={() => Alert.alert(
+              "Monthly Perk Usage",
+              "This graph shows the percentage of monthly perks redeemed each month. It only tracks perks that reset monthly, not quarterly or annual benefits."
+            )}
+          >
+            <Ionicons name="information-circle-outline" size={14} color={Colors.light.icon} />
+          </TouchableOpacity>
+        </View>
         <MiniBarChart 
           data={trendData} 
           rawData={monthlyData}
@@ -106,6 +117,18 @@ const styles = StyleSheet.create({
   trendContainer: {
     marginTop: 10,
     alignItems: 'center',
+  },
+  trendHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  trendTitle: {
+    fontSize: 12,
+    color: Colors.light.icon,
+    textAlign: 'center',
   },
 });
 
