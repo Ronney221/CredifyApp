@@ -241,7 +241,59 @@ export default function Dashboard() {
   // Dynamic text for collapsed header
   const currentMonthName = useMemo(() => format(new Date(), 'MMMM'), []);
   const collapsedHeaderText = `${currentMonthName} Summary`;
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const userName = useMemo(() => {
+    const fullName = user?.user_metadata?.full_name;
+    if (fullName && fullName.trim().length > 0) {
+      const first = fullName.trim().split(' ')[0];
+      return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+    }
+    const emailPrefix = user?.email?.split('@')[0] || 'User';
+    return emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1).toLowerCase();
+  }, [user]);
+
+  // Dynamic greeting based on time of day and random easter eggs
+  const welcomeText = useMemo(() => {
+    const hour = new Date().getHours();
+    const greetings = [
+      'Welcome back,',
+      'Ready to save more?',
+      'Let\'s maximize those perks!',
+      'Time to earn some rewards!',
+      'Stack those points!',
+      'Cashback mode: ON',
+      'Perk up your day!',
+      'Let\'s crush those annual fees!',
+      'Your wallet says thanks!',
+      'Another day, another bonus!',
+      'Swipe right on savings!',
+      'You\'re the MVP of rewards!',
+      'Let\'s make your cards work for you!',
+      'Savings never sleep!',
+      'Keep calm and redeem on!',
+      'Rewards radar activated!',
+      'Let\'s squeeze every cent!',
+      'Your perks are waiting!',
+      'Unlock extra value today!',
+      'Savings squad assemble!',
+      'Time to flex those benefits!',
+      'Card magic in progress!',
+      'Optimize, redeem, repeat!',
+      'More perks, less hassle!',
+      'Victory lap for your wallet!',
+      'Rewards radar activated!',
+      'Let\'s squeeze every cent!',
+      'Your perks are waiting!'
+    ];
+    // 20% chance to show a fun greeting
+    if (Math.random() < 0.2) {
+      return greetings[Math.floor(Math.random() * greetings.length)];
+    }
+    if (hour < 5) return 'Late night hustle?';
+    if (hour < 12) return 'Good morning,';
+    if (hour < 17) return 'Good afternoon,';
+    if (hour < 22) return 'Good evening,';
+    return 'Late night savings?';
+  }, []);
 
   // Animated values for header styles
   const animatedHeaderHeight = scrollY.interpolate({
@@ -897,7 +949,7 @@ export default function Dashboard() {
             ]}
           >
             <View style={styles.greetingTextContainer}>
-              <Text style={styles.welcomeText}>Good morning,</Text>
+              <Text style={styles.welcomeText}>{welcomeText}</Text>
               <Text style={styles.userNameText}>{userName || ' '}</Text>
             </View>
           </Animated.View>
