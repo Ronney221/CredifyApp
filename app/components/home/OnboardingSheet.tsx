@@ -266,7 +266,7 @@ export default function OnboardingSheet({
           <View style={styles.modalContent}>
             <View style={styles.handleBar} />
             
-            <Text style={styles.title}>Pro Tips 🎯</Text>
+            <Text style={styles.title}>Smart Shortcuts ⚡️</Text>
             
             <View style={styles.tipContainer}>
               <View style={styles.tipItem}>
@@ -281,7 +281,7 @@ export default function OnboardingSheet({
                 <OpenAppAnimation />
                 <View style={styles.tipTextContainer}>
                   <Text style={styles.tipTitle}>Open Apps Directly</Text>
-                  <Text style={styles.tipDescription}>Jump straight to your apps and we'll handle the rest</Text>
+                  <Text style={styles.tipDescription}>Jump straight to your apps and we&apos;ll handle the rest</Text>
                 </View>
               </View>
 
@@ -363,6 +363,7 @@ const styles = StyleSheet.create({
   tipItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    paddingLeft: 8,
   },
   iconWrapper: {
     width: LAYOUT.iconSize,
@@ -425,6 +426,7 @@ const styles = StyleSheet.create({
   tipTextContainer: {
     flex: 1,
     paddingTop: 2,
+    paddingLeft: 4,
   },
   tipTitle: {
     fontSize: 17,
