@@ -81,7 +81,7 @@ export default function OnboardingCardSelectScreen() {
 
   const headerText = useMemo(() => {
     const count = selectedCardIds.size;
-    return count > 0 ? `Select Cards (${count} selected)` : 'Select Cards';
+    return count > 0 ? `What's In Your Wallet? \n (${count} selected)` : "What's In Your Wallet?";
   }, [selectedCardIds.size]);
 
   const getScaleValue = (cardId: string) => {
@@ -97,20 +97,21 @@ export default function OnboardingCardSelectScreen() {
 
     if (newSelectedIds.has(cardId)) {
       newSelectedIds.delete(cardId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     } else {
       newSelectedIds.add(cardId);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Animated.sequence([
         Animated.timing(cardScale, {
-          toValue: 1.05,
-          duration: 100,
-          easing: Easing.out(Easing.ease),
+          toValue: 1.08,
+          duration: 150,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: true,
         }),
         Animated.timing(cardScale, {
           toValue: 1,
-          duration: 100,
-          easing: Easing.out(Easing.ease),
+          duration: 200,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: true,
         }),
       ]).start();
@@ -188,9 +189,12 @@ export default function OnboardingCardSelectScreen() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContentContainer}>
         <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ type: 'timing', duration: 150 }}
+          from={{ opacity: 0, translateY: 8 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ 
+            type: 'timing', 
+            duration: 400
+          }}
           style={styles.headerWrapper}
         >
           <View style={styles.headerTextContainer}>
@@ -200,12 +204,16 @@ export default function OnboardingCardSelectScreen() {
           </View>
         </MotiView>
         <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ type: 'timing', duration: 150, delay: subtitleAnimationDelay }}
+          from={{ opacity: 0, translateY: 8 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ 
+            type: 'timing', 
+            duration: 400, 
+            delay: subtitleAnimationDelay
+          }}
         >
           <Text style={styles.subtitle}>
-            Choose the credit cards you own. You can add more later.
+            Select your cards to instantly calculate their total benefit value.
           </Text>
         </MotiView>
       </View>
@@ -213,10 +221,19 @@ export default function OnboardingCardSelectScreen() {
       <MotiView
         from={{ opacity: 0, translateY: 12 }}
         animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 200, delay: listAnimationDelay }}
+        transition={{ 
+          type: 'timing', 
+          duration: 400, 
+          delay: listAnimationDelay
+        }}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          overScrollMode="never"
+        >
           <View style={styles.issuerGroup}>
             <Text style={styles.issuerName}>Frequently Owned</Text>
             {groupedCards.frequentlyOwned.map(card => (
@@ -252,23 +269,29 @@ export default function OnboardingCardSelectScreen() {
         </ScrollView>
       </MotiView>
 
-      <View style={styles.footer}>
-        {selectedCardIds.size > 0 ? (
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={handleNext}
-          >
-            <Text style={styles.nextButtonText}>Next</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.nextButton, styles.skipButton]}
-            onPress={handleSkip}
-          >
-            <Text style={[styles.nextButtonText, styles.skipButtonText]}>Skip for now</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <MotiView
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ 
+          type: 'timing', 
+          duration: 400
+        }}
+        style={styles.footer}
+      >
+        <TouchableOpacity
+          style={[
+            styles.nextButton,
+            selectedCardIds.size === 0 && styles.nextButtonDisabled
+          ]}
+          onPress={handleNext}
+          disabled={selectedCardIds.size === 0}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.nextButtonText}>
+            Calculate My Savings
+          </Text>
+        </TouchableOpacity>
+      </MotiView>
     </SafeAreaView>
   );
 }
@@ -280,67 +303,75 @@ const styles = StyleSheet.create({
   },
   headerContentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingBottom: 12,
     backgroundColor: '#ffffff',
   },
   headerWrapper: {
-    paddingTop: 10,
+    paddingTop: 8,
   },
   headerTextContainer: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerText: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
+    letterSpacing: -0.5,
+    lineHeight: 34,
   },
   subtitle: {
-    fontSize: 16,
-    color: Colors.light.icon,
+    fontSize: 17,
+    color: Colors.light.secondaryLabel,
     textAlign: 'center',
+    lineHeight: 22,
+    letterSpacing: -0.2,
+    paddingHorizontal: 24,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 0,
   },
   issuerGroup: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   issuerName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: Colors.light.text,
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 16,
+    letterSpacing: -0.5,
   },
   subIssuerGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
     paddingLeft: 20,
   },
   subIssuerName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.light.text,
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.light.secondaryLabel,
     paddingHorizontal: 20,
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -0.2,
   },
   footer: {
-    padding: 20,
+    padding: 16,
     backgroundColor: '#f2f2f7',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#c7c7cc',
+    marginTop: 'auto',
   },
   nextButton: {
     backgroundColor: Colors.light.tint,
-    paddingVertical: 15,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: Colors.light.tint,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
   nextButtonDisabled: {
@@ -363,5 +394,31 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  cardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    transform: [{ perspective: 1000 }, { rotateY: '-5deg' }],
+  },
+  cardImage: {
+    width: 60,
+    height: 40,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  cardNetworkLogo: {
+    width: 24,
+    height: 24,
+    marginRight: 8,
   },
 }); 
