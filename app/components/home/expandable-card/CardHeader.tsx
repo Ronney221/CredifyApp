@@ -38,6 +38,11 @@ const CardHeader: React.FC<CardHeaderProps> = ({
     }
   }, [card.network, card.name]);
 
+  // Calculate progress percentage
+  const progressPercentage = monthlyPerkStats.total > 0 
+    ? (monthlyPerkStats.redeemed / monthlyPerkStats.total) * 100 
+    : 0;
+
   return (
     <TouchableOpacity
       style={[styles.cardHeader, isActive && styles.activeCardHeader]}
@@ -78,19 +83,21 @@ const CardHeader: React.FC<CardHeaderProps> = ({
               </>
             )}
           </View>
-          {monthlyPerkStats.total > 0 && (
-            <View style={styles.progressChipContainer}>
-              {[...Array(monthlyPerkStats.total)].map((_, i) => (
-                <View
-                  key={i}
-                  style={[styles.progressDot, i < monthlyPerkStats.redeemed ? styles.progressDotRedeemed : styles.progressDotAvailable]}
-                />
-              ))}
-              <Text style={styles.progressChipText}>
-                ({monthlyPerkStats.redeemed} of {monthlyPerkStats.total} monthly redeemed)
-              </Text>
+          
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarContainer}>
+              <View 
+                style={[
+                  styles.progressBarFill,
+                  { width: `${progressPercentage}%` },
+                  progressPercentage >= 100 && styles.progressBarSuccess
+                ]} 
+              />
             </View>
-          )}
+            <Text style={styles.progressText}>
+              {monthlyPerkStats.redeemed} of {monthlyPerkStats.total} monthly perks redeemed
+            </Text>
+          </View>
         </View>
       </View>
       <View style={styles.headerRight}>
@@ -176,32 +183,27 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
     flexShrink: 0,
   },
-  progressChipContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-    alignSelf: 'flex-start',
+  progressContainer: {
+    marginTop: 8,
   },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 1.5,
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 4,
   },
-  progressDotRedeemed: {
-    backgroundColor: '#34c759',
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#20B2AA',
+    borderRadius: 2,
   },
-  progressDotAvailable: {
-    backgroundColor: '#cccccc',
+  progressBarSuccess: {
+    backgroundColor: '#34C759',
   },
-  progressChipText: {
+  progressText: {
     fontSize: 11,
-    color: '#555',
-    marginLeft: 5,
+    color: '#6B7280',
     fontWeight: '500',
   },
 });
