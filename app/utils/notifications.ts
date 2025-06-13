@@ -16,6 +16,8 @@ export interface NotificationPreferences {
   quarterlyPerkExpiryReminderDays?: number[];
   semiAnnualPerkExpiryReminderDays?: number[];
   annualPerkExpiryReminderDays?: number[];
+  perkExpiryReminderTime?: string;
+  renewalReminderDays?: number[];
 }
 
 interface UserCard {
