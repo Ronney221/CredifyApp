@@ -10,6 +10,8 @@ import {
   AccessibilityInfo,
   ViewStyle,
   TextStyle,
+  Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -91,6 +93,8 @@ export default function WelcomeScreen() {
   const lottieRef = useRef<LottieView>(null);
   const [isReducedMotion, setIsReducedMotion] = React.useState(false);
   const [showCTA, setShowCTA] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     // Check for reduced motion preference
@@ -123,7 +127,34 @@ export default function WelcomeScreen() {
 
   const handleGetStarted = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.push('/(onboarding)/card-select');
+    
+    // Start the zoom animation
+    if (lottieRef.current) {
+      lottieRef.current.play();
+      
+      // Create a zoom and fade animation sequence
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 2.5,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        })
+      ]).start();
+
+      // Start navigation slightly before animation completes
+      setTimeout(() => {
+        router.push('/(onboarding)/card-select');
+      }, 400); // Reduced from waiting for full animation completion
+    } else {
+      router.push('/(onboarding)/card-select');
+    }
   };
 
   return (
@@ -155,11 +186,14 @@ export default function WelcomeScreen() {
             </Text>
           </View>
 
-          <MotiView
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={TOKENS.animation.spring}
-            style={styles.animationContainer}
+          <Animated.View
+            style={[
+              styles.animationContainer,
+              {
+                transform: [{ scale: scaleAnim }],
+                opacity: opacityAnim,
+              }
+            ]}
           >
             <LottieView
               ref={lottieRef}
@@ -169,7 +203,7 @@ export default function WelcomeScreen() {
               style={styles.animation}
               speed={isReducedMotion ? 0.5 : 1}
             />
-          </MotiView>
+          </Animated.View>
 
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
@@ -258,11 +292,13 @@ const styles = StyleSheet.create({
     marginBottom: TOKENS.spacing.md,
     height: 280,
     marginTop: -TOKENS.spacing.sm,
+    transform: [{ perspective: 1000 }],
   },
   animation: {
     width: '140%',
     height: '100%',
     marginTop: -TOKENS.spacing.md,
+    transform: [{ perspective: 1000 }],
   },
   featuresContainer: {
     marginBottom: TOKENS.spacing.lg,

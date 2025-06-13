@@ -109,19 +109,19 @@ export default function PotentialSavingsScreen() {
           // Animate the scale
           Animated.sequence([
             Animated.spring(scaleAnim, {
-              toValue: 1.4,
+              toValue: 10,
               useNativeDriver: true,
-              damping: 7,
-              stiffness: 350,
-              mass: 1,
-              velocity: 3,
+              damping: 1,
+              stiffness: 700,
+              mass: 0.8,
+              velocity: 10,
             })
           ]).start();
           
           // Hide celebration after 3 seconds
           setTimeout(() => {
             setShowCelebration(false);
-          }, 3000);
+          }, 2000);
         }
       }
     }, stepDuration);
@@ -386,18 +386,19 @@ const styles = StyleSheet.create({
   },
   celebrationContainer: {
     position: 'absolute',
-    top: -420,
+    top: -465,
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1000,
+    zIndex: 9999,
     pointerEvents: 'none',
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 9999,
   },
   celebrationAnimation: {
-    width: '150%',
-    height: '150%',
+    width: '200%',
+    height: '200%',
   },
   netValueContainer: {
     marginTop: 8,
