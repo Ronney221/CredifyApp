@@ -141,14 +141,17 @@ const PerkDonutDisplayManagerInner = (
   }, [user, userCardsWithPerks]);
 
   const toggleSegments = useMemo((): Segment[] => {
-    // console.log('PDM: Recalculating toggleSegments. Deps:', uniquePerkPeriods);
+    console.log('PDM: Recalculating toggleSegments. uniquePerkPeriods:', uniquePerkPeriods);
     if (!uniquePerkPeriods || uniquePerkPeriods.length === 0) {
+      console.log('PDM: No unique periods, defaulting to monthly');
       return [{ key: '1', title: getPeriodDisplayName(1) }];
     }
-    return uniquePerkPeriods.map(period => ({
+    const segments = uniquePerkPeriods.map(period => ({
       key: period.toString(),
       title: getPeriodDisplayName(period),
     }));
+    console.log('PDM: Generated segments:', segments);
+    return segments;
   }, [uniquePerkPeriods]);
   
   const handleModeChange = useCallback((key: string) => {

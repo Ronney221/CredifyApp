@@ -151,15 +151,29 @@ export const useCardManagement = (userId: string | undefined) => {
           card.benefits.forEach(perk => {
             if (perk.periodMonths) {
               uniquePeriodsSet.add(perk.periodMonths);
+              console.log(`[useCardManagement] Adding period ${perk.periodMonths} from perk ${perk.name} in card ${card.name}`);
             }
           });
         });
         const uniquePeriodsArray = Array.from(uniquePeriodsSet).sort((a, b) => a - b);
         console.log('[useCardManagement] Saving unique perk periods to AsyncStorage:', uniquePeriodsArray);
+        console.log('[useCardManagement] Selected cards:', selectedCardObjects.map(card => ({
+          id: card.id,
+          name: card.name,
+          benefits: card.benefits.map(b => ({ name: b.name, periodMonths: b.periodMonths }))
+        })));
+        
+        // Save to AsyncStorage and verify
         await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(uniquePeriodsArray));
+        const savedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
+        console.log('[useCardManagement] Verified saved periods:', savedPeriods);
+        
+        if (!savedPeriods || JSON.parse(savedPeriods).length !== uniquePeriodsArray.length) {
+          console.error('[useCardManagement] Periods were not saved correctly. Expected:', uniquePeriodsArray, 'Got:', savedPeriods);
+        }
       } catch (storageError) {
         console.error('[useCardManagement] Failed to save unique perk periods to AsyncStorage:', storageError);
-        // Not a critical error, so don't alert the user, just log it.
+        // Don't alert user for non-critical errors
       }
       // --- END: Logic to store unique perk periods ---
       

@@ -384,7 +384,7 @@ export default function Dashboard() {
     };
   }, [pendingToast]); // Re-subscribe if pendingToast changes to capture its value correctly
 
-  // Load swipe hint status and unique perk periods from AsyncStorage
+  // Load unique perk periods from AsyncStorage
   useEffect(() => {
     const loadAsyncData = async () => {
       try {
@@ -394,14 +394,19 @@ export default function Dashboard() {
         }
 
         const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
+        console.log('[Dashboard] Loading unique perk periods from AsyncStorage:', storedPeriods);
         if (storedPeriods !== null) {
           const parsedPeriods = JSON.parse(storedPeriods);
+          console.log('[Dashboard] Parsed unique perk periods:', parsedPeriods);
           if (Array.isArray(parsedPeriods) && parsedPeriods.length > 0) {
+            console.log('[Dashboard] Setting unique periods to:', parsedPeriods);
             setUniquePerkPeriodsForToggle(parsedPeriods);
           } else {
+            console.log('[Dashboard] Invalid periods array, setting default [1, 12]');
             setUniquePerkPeriodsForToggle([1, 12]); // Default if empty or invalid
           }
         } else {
+          console.log('[Dashboard] No stored periods found, setting default [1, 12]');
           setUniquePerkPeriodsForToggle([1, 12]); // Default if not found
         }
       } catch (e) {
@@ -411,6 +416,45 @@ export default function Dashboard() {
     };
     loadAsyncData();
   }, []);
+
+  // Add effect to log when uniquePerkPeriodsForToggle changes
+  useEffect(() => {
+    console.log('[Dashboard] uniquePerkPeriodsForToggle updated:', uniquePerkPeriodsForToggle);
+  }, [uniquePerkPeriodsForToggle]);
+
+  // Update unique perk periods when userCardsWithPerks changes
+  useEffect(() => {
+    if (userCardsWithPerks && userCardsWithPerks.length > 0) {
+      const periods = new Set<number>();
+      userCardsWithPerks.forEach(cardData => {
+        cardData.perks.forEach(perk => {
+          if (perk.periodMonths) {
+            periods.add(perk.periodMonths);
+            console.log(`[Dashboard] Found period ${perk.periodMonths} from perk ${perk.name} in card ${cardData.card.name}`);
+          }
+        });
+      });
+
+      const sortedPeriods = Array.from(periods).sort((a, b) => a - b);
+      console.log('[Dashboard] Current periods from userCardsWithPerks:', sortedPeriods);
+      
+      if (sortedPeriods.length > 0) {
+        // Update the state to re-render the component with the correct periods
+        setUniquePerkPeriodsForToggle(sortedPeriods);
+        
+        // Save to AsyncStorage so it's available on next load
+        const savePeriods = async () => {
+          try {
+            await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(sortedPeriods));
+            console.log('[Dashboard] Saved unique perk periods to AsyncStorage:', sortedPeriods);
+          } catch (e) {
+            console.error("[Dashboard] Failed to save unique perk periods to AsyncStorage:", e);
+          }
+        };
+        savePeriods();
+      }
+    }
+  }, [userCardsWithPerks]);
 
   const handleHintDismissed = async () => {
     if (!userHasSeenSwipeHint) {

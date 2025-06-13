@@ -52,15 +52,6 @@ const ProfileScreen = () => {
           style: "destructive",
           onPress: async () => {
             try {
-              // Only clear auth-related data
-              const keys = await AsyncStorage.getAllKeys();
-              const authKeys = keys.filter(key => 
-                key.startsWith('@auth') || 
-                key.startsWith('@user') ||
-                key.startsWith('@supabase')
-              );
-              await AsyncStorage.multiRemove(authKeys);
-              
               // Sign out from auth
               const { error } = await signOut();
               if (error) {
