@@ -101,9 +101,21 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   const renderPerkItem = (perk: any, isMonthly: boolean) => (
     <View key={perk.id} style={styles.perkDetailItem}>
       <Ionicons 
-        name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
+        name={
+          perk.status === 'redeemed' 
+            ? 'checkmark-circle' 
+            : perk.status === 'available'
+            ? 'time-outline'
+            : 'alert-circle-outline'
+        }
         size={20} 
-        color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED} 
+        color={
+          perk.status === 'redeemed' 
+            ? SUCCESS_GREEN 
+            : perk.status === 'available'
+            ? Colors.light.tint
+            : NEUTRAL_GRAY_COLOR
+        }
         style={styles.perkStatusIcon}
       />
       <View style={styles.perkContentContainer}>
@@ -122,7 +134,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           perk.status === 'available' ? styles.availableText : styles.missedText
         ]}>
           {perk.status === 'redeemed' ? 'Redeemed' : 
-           perk.status === 'available' ? 'Available' : 'Expired'}
+           perk.status === 'available' ? 'Available' : 'Missed'}
         </Text>
       </View>
     </View>
@@ -216,7 +228,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
 };
 
 const SUCCESS_GREEN = '#34C759';
-const ERROR_RED = '#FF3B30';
+const NEUTRAL_GRAY_COLOR = '#8A8A8E';
 const SUBTLE_GRAY_TEXT = Colors.light.icon;
 const SEPARATOR_COLOR = '#E0E0E0';
 
@@ -325,7 +337,7 @@ const styles = StyleSheet.create({
     color: SUCCESS_GREEN,
   },
   missedText: {
-    color: ERROR_RED,
+    color: NEUTRAL_GRAY_COLOR,
   },
   availableText: {
     color: Colors.light.tint,
