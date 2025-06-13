@@ -51,19 +51,39 @@ export default function PotentialSavingsScreen() {
     }, 0);
   }, [selectedCardObjects]);
 
+  // Calculate total fees
+  const totalFees = useMemo(() => {
+    return selectedCardObjects.reduce((total: number, card: Card) => {
+      return total + (card.annualFee || 0);
+    }, 0);
+  }, [selectedCardObjects]);
+
+  // Calculate net value
+  const netValue = useMemo(() => {
+    return totalValue - totalFees;
+  }, [totalValue, totalFees]);
+
   // Animate the value counting up
   useEffect(() => {
     const finalValue = Math.round(totalValue);
+    const finalFees = Math.round(totalFees);
+    const finalNetValue = Math.round(netValue);
     const duration = 2000; // 2 seconds
     const steps = 60; // 60 steps for smooth animation
     const stepDuration = duration / steps;
     const increment = finalValue / steps;
+    const feeIncrement = finalFees / steps;
+    const netIncrement = finalNetValue / steps;
     let currentStep = 0;
 
     const interval = setInterval(() => {
       currentStep++;
       const newValue = Math.round(increment * currentStep);
+      const newFees = Math.round(feeIncrement * currentStep);
+      const newNetValue = Math.round(netIncrement * currentStep);
       setDisplayValue(newValue);
+      setDisplayFees(newFees);
+      setDisplayNetValue(newNetValue);
 
       // Add haptic feedback at certain thresholds
       if (currentStep === 1 || currentStep === steps) {
@@ -73,6 +93,8 @@ export default function PotentialSavingsScreen() {
       if (currentStep >= steps) {
         clearInterval(interval);
         setDisplayValue(finalValue);
+        setDisplayFees(finalFees);
+        setDisplayNetValue(finalNetValue);
         
         // Only trigger animations if we haven't already
         if (!hasAnimated.current) {
@@ -101,7 +123,10 @@ export default function PotentialSavingsScreen() {
     }, stepDuration);
 
     return () => clearInterval(interval);
-  }, [totalValue]);
+  }, [totalValue, totalFees, netValue]);
+
+  const [displayFees, setDisplayFees] = useState(0);
+  const [displayNetValue, setDisplayNetValue] = useState(0);
 
   const handleStartTracking = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -131,7 +156,7 @@ export default function PotentialSavingsScreen() {
         >
           <View style={styles.heroSection}>
             <View style={styles.labelContainer}>
-              <Text style={styles.heroLabel}>Your Potential Annual Savings</Text>
+              <Text style={styles.heroLabel}>Your Annual Perk Paycheck</Text>
               <TouchableOpacity 
                 style={styles.infoButton}
                 onPress={() => {
@@ -146,6 +171,11 @@ export default function PotentialSavingsScreen() {
               <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
                 <Text style={styles.heroValue}>${displayValue}</Text>
               </Animated.View>
+              <View style={styles.netValueContainer}>
+                <Text style={styles.netValueText}>
+                  ${displayValue} savings – ${displayFees} fees = ${displayNetValue} Net Gain
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -156,7 +186,7 @@ export default function PotentialSavingsScreen() {
             style={styles.detailsSection}
           >
             <Text style={styles.detailsText}>
-              Based on your selected cards and typical spending patterns
+              Every year your cards are secretly worth ${displayValue}. Ready to collect?
             </Text>
           </MotiView>
         </MotiView>
@@ -182,7 +212,7 @@ export default function PotentialSavingsScreen() {
             onPress={handleStartTracking}
             activeOpacity={0.6}
           >
-            <Text style={styles.ctaButtonText}>Save and Start Tracking</Text>
+            <Text style={styles.ctaButtonText}>Lock in My Savings</Text>
           </TouchableOpacity>
         </MotiView>
       </View>
@@ -359,5 +389,15 @@ const styles = StyleSheet.create({
   celebrationAnimation: {
     width: '150%',
     height: '150%',
+  },
+  netValueContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  netValueText: {
+    fontSize: 16,
+    color: Colors.light.secondaryLabel,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 }); 
