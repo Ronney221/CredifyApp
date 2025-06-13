@@ -176,7 +176,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
                   accessibilityRole="text"
                 >
                   <Ionicons name="hand-left-outline" size={16} color="#007AFF" />
-                  <Text style={styles.inlineHintText}>Swipe → Redeem</Text>
+                  <Text style={styles.inlineHintText}>Swipe → Mark Used</Text>
                 </Reanimated.View>
               )}
               {shouldShowUndoHintOnThisPerk && (
@@ -360,14 +360,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 122, 255, 0.05)',
     borderRadius: 8,
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     marginTop: 8,
     alignSelf: 'flex-start',
     overflow: 'hidden',
   },
   inlineHintText: {
     color: '#007AFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     marginLeft: 6,
   },
