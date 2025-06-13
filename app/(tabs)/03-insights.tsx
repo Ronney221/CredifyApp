@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button, Pressable, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors'; // Assuming you have a Colors constant
+import { Colors } from '../../constants/Colors';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
-import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming, useAnimatedScrollHandler } from 'react-native-reanimated'; // Added Reanimated imports
+import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming, useAnimatedScrollHandler, interpolate } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 import YearlyProgress from '../components/insights/YearlyProgress'; // Import the new component
@@ -26,6 +28,7 @@ import { useUserCards } from '../hooks/useUserCards';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
+import { BlurView } from 'expo-blur';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -50,6 +53,11 @@ const SECONDARY_COLOR = '#ff9500'; // Fallback color, assuming secondary/accent 
 
 // Add constant for tab bar offset
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
+
+// Add after imports
+const EXPANDED_HEADER_HEIGHT = 160;
+const COLLAPSED_HEADER_HEIGHT = 60;
+const HEADER_SCROLL_DISTANCE = EXPANDED_HEADER_HEIGHT - COLLAPSED_HEADER_HEIGHT;
 
 // --- UI COMPONENTS ---
 
@@ -226,8 +234,9 @@ export default function InsightsScreen() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  // Add scroll animation value
+  // Add scroll animation values
   const scrollY = useSharedValue(0);
   const headerScrollProgress = useSharedValue(0);
 
@@ -235,9 +244,52 @@ export default function InsightsScreen() {
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
-      // Transition over 100px of scroll
-      headerScrollProgress.value = Math.min(1, Math.max(0, scrollY.value / 100));
+      // Transition over HEADER_SCROLL_DISTANCE pixels of scroll
+      headerScrollProgress.value = Math.min(1, Math.max(0, scrollY.value / HEADER_SCROLL_DISTANCE));
     },
+  });
+
+  // Add animated styles
+  const expandedHeaderStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(
+        headerScrollProgress.value,
+        [0, 1],
+        [1, 0],
+        'clamp'
+      ),
+      transform: [
+        {
+          translateY: interpolate(
+            headerScrollProgress.value,
+            [0, 1],
+            [0, -20],
+            'clamp'
+          ),
+        },
+      ],
+    };
+  });
+
+  const collapsedHeaderStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(
+        headerScrollProgress.value,
+        [0, 1],
+        [0, 1],
+        'clamp'
+      ),
+      transform: [
+        {
+          translateY: interpolate(
+            headerScrollProgress.value,
+            [0, 1],
+            [20, 0],
+            'clamp'
+          ),
+        },
+      ],
+    };
   });
 
   // Focus effect to refresh data when screen comes into focus
@@ -502,13 +554,6 @@ export default function InsightsScreen() {
     );
   };
 
-  const handleCompareCards = () => {
-    Alert.alert("Coming Soon!", "Compare Cards / ROI by Card feature is under development.");
-  };
-
-  const handleShare = () => {
-    Alert.alert('Share feature coming soon!');
-  };
 
   // Add useLayoutEffect for header configuration
   React.useLayoutEffect(() => {
@@ -552,6 +597,8 @@ export default function InsightsScreen() {
     totalAnnualFees: insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0),
   } : null;
 
+  // Update the collapsed header content to include the filter button
+ 
   // Filter Modal Content
   const renderFilterModal = () => (
     <Modal
@@ -637,149 +684,179 @@ export default function InsightsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      {currentYearData && (
-        <YearlyProgress
-          year={currentYearData.year}
-          totalRedeemed={currentYearData.totalRedeemed}
-          totalAnnualFees={currentYearData.totalAnnualFees}
-          trendData={[]}
-          scrollProgress={headerScrollProgress}
-          isSticky={true}
-        />
-      )}
-
-      {insightsData.yearSections.length > 0 ? (
-        <Animated.ScrollView
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.roiSection}>
-            <CardRoiLeaderboard cardRois={insightsData.cardRois} />
+    <SafeAreaView style={styles.container} edges={['right', 'left']}>
+      <StatusBar style="dark" />
+      <View style={styles.container}>
+        {/* Sticky Header */}
+        <Animated.View style={[
+          styles.stickyHeader,
+          collapsedHeaderStyle,
+          {
+            height: COLLAPSED_HEADER_HEIGHT + insets.top,
+            paddingTop: insets.top
+          }
+        ]}>
+          <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
+          <View style={styles.collapsedHeaderContent}>
+            <Text style={styles.collapsedHeaderTitle}>
+              {currentYearData && `${currentYearData.year} ROI: ${Math.round((currentYearData.totalRedeemed / currentYearData.totalAnnualFees) * 100)}%`}
+            </Text>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => setFilterModalVisible(true)}
+            >
+              <Ionicons name="filter" size={20} color="#007AFF" />
+            </TouchableOpacity>
           </View>
+        </Animated.View>
 
-          {/* Monthly Performance Chart */}
-          <View style={styles.chartSection}>
-            <View style={styles.chartHeader}>
-              <Text style={styles.chartTitle}>Monthly Performance</Text>
-              <TouchableOpacity 
-                onPress={() => Alert.alert(
-                  "Monthly Performance",
-                  "This chart shows your total savings from redeemed perks each month."
-                )}
-              >
-                <Ionicons name="information-circle-outline" size={20} color={Colors.light.icon} />
-              </TouchableOpacity>
+        {/* Large Header */}
+        <Animated.View style={[
+          styles.largeHeader,
+          expandedHeaderStyle,
+          {
+            height: EXPANDED_HEADER_HEIGHT + insets.top,
+            paddingTop: insets.top
+          }
+        ]}>
+          <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
+          {currentYearData && (
+            <YearlyProgress 
+              year={currentYearData.year}
+              totalRedeemed={currentYearData.totalRedeemed}
+              totalAnnualFees={currentYearData.totalAnnualFees}
+              trendData={[]}
+              scrollProgress={headerScrollProgress}
+              isSticky={false}
+            />
+          )}
+        </Animated.View>
+
+        {insightsData.yearSections.length > 0 ? (
+          <Animated.ScrollView
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop: EXPANDED_HEADER_HEIGHT + insets.top }
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.roiSection}>
+              <CardRoiLeaderboard cardRois={insightsData.cardRois} />
             </View>
-            {currentYearSection && (
-              <React.Fragment>
-                {(() => {
-                  // Sort months chronologically (oldest to newest)
-                  const monthsChrono = [...currentYearSection.data]
-                    .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
 
-                  // Calculate percentage and raw data arrays
-                  const pct = monthsChrono.map(m => 
-                    (m.totalRedeemedValue / m.totalPotentialValue) * 100
-                  );
-                  const raw = monthsChrono.map(m => ({
-                    redeemed: m.totalRedeemedValue,
-                    potential: m.totalPotentialValue,
-                  }));
+            {/* Monthly Performance Chart */}
+            <View style={styles.chartSection}>
+              <View style={styles.chartHeader}>
+                <Text style={styles.chartTitle}>Monthly Performance</Text>
+                <TouchableOpacity 
+                  onPress={() => Alert.alert(
+                    "Monthly Performance",
+                    "This chart shows your total savings from redeemed perks each month."
+                  )}
+                >
+                  <Ionicons name="information-circle-outline" size={20} color={Colors.light.icon} />
+                </TouchableOpacity>
+              </View>
+              {currentYearSection && (
+                <React.Fragment>
+                  {(() => {
+                    // Sort months chronologically (oldest to newest)
+                    const monthsChrono = [...currentYearSection.data]
+                      .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
 
-                  // Debug output to verify alignment
-                  console.table(
-                    monthsChrono.map(m => ({
-                      key: m.monthKey,
+                    // Calculate percentage and raw data arrays
+                    const pct = monthsChrono.map(m => 
+                      (m.totalRedeemedValue / m.totalPotentialValue) * 100
+                    );
+                    const raw = monthsChrono.map(m => ({
                       redeemed: m.totalRedeemedValue,
                       potential: m.totalPotentialValue,
-                      pct: (m.totalRedeemedValue / m.totalPotentialValue) * 100
-                    }))
-                  );
+                    }));
 
-                  return (
-                    <MiniBarChart
-                      data={rightPad(pct, 6, 0)}
-                      rawData={rightPad(raw, 6, { redeemed: 0, potential: 0 })}
-                    />
-                  );
-                })()}
-              </React.Fragment>
-            )}
-          </View>
+                    return (
+                      <MiniBarChart
+                        data={rightPad(pct, 6, 0)}
+                        rawData={rightPad(raw, 6, { redeemed: 0, potential: 0 })}
+                      />
+                    );
+                  })()}
+                </React.Fragment>
+              )}
+            </View>
 
-          {/* Monthly History Section */}
-          <View style={styles.monthlyHistoryHeader}>
-            <Text style={styles.sectionTitle}>Monthly History</Text>
-            <FilterChipRow
-              perkStatusFilter={perkStatusFilter}
-              setPerkStatusFilter={setPerkStatusFilter}
-            />
-          </View>
+            {/* Monthly History Section */}
+            <View style={styles.monthlyHistoryHeader}>
+              <Text style={styles.sectionTitle}>Monthly History</Text>
+              <FilterChipRow
+                perkStatusFilter={perkStatusFilter}
+                setPerkStatusFilter={setPerkStatusFilter}
+              />
+            </View>
 
-          {/* Monthly History List */}
-          {currentYearSection?.data.map((month, index) => (
-            <MonthSummaryCard
-              key={month.monthKey}
-              summary={month}
-              isExpanded={expandedMonthKey === month.monthKey}
-              onToggleExpand={() => handleToggleMonth(month.monthKey)}
-              perkStatusFilter={perkStatusFilter}
-              isFirstOverallCard={index === 0}
-              isEven={index % 2 === 0}
-            />
-          ))}
-        </Animated.ScrollView>
-      ) : (
-        <View style={styles.emptyStateContainer}>
-          <View style={styles.emptyStateContent}>
-            <Ionicons name="bar-chart-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
-            <Text style={styles.emptyStateTitle}>No Insights Yet</Text>
-            <Text style={styles.emptyStateText}>
-              Track your credit card perks and rewards to see valuable insights about your redemptions.
-            </Text>
-            {(selectedCardIds.length === 0 || activeFilterCount > 0) ? (
-              <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>
-            ) : (
-              <>
-                <View style={styles.emptyStateBulletPoints}>
-                  <View style={styles.bulletPoint}>
-                    <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
-                    <Text style={styles.bulletText}>See monthly redemption trends</Text>
+            {/* Monthly History List */}
+            {currentYearSection?.data.map((month, index) => (
+              <MonthSummaryCard
+                key={month.monthKey}
+                summary={month}
+                isExpanded={expandedMonthKey === month.monthKey}
+                onToggleExpand={() => handleToggleMonth(month.monthKey)}
+                perkStatusFilter={perkStatusFilter}
+                isFirstOverallCard={index === 0}
+                isEven={index % 2 === 0}
+              />
+            ))}
+          </Animated.ScrollView>
+        ) : (
+          <View style={styles.emptyStateContainer}>
+            <View style={styles.emptyStateContent}>
+              <Ionicons name="bar-chart-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
+              <Text style={styles.emptyStateTitle}>No Insights Yet</Text>
+              <Text style={styles.emptyStateText}>
+                Track your credit card perks and rewards to see valuable insights about your redemptions.
+              </Text>
+              {(selectedCardIds.length === 0 || activeFilterCount > 0) ? (
+                <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>
+              ) : (
+                <>
+                  <View style={styles.emptyStateBulletPoints}>
+                    <View style={styles.bulletPoint}>
+                      <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                      <Text style={styles.bulletText}>See monthly redemption trends</Text>
+                    </View>
+                    <View style={styles.bulletPoint}>
+                      <Ionicons name="trending-up" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                      <Text style={styles.bulletText}>Track your card ROI</Text>
+                    </View>
+                    <View style={styles.bulletPoint}>
+                      <Ionicons name="notifications-outline" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
+                      <Text style={styles.bulletText}>Get reminders for upcoming perks</Text>
+                    </View>
                   </View>
-                  <View style={styles.bulletPoint}>
-                    <Ionicons name="trending-up" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
-                    <Text style={styles.bulletText}>Track your card ROI</Text>
-                  </View>
-                  <View style={styles.bulletPoint}>
-                    <Ionicons name="notifications-outline" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
-                    <Text style={styles.bulletText}>Get reminders for upcoming perks</Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  style={styles.ctaButton}
-                  onPress={() => router.push("/home")}
-                >
-                  <Text style={styles.ctaButtonText}>Start Tracking Perks</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaButtonIcon} />
-                </TouchableOpacity>
-              </>
-            )}
+                  <TouchableOpacity 
+                    style={styles.ctaButton}
+                    onPress={() => router.push("/home")}
+                  >
+                    <Text style={styles.ctaButtonText}>Start Tracking Perks</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaButtonIcon} />
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {renderFilterModal()}
-    </View>
+        {renderFilterModal()}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: 'white',
   },
   headerContainer: {
     backgroundColor: Colors.light.background,
@@ -799,13 +876,6 @@ const styles = StyleSheet.create({
   },
   historySection: { 
     paddingBottom: 80,
-  },
-  sectionHeaderContainer: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    backgroundColor: Colors.light.background,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
   emptyStateContainer: {
     flex: 1,
@@ -982,6 +1052,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scrollContent: {
+    flexGrow: 1,
     paddingBottom: TAB_BAR_OFFSET,
   },
   roiSection: {
@@ -1023,7 +1094,8 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 8,
-    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
   headerBadge: {
     position: 'absolute',
@@ -1103,5 +1175,49 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212,212,212,0.5)',
+  },
+  largeHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+    overflow: 'hidden',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+  collapsedHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: COLLAPSED_HEADER_HEIGHT,
+  },
+  collapsedHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1C1C1E',
   },
 }); 
