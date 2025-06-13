@@ -229,14 +229,14 @@ export default function PerkActionModal({
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<'full' | 'half' | 'custom' | null>('full');
   const [partialAmount, setPartialAmount] = useState('');
-  const [sliderValue, setSliderValue] = useState(0);
+  const [sliderValue, setSliderValue] = useState<number>(0);
   const [isEditingNumber, setIsEditingNumber] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const translateY = useSharedValue(1000);
   const opacity = useSharedValue(0);
   const sliderPosition = useSharedValue(0);
-  const sliderAnimation = useSharedValue(0);
+  const sliderAnimation = useSharedValue<number>(0);
   
   // Get the currently redeemed amount if partially redeemed
   const getCurrentRedeemedAmount = useCallback(() => {
@@ -491,8 +491,8 @@ export default function PerkActionModal({
       onMarkRedeemed(amount);
       showToast(
         amount === perk?.value 
-          ? `${perk?.name} fully redeemed` 
-          : `${perk?.name} partially redeemed: ${formatCurrency(amount)}`
+          ? `${perk?.name} fully logged` 
+          : `${perk?.name} partially logged: ${formatCurrency(amount)}`
       );
     }
   };
@@ -623,7 +623,7 @@ export default function PerkActionModal({
                             style={styles.slider}
                             minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.01}
                             maximumValue={perk?.value || 0}
-                            value={sliderAnimation}
+                            value={sliderAnimation.value}
                             onValueChange={handleSliderChange}
                             minimumTrackTintColor="#007AFF"
                             maximumTrackTintColor="#E5E5EA"
@@ -697,35 +697,49 @@ export default function PerkActionModal({
                     onPress={handleConfirmAction}
                   >
                     <Text style={[styles.buttonText, styles.primaryButtonText]}>
-                      {sliderValue === 0 ? 'Mark as Available' : `Redeem ${formatCurrency(sliderValue)}`}
+                      {sliderValue === 0 ? 'Mark as Available' : `Log ${formatCurrency(sliderValue)}`}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      handleOpenApp();
+                    }}
+                  >
+                    <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                      Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
                     </Text>
                   </TouchableOpacity>
                 </>
               )}
 
               {isRedeemed && (
-                <TouchableOpacity
-                  style={[styles.button, styles.markAvailableButton]}
-                  onPress={() => {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    handleMarkAvailable();
-                  }}
-                >
-                  <Text style={styles.buttonText}>Mark as Available</Text>
-                </TouchableOpacity>
-              )}
+                <>
+                  <TouchableOpacity
+                    style={[styles.button, styles.markAvailableButton]}
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      handleMarkAvailable();
+                    }}
+                  >
+                    <Text style={styles.buttonText}>Mark as Available</Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.button, styles.openButton]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  handleOpenApp();
-                }}
-              >
-                <Text style={[styles.buttonText, styles.openButtonText]}>
-                  Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
-                </Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      handleOpenApp();
+                    }}
+                  >
+                    <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                      Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </ScrollView>
         </Animated.View>
@@ -1001,10 +1015,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   primaryButton: {
-    flex: 1,
     backgroundColor: '#007AFF',
+    marginBottom: 12,
+  },
+  secondaryButton: {
+    backgroundColor: '#F2F2F7',
+    borderWidth: 1,
+    borderColor: '#007AFF',
   },
   primaryButtonText: {
     color: '#FFFFFF',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
   },
 }); 
