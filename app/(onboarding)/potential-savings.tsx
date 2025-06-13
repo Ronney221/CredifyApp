@@ -108,14 +108,15 @@ export default function PotentialSavingsScreen() {
           
           // Animate the scale
           Animated.sequence([
+            // First expand outward
             Animated.spring(scaleAnim, {
-              toValue: 10,
+              toValue: 1.4,
               useNativeDriver: true,
-              damping: 1,
-              stiffness: 700,
-              mass: 0.8,
-              velocity: 10,
-            })
+              damping: 7,
+              stiffness: 350,
+              mass: 1,
+              velocity: 3,
+            }),
           ]).start();
           
           // Hide celebration after 3 seconds
