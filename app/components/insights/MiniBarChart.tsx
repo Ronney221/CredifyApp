@@ -188,17 +188,19 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                     !hasData && styles.emptyValueLabel
                   ]}>{formatCurrency(value)}</Text>
                 </View>
-                <View
-                  style={[
-                    styles.bar,
-                    {
-                      width: barWidth,
-                      height: barHeight,
-                      backgroundColor: isLastBar ? barColor : Colors.light.icon,
-                      opacity: hasData ? (isLastBar ? 1 : 0.3) : 0.1,
-                    },
-                  ]}
-                />
+                <View style={[styles.barContainer, { height: chartHeight }]}>
+                  <View
+                    style={[
+                      styles.bar,
+                      {
+                        width: barWidth,
+                        height: barHeight,
+                        backgroundColor: isLastBar ? barColor : Colors.light.icon,
+                        opacity: hasData ? (isLastBar ? 1 : 0.3) : 0.1,
+                      },
+                    ]}
+                  />
+                </View>
                 <Text style={[
                   styles.monthLabel,
                   !hasData && styles.emptyMonthLabel
@@ -287,6 +289,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
     width: '100%',
+  },
+  barContainer: {
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   bar: {
     backgroundColor: Colors.light.icon,

@@ -23,6 +23,7 @@ export interface PerkDetail {
   status: 'redeemed' | 'available' | 'missed' | 'partially_redeemed';
   period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
   expiresThisMonth?: boolean;
+  expiresNextMonth?: boolean;
   reset_date?: string;
 }
 
@@ -179,6 +180,8 @@ export const generateDummyInsightsData = async (
 
       // Get current month's redemptions
       const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0); // Last day of current month
+      const nextMonthStart = new Date(date.getFullYear(), date.getMonth() + 1, 1);
       const wasRedeemed = (perkId: string) => historicalRedemptions.some(r => 
         r.perk_id === perkId &&
         new Date(r.redemption_date) >= monthStart &&
@@ -199,12 +202,28 @@ export const generateDummyInsightsData = async (
           const isRedeemed = wasRedeemed(perk.definition_id);
           const displayStatus = isRedeemed ? 'redeemed' : 'available';
 
-          // Determine if non-monthly perk expires this month
+          // Determine if non-monthly perk expires this month or next month
           let expiresThisMonth = false;
+          let expiresNextMonth = false;
           if (perk.period !== 'monthly' && !isRedeemed) {
-            const resetDate = new Date(perk.reset_date || '');
-            expiresThisMonth = resetDate.getMonth() === monthEnd.getMonth() && 
-                              resetDate.getFullYear() === monthEnd.getFullYear();
+            if (perk.period === 'semi_annual') {
+              // For semi-annual perks, they expire at the end of June and December
+              const isJune = monthEnd.getMonth() === 5; // June is 5 (0-based)
+              const isDecember = monthEnd.getMonth() === 11;
+              expiresThisMonth = isJune || isDecember;
+              
+              // For May, check if next month is June (or for November, check if next month is December)
+              const isNextMonthJune = nextMonthStart.getMonth() === 6;
+              const isNextMonthDecember = nextMonthStart.getMonth() === 12;
+              expiresNextMonth = isNextMonthJune || isNextMonthDecember;
+            } else {
+              // For other periods, use the reset date logic
+              const resetDate = new Date(perk.reset_date || '');
+              expiresThisMonth = resetDate.getMonth() === monthEnd.getMonth() && 
+                                resetDate.getFullYear() === monthEnd.getFullYear();
+              expiresNextMonth = resetDate.getMonth() === nextMonthStart.getMonth() && 
+                                resetDate.getFullYear() === nextMonthStart.getFullYear();
+            }
           }
           
           currentMonthPerkDetails.push({
@@ -214,6 +233,7 @@ export const generateDummyInsightsData = async (
             status: displayStatus,
             period: perk.period,
             expiresThisMonth,
+            expiresNextMonth,
             reset_date: perk.reset_date || undefined
           } as PerkDetail);
 
@@ -238,6 +258,8 @@ export const generateDummyInsightsData = async (
     } else {
       // Use historical data for past months
       const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0); // Last day of current month
+      const nextMonthStart = new Date(date.getFullYear(), date.getMonth() + 1, 1);
       
       insightsCards.forEach(card => {
         card.benefits.forEach(perk => {
@@ -260,22 +282,36 @@ export const generateDummyInsightsData = async (
           const displayStatus = wasRedeemed ? 'redeemed' : 
                               isCurrentMonth ? 'available' : 'missed';
 
-          // Determine if non-monthly perk expires this month
+          // Determine if non-monthly perk expires this month or next month
           let expiresThisMonth = false;
+          let expiresNextMonth = false;
           if (perk.period !== 'monthly' && !wasRedeemed) {
-            // For historical data, we'll consider a perk expired if it's the last month of its period
-            const periodMonths = perk.period === 'quarterly' ? 3 : 
-                               perk.period === 'semi_annual' ? 6 : 
-                               perk.period === 'annual' ? 12 : 1;
-            
-            const periodStart = new Date(monthStart);
-            periodStart.setMonth(periodStart.getMonth() - (periodStart.getMonth() % periodMonths));
-            const periodEnd = new Date(periodStart);
-            periodEnd.setMonth(periodStart.getMonth() + periodMonths - 1);
-            periodEnd.setDate(periodEnd.getDate() + 1);
+            if (perk.period === 'semi_annual') {
+              // For semi-annual perks, they expire at the end of June and December
+              const isJune = monthEnd.getMonth() === 5; // June is 5 (0-based)
+              const isDecember = monthEnd.getMonth() === 11;
+              expiresThisMonth = isJune || isDecember;
+              
+              // For May, check if next month is June (or for November, check if next month is December)
+              const isNextMonthJune = nextMonthStart.getMonth() === 5;
+              const isNextMonthDecember = nextMonthStart.getMonth() === 11;
+              expiresNextMonth = isNextMonthJune || isNextMonthDecember;
+            } else {
+              // For other periods, calculate based on period months
+              const periodMonths = perk.period === 'quarterly' ? 3 : 
+                                 perk.period === 'annual' ? 12 : 1;
+              
+              const periodStart = new Date(monthStart);
+              periodStart.setMonth(periodStart.getMonth() - (periodStart.getMonth() % periodMonths));
+              const periodEnd = new Date(periodStart);
+              periodEnd.setMonth(periodStart.getMonth() + periodMonths - 1);
+              periodEnd.setDate(periodEnd.getDate() + 1);
 
-            expiresThisMonth = monthEnd.getMonth() === periodEnd.getMonth() && 
-                              monthEnd.getFullYear() === periodEnd.getFullYear();
+              expiresThisMonth = monthEnd.getMonth() === periodEnd.getMonth() && 
+                                monthEnd.getFullYear() === periodEnd.getFullYear();
+              expiresNextMonth = nextMonthStart.getMonth() === periodEnd.getMonth() && 
+                                nextMonthStart.getFullYear() === periodEnd.getFullYear();
+            }
           }
           
           currentMonthPerkDetails.push({
@@ -285,6 +321,7 @@ export const generateDummyInsightsData = async (
             status: displayStatus,
             period: perk.period,
             expiresThisMonth,
+            expiresNextMonth,
             reset_date: undefined
           } as PerkDetail);
 

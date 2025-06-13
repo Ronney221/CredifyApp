@@ -1,11 +1,22 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, 
+  FadeOut, 
+  Layout, 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming,
+  withSpring,
+  interpolateColor
+} from 'react-native-reanimated';
 import { Colors } from '../../../constants/Colors';
 import { MonthlyRedemptionSummary, PerkStatusFilter } from '../../../src/data/dummy-insights';
 import { FeeCoverageMeterChip } from './FeeCoverageMeterChip';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 interface MonthSummaryCardProps {
   summary: MonthlyRedemptionSummary;
@@ -36,6 +47,10 @@ const getPeriodBadgeColor = (period: string): string => {
   }
 };
 
+const TIMELINE_DOT_SIZE = 12;
+const TIMELINE_LINE_WIDTH = 2;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   summary,
   isExpanded,
@@ -45,6 +60,10 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   isEven,
 }) => {
   const router = useRouter();
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  const cardOpacity = useSharedValue(1);
+
   // Calculate fee coverage based on only monthly perks
   const monthlyPerks = summary.perkDetails.filter(perk => perk.period === 'monthly');
   const monthlyRedeemedValue = monthlyPerks.reduce((sum, perk) => 
@@ -56,17 +75,107 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     ? (monthlyRedeemedValue / monthlyPotentialValue) * 100 
     : 0;
 
-  const rotation = useSharedValue(0);
+  // Helper function to determine if a perk is relevant to this month
+  const isPerkRelevantToMonth = (perk: any) => {
+    // Always include redeemed perks
+    if (perk.status === 'redeemed') return true;
+    
+    // For monthly perks, they're always relevant
+    if (perk.period === 'monthly') return true;
+    
+    // For non-monthly perks, they're relevant if they expire this month OR next month
+    if (perk.status === 'missed' || perk.status === 'available') {
+      return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+    }
+    
+    return false;
+  };
+
+  // Update calculations for the summary view
+  const relevantPerks = summary.perkDetails.filter(isPerkRelevantToMonth);
+  
+  const totalPerks = relevantPerks.length;
+  
+  const redeemedPerks = relevantPerks.filter(perk => perk.status === 'redeemed').length;
+  
+  const missedPerks = relevantPerks.filter(perk => 
+    perk.status === 'missed' && 
+    (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
+  ).length;
+  
+  const availablePerks = relevantPerks.filter(perk => 
+    perk.status === 'available' && 
+    (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
+  ).length;
+
+  // Update performance score calculation
+  const performanceScore = totalPerks > 0 
+    ? Math.round((redeemedPerks / totalPerks) * 100)
+    : 0;
+
+  // Get performance status and color
+  const getPerformanceStatus = () => {
+    if (performanceScore >= 90) return { text: 'Excellent', color: '#34C759' };
+    if (performanceScore >= 70) return { text: 'Good', color: '#5856D6' };
+    if (performanceScore >= 50) return { text: 'Fair', color: '#FF9500' };
+    return { text: 'Needs Improvement', color: '#FF3B30' };
+  };
+
+  const performanceStatus = getPerformanceStatus();
+
+  // Determine if this is the current month
+  const isCurrentMonth = new Date().toLocaleString('default', { month: 'long' }) === 
+    summary.monthYear.split(' ')[0];
+
+  // Update the bar segments calculation
+  const getBarSegments = () => {
+    const segments = [];
+    
+    // Add redeemed segments
+    for (let i = 0; i < redeemedPerks; i++) {
+      segments.push({ type: 'redeemed', color: SUCCESS_GREEN });
+    }
+    
+    // Add missed segments
+    for (let i = 0; i < missedPerks; i++) {
+      segments.push({ type: 'missed', color: NEUTRAL_GRAY_COLOR });
+    }
+    
+    // Add available segments
+    for (let i = 0; i < availablePerks; i++) {
+      segments.push({ type: 'available', color: Colors.light.tint });
+    }
+    
+    return segments;
+  };
+
+  const barSegments = getBarSegments();
 
   useEffect(() => {
-    rotation.value = withTiming(isExpanded ? 180 : 0, { duration: 200 });
+    rotation.value = withSpring(isExpanded ? 180 : 0, {
+      damping: 15,
+      stiffness: 120
+    });
   }, [isExpanded, rotation]);
 
-  const animatedChevronStyle = useAnimatedStyle(() => {
-    return { transform: [{ rotate: `${rotation.value}deg` }] };
-  });
+  const animatedChevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }]
+  }));
 
-  // Separate perks into monthly and non-monthly
+  const animatedCardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: cardOpacity.value
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.98, { damping: 15, stiffness: 120 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 120 });
+  };
+
+  // Update the perk details filtering
   const monthlyPerkDetails = summary.perkDetails
     .filter(perk => perk.period === 'monthly')
     .filter(perk => {
@@ -75,14 +184,15 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     })
     .sort((a, b) => b.value - a.value);
 
-  // For non-monthly perks, only show if redeemed or expired this month
   const nonMonthlyPerkDetails = summary.perkDetails
     .filter(perk => perk.period !== 'monthly')
     .filter(perk => {
       // Always show redeemed perks
       if (perk.status === 'redeemed') return true;
-      // For missed perks, only show if they expired this month
-      if (perk.status === 'missed') return perk.expiresThisMonth === true;
+      // For missed/available perks, show if they expire this month OR next month
+      if (perk.status === 'missed' || perk.status === 'available') {
+        return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+      }
       return false;
     })
     .filter(perk => {
@@ -98,291 +208,500 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     router.push('/profile/notifications');
   };
 
+  // Add a helper function to get expiration status text
+  const getExpirationStatus = (perk: any) => {
+    if (perk.expiresNextMonth) return 'Expires Next Month';
+    if (perk.expiresThisMonth) return 'Expires This Month';
+    return '';
+  };
+
   const renderPerkItem = (perk: any, isMonthly: boolean) => (
-    <View key={perk.id} style={styles.perkDetailItem}>
+    <View key={perk.id} style={[
+      styles.perkDetailItem,
+      perk.status === 'missed' && styles.missedPerkItem
+    ]}>
       <Ionicons 
-        name={perk.status === 'redeemed' ? 'checkmark-circle' : 'close-circle'} 
+        name={
+          perk.status === 'redeemed' 
+            ? 'checkmark-circle' 
+            : perk.status === 'available'
+            ? 'time-outline'
+            : 'close-circle'
+        }
         size={20} 
-        color={perk.status === 'redeemed' ? SUCCESS_GREEN : ERROR_RED} 
+        color={
+          perk.status === 'redeemed' 
+            ? SUCCESS_GREEN 
+            : perk.status === 'available'
+            ? Colors.light.tint
+            : NEUTRAL_GRAY_COLOR
+        }
         style={styles.perkStatusIcon}
       />
       <View style={styles.perkContentContainer}>
         <View style={styles.perkNameRow}>
-          <Text style={styles.perkName}>{perk.name}</Text>
-          <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
-          {!isMonthly && (
-            <View style={[styles.periodBadge, { backgroundColor: getPeriodBadgeColor(perk.period) }]}>
-              <Text style={styles.periodBadgeText}>{getPeriodBadgeText(perk.period)}</Text>
-            </View>
-          )}
+          <Text style={[
+            styles.perkName,
+            perk.status === 'missed' && styles.missedPerkText
+          ]}>{perk.name}</Text>
+          <Text style={[
+            styles.perkValue,
+            perk.status === 'missed' && styles.missedPerkText
+          ]}>${perk.value.toFixed(0)}</Text>
         </View>
-        <Text style={[
-          styles.perkStatusText, 
-          perk.status === 'redeemed' ? styles.redeemedText : 
-          perk.status === 'available' ? styles.availableText : styles.missedText
-        ]}>
-          {perk.status === 'redeemed' ? 'Redeemed' : 
-           perk.status === 'available' ? 'Available' : 'Expired'}
-        </Text>
+        {!isMonthly && (perk.expiresThisMonth || perk.expiresNextMonth) && (
+          <Text style={styles.expirationText}>
+            {getExpirationStatus(perk)}
+          </Text>
+        )}
       </View>
     </View>
   );
 
-  return (
-    <Pressable onPress={onToggleExpand} hitSlop={{top:8,left:8,right:8,bottom:8}}>
-      <View style={[styles.monthCard, isEven ? styles.monthCardAltBackground : null]}>
-        <View style={styles.monthCardHeader}>
-          <View style={styles.monthCardInfo}>
-            <Text style={styles.monthYearText}>{summary.monthYear}</Text>
-            <View style={styles.redeemedValueContainer}>
-              <Text style={styles.monthRedeemedValue}>
-                ${summary.totalRedeemedValue.toFixed(0)} redeemed
-              </Text>
-              {monthlyPotentialValue > 0 && (
-                <Text style={styles.monthPotentialValue}>
-                  {' '}(${monthlyRedeemedValue.toFixed(0)} from monthly perks)
-                </Text>
-              )}
-            </View>
-            <Text style={styles.monthPerkCount}>
-              {summary.perksRedeemedCount} perks used
-            </Text>
-          </View>
-          <View style={styles.monthCardRightColumn}>
-            {summary.cardFeesProportion > 0 && (
-              <FeeCoverageMeterChip 
-                value={feeCoveragePercentage} 
-                displayTextType={isFirstOverallCard ? 'full' : 'percentage_only'}
-              />
-            )}
-            <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
-              <Ionicons name="chevron-down" size={24} color={Colors.light.text} />
-            </Animated.View>
-          </View>
-        </View>
+  const renderTimelineNode = () => (
+    <View style={styles.timelineNode}>
+      <View style={[
+        styles.timelineDot,
+        isCurrentMonth && styles.timelineDotCurrent
+      ]} />
+      <View style={styles.timelineLine} />
+    </View>
+  );
 
-        {isExpanded && (
-          <Animated.View 
-            layout={Layout.springify()} 
-            entering={FadeIn.duration(200)} 
-            exiting={FadeOut.duration(200)} 
-            style={styles.perkDetailsContainer}
-          >
-            {showCelebratoryEmptyState ? (
-              <View style={styles.celebratoryEmptyState}>
-                <Text style={styles.celebratoryEmoji}>🎉</Text>
-                <Text style={styles.celebratoryText}>
-                  Nice! You did not miss any perks for this filter.
+  const renderVisualMeter = () => (
+    <View style={styles.visualMeter}>
+      {barSegments.map((segment, index) => (
+        <View
+          key={index}
+          style={[
+            styles.meterSegment,
+            { backgroundColor: segment.color }
+          ]}
+        />
+      ))}
+    </View>
+  );
+
+  return (
+    <Pressable 
+      onPress={onToggleExpand} 
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={{top:8,left:8,right:8,bottom:8}}
+    >
+      <Animated.View style={[
+        styles.monthCard,
+        isCurrentMonth && styles.currentMonthCard,
+        animatedCardStyle
+      ]}>
+        <LinearGradient
+          colors={isCurrentMonth 
+            ? ['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.98)']
+            : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.95)']}
+          style={styles.cardGradient}
+        >
+          <View style={styles.cardContent}>
+            {renderTimelineNode()}
+            
+            <View style={styles.mainContent}>
+              <View style={styles.headerRow}>
+                <View style={styles.monthInfo}>
+                  <Text style={styles.monthYearText}>{summary.monthYear}</Text>
+                  {isCurrentMonth && (
+                    <Text style={styles.currentMonthLabel}>Current Month</Text>
+                  )}
+                </View>
+                <Text style={styles.totalValue}>
+                  ${summary.totalRedeemedValue.toFixed(0)}
+                  {isCurrentMonth && ' Saved So Far'}
                 </Text>
               </View>
-            ) : (monthlyPerkDetails.length > 0 || nonMonthlyPerkDetails.length > 0) ? (
-              <>
-                {/* Add Remind Me button if there are missed perks */}
-                {[...monthlyPerkDetails, ...nonMonthlyPerkDetails].some(perk => perk.status !== 'redeemed') && (
-                  <TouchableOpacity 
-                    onPress={() => handleRemindMe('')}
-                    style={styles.monthRemindButton}
-                  >
-                    <Ionicons name="notifications-outline" size={16} color={Colors.light.tint} />
-                    <Text style={styles.monthRemindButtonText}>Set reminders for missed perks</Text>
-                    <Ionicons name="chevron-forward" size={16} color={Colors.light.tint} />
-                  </TouchableOpacity>
-                )}
-                
-                {/* Monthly Perks Section */}
-                {monthlyPerkDetails.length > 0 && (
-                  <>
-                    <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
-                    {monthlyPerkDetails.map(perk => renderPerkItem(perk, true))}
-                  </>
-                )}
 
-                {/* Non-Monthly Perks Section */}
-                {nonMonthlyPerkDetails.length > 0 && (
-                  <>
-                    <Text style={[styles.perkSectionTitle, { marginTop: monthlyPerkDetails.length > 0 ? 20 : 0 }]}>
-                      Additional Perks
-                    </Text>
-                    {nonMonthlyPerkDetails.map(perk => renderPerkItem(perk, false))}
-                  </>
-                )}
-              </>
-            ) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
-          </Animated.View>
-        )}
-      </View>
+              {isCurrentMonth ? (
+                // Current Month View
+                <View style={styles.currentMonthStats}>
+                  {renderVisualMeter()}
+                  <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                      <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
+                      <Text style={styles.statText}>{redeemedPerks} Redeemed</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
+                      <Text style={styles.statText}>{missedPerks} Missed</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
+                      <Text style={styles.statText}>{availablePerks} Available</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                // Past Month View
+                <View style={styles.pastMonthStats}>
+                  <View style={styles.pastMonthMeter}>
+                    {renderVisualMeter()}
+                  </View>
+                  <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
+                  </Animated.View>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Expanded Detail View */}
+          {isExpanded && (
+            <Animated.View 
+              layout={Layout.springify()} 
+              entering={FadeIn.duration(200)} 
+              exiting={FadeOut.duration(200)} 
+              style={styles.perkDetailsContainer}
+            >
+              <View style={styles.detailedHeader}>
+                <View style={styles.detailedHeaderTop}>
+                  <Text style={styles.detailedTitle}>{summary.monthYear} Summary</Text>
+                  <Text style={styles.detailedSubtitle}>
+                    ${summary.totalRedeemedValue.toFixed(0)} of ${summary.totalPotentialValue.toFixed(0)} Redeemed
+                  </Text>
+                </View>
+                
+                <View style={styles.detailedStats}>
+                  <View style={styles.detailedStat}>
+                    <Text style={styles.detailedStatValue}>{redeemedPerks}</Text>
+                    <Text style={styles.detailedStatLabel}>Redeemed</Text>
+                  </View>
+                  <View style={styles.detailedStat}>
+                    <Text style={styles.detailedStatValue}>{missedPerks}</Text>
+                    <Text style={styles.detailedStatLabel}>Missed</Text>
+                  </View>
+                  <View style={styles.detailedStat}>
+                    <Text style={styles.detailedStatValue}>{availablePerks}</Text>
+                    <Text style={styles.detailedStatLabel}>Available</Text>
+                  </View>
+                </View>
+              </View>
+
+              {showCelebratoryEmptyState ? (
+                <View style={styles.celebratoryEmptyState}>
+                  <Text style={styles.celebratoryEmoji}>🎉</Text>
+                  <Text style={styles.celebratoryText}>
+                    Nice! You did not miss any perks for this filter.
+                  </Text>
+                </View>
+              ) : (monthlyPerkDetails.length > 0 || nonMonthlyPerkDetails.length > 0) ? (
+                <>
+                  {[...monthlyPerkDetails, ...nonMonthlyPerkDetails].some(perk => perk.status !== 'redeemed') && (
+                    <TouchableOpacity 
+                      onPress={() => handleRemindMe('')}
+                      style={styles.monthRemindButton}
+                    >
+                      <LinearGradient
+                        colors={['rgba(0,122,255,0.1)', 'rgba(0,122,255,0.05)']}
+                        style={styles.remindButtonGradient}
+                      >
+                        <Ionicons name="notifications-outline" size={16} color={Colors.light.tint} />
+                        <Text style={styles.monthRemindButtonText}>Set reminders for missed perks</Text>
+                        <Ionicons name="chevron-forward" size={16} color={Colors.light.tint} />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                  
+                  {monthlyPerkDetails.length > 0 && (
+                    <View style={styles.perkSection}>
+                      <View style={styles.perkSectionHeader}>
+                        <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
+                        <Text style={styles.perkSectionCount}>({monthlyPerkDetails.length})</Text>
+                      </View>
+                      {monthlyPerkDetails.map(perk => renderPerkItem(perk, true))}
+                    </View>
+                  )}
+
+                  {nonMonthlyPerkDetails.length > 0 && (
+                    <View style={styles.perkSection}>
+                      <View style={styles.perkSectionHeader}>
+                        <Text style={styles.perkSectionTitle}>Additional Perks</Text>
+                        <Text style={styles.perkSectionCount}>({nonMonthlyPerkDetails.length})</Text>
+                      </View>
+                      {nonMonthlyPerkDetails.map(perk => renderPerkItem(perk, false))}
+                    </View>
+                  )}
+                </>
+              ) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
+            </Animated.View>
+          )}
+        </LinearGradient>
+      </Animated.View>
     </Pressable>
   );
 };
 
 const SUCCESS_GREEN = '#34C759';
-const ERROR_RED = '#FF3B30';
+const NEUTRAL_GRAY_COLOR = '#8A8A8E';
 const SUBTLE_GRAY_TEXT = Colors.light.icon;
 const SEPARATOR_COLOR = '#E0E0E0';
 
 const styles = StyleSheet.create({
   monthCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 15,
-    padding: 15,
-    shadowColor: 'rgba(0,0,0,0.08)',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+    shadowColor: 'rgba(0,0,0,0.1)',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowRadius: 12,
+    elevation: 3,
+    overflow: 'hidden',
   },
-  monthCardAltBackground: {
-    backgroundColor: '#F7F7F7',
+  currentMonthCard: {
+    shadowColor: Colors.light.tint,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
   },
-  monthCardHeader: {
+  cardGradient: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  cardContent: {
+    flexDirection: 'row',
+    padding: 16,
+  },
+  timelineNode: {
+    width: 24,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  timelineDot: {
+    width: TIMELINE_DOT_SIZE,
+    height: TIMELINE_DOT_SIZE,
+    borderRadius: TIMELINE_DOT_SIZE / 2,
+    backgroundColor: Colors.light.tint,
+    marginBottom: 4,
+  },
+  timelineDotCurrent: {
+    backgroundColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  timelineLine: {
+    width: TIMELINE_LINE_WIDTH,
+    flex: 1,
+    backgroundColor: SEPARATOR_COLOR,
+  },
+  mainContent: {
+    flex: 1,
+  },
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  monthCardInfo: {
+  monthInfo: {
     flex: 1,
-    marginRight: 8,
-  },
-  monthCardRightColumn: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    minHeight: 70,
-  },
-  chevronWrapper: {
-    marginTop: 'auto',
-  },
-  redeemedValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 4,
   },
   monthYearText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.light.text,
+    letterSpacing: -0.5,
+  },
+  currentMonthLabel: {
+    fontSize: 13,
+    color: Colors.light.tint,
+    marginTop: 2,
+  },
+  totalValue: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.tint,
+  },
+  currentMonthStats: {
+    marginTop: 8,
+  },
+  visualMeter: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  meterSegment: {
+    flex: 1,
+    marginHorizontal: 1,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
+    fontSize: 13,
+    color: Colors.light.text,
+    opacity: 0.8,
+  },
+  pastMonthStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pastMonthMeter: {
+    flex: 1,
+    height: 6,
+    marginRight: 12,
+  },
+  chevronWrapper: {
+    marginLeft: 'auto',
+  },
+  perkDetailsContainer: {
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: SEPARATOR_COLOR,
+    overflow: 'hidden',
+  },
+  detailedHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  detailedHeaderTop: {
+    marginBottom: 12,
+  },
+  detailedTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  detailedSubtitle: {
+    fontSize: 15,
+    color: Colors.light.text,
+    opacity: 0.7,
+  },
+  detailedStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  detailedStat: {
+    alignItems: 'center',
+  },
+  detailedStatValue: {
     fontSize: 18,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 6,
   },
-  monthRedeemedValue: {
+  detailedStatLabel: {
+    fontSize: 12,
+    color: Colors.light.text,
+    opacity: 0.7,
+    marginTop: 2,
+  },
+  perkSection: {
+    marginBottom: 20,
+  },
+  perkSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  perkSectionTitle: {
     fontSize: 17,
-    color: Colors.light.tint,
     fontWeight: '600',
+    color: Colors.light.text,
   },
-  monthPotentialValue: {
+  perkSectionCount: {
     fontSize: 15,
     color: Colors.light.text,
     opacity: 0.7,
     marginLeft: 4,
   },
-  monthPerkCount: {
-    fontSize: 12,
-    color: SUBTLE_GRAY_TEXT,
-    opacity: 0.6,
-    marginBottom: 8,
-  },
-  perkDetailsContainer: {
-    marginTop: 15,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: SEPARATOR_COLOR,
-    overflow: 'hidden',
-  },
   perkDetailItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  missedPerkItem: {
+    opacity: 0.6,
   },
   perkStatusIcon: {
-    marginRight: 10,
-    marginTop: 2, // Align with first line of text
+    marginRight: 12,
   },
   perkContentContainer: {
     flex: 1,
   },
   perkNameRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    gap: 4,
-    marginBottom: 2,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   perkName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    color: Colors.light.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  perkValue: {
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.light.text,
   },
-  perkValueDimmed: {
-    fontSize: 15,
-    color: Colors.light.tint,
-    fontWeight: '600',
-  },
-  perkStatusText: {
-    fontSize: 13,
-    fontWeight: '500',
-    opacity: 0.8,
-  },
-  redeemedText: {
-    color: SUCCESS_GREEN,
-  },
-  missedText: {
-    color: ERROR_RED,
-  },
-  availableText: {
-    color: Colors.light.tint,
+  missedPerkText: {
+    opacity: 0.6,
   },
   noPerksText: {
     fontSize: 14,
     color: SUBTLE_GRAY_TEXT,
     textAlign: 'center',
-    paddingVertical: 10,
+    paddingVertical: 20,
   },
   celebratoryEmptyState: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 24,
   },
   celebratoryEmoji: {
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: 32,
+    marginBottom: 12,
   },
   celebratoryText: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.light.icon,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   monthRemindButton: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  remindButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   monthRemindButtonText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.light.tint,
     marginLeft: 8,
     fontWeight: '500',
   },
-  perkSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 10,
-    opacity: 0.8,
-  },
-  periodBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
-  },
-  periodBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '500',
+  expirationText: {
+    fontSize: 12,
+    color: NEUTRAL_GRAY_COLOR,
+    marginTop: 4,
   },
 }); 

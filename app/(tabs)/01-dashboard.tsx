@@ -38,7 +38,7 @@ import PerkActionModal from '../components/home/PerkActionModal';
 import { useUserCards } from '../hooks/useUserCards';
 import { usePerkStatus } from '../hooks/usePerkStatus';
 import { useAutoRedemptions } from '../hooks/useAutoRedemptions';
-import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear, startOfYear, isWithinInterval } from 'date-fns';
+import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
 import ActionHintPill from '../components/home/ActionHintPill';
@@ -176,12 +176,6 @@ const defaultNotificationPreferences: NotificationPreferences = {
 
 // Add constant for tab bar offset
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
-
-// Utility to calculate ROI
-function calculateAnnualROI(totalRedeemed: number, totalAnnualFees: number): number {
-  if (!totalAnnualFees || totalAnnualFees === 0) return 0;
-  return Math.round((totalRedeemed / totalAnnualFees) * 100);
-}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -849,35 +843,6 @@ export default function Dashboard() {
   if (!isUserCardsInitialLoading) {
   }
 
-  // Calculate total annual fees
-  const totalAnnualFees = useMemo(() => {
-    return userCardsWithPerks.reduce((sum, { card }) => sum + (card.annualFee || 0), 0);
-  }, [userCardsWithPerks]);
-
-  // Calculate total annual redeemed value for current year
-  const totalAnnualRedeemed = useMemo(() => {
-    const now = new Date();
-    const yearStart = startOfYear(now);
-    const yearEnd = endOfYear(now);
-    let sum = 0;
-    userCardsWithPerks.forEach(({ perks }) => {
-      perks.forEach(perk => {
-        // Only count perks redeemed this year and with annual period
-        if (
-          perk.status === 'redeemed' &&
-          (perk.periodMonths === 12 || perk.period === 'annual') &&
-          perk.redeemedAt &&
-          isWithinInterval(new Date(perk.redeemedAt), { start: yearStart, end: yearEnd })
-        ) {
-          sum += perk.value;
-        }
-      });
-    });
-    return sum;
-  }, [userCardsWithPerks]);
-
-  const annualROI = useMemo(() => calculateAnnualROI(totalAnnualRedeemed, totalAnnualFees), [totalAnnualRedeemed, totalAnnualFees]);
-
   // renderItem function for the FlatList
   const renderExpandableCardItem = ({ item, index }: { item: CardListItem, index: number }) => (
     <ExpandableCard
@@ -984,17 +949,8 @@ export default function Dashboard() {
             ]}
           >
             <View style={styles.greetingTextContainer}>
-              <View style={styles.greetingRow}>
-                <View style={styles.greetingLeft}>
-                  <Text style={styles.welcomeText}>{welcomeText}</Text>
-                  <Text style={styles.userNameText}>{userName || ' '}</Text>
-                </View>
-                {totalAnnualFees > 0 && (
-                  <View style={styles.roiPill}>
-                    <Text style={styles.roiPillText}>Annual ROI: {annualROI}%</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={styles.welcomeText}>{welcomeText}</Text>
+              <Text style={styles.userNameText}>{userName || ' '}</Text>
             </View>
           </Animated.View>
 
@@ -1113,15 +1069,7 @@ const styles = StyleSheet.create({
     // backgroundColor: 'lightpink', // For debugging
   },
   greetingTextContainer: {
-    flex: 1,
-  },
-  greetingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  greetingLeft: {
-    alignItems: 'flex-start',
+    flex: 1, // Allow greeting to take available space
   },
   welcomeText: {
     fontSize: 14,
@@ -1297,19 +1245,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20, // Add some padding if it's the first thing after summary
     marginBottom: 18,
-  },
-  roiPill: {
-    backgroundColor: '#E6F0FF',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginLeft: 8,
-    alignSelf: 'center',
-  },
-  roiPillText: {
-    color: '#0A84FF',
-    fontWeight: '700',
-    fontSize: 13,
-    letterSpacing: 0.1,
   },
 }); 
