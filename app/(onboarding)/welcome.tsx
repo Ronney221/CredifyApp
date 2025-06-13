@@ -32,8 +32,8 @@ const TOKENS = {
   },
   typography: {
     largeTitle: {
-      fontSize: 40,
-      lineHeight: 48,
+      fontSize: 32,
+      lineHeight: 40,
       letterSpacing: -0.5,
       fontWeight: '800' as const,
     },
@@ -60,6 +60,15 @@ const TOKENS = {
       lineHeight: 22,
       letterSpacing: -0.2,
       fontWeight: '500' as const,
+    },
+  },
+  colors: {
+    text: {
+      primary: '#0B1B3F',
+      secondary: Colors.light.secondaryLabel,
+    },
+    background: {
+      feature: '#F7F8FA',
     },
   },
   animation: {
@@ -136,7 +145,7 @@ export default function WelcomeScreen() {
               style={[TOKENS.typography.largeTitle, styles.title]}
               accessibilityRole="header"
             >
-              Stop Donating Money to the Banks
+              Stop Donating Money{'\n'}to the Banks
             </Text>
             <Text 
               style={[TOKENS.typography.body, styles.subtitle]}
@@ -201,10 +210,10 @@ export default function WelcomeScreen() {
               onPress={handleGetStarted}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Show Me the Money"
+              accessibilityLabel="Let's Do the Math"
               accessibilityHint="Opens card selection screen"
             >
-              <Text style={styles.getStartedText}>Show Me the Money</Text>
+              <Text style={styles.getStartedText}>Let's Do the Math</Text>
             </TouchableOpacity>
           </MotiView>
         )}
@@ -215,6 +224,7 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    paddingTop:32,
     flex: 1,
     backgroundColor: '#ffffff',
   },
@@ -232,15 +242,13 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   title: {
-    color: Colors.light.text,
+    color: TOKENS.colors.text.primary,
     textAlign: 'center',
     marginBottom: TOKENS.spacing.sm,
-    ...TOKENS.typography.largeTitle,
   },
   subtitle: {
-    color: Colors.light.secondaryLabel,
+    color: TOKENS.colors.text.secondary,
     textAlign: 'center',
-    ...TOKENS.typography.body,
     paddingHorizontal: TOKENS.spacing.lg,
     opacity: 0.9,
     marginBottom: TOKENS.spacing.sm,
@@ -248,11 +256,11 @@ const styles = StyleSheet.create({
   animationContainer: {
     alignItems: 'center',
     marginBottom: TOKENS.spacing.md,
-    height: 200,
+    height: 280,
     marginTop: -TOKENS.spacing.sm,
   },
   animation: {
-    width: '120%',
+    width: '140%',
     height: '100%',
     marginTop: -TOKENS.spacing.md,
   },
@@ -264,7 +272,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: TOKENS.spacing.sm,
-    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    backgroundColor: TOKENS.colors.background.feature,
     padding: TOKENS.spacing.md,
     borderRadius: 12,
   },
@@ -272,13 +280,12 @@ const styles = StyleSheet.create({
     marginRight: TOKENS.spacing.sm,
   },
   featureText: {
-    color: Colors.light.text,
-    ...TOKENS.typography.feature,
+    color: TOKENS.colors.text.primary,
     opacity: 0.9,
     flex: 1,
   },
   footer: {
-    paddingHorizontal: TOKENS.spacing.lg,
+    paddingHorizontal: TOKENS.spacing.xl,
     paddingBottom: Platform.OS === 'ios' ? TOKENS.spacing.xl : TOKENS.spacing.lg,
   },
   getStartedButton: {
