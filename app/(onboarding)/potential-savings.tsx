@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -29,6 +30,8 @@ export default function PotentialSavingsScreen() {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isCountingComplete, setIsCountingComplete] = useState(false);
+  const hasAnimated = useRef(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Get the selected card objects
   const selectedCardObjects = useMemo(() => {
@@ -70,14 +73,30 @@ export default function PotentialSavingsScreen() {
       if (currentStep >= steps) {
         clearInterval(interval);
         setDisplayValue(finalValue);
-        // Set both states at once to prevent multiple re-renders
-        setIsCountingComplete(true);
-        setShowCelebration(true);
         
-        // Hide celebration after 3 seconds
-        setTimeout(() => {
-          setShowCelebration(false);
-        }, 3000);
+        // Only trigger animations if we haven't already
+        if (!hasAnimated.current) {
+          hasAnimated.current = true;
+          setIsCountingComplete(true);
+          setShowCelebration(true);
+          
+          // Animate the scale
+          Animated.sequence([
+            Animated.spring(scaleAnim, {
+              toValue: 1.4,
+              useNativeDriver: true,
+              damping: 7,
+              stiffness: 350,
+              mass: 1,
+              velocity: 3,
+            })
+          ]).start();
+          
+          // Hide celebration after 3 seconds
+          setTimeout(() => {
+            setShowCelebration(false);
+          }, 3000);
+        }
       }
     }, stepDuration);
 
@@ -111,27 +130,8 @@ export default function PotentialSavingsScreen() {
           transition={{ type: 'timing', duration: 400 }}
         >
           <View style={styles.heroSection}>
-            <Text style={styles.heroLabel}>Your Potential Annual Savings</Text>
-            <View style={styles.valueContainer}>
-              <MotiView
-                animate={isCountingComplete ? {
-                  scale: [1, 1.7, 1.2],
-                } : {
-                  scale: 1,
-                }}
-                transition={{
-                  type: 'timing',
-                  duration: 100,
-                  scale: {
-                    type: 'spring',
-                    damping: 10,
-                    stiffness: 20,
-                    mass: 1,
-                  },
-                }}
-              >
-                <Text style={styles.heroValue}>${displayValue}</Text>
-              </MotiView>
+            <View style={styles.labelContainer}>
+              <Text style={styles.heroLabel}>Your Potential Annual Savings</Text>
               <TouchableOpacity 
                 style={styles.infoButton}
                 onPress={() => {
@@ -139,8 +139,13 @@ export default function PotentialSavingsScreen() {
                   setShowInfoModal(true);
                 }}
               >
-                <Ionicons name="information-circle-outline" size={24} color={Colors.light.secondaryLabel} />
+                <Ionicons name="information-circle-outline" size={18} color={Colors.light.secondaryLabel + '80'} />
               </TouchableOpacity>
+            </View>
+            <View style={styles.valueContainer}>
+              <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                <Text style={styles.heroValue}>${displayValue}</Text>
+              </Animated.View>
             </View>
           </View>
 
@@ -223,14 +228,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
   heroLabel: {
     fontSize: 20,
     color: Colors.light.secondaryLabel,
-    marginBottom: 12,
     textAlign: 'center',
   },
+  infoButton: {
+    marginLeft: 6,
+    padding: 2,
+  },
   valueContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -285,10 +298,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: -0.2,
-  },
-  infoButton: {
-    marginLeft: 8,
-    padding: 4,
   },
   modalOverlay: {
     flex: 1,
