@@ -37,7 +37,11 @@ export default function PotentialSavingsScreen() {
   const selectedCardObjects = useMemo(() => {
     return selectedCards
       .map((cardId: string) => allCards.find(card => card.id === cardId))
-      .filter((card): card is Card => card !== undefined);
+      .filter((card): card is Card => card !== undefined)
+      .map(card => ({
+        ...card,
+        benefits: [...card.benefits].sort((a, b) => b.value - a.value) // Sort benefits by value in descending order
+      }));
   }, [selectedCards]);
 
   // Calculate total value with proper typing
@@ -172,23 +176,17 @@ export default function PotentialSavingsScreen() {
                 <Text style={styles.heroValue}>${displayValue}</Text>
               </Animated.View>
               <View style={styles.netValueContainer}>
-                <Text style={styles.netValueText}>
-                  ${displayValue} savings – ${displayFees} fees = ${displayNetValue} Net Gain
+                <Text style={styles.netGainText}>
+                  ${displayNetValue} Net Gain
+                </Text>
+                <Text style={styles.savingsBreakdownText}>
+                  ${displayValue} savings – ${displayFees} fees
                 </Text>
               </View>
             </View>
           </View>
 
-          <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 400, delay: 200 }}
-            style={styles.detailsSection}
-          >
-            <Text style={styles.detailsText}>
-              Every year your cards are secretly worth ${displayValue}. Ready to collect?
-            </Text>
-          </MotiView>
+         
         </MotiView>
 
         <ScrollView 
@@ -196,6 +194,17 @@ export default function PotentialSavingsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.cardsListContent}
         >
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400, delay: 400 }}
+            style={styles.subheadContainer}
+          >
+            <Text style={styles.subheadText}>
+              Every year your cards are secretly worth ${displayValue}. Ready to collect?
+            </Text>
+          </MotiView>
+
           {selectedCardObjects.map((card: Card, index: number) => (
             <CardPerks key={card.id} card={card} index={index} />
           ))}
@@ -394,10 +403,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignItems: 'center',
   },
-  netValueText: {
+  netGainText: {
     fontSize: 16,
+    color: Colors.light.tint,
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  savingsBreakdownText: {
+    fontSize: 12,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
-    fontWeight: '500',
+    opacity: 0.8,
+  },
+  subheadContainer: {
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  subheadText: {
+    fontSize: 17,
+    color: Colors.light.secondaryLabel,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 }); 

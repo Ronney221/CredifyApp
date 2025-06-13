@@ -201,11 +201,12 @@ export default function RegisterScreen() {
           style={styles.contentContainer}
         >
           <View style={styles.headerContainer}>
+            <Text style={styles.brandText}>Credify</Text>
             <Text style={styles.title}>
               Secure Your ${totalValue} Dashboard
             </Text>
             <Text style={styles.subtitle}>
-              Stay ahead of expiring credits with real-time alerts
+              Create your Credify account to stay ahead of expiring credits
             </Text>
           </View>
 
@@ -252,7 +253,7 @@ export default function RegisterScreen() {
             {/* Security Badge */}
             <View style={styles.securityContainer}>
               <Ionicons name="lock-closed" size={16} color={Colors.light.secondaryLabel} />
-              <Text style={styles.securityText}>Bank-grade encryption</Text>
+              <Text style={styles.securityText}>256-bit AES encryption • TLS 1.3</Text>
             </View>
 
             <View style={styles.termsContainer}>
@@ -328,6 +329,13 @@ const styles = StyleSheet.create({
   headerContainer: {
     alignItems: 'center',
     marginBottom: 40,
+  },
+  brandText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.light.tint,
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
   title: {
     fontSize: 32,

@@ -125,9 +125,6 @@ export default function OnboardingCardSelectScreen() {
     router.push('/(onboarding)/potential-savings');
   };
 
-  const handleSkip = () => {
-    router.push('/(onboarding)/onboarding-complete');
-  };
 
   const groupedCards = useMemo(() => {
     const frequentlyOwnedIdsSet = new Set(FREQUENTLY_OWNED_IDS);
@@ -312,6 +309,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     letterSpacing: -0.2,
     paddingHorizontal: 24,
+    paddingBottom: 24
   },
   scrollContent: {
   },
