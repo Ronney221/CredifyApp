@@ -22,6 +22,7 @@ import { allCards, Card, Benefit } from '../../src/data/card-data';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PotentialSavingsScreen() {
   const router = useRouter();
@@ -133,9 +134,18 @@ export default function PotentialSavingsScreen() {
   const [displayFees, setDisplayFees] = useState(0);
   const [displayNetValue, setDisplayNetValue] = useState(0);
 
-  const handleStartTracking = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.push('/(onboarding)/register');
+  const handleStartTracking = async () => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Set the flag in storage
+      await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
+      
+      // Navigate to the register screen
+      router.push('/(onboarding)/register');
+    } catch (e) {
+      console.error("Failed to save onboarding status", e);
+    }
   };
 
   return (

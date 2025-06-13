@@ -18,7 +18,7 @@
     "@expo/vector-icons": "^14.1.0",
     "@gorhom/bottom-sheet": "^5.1.6",
     "@lottiefiles/dotlottie-react": "^0.13.5",
-    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/blur": "^4.4.1",
     "@react-native-community/datetimepicker": "8.3.0",
     "@react-native-community/slider": "^4.5.7",
@@ -46,6 +46,7 @@
     "expo-image-picker": "~16.1.4",
     "expo-linear-gradient": "~14.1.5",
     "expo-linking": "~7.1.5",
+    "expo-modules-core": "~2.4.0",
     "expo-notifications": "~0.31.2",
     "expo-router": "^5.0.7",
     "expo-splash-screen": "~0.30.8",
@@ -86,8 +87,7 @@
     "supabase": "^2.23.4",
     "tslib": "^2.8.1",
     "util": "^0.12.5",
-    "vm-browserify": "^1.1.2",
-    "expo-modules-core": "~2.4.0"
+    "vm-browserify": "^1.1.2"
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",

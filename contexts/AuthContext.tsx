@@ -1,20 +1,64 @@
+// contexts/AuthContext.tsx (Corrected Version)
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, signOut } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+// These are the functions we are importing
 import { signInWithGoogle, signInWithApple } from '../lib/auth-oauth';
 
+// Define the context shape
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signInGoogle: () => Promise<{ data: any; error: any }>;
-  signInApple: () => Promise<{ data: any; error: any }>;
-  logOut: () => Promise<{ error: any }>;
-  updateUserMetadata: (metadata: object) => Promise<boolean>;
+  signInGoogle: () => Promise<any>;
+  signInApple: () => Promise<any>;
+  signOut: () => Promise<any>;
 }
 
+// Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Create the Provider component
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // --- THIS IS THE FIX ---
+  // We now correctly assign the imported functions to the context value.
+  const value = {
+    user,
+    session,
+    loading,
+    signInGoogle: signInWithGoogle, // Assign the imported function
+    signInApple: signInWithApple,   // Assign the imported function
+    signOut: () => supabase.auth.signOut(),
+  };
+  // --------------------
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+// Create the consumer hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -22,118 +66,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        setSession(initialSession);
-        setUser(initialSession?.user || null);
-      } catch (error) {
-        console.error('Error getting initial session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('Auth state changed:', event, 'Session:', currentSession);
-        setSession(currentSession);
-        setUser(currentSession?.user || null);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleGoogleSignIn = async () => {
-    try {
-      const result = await signInWithGoogle();
-      return result;
-    } catch (error) {
-      console.error('Google sign in error:', error);
-      return { data: null, error };
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    try {
-      const result = await signInWithApple();
-      return result;
-    } catch (error) {
-      console.error('Apple sign in error:', error);
-      return { data: null, error };
-    }
-  };
-
-  const handleSignOut = async () => {
-    setLoading(true);
-    try {
-      const result = await signOut();
-      return result;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateUserMetadata = async (metadata: object): Promise<boolean> => {
-    setLoading(true);
-    try {
-      const { data: updatedUserData, error } = await supabase.auth.updateUser({
-        data: metadata,
-      });
-      if (error) {
-        console.error('Error updating user metadata:', error.message);
-        return false;
-      }
-      
-      if (updatedUserData?.user) {
-        setUser(updatedUserData.user);
-        console.log('[AuthContext] User state manually updated after metadata change:', updatedUserData.user);
-      } else {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (currentSession?.user) {
-          setUser(currentSession.user);
-          console.log('[AuthContext] User state refreshed from session after metadata change:', currentSession.user);
-        }
-      }
-      console.log('User metadata updated successfully via context. Updated user object from Supabase:', updatedUserData.user);
-      return true;
-    } catch (e) {
-      console.error('Unexpected error during metadata update:', e);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const value: AuthContextType = {
-    user,
-    session,
-    loading,
-    signInGoogle: handleGoogleSignIn,
-    signInApple: handleAppleSignIn,
-    logOut: handleSignOut,
-    updateUserMetadata: handleUpdateUserMetadata,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-}; 

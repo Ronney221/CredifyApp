@@ -10,6 +10,7 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
@@ -19,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { 
   useAnimatedStyle, 
   withRepeat, 
@@ -172,10 +174,27 @@ export default function LoginScreen() {
     }
   };
 
+  const handleResetStorage = async () => {
+    try {
+      await AsyncStorage.clear();
+      Alert.alert('Success', 'Local storage has been reset');
+    } catch (e) {
+      console.error('Failed to reset storage:', e);
+      Alert.alert('Error', 'Failed to reset storage');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       
+      <TouchableOpacity 
+        style={styles.resetButton}
+        onPress={handleResetStorage}
+      >
+        <Ionicons name="refresh" size={20} color={Colors.light.secondaryLabel} />
+      </TouchableOpacity>
+
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
@@ -256,7 +275,7 @@ export default function LoginScreen() {
               <View style={styles.socialButtonContent}>
                 <Ionicons name="logo-google" size={20} color="#4285f4" />
                 <Text style={styles.socialButtonText}>
-                  Continue with Google
+                  Sign in with Google
                 </Text>
               </View>
             </TouchableOpacity>
@@ -471,5 +490,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  resetButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    right: 20,
+    zIndex: 1000,
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 }); 

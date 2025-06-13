@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -38,7 +39,7 @@ interface ProfileSection {
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const { logOut, user } = useAuth();
+  const { signOut, user } = useAuth();
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -50,11 +51,28 @@ const ProfileScreen = () => {
           text: "Sign Out", 
           style: "destructive",
           onPress: async () => {
-            const { error } = await logOut();
-            if (error) {
+            try {
+              // Only clear auth-related data
+              const keys = await AsyncStorage.getAllKeys();
+              const authKeys = keys.filter(key => 
+                key.startsWith('@auth') || 
+                key.startsWith('@user') ||
+                key.startsWith('@supabase')
+              );
+              await AsyncStorage.multiRemove(authKeys);
+              
+              // Sign out from auth
+              const { error } = await signOut();
+              if (error) {
+                Alert.alert('Error', 'Failed to sign out. Please try again.');
+                return;
+              }
+              
+              // Navigate to login screen
+              router.replace('/(auth)/login');
+            } catch (e) {
+              console.error('Error during sign out:', e);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
-            } else {
-              router.replace('/');
             }
           }
         }

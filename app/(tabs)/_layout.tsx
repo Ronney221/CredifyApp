@@ -1,14 +1,14 @@
 // app/_layout.tsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import { ActivityIndicator, Alert, View, StyleSheet, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Tabs, useRouter, useSegments } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAuth } from '@/contexts/AuthContext';
 import { BlurView } from 'expo-blur';
+import { useProtectedRoute } from '../../hooks/useProtectedRoute';
 
 // Header Right Component for Insights Tab
 const InsightsHeaderRight = () => {
@@ -27,44 +27,12 @@ const InsightsHeaderRight = () => {
   );
 };
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const segments = useSegments();
-
-  useEffect(() => {
-    if (loading) {
-      return;
-    }
-
-    if (!user) {
-      console.log('[TabLayout AuthGuard] User not authenticated, redirecting to login.');
-      router.replace('/');
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
-      </View>
-    );
-  }
-
-  if (!user) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
-      </View>
-    );
-  }
-
-  return <>{children}</>;
-}
-
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
+
+  // Protect all routes in this group
+  useProtectedRoute();
 
   // Define iOS pill-style tab bar
   const iosPillTabBarStyle = {
@@ -138,103 +106,101 @@ export default function TabLayout() {
         backgroundColor={Platform.OS === 'android' ? '#FAFAFE' : 'transparent'}
         translucent={true}
       />
-      <AuthGuard>
-        {Platform.OS === 'ios' && (
-          <>
-            <BlurView
-              intensity={20} // Increased from 50
-              tint={'light'}
-              style={iosPillBlurStyle}
-            />
-            <View pointerEvents="none" style={iosPillOverlayStyle} />
-          </>
-        )}
-        <Tabs
-          initialRouteName="01-dashboard"
-          screenOptions={{
+      {Platform.OS === 'ios' && (
+        <>
+          <BlurView
+            intensity={20} // Increased from 50
+            tint={'light'}
+            style={iosPillBlurStyle}
+          />
+          <View pointerEvents="none" style={iosPillOverlayStyle} />
+        </>
+      )}
+      <Tabs
+        initialRouteName="01-dashboard"
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: Platform.select({
+            ios: iosPillTabBarStyle,
+            android: androidTabBarStyle,
+          }),
+          tabBarItemStyle: {
+            minHeight: 44,
+            minWidth: 44,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+          tabBarActiveTintColor: Colors.light.tint,
+          tabBarInactiveTintColor: Platform.select({
+            ios: 'rgba(0, 0, 0, 0.65)', // Increased opacity for readability
+            android: '#8e8e93',
+          }),
+        }}
+      >
+        <Tabs.Screen
+          name="01-dashboard"
+          options={{
+            title: 'Dashboard',
             headerShown: false,
-            tabBarStyle: Platform.select({
-              ios: iosPillTabBarStyle,
-              android: androidTabBarStyle,
-            }),
-            tabBarItemStyle: {
-              minHeight: 44,
-              minWidth: 44,
-              justifyContent: 'center',
-              alignItems: 'center',
-            },
-            tabBarActiveTintColor: Colors.light.tint,
-            tabBarInactiveTintColor: Platform.select({
-              ios: 'rgba(0, 0, 0, 0.65)', // Increased opacity for readability
-              android: '#8e8e93',
-            }),
+            tabBarIcon: ({ color, size, focused }) => (
+              <AnimatedTabIcon name="home-outline" color={color} size={size} focused={focused} />
+            ),
+            tabBarAccessibilityLabel: 'Dashboard',
           }}
-        >
-          <Tabs.Screen
-            name="01-dashboard"
-            options={{
-              title: 'Dashboard',
-              headerShown: false,
-              tabBarIcon: ({ color, size, focused }) => (
-                <AnimatedTabIcon name="home-outline" color={color} size={size} focused={focused} />
-              ),
-              tabBarAccessibilityLabel: 'Dashboard',
-            }}
-          />
-          <Tabs.Screen
-            name="02-cards"
-            options={{
-              href: null,
-            }}
-          />
-          <Tabs.Screen
-            name="03-insights"
-            options={{
-              title: 'Your Journey',
-              headerShown: true,
-              headerRight: () => <InsightsHeaderRight />,
-              tabBarIcon: ({ color, size, focused }) => (
-                <AnimatedTabIcon name="analytics-outline" color={color} size={size} focused={focused} />
-              ),
-              tabBarAccessibilityLabel: 'Your Journey',
-            }}
-          />
-          <Tabs.Screen
-            name="04-profile"
-            options={{
-              title: 'Profile',
-              tabBarIcon: ({ color, focused, size }) => (
-                <AnimatedTabIcon name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} focused={focused} />
-              ),
-              tabBarAccessibilityLabel: 'Profile',
-            }}
-          />
-          <Tabs.Screen
-            name="profile/manage_cards"
-            options={{
-              href: null,
-            }}
-          />
-          <Tabs.Screen
-            name="profile/notifications"
-            options={{
-              href: null,
-            }}
-          />
-          <Tabs.Screen
-            name="profile/edit-profile"
-            options={{
-              href: null,
-            }}
-          />
-          <Tabs.Screen
-            name="profile/help-faq"
-            options={{
-              href: null,
-            }}
-          />
-        </Tabs>
-      </AuthGuard>
+        />
+        <Tabs.Screen
+          name="02-cards"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="03-insights"
+          options={{
+            title: 'Your Journey',
+            headerShown: true,
+            headerRight: () => <InsightsHeaderRight />,
+            tabBarIcon: ({ color, size, focused }) => (
+              <AnimatedTabIcon name="analytics-outline" color={color} size={size} focused={focused} />
+            ),
+            tabBarAccessibilityLabel: 'Your Journey',
+          }}
+        />
+        <Tabs.Screen
+          name="04-profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ color, focused, size }) => (
+              <AnimatedTabIcon name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} focused={focused} />
+            ),
+            tabBarAccessibilityLabel: 'Profile',
+          }}
+        />
+        <Tabs.Screen
+          name="profile/manage_cards"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="profile/notifications"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="profile/edit-profile"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="profile/help-faq"
+          options={{
+            href: null,
+          }}
+        />
+      </Tabs>
     </View>
   );
 }

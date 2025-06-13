@@ -10,6 +10,7 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
@@ -21,6 +22,7 @@ import { allCards } from '../../src/data/card-data';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { saveUserCards } from '../../lib/database';
 import Animated, { 
   useAnimatedStyle, 
   withRepeat, 
@@ -117,6 +119,30 @@ export default function RegisterScreen() {
     }, 0);
   }, [selectedCardObjects]);
 
+  const saveCardsToDatabase = async (userId: string) => {
+    try {
+      const { error } = await saveUserCards(userId, selectedCardObjects, {});
+      if (error) {
+        console.error('Error saving cards to database:', error);
+        Alert.alert(
+          'Error',
+          'Failed to save your cards. Please try again.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Unexpected error saving cards:', error);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred. Please try again.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -124,6 +150,15 @@ export default function RegisterScreen() {
     try {
       const { data, error } = await signInGoogle();
       if (error) throw error;
+      
+      // Save cards to database after successful authentication
+      if (data?.user?.id) {
+        const success = await saveCardsToDatabase(data.user.id);
+        if (!success) {
+          setIsLoading(false);
+          return;
+        }
+      }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)/01-dashboard' as any);
@@ -142,6 +177,15 @@ export default function RegisterScreen() {
     try {
       const { data, error } = await signInApple();
       if (error) throw error;
+      
+      // Save cards to database after successful authentication
+      if (data?.user?.id) {
+        const success = await saveCardsToDatabase(data.user.id);
+        if (!success) {
+          setIsLoading(false);
+          return;
+        }
+      }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)/01-dashboard' as any);
