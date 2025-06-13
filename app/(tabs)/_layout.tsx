@@ -143,15 +143,20 @@ export default function TabLayout() {
             title: 'Dashboard',
             headerShown: false,
             tabBarIcon: ({ color, size, focused }) => (
-              <AnimatedTabIcon name="home-outline" color={color} size={size} focused={focused} />
+              <AnimatedTabIcon name="wallet-outline" color={color} size={size} focused={focused} />
             ),
             tabBarAccessibilityLabel: 'Dashboard',
           }}
         />
         <Tabs.Screen
-          name="02-cards"
+          name="02-dashboard-test"
           options={{
-            href: null,
+            title: 'Dashboard',
+            headerShown: false,
+            tabBarIcon: ({ color, size, focused }) => (
+              <AnimatedTabIcon name="card-outline" color={color} size={size} focused={focused} />
+            ),
+            tabBarAccessibilityLabel: 'Dashboard',
           }}
         />
         <Tabs.Screen
@@ -161,7 +166,7 @@ export default function TabLayout() {
             headerShown: true,
             headerRight: () => <InsightsHeaderRight />,
             tabBarIcon: ({ color, size, focused }) => (
-              <AnimatedTabIcon name="analytics-outline" color={color} size={size} focused={focused} />
+              <AnimatedTabIcon name="rocket-outline" color={color} size={size} focused={focused} />
             ),
             tabBarAccessibilityLabel: 'Your Journey',
           }}
@@ -171,7 +176,7 @@ export default function TabLayout() {
           options={{
             title: 'Profile',
             tabBarIcon: ({ color, focused, size }) => (
-              <AnimatedTabIcon name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} focused={focused} />
+              <AnimatedTabIcon name={'person-outline'} color={color} size={size} focused={focused} />
             ),
             tabBarAccessibilityLabel: 'Profile',
           }}

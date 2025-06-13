@@ -153,9 +153,9 @@ const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEn
 };
 
 // Header Animation Constants
-const INITIAL_HEADER_HEIGHT = 80; // Reduced from 90
-const COLLAPSED_HEADER_HEIGHT = 50;
-const HEADER_SCROLL_DISTANCE = INITIAL_HEADER_HEIGHT - COLLAPSED_HEADER_HEIGHT;
+const EXPANDED_HEADER_CONTENT_HEIGHT = 60; // Increased height for better visual balance
+const COLLAPSED_HEADER_CONTENT_HEIGHT = 20;
+const HEADER_SCROLL_DISTANCE = EXPANDED_HEADER_CONTENT_HEIGHT - COLLAPSED_HEADER_CONTENT_HEIGHT;
 
 // Constants for FlatList card rendering & expansion
 const ESTIMATED_COLLAPSED_CARD_HEIGHT = 109; // Updated from 96, based on Amex Gold (larger) collapsed height
@@ -241,6 +241,10 @@ export default function Dashboard() {
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
 
+  // --- Derived Heights ---
+  const totalHeaderHeight = EXPANDED_HEADER_CONTENT_HEIGHT + insets.top;
+  const scrollViewPaddingTop = totalHeaderHeight;
+
   // Dynamic text for collapsed header
   const currentMonthName = useMemo(() => format(new Date(), 'MMMM'), []);
   const collapsedHeaderText = `${currentMonthName} Summary`;
@@ -299,30 +303,27 @@ export default function Dashboard() {
   }, []);
 
   // Animated values for header styles
-  const animatedHeaderHeight = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [INITIAL_HEADER_HEIGHT, COLLAPSED_HEADER_HEIGHT],
-    extrapolate: 'clamp',
-  });
-
-  // Opacity for the expanded content (greeting)
   const expandedContentOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.5], 
+    inputRange: [0, HEADER_SCROLL_DISTANCE / 2],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
-  // Translate Y for the expanded content (greeting)
   const expandedContentTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.5],
-    outputRange: [0, -15], // Slight upward movement
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -10],
     extrapolate: 'clamp',
   });
 
-  // Opacity for the collapsed content (summary title & account button container)
   const collapsedContentOpacity = scrollY.interpolate({
-    inputRange: [HEADER_SCROLL_DISTANCE * 0.5, HEADER_SCROLL_DISTANCE], 
+    inputRange: [HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
     outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [totalHeaderHeight, COLLAPSED_HEADER_CONTENT_HEIGHT + insets.top],
     extrapolate: 'clamp',
   });
 
@@ -954,11 +955,11 @@ export default function Dashboard() {
   // Only show full-screen loader on the very first load of user cards.
   // Subsequent refreshes (isUserCardsRefreshing) or savings calculations (isCalculatingSavings)
   // will happen in the background without a full-screen loader.
-  const coachMarkTopOffset = COLLAPSED_HEADER_HEIGHT + 250; // Position below the collapsed header and card header
+  const coachMarkTopOffset = COLLAPSED_HEADER_CONTENT_HEIGHT + 250; // Position below the collapsed header and card header
 
   if (isUserCardsInitialLoading) { // Check only the initial loading state from useUserCards
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.light.tint} />
           <Text style={styles.loadingText}>Loading your card data...</Text>
@@ -969,7 +970,7 @@ export default function Dashboard() {
 
   if (userCardsError) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>Error loading cards. Please try again.</Text>
         </View>
@@ -992,88 +993,95 @@ export default function Dashboard() {
 
   // Separate animation for height
   const animatedHeight = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [100, 0],
+    inputRange: [0, 70],
+    outputRange: [70, 0],
     extrapolate: 'clamp'
   });
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['right', 'left']}>
       <StatusBar 
         style="dark"
         backgroundColor="transparent"
         translucent={true}
       />
       <View style={styles.mainContainer}>
-        <Animated.View style={[
-          styles.animatedHeaderContainer, 
-          { 
-            height: animatedHeight,
-            paddingTop: insets.top 
-          }
-        ]}>
+        {/* Animated Header */}
+        <Animated.View
+          style={[
+            styles.animatedHeaderContainer,
+            { height: headerHeight },
+          ]}
+        >
           <BlurView
-            intensity={80}
+            intensity={90}
             tint="light"
             style={StyleSheet.absoluteFill}
           />
+
           {/* Expanded Header Content (Greeting) */}
-          <Animated.View 
+          <Animated.View
             style={[
+              styles.headerContent,
               styles.expandedHeaderContent,
-              { 
-                opacity: expandedContentOpacity, 
-                transform: [{ translateY: expandedContentTranslateY }] 
-              }
+              {
+                paddingTop: insets.top,
+                opacity: expandedContentOpacity,
+                transform: [{ translateY: expandedContentTranslateY }],
+              },
             ]}
           >
-            <View style={styles.greetingTextContainer}>
+            <View>
               <Text style={styles.welcomeText}>{welcomeText}</Text>
-              <Text style={styles.userNameText}>{userName || ' '}</Text>
+              <Text style={styles.userNameText}>{userName}</Text>
             </View>
           </Animated.View>
 
-          {/* Collapsed Header Content (Summary Title & Account Button) */}
-          <Animated.View 
+          {/* Collapsed Header Content (Summary Title) */}
+          <Animated.View
             style={[
-              styles.collapsedHeaderElementsContainer, 
-              { opacity: collapsedContentOpacity }
+              styles.headerContent,
+              styles.collapsedHeaderContent,
+              { 
+                paddingTop: insets.top / 1.3,
+                opacity: collapsedContentOpacity 
+              },
             ]}
           >
-            <View style={styles.collapsedTitleContainer}>
-              <Text style={styles.collapsedHeaderText}>{collapsedHeaderText || ' '}</Text>
-            </View>
+            <Text style={styles.collapsedHeaderText}>
+              {collapsedHeaderText}
+            </Text>
           </Animated.View>
         </Animated.View>
 
         {/* Main content area now uses FlatList */}
         {sortedCards.length > 0 ? (
-           <Animated.FlatList // Use Animated.FlatList for onScroll event
+          <Animated.FlatList
             ref={flatListRef}
             data={cardsListData}
             renderItem={renderExpandableCardItem}
             keyExtractor={(item) => item.card.id}
-            ListHeaderComponent={listHeaderElement} // Use the memoized element
-            contentContainerStyle={styles.flatListContentContainer} // New style for FlatList specific content padding
-            style={styles.flatListOverallStyle} // Style for the FlatList container itself
+            ListHeaderComponent={listHeaderElement}
+            contentContainerStyle={[
+              styles.flatListContent,
+              { paddingTop: scrollViewPaddingTop }
+            ]}
+            style={styles.flatListOverallStyle}
             showsVerticalScrollIndicator={false}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            extraData={activeCardId} // Changed extraData
+            extraData={activeCardId}
           />
         ) : (
-          // No cards state - needs to be scrollable if header content is tall
-          // or ensure header content is also minimal.
-          // For now, let's wrap the no cards view in a basic ScrollView if needed,
-          // or ensure ListHeader + this occupies screen correctly.
-          // This part might need adjustment based on visual requirements of "no cards" view with header.
           <ScrollView 
-            contentContainerStyle={styles.scrollContent} // Re-use existing scrollContent for padding
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop: scrollViewPaddingTop }
+            ]}
             showsVerticalScrollIndicator={false}
-             onScroll={handleScroll}
+            onScroll={handleScroll}
             scrollEventThrottle={16}
           >
-            {/* {listHeaderElement} Temporarily removed for testing no-cards scenario */}
             <View style={styles.noCardsContainer}>
               <Ionicons name="card-outline" size={48} color="#8e8e93" />
               <Text style={styles.noCardsText}>
@@ -1123,69 +1131,53 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFE',
   },
   animatedHeaderContainer: {
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    paddingHorizontal: 16,
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
     overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212,212,212,0.5)',
+  },
+  headerContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
   },
   expandedHeaderContent: {
-    height: INITIAL_HEADER_HEIGHT,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center', // Vertically center items in expanded state
-    // paddingBottom: 10, // Adjust as needed for spacing
-    // backgroundColor: 'lightpink', // For debugging
-  },
-  greetingTextContainer: {
-    flex: 1, // Allow greeting to take available space
+    justifyContent: 'center',
   },
   welcomeText: {
-    fontSize: 14,
-    color: '#8A8A8E',
+    fontSize: 16,
+    color: '#3C3C43',
     fontWeight: '400',
+    opacity: 0.8,
   },
   userNameText: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
-    color: '#1c1c1e',
+    color: '#1C1C1E',
     marginTop: 2,
   },
-  collapsedHeaderElementsContainer: {
-    height: COLLAPSED_HEADER_HEIGHT,
-    flexDirection: 'row',
+  collapsedHeaderContent: {
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'absolute', // Position it to overlay correctly during transition
-    top: 0, // Align to the top of parent when parent is collapsed
-    left: 16, 
-    right: 16,
-    // bottom: 0, // Removed, top: 0 with parent height COLLAPSED_HEADER_HEIGHT controls it
-    // backgroundColor: 'lightblue', // For debugging
-  },
-  collapsedTitleContainer: {
-    flex: 1, 
-    alignItems: 'center', // If you want text centered within this flex:1 container
-    justifyContent: 'center',
   },
   collapsedHeaderText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1c1c1e',
-    textAlign: 'center', // Center text if container is flex:1
+    color: '#1C1C1E',
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: INITIAL_HEADER_HEIGHT, // Content starts below the absolute positioned header
-    paddingBottom: 80, // Added padding for the tab navigation menu
+    paddingTop: EXPANDED_HEADER_CONTENT_HEIGHT,
+    paddingBottom: TAB_BAR_OFFSET,
   },
   summarySection: {
-    // This container now just provides vertical spacing and background
     paddingTop: 0,
     backgroundColor: '#FAFAFE',
   },
@@ -1307,17 +1299,16 @@ const styles = StyleSheet.create({
   flatListOverallStyle: {
     flex: 1,
   },
-  flatListContentContainer: {
-    paddingTop: INITIAL_HEADER_HEIGHT + (Platform.OS === 'ios' ? 0 : insets.top), // Adjust for platform
-    paddingBottom: TAB_BAR_OFFSET,
-    flexGrow: 1,
-  },
-  cardsSectionHeader: { // New style for the header within ListHeaderComponent
+  cardsSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 20, // Add some padding if it's the first thing after summary
+    paddingTop: 20,
     marginBottom: 18,
+  },
+  flatListContent: {
+    flexGrow: 1,
+    paddingBottom: TAB_BAR_OFFSET,
   },
 }); 
