@@ -127,7 +127,7 @@ export default function OnboardingCardSelectScreen() {
 
   const handleNext = () => {
     if (selectedCardIds.size === 0) return;
-    router.push('/(onboarding)/renewal-dates');
+    router.push('/(onboarding)/potential-savings');
   };
 
   const handleSkip = () => {
