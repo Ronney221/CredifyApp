@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,10 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  useWindowDimensions,
+  AccessibilityInfo,
+  ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,9 +17,100 @@ import { MotiView } from 'moti';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+
+// Design tokens
+const TOKENS = {
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+  },
+  typography: {
+    largeTitle: {
+      fontSize: 40,
+      lineHeight: 48,
+      letterSpacing: -0.5,
+      fontWeight: '800' as const,
+    },
+    title1: {
+      fontSize: 28,
+      lineHeight: 34,
+      letterSpacing: -0.3,
+      fontWeight: '700' as const,
+    },
+    headline: {
+      fontSize: 17,
+      lineHeight: 22,
+      letterSpacing: -0.2,
+      fontWeight: '600' as const,
+    },
+    body: {
+      fontSize: 17,
+      lineHeight: 24,
+      letterSpacing: -0.2,
+      fontWeight: '400' as const,
+    },
+    feature: {
+      fontSize: 16,
+      lineHeight: 22,
+      letterSpacing: -0.2,
+      fontWeight: '500' as const,
+    },
+  },
+  animation: {
+    spring: {
+      type: 'spring' as const,
+      damping: 12,
+      mass: 1,
+      stiffness: 100,
+    },
+    timing: {
+      type: 'timing' as const,
+      duration: 400,
+    },
+  },
+};
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const lottieRef = useRef<LottieView>(null);
+  const [isReducedMotion, setIsReducedMotion] = React.useState(false);
+  const [showCTA, setShowCTA] = useState(false);
+
+  useEffect(() => {
+    // Check for reduced motion preference
+    AccessibilityInfo.isReduceMotionEnabled().then(setIsReducedMotion);
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setIsReducedMotion
+    );
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (lottieRef.current) {
+        lottieRef.current.reset();
+        lottieRef.current.play();
+      }
+    }, 100);
+
+    // Show CTA after one animation loop (approximately 3 seconds)
+    const ctaTimer = setTimeout(() => {
+      setShowCTA(true);
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(ctaTimer);
+    };
+  }, []);
 
   const handleGetStarted = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -23,68 +118,97 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 600 }}
-        style={styles.contentContainer}
+      <LinearGradient
+        colors={['#ffffff', '#f8f9fa']}
+        style={styles.gradient}
       >
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}>Welcome to Credify</Text>
-          <Text style={styles.subtitle}>
-            Your personal credit card benefits manager
-          </Text>
-        </View>
-
-        <MotiView
-          from={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'timing', duration: 600, delay: 200 }}
-          style={styles.animationContainer}
-        >
-          <LottieView
-            source={require('../../assets/animations/credit_card_animation.json')}
-            autoPlay
-            loop
-            style={styles.animation}
-          />
-        </MotiView>
-
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 600, delay: 400 }}
-          style={styles.featuresContainer}
+          transition={TOKENS.animation.timing}
+          style={styles.contentContainer}
         >
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Track your credit card benefits</Text>
+          <View style={styles.headerContainer}>
+            <Text 
+              style={[TOKENS.typography.largeTitle, styles.title]}
+              accessibilityRole="header"
+            >
+              Stop Donating Money to the Banks
+            </Text>
+            <Text 
+              style={[TOKENS.typography.body, styles.subtitle]}
+              accessibilityRole="text"
+            >
+              Run a 60-second audit and uncover every dollar your cards already owe you
+            </Text>
           </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Get notified about renewals</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureText}>• Maximize your rewards</Text>
-          </View>
-        </MotiView>
-      </MotiView>
 
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 600, delay: 600 }}
-        style={styles.footer}
-      >
-        <TouchableOpacity
-          style={styles.getStartedButton}
-          onPress={handleGetStarted}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.getStartedText}>Get Started</Text>
-        </TouchableOpacity>
-      </MotiView>
+          <MotiView
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={TOKENS.animation.spring}
+            style={styles.animationContainer}
+          >
+            <LottieView
+              ref={lottieRef}
+              source={require('../../assets/animations/credit_card_animation.json')}
+              autoPlay
+              loop
+              style={styles.animation}
+              speed={isReducedMotion ? 0.5 : 1}
+            />
+          </MotiView>
+
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ ...TOKENS.animation.timing, delay: 200 }}
+            style={styles.featuresContainer}
+          >
+            <View style={styles.featureItem}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.checkmark} />
+              <Text style={[TOKENS.typography.feature, styles.featureText]}>
+                Track your credit card benefits
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.checkmark} />
+              <Text style={[TOKENS.typography.feature, styles.featureText]}>
+                Get notified about renewals
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.checkmark} />
+              <Text style={[TOKENS.typography.feature, styles.featureText]}>
+                Maximize your rewards
+              </Text>
+            </View>
+          </MotiView>
+        </MotiView>
+
+        {showCTA && (
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={TOKENS.animation.spring}
+            style={styles.footer}
+          >
+            <TouchableOpacity
+              style={styles.getStartedButton}
+              onPress={handleGetStarted}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Show Me the Money"
+              accessibilityHint="Opens card selection screen"
+            >
+              <Text style={styles.getStartedText}>Show Me the Money</Text>
+            </TouchableOpacity>
+          </MotiView>
+        )}
+      </LinearGradient>
     </SafeAreaView>
   );
 }
@@ -94,72 +218,83 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  gradient: {
+    flex: 1,
+  },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingHorizontal: TOKENS.spacing.lg,
+    paddingTop: TOKENS.spacing.sm,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: TOKENS.spacing.md,
+    paddingTop: 0,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    marginBottom: TOKENS.spacing.sm,
+    ...TOKENS.typography.largeTitle,
   },
   subtitle: {
-    fontSize: 18,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
-    lineHeight: 24,
-    letterSpacing: -0.2,
+    ...TOKENS.typography.body,
+    paddingHorizontal: TOKENS.spacing.lg,
+    opacity: 0.9,
+    marginBottom: TOKENS.spacing.sm,
   },
   animationContainer: {
     alignItems: 'center',
-    marginBottom: 40,
-    height: 240,
+    marginBottom: TOKENS.spacing.md,
+    height: 200,
+    marginTop: -TOKENS.spacing.sm,
   },
   animation: {
-    width: '100%',
+    width: '120%',
     height: '100%',
+    marginTop: -TOKENS.spacing.md,
   },
   featuresContainer: {
-    marginBottom: 40,
+    marginBottom: TOKENS.spacing.lg,
+    paddingHorizontal: TOKENS.spacing.md,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: TOKENS.spacing.sm,
+    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    padding: TOKENS.spacing.md,
+    borderRadius: 12,
+  },
+  checkmark: {
+    marginRight: TOKENS.spacing.sm,
   },
   featureText: {
-    fontSize: 17,
     color: Colors.light.text,
-    lineHeight: 22,
-    letterSpacing: -0.2,
+    ...TOKENS.typography.feature,
+    opacity: 0.9,
+    flex: 1,
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 24,
+    paddingHorizontal: TOKENS.spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? TOKENS.spacing.xl : TOKENS.spacing.lg,
   },
   getStartedButton: {
     backgroundColor: Colors.light.tint,
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: TOKENS.spacing.lg,
+    borderRadius: 16,
     alignItems: 'center',
     shadowColor: Colors.light.tint,
     shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   getStartedText: {
     color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
+    ...TOKENS.typography.headline,
     letterSpacing: -0.2,
   },
 }); 
