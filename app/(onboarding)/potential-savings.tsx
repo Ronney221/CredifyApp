@@ -7,6 +7,8 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,11 +19,16 @@ import { onboardingScreenNames } from './_layout';
 import { CardPerks } from '../components/onboarding/CardPerks';
 import { allCards } from '../../src/data/card-data';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
+import LottieView from 'lottie-react-native';
 
 export default function PotentialSavingsScreen() {
   const router = useRouter();
   const { selectedCards } = useOnboardingContext();
   const [displayValue, setDisplayValue] = useState(0);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [isCountingComplete, setIsCountingComplete] = useState(false);
 
   // Get the selected card objects
   const selectedCardObjects = useMemo(() => {
@@ -63,6 +70,14 @@ export default function PotentialSavingsScreen() {
       if (currentStep >= steps) {
         clearInterval(interval);
         setDisplayValue(finalValue);
+        // Set both states at once to prevent multiple re-renders
+        setIsCountingComplete(true);
+        setShowCelebration(true);
+        
+        // Hide celebration after 3 seconds
+        setTimeout(() => {
+          setShowCelebration(false);
+        }, 3000);
       }
     }, stepDuration);
 
@@ -78,6 +93,17 @@ export default function PotentialSavingsScreen() {
     <SafeAreaView style={styles.container} edges={[]}>
       <StatusBar barStyle="dark-content" />
       
+      {showCelebration && (
+        <View style={styles.celebrationContainer}>
+          <LottieView
+            source={require('@/assets/animations/celebration.json')}
+            autoPlay
+            loop={false}
+            style={styles.celebrationAnimation}
+          />
+        </View>
+      )}
+
       <View style={styles.content}>
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
@@ -86,7 +112,36 @@ export default function PotentialSavingsScreen() {
         >
           <View style={styles.heroSection}>
             <Text style={styles.heroLabel}>Your Potential Annual Savings</Text>
-            <Text style={styles.heroValue}>${displayValue}</Text>
+            <View style={styles.valueContainer}>
+              <MotiView
+                animate={isCountingComplete ? {
+                  scale: [1, 1.7, 1.2],
+                } : {
+                  scale: 1,
+                }}
+                transition={{
+                  type: 'timing',
+                  duration: 100,
+                  scale: {
+                    type: 'spring',
+                    damping: 10,
+                    stiffness: 20,
+                    mass: 1,
+                  },
+                }}
+              >
+                <Text style={styles.heroValue}>${displayValue}</Text>
+              </MotiView>
+              <TouchableOpacity 
+                style={styles.infoButton}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowInfoModal(true);
+                }}
+              >
+                <Ionicons name="information-circle-outline" size={24} color={Colors.light.secondaryLabel} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <MotiView
@@ -126,6 +181,31 @@ export default function PotentialSavingsScreen() {
           </TouchableOpacity>
         </MotiView>
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showInfoModal}
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowInfoModal(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>How is this calculated?</Text>
+            <Text style={styles.modalText}>
+              We sum the face value of the major annual statement credits and benefits for your selected cards. This is the potential value you can get if you maximize your perks each year.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowInfoModal(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -149,12 +229,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroValue: {
     fontSize: 72,
     fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
     letterSpacing: -1,
+    transform: [{ scale: 1 }],
   },
   detailsSection: {
     marginTop: 24,
@@ -199,5 +285,70 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: -0.2,
+  },
+  infoButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    color: Colors.light.secondaryLabel,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalCloseButton: {
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  celebrationContainer: {
+    position: 'absolute',
+    top: -420,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    pointerEvents: 'none',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  celebrationAnimation: {
+    width: '150%',
+    height: '150%',
   },
 }); 
