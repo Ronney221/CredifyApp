@@ -22,7 +22,7 @@ import {
   AppStateStatus,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -43,6 +43,7 @@ import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BlurView } from 'expo-blur';
 
 // Import notification functions
 import {
@@ -178,6 +179,7 @@ const defaultNotificationPreferences: NotificationPreferences = {
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
 
 export default function Dashboard() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
   const { user } = useAuth();
@@ -997,9 +999,24 @@ export default function Dashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar 
+        style="dark"
+        backgroundColor="transparent"
+        translucent={true}
+      />
       <View style={styles.mainContainer}>
-        <Animated.View style={[styles.animatedHeaderContainer, { height: animatedHeight }]}>
+        <Animated.View style={[
+          styles.animatedHeaderContainer, 
+          { 
+            height: animatedHeight,
+            paddingTop: insets.top 
+          }
+        ]}>
+          <BlurView
+            intensity={80}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
           {/* Expanded Header Content (Greeting) */}
           <Animated.View 
             style={[
@@ -1115,6 +1132,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+    overflow: 'hidden',
   },
   expandedHeaderContent: {
     height: INITIAL_HEADER_HEIGHT,
@@ -1290,7 +1308,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   flatListContentContainer: {
-    paddingTop: INITIAL_HEADER_HEIGHT,
+    paddingTop: INITIAL_HEADER_HEIGHT + (Platform.OS === 'ios' ? 0 : insets.top), // Adjust for platform
     paddingBottom: TAB_BAR_OFFSET,
     flexGrow: 1,
   },

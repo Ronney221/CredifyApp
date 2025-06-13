@@ -275,7 +275,7 @@ export default function LoginScreen() {
               <View style={styles.socialButtonContent}>
                 <Ionicons name="logo-google" size={20} color="#4285f4" />
                 <Text style={styles.socialButtonText}>
-                  Sign in with Google
+                  Continue with Google
                 </Text>
               </View>
             </TouchableOpacity>
@@ -313,9 +313,9 @@ export default function LoginScreen() {
 
             <View style={styles.termsContainer}>
               <Text style={styles.termsText}>
-                Don't have an account?{' '}
-                <Link href="/(onboarding)/register" asChild>
-                  <Text style={styles.termsLink}>Sign up</Text>
+                By continuing, you agree to our{' '}
+                <Link href="/legal/terms" asChild>
+                  <Text style={styles.termsLink}>Terms & Privacy</Text>
                 </Link>
               </Text>
             </View>
@@ -403,6 +403,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     letterSpacing: -0.2,
     paddingHorizontal: 24,
+    paddingBottom: 8,
   },
   authContainer: {
     paddingTop: 16,
@@ -477,13 +478,13 @@ const styles = StyleSheet.create({
     color: '#8e8e93',
     textAlign: 'center',
     lineHeight: 18,
-    fontSize: Platform.OS === 'ios' ? 11 : 12,
+    fontSize: 12,
     opacity: 0.6,
   },
   termsLink: {
     color: '#007aff',
     textDecorationLine: 'underline',
-    fontSize: Platform.OS === 'ios' ? 11 : 12,
+    fontSize: 12,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
