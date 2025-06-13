@@ -113,7 +113,7 @@ export default function WelcomeScreen() {
     // Show CTA after one animation loop (approximately 3 seconds)
     const ctaTimer = setTimeout(() => {
       setShowCTA(true);
-    }, 3000);
+    }, 1500);
 
     return () => {
       clearTimeout(timer);

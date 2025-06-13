@@ -78,9 +78,8 @@ export default function OnboardingCardSelectScreen() {
   );
 
   const headerText = useMemo(() => {
-    const count = selectedCards.length;
-    return count > 0 ? `What's In Your Wallet? \n (${count} selected)` : "What's In Your Wallet?";
-  }, [selectedCards.length]);
+    return "What's In Your Wallet? \nPick your cards.";
+  }, []);
 
   const getScaleValue = (cardId: string) => {
     if (!scaleValues.has(cardId)) {
@@ -205,7 +204,7 @@ export default function OnboardingCardSelectScreen() {
           transition={{ type: 'timing', duration: 400, delay: subtitleAnimationDelay }}
         >
           <Text style={styles.subtitle}>
-            Select your cards to instantly calculate their total benefit value.
+            We do the math. You just tap.
           </Text>
         </MotiView>
       </View>
@@ -272,7 +271,7 @@ export default function OnboardingCardSelectScreen() {
           disabled={selectedCards.length === 0}
           activeOpacity={0.6}
         >
-          <Text style={styles.nextButtonText}>Calculate My Savings</Text>
+          <Text style={styles.nextButtonText}>Crunch My Numbers</Text>
         </TouchableOpacity>
       </MotiView>
     </SafeAreaView>
@@ -283,6 +282,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+    paddingTop: 16,
   },
   headerContentContainer: {
     paddingHorizontal: 20,
