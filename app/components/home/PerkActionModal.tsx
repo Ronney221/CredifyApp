@@ -323,15 +323,15 @@ export default function PerkActionModal({
     if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
       setSliderValue(0.10);
       setPartialAmount('0.10');
-      sliderAnimation.value = withSpring(0.10);
+      sliderAnimation.value = 0.10;
     } else if (perk && roundedValue > perk.value) {
       setSliderValue(perk.value);
       setPartialAmount(perk.value.toFixed(2));
-      sliderAnimation.value = withSpring(perk.value);
+      sliderAnimation.value = perk.value;
     } else {
       setSliderValue(roundedValue);
       setPartialAmount(roundedValue.toFixed(2));
-      sliderAnimation.value = withSpring(roundedValue);
+      sliderAnimation.value = roundedValue;
     }
     setIsEditingNumber(false);
   }, [perk?.status, perk?.value]);
