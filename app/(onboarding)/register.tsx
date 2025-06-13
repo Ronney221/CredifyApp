@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
@@ -20,8 +21,24 @@ import { allCards } from '../../src/data/card-data';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import Animated, { 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming, 
+  withSequence,
+  withDelay,
+  Easing,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const testimonials = [
+  { name: 'Matt', percentage: 93 },
+  { name: 'Sarah', percentage: 87 },
+  { name: 'James', percentage: 91 },
+  { name: 'Emma', percentage: 85 },
+];
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -29,10 +46,41 @@ export default function RegisterScreen() {
   const { signInGoogle, signInApple } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
+  const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
+  const translateY = useSharedValue(0);
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
+    
+    // Rotate testimonials every 4 seconds
+    const interval = setInterval(() => {
+      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 4000);
+    
+    // Start the floating animation
+    translateY.value = withRepeat(
+      withSequence(
+        withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+    
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateY: translateY.value,
+        },
+      ],
+    };
+  });
 
   // Get the selected card objects with proper typing
   const selectedCardObjects = useMemo(() => {
@@ -92,104 +140,136 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Personalized Card Display */}
-      <View style={styles.cardsContainer}>
-        {selectedCardObjects.map((card, index) => (
-          <MotiView
-            key={card.id}
-            from={{
-              opacity: 0,
-              translateY: -100,
-              scale: 0.8,
-              rotate: '-15deg',
-            }}
-            animate={{
-              opacity: 1,
-              translateY: 0,
-              scale: 1,
-              rotate: '0deg',
-            }}
-            transition={{
-              type: 'spring',
-              delay: index * 200,
-              damping: 12,
-              mass: 1,
-              stiffness: 100,
-            }}
-            style={[
-              styles.cardWrapper,
-              {
-                transform: [
-                  { translateX: (index - (selectedCardObjects.length - 1) / 2) * 40 },
-                ],
-              },
-            ]}
-          >
-            <Image
-              source={card.image}
-              style={styles.cardImage}
-              resizeMode="contain"
-            />
-          </MotiView>
-        ))}
-      </View>
-
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 600, delay: 400 }}
-        style={styles.contentContainer}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerContainer}>
-          <Text style={styles.title}>
-            Save Your ${totalValue} Perk Dashboard
-          </Text>
-          <Text style={styles.subtitle}>
-            Create a free account to get personalized reminders and ensure you never miss a benefit
-          </Text>
+        {/* Personalized Card Display with Continuous Animation */}
+        <View style={styles.cardsContainer}>
+          {selectedCardObjects.map((card, index) => (
+            <MotiView
+              key={card.id}
+              from={{
+                opacity: 0,
+                translateY: -100,
+                scale: 0.8,
+                rotate: '-15deg',
+              }}
+              animate={{
+                opacity: 1,
+                translateY: 0,
+                scale: 1,
+                rotate: '0deg',
+              }}
+              transition={{
+                type: 'spring',
+                delay: index * 200,
+                damping: 12,
+                mass: 1,
+                stiffness: 100,
+              }}
+              style={[
+                styles.cardWrapper,
+                {
+                  transform: [
+                    { translateX: (index - (selectedCardObjects.length - 1) / 2) * 40 },
+                  ],
+                },
+              ]}
+            >
+              <Animated.View
+                style={[
+                  styles.cardImageContainer,
+                  animatedStyle,
+                ]}
+              >
+                <Image
+                  source={card.image}
+                  style={styles.cardImage}
+                  resizeMode="contain"
+                />
+              </Animated.View>
+            </MotiView>
+          ))}
         </View>
 
-        <View style={styles.authContainer}>
-          <TouchableOpacity 
-            style={styles.socialButton} 
-            onPress={handleGoogleSignIn}
-            disabled={isLoading}
-            activeOpacity={0.8}
-          >
-            <View style={styles.socialButtonContent}>
-              <Ionicons name="logo-google" size={20} color="#4285f4" />
-              <Text style={styles.socialButtonText}>
-                Continue with Google
-              </Text>
-            </View>
-          </TouchableOpacity>
-          
-          {Platform.OS === 'ios' && isAppleAuthAvailable && (
-            <View style={styles.appleButtonWrapper}>
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={12}
-                style={styles.appleButton}
-                onPress={handleAppleSignIn}
-              />
-            </View>
-          )}
-
-          <View style={styles.termsContainer}>
-            <Text style={styles.termsText}>
-              By continuing, you agree to our{' '}
-              <Link href="/legal/terms" asChild>
-                <Text style={styles.termsLink}>Terms of Service</Text>
-              </Link>
-              {' '}and{' '}
-              <Link href="/legal/terms" asChild>
-                <Text style={styles.termsLink}>Privacy Policy</Text>
-              </Link>
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 600, delay: 400 }}
+          style={styles.contentContainer}
+        >
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>
+              Secure Your ${totalValue} Dashboard
+            </Text>
+            <Text style={styles.subtitle}>
+              Stay ahead of expiring credits with real-time alerts
             </Text>
           </View>
-        </View>
-      </MotiView>
+
+          <View style={styles.authContainer}>
+            <TouchableOpacity 
+              style={styles.socialButton} 
+              onPress={handleGoogleSignIn}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              <View style={styles.socialButtonContent}>
+                <Ionicons name="logo-google" size={20} color="#4285f4" />
+                <Text style={styles.socialButtonText}>
+                  Continue with Google
+                </Text>
+              </View>
+            </TouchableOpacity>
+            
+            {Platform.OS === 'ios' && isAppleAuthAvailable && (
+              <View style={styles.appleButtonWrapper}>
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={12}
+                  style={styles.appleButton}
+                  onPress={handleAppleSignIn}
+                />
+              </View>
+            )}
+
+            {/* Testimonials Carousel */}
+            <MotiView
+              key={currentTestimonial}
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 400 }}
+              style={styles.testimonialContainer}
+            >
+              <Text style={styles.testimonialText}>
+                {testimonials[currentTestimonial].name} captured {testimonials[currentTestimonial].percentage}% of their perks last year
+              </Text>
+            </MotiView>
+
+            {/* Security Badge */}
+            <View style={styles.securityContainer}>
+              <Ionicons name="lock-closed" size={16} color={Colors.light.secondaryLabel} />
+              <Text style={styles.securityText}>Bank-grade encryption</Text>
+            </View>
+
+            <View style={styles.termsContainer}>
+              <Text style={styles.termsText}>
+                By continuing, you agree to our{' '}
+                <Link href="/legal/terms" asChild>
+                  <Text style={styles.termsLink}>Terms of Service</Text>
+                </Link>
+                {' '}and{' '}
+                <Link href="/legal/terms" asChild>
+                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                </Link>
+              </Text>
+            </View>
+          </View>
+        </MotiView>
+      </ScrollView>
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
@@ -205,12 +285,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
   cardsContainer: {
-    height: 200,
+    height: 180,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 20,
+    marginTop: 12,
   },
   cardWrapper: {
     width: SCREEN_WIDTH * 0.4,
@@ -224,6 +310,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
+  },
+  cardImageContainer: {
+    width: '100%',
+    height: '100%',
   },
   cardImage: {
     width: '100%',
@@ -296,6 +386,29 @@ const styles = StyleSheet.create({
   appleButton: {
     height: '100%',
     width: '100%',
+  },
+  testimonialContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+    paddingHorizontal: 16,
+  },
+  testimonialText: {
+    fontSize: 17,
+    color: Colors.light.secondaryLabel,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  securityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    opacity: 0.7,
+  },
+  securityText: {
+    fontSize: 14,
+    color: Colors.light.secondaryLabel,
+    marginLeft: 6,
   },
   termsContainer: {
     paddingHorizontal: 16,
