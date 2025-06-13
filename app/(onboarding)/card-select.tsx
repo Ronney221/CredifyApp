@@ -191,26 +191,17 @@ export default function OnboardingCardSelectScreen() {
         <MotiView
           from={{ opacity: 0, translateY: 8 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ 
-            type: 'timing', 
-            duration: 400
-          }}
+          transition={{ type: 'timing', duration: 400 }}
           style={styles.headerWrapper}
         >
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerText}>
-              {headerText}
-            </Text>
+            <Text style={styles.headerText}>{headerText}</Text>
           </View>
         </MotiView>
         <MotiView
           from={{ opacity: 0, translateY: 8 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ 
-            type: 'timing', 
-            duration: 400, 
-            delay: subtitleAnimationDelay
-          }}
+          transition={{ type: 'timing', duration: 400, delay: subtitleAnimationDelay }}
         >
           <Text style={styles.subtitle}>
             Select your cards to instantly calculate their total benefit value.
@@ -221,11 +212,7 @@ export default function OnboardingCardSelectScreen() {
       <MotiView
         from={{ opacity: 0, translateY: 12 }}
         animate={{ opacity: 1, translateY: 0 }}
-        transition={{ 
-          type: 'timing', 
-          duration: 400, 
-          delay: listAnimationDelay
-        }}
+        transition={{ type: 'timing', duration: 400, delay: listAnimationDelay }}
         style={{ flex: 1 }}
       >
         <ScrollView 
@@ -272,10 +259,7 @@ export default function OnboardingCardSelectScreen() {
       <MotiView
         from={{ opacity: 0, translateY: 20 }}
         animate={{ opacity: 1, translateY: 0 }}
-        transition={{ 
-          type: 'timing', 
-          duration: 400
-        }}
+        transition={{ type: 'timing', duration: 400 }}
         style={styles.footer}
       >
         <TouchableOpacity
@@ -285,12 +269,14 @@ export default function OnboardingCardSelectScreen() {
           ]}
           onPress={handleNext}
           disabled={selectedCardIds.size === 0}
-          activeOpacity={0.8}
+          activeOpacity={0.6}
+          
         >
-          <Text style={styles.nextButtonText}>
-            Calculate My Savings
-          </Text>
+          
+          <Text style={styles.nextButtonText}>Calculate My Savings</Text>
         </TouchableOpacity>
+        
+
       </MotiView>
     </SafeAreaView>
   );
@@ -331,7 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   scrollContent: {
-    paddingBottom: 0,
+    paddingBottom: 150,
   },
   issuerGroup: {
     marginBottom: 24,
@@ -357,38 +343,27 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   footer: {
-    padding: 16,
-    backgroundColor: '#f2f2f7',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#c7c7cc',
-    marginTop: 'auto',
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
   },
   nextButton: {
     backgroundColor: Colors.light.tint,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: 'center',
+    width: '100%',
     shadowColor: Colors.light.tint,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
   },
   nextButtonDisabled: {
-    backgroundColor: Colors.light.icon,
-    opacity: 0.5,
+    backgroundColor: '#d1d1d6',
     shadowOpacity: 0,
     elevation: 0,
-  },
-  skipButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.light.tint,
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  skipButtonText: {
-    color: Colors.light.tint,
   },
   nextButtonText: {
     color: '#ffffff',
