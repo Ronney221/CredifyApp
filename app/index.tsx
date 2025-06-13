@@ -83,14 +83,10 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (!loading) {
       setIsCheckingSession(false);
-      if (user) {
-        console.log('User session found, redirecting to onboarding');
-        router.replace('/(onboarding)/card-select');
-      } else {
-        console.log('No user session found, showing welcome screen.');
-      }
+      // Always redirect to onboarding welcome screen
+      router.replace('/(onboarding)/welcome');
     }
-  }, [user, loading, router]);
+  }, [loading, router]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

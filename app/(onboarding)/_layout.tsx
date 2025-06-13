@@ -1,12 +1,12 @@
 import { Stack, usePathname } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { View, Platform } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import WizardHeader, { WIZARD_HEADER_HEIGHT } from './WizardHeader';
 import { OnboardingContext, OnboardingContextType, NotificationPrefs } from './_context/OnboardingContext';
 
 // Define onboarding steps order and names (route names)
 export const onboardingScreenNames = [
+  'welcome',
   'card-select',
   'renewal-dates',
   'notification-prefs',
@@ -44,7 +44,6 @@ export default function OnboardingLayout() {
     if (currentRouteName !== 'onboarding-complete') {
         setIsHeaderHidden(false);
     }
-
   }, [pathname]);
 
   const contextValue: OnboardingContextType = {
@@ -64,24 +63,25 @@ export default function OnboardingLayout() {
   return (
     <OnboardingContext.Provider value={contextValue}>
       <SafeAreaProvider> 
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff', paddingTop: 32 }} edges={['top']}> 
-          <WizardHeader />
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }} edges={['top']}> 
           <Stack
             screenOptions={{
-              headerShown: false, // Main header is now external WizardHeader
-              animation: 'none', // Retain no animation for step transitions
+              headerShown: false,
+              animation: 'none',
             }}
           >
             <Stack.Screen
-              name="card-select" // Corrected name
+              name="welcome"
               options={{
-                // No specific header options here anymore, WizardHeader handles it
+                gestureEnabled: false,
               }}
             />
             <Stack.Screen
+              name="card-select"
+              options={{}}
+            />
+            <Stack.Screen
               name="renewal-dates"
-              // Dummy headerRight might not be needed anymore if headerShown is false
-              // Back button visibility will be handled by screen content or WizardHeader if needed
             />
             <Stack.Screen
               name="notification-prefs"
