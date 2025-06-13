@@ -75,13 +75,40 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     ? (monthlyRedeemedValue / monthlyPotentialValue) * 100 
     : 0;
 
-  // Calculate stats for the summary view
-  const totalPerks = summary.perkDetails.length;
-  const redeemedPerks = summary.perksRedeemedCount;
-  const missedPerks = summary.perksMissedCount;
-  const availablePerks = totalPerks - redeemedPerks - missedPerks;
+  // Helper function to determine if a perk is relevant to this month
+  const isPerkRelevantToMonth = (perk: any) => {
+    // Always include redeemed perks
+    if (perk.status === 'redeemed') return true;
+    
+    // For monthly perks, they're always relevant
+    if (perk.period === 'monthly') return true;
+    
+    // For non-monthly perks, they're relevant if they expire this month OR next month
+    if (perk.status === 'missed' || perk.status === 'available') {
+      return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+    }
+    
+    return false;
+  };
+
+  // Update calculations for the summary view
+  const relevantPerks = summary.perkDetails.filter(isPerkRelevantToMonth);
   
-  // Calculate the month's performance score (0-100)
+  const totalPerks = relevantPerks.length;
+  
+  const redeemedPerks = relevantPerks.filter(perk => perk.status === 'redeemed').length;
+  
+  const missedPerks = relevantPerks.filter(perk => 
+    perk.status === 'missed' && 
+    (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
+  ).length;
+  
+  const availablePerks = relevantPerks.filter(perk => 
+    perk.status === 'available' && 
+    (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
+  ).length;
+
+  // Update performance score calculation
   const performanceScore = totalPerks > 0 
     ? Math.round((redeemedPerks / totalPerks) * 100)
     : 0;
@@ -100,10 +127,9 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   const isCurrentMonth = new Date().toLocaleString('default', { month: 'long' }) === 
     summary.monthYear.split(' ')[0];
 
-  // Calculate bar segments for the visual meter
+  // Update the bar segments calculation
   const getBarSegments = () => {
     const segments = [];
-    const total = redeemedPerks + missedPerks + availablePerks;
     
     // Add redeemed segments
     for (let i = 0; i < redeemedPerks; i++) {
@@ -149,7 +175,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     scale.value = withSpring(1, { damping: 15, stiffness: 120 });
   };
 
-  // Separate perks into monthly and non-monthly
+  // Update the perk details filtering
   const monthlyPerkDetails = summary.perkDetails
     .filter(perk => perk.period === 'monthly')
     .filter(perk => {
@@ -158,14 +184,15 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     })
     .sort((a, b) => b.value - a.value);
 
-  // For non-monthly perks, only show if redeemed or expired this month
   const nonMonthlyPerkDetails = summary.perkDetails
     .filter(perk => perk.period !== 'monthly')
     .filter(perk => {
       // Always show redeemed perks
       if (perk.status === 'redeemed') return true;
-      // For missed perks, only show if they expired this month
-      if (perk.status === 'missed') return perk.expiresThisMonth === true;
+      // For missed/available perks, show if they expire this month OR next month
+      if (perk.status === 'missed' || perk.status === 'available') {
+        return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+      }
       return false;
     })
     .filter(perk => {
@@ -181,15 +208,25 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     router.push('/profile/notifications');
   };
 
+  // Add a helper function to get expiration status text
+  const getExpirationStatus = (perk: any) => {
+    if (perk.expiresNextMonth) return 'Expires Next Month';
+    if (perk.expiresThisMonth) return 'Expires This Month';
+    return '';
+  };
+
   const renderPerkItem = (perk: any, isMonthly: boolean) => (
-    <View key={perk.id} style={styles.perkDetailItem}>
+    <View key={perk.id} style={[
+      styles.perkDetailItem,
+      perk.status === 'missed' && styles.missedPerkItem
+    ]}>
       <Ionicons 
         name={
           perk.status === 'redeemed' 
             ? 'checkmark-circle' 
             : perk.status === 'available'
             ? 'time-outline'
-            : 'alert-circle-outline'
+            : 'close-circle'
         }
         size={20} 
         color={
@@ -203,22 +240,20 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       />
       <View style={styles.perkContentContainer}>
         <View style={styles.perkNameRow}>
-          <Text style={styles.perkName}>{perk.name}</Text>
-          <Text style={styles.perkValueDimmed}>(${perk.value.toFixed(0)})</Text>
-          {!isMonthly && (
-            <View style={[styles.periodBadge, { backgroundColor: getPeriodBadgeColor(perk.period) }]}>
-              <Text style={styles.periodBadgeText}>{getPeriodBadgeText(perk.period)}</Text>
-            </View>
-          )}
+          <Text style={[
+            styles.perkName,
+            perk.status === 'missed' && styles.missedPerkText
+          ]}>{perk.name}</Text>
+          <Text style={[
+            styles.perkValue,
+            perk.status === 'missed' && styles.missedPerkText
+          ]}>${perk.value.toFixed(0)}</Text>
         </View>
-        <Text style={[
-          styles.perkStatusText, 
-          perk.status === 'redeemed' ? styles.redeemedText : 
-          perk.status === 'available' ? styles.availableText : styles.missedText
-        ]}>
-          {perk.status === 'redeemed' ? 'Redeemed' : 
-           perk.status === 'available' ? 'Available' : 'Missed'}
-        </Text>
+        {!isMonthly && (perk.expiresThisMonth || perk.expiresNextMonth) && (
+          <Text style={styles.expirationText}>
+            {getExpirationStatus(perk)}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -324,15 +359,25 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
               style={styles.perkDetailsContainer}
             >
               <View style={styles.detailedHeader}>
-                <Text style={styles.detailedTitle}>Monthly Breakdown</Text>
+                <View style={styles.detailedHeaderTop}>
+                  <Text style={styles.detailedTitle}>{summary.monthYear} Summary</Text>
+                  <Text style={styles.detailedSubtitle}>
+                    ${summary.totalRedeemedValue.toFixed(0)} of ${summary.totalPotentialValue.toFixed(0)} Redeemed
+                  </Text>
+                </View>
+                
                 <View style={styles.detailedStats}>
                   <View style={styles.detailedStat}>
-                    <Text style={styles.detailedStatValue}>${summary.totalRedeemedValue.toFixed(0)}</Text>
-                    <Text style={styles.detailedStatLabel}>Total Value</Text>
+                    <Text style={styles.detailedStatValue}>{redeemedPerks}</Text>
+                    <Text style={styles.detailedStatLabel}>Redeemed</Text>
                   </View>
                   <View style={styles.detailedStat}>
-                    <Text style={styles.detailedStatValue}>{totalPerks}</Text>
-                    <Text style={styles.detailedStatLabel}>Total Perks</Text>
+                    <Text style={styles.detailedStatValue}>{missedPerks}</Text>
+                    <Text style={styles.detailedStatLabel}>Missed</Text>
+                  </View>
+                  <View style={styles.detailedStat}>
+                    <Text style={styles.detailedStatValue}>{availablePerks}</Text>
+                    <Text style={styles.detailedStatLabel}>Available</Text>
                   </View>
                 </View>
               </View>
@@ -363,19 +408,23 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   )}
                   
                   {monthlyPerkDetails.length > 0 && (
-                    <>
-                      <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
+                    <View style={styles.perkSection}>
+                      <View style={styles.perkSectionHeader}>
+                        <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
+                        <Text style={styles.perkSectionCount}>({monthlyPerkDetails.length})</Text>
+                      </View>
                       {monthlyPerkDetails.map(perk => renderPerkItem(perk, true))}
-                    </>
+                    </View>
                   )}
 
                   {nonMonthlyPerkDetails.length > 0 && (
-                    <>
-                      <Text style={[styles.perkSectionTitle, { marginTop: monthlyPerkDetails.length > 0 ? 20 : 0 }]}>
-                        Additional Perks
-                      </Text>
+                    <View style={styles.perkSection}>
+                      <View style={styles.perkSectionHeader}>
+                        <Text style={styles.perkSectionTitle}>Additional Perks</Text>
+                        <Text style={styles.perkSectionCount}>({nonMonthlyPerkDetails.length})</Text>
+                      </View>
                       {nonMonthlyPerkDetails.map(perk => renderPerkItem(perk, false))}
-                    </>
+                    </View>
                   )}
                 </>
               ) : <Text style={styles.noPerksText}>No perks match current filter.</Text>}
@@ -522,11 +571,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
+  detailedHeaderTop: {
+    marginBottom: 12,
+  },
   detailedTitle: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  detailedSubtitle: {
+    fontSize: 15,
+    color: Colors.light.text,
+    opacity: 0.7,
   },
   detailedStats: {
     flexDirection: 'row',
@@ -549,49 +606,59 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginTop: 2,
   },
+  perkSection: {
+    marginBottom: 20,
+  },
+  perkSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  perkSectionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  perkSectionCount: {
+    fontSize: 15,
+    color: Colors.light.text,
+    opacity: 0.7,
+    marginLeft: 4,
+  },
   perkDetailItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
+  missedPerkItem: {
+    opacity: 0.6,
+  },
   perkStatusIcon: {
     marginRight: 12,
-    marginTop: 2,
   },
   perkContentContainer: {
     flex: 1,
   },
   perkNameRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    gap: 4,
-    marginBottom: 2,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   perkName: {
+    fontSize: 16,
+    color: Colors.light.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  perkValue: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.light.text,
   },
-  perkValueDimmed: {
-    fontSize: 15,
-    color: Colors.light.tint,
-    fontWeight: '600',
-  },
-  perkStatusText: {
-    fontSize: 13,
-    fontWeight: '500',
-    opacity: 0.8,
-  },
-  redeemedText: {
-    color: SUCCESS_GREEN,
-  },
-  missedText: {
-    color: NEUTRAL_GRAY_COLOR,
-  },
-  availableText: {
-    color: Colors.light.tint,
+  missedPerkText: {
+    opacity: 0.6,
   },
   noPerksText: {
     fontSize: 14,
@@ -632,23 +699,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: '500',
   },
-  perkSectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    opacity: 0.8,
-  },
-  periodBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginLeft: 6,
-  },
-  periodBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
+  expirationText: {
+    fontSize: 12,
+    color: NEUTRAL_GRAY_COLOR,
+    marginTop: 4,
   },
 }); 
