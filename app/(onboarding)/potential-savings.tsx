@@ -18,7 +18,7 @@ import { MotiView } from 'moti';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { CardPerks } from '../components/onboarding/CardPerks';
-import { allCards } from '../../src/data/card-data';
+import { allCards, Card, Benefit } from '../../src/data/card-data';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
@@ -33,17 +33,17 @@ export default function PotentialSavingsScreen() {
   const hasAnimated = useRef(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Get the selected card objects
+  // Get the selected card objects with proper typing
   const selectedCardObjects = useMemo(() => {
     return selectedCards
-      .map(cardId => allCards.find(card => card.id === cardId))
-      .filter((card): card is NonNullable<typeof card> => card !== undefined);
+      .map((cardId: string) => allCards.find(card => card.id === cardId))
+      .filter((card): card is Card => card !== undefined);
   }, [selectedCards]);
 
-  // Calculate total value
+  // Calculate total value with proper typing
   const totalValue = useMemo(() => {
-    return selectedCardObjects.reduce((total, card) => {
-      const cardValue = card.benefits.reduce((sum, benefit) => {
+    return selectedCardObjects.reduce((total: number, card: Card) => {
+      const cardValue = card.benefits.reduce((sum: number, benefit: Benefit) => {
         const annualValue = benefit.value * (12 / benefit.periodMonths);
         return sum + annualValue;
       }, 0);
@@ -105,11 +105,11 @@ export default function PotentialSavingsScreen() {
 
   const handleStartTracking = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.push('/(auth)/register');
+    router.push('/(onboarding)/register');
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       
       {showCelebration && (
@@ -166,7 +166,7 @@ export default function PotentialSavingsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.cardsListContent}
         >
-          {selectedCardObjects.map((card, index) => (
+          {selectedCardObjects.map((card: Card, index: number) => (
             <CardPerks key={card.id} card={card} index={index} />
           ))}
         </ScrollView>

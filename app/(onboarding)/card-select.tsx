@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -60,13 +60,14 @@ function getIssuer(card: Card): string {
 
 export default function OnboardingCardSelectScreen() {
   const router = useRouter();
-  const { setStep, setIsHeaderGloballyHidden, selectedCards, setSelectedCards } = useOnboardingContext();
+  const { setStep, setIsHeaderGloballyHidden, selectedCards, toggleCard, hasCard } = useOnboardingContext();
   const route = useRoute();
+  const scaleValues = useRef(new Map<string, Animated.Value>()).current;
 
   useFocusEffect(
     React.useCallback(() => {
       const screenName = route.name.split('/').pop() || 'card-select';
-      const stepIndex = onboardingScreenNames.indexOf(screenName);
+      const stepIndex = onboardingScreenNames.indexOf(screenName as typeof onboardingScreenNames[number]);
       if (stepIndex !== -1) {
         setStep(stepIndex);
       }
@@ -76,13 +77,10 @@ export default function OnboardingCardSelectScreen() {
     }, [route.name, setStep, setIsHeaderGloballyHidden])
   );
 
-  const selectedCardIds = useMemo(() => new Set(selectedCards), [selectedCards]);
-  const scaleValues = useRef(new Map<string, Animated.Value>()).current;
-
   const headerText = useMemo(() => {
-    const count = selectedCardIds.size;
+    const count = selectedCards.length;
     return count > 0 ? `What's In Your Wallet? \n (${count} selected)` : "What's In Your Wallet?";
-  }, [selectedCardIds.size]);
+  }, [selectedCards.length]);
 
   const getScaleValue = (cardId: string) => {
     if (!scaleValues.has(cardId)) {
@@ -92,11 +90,10 @@ export default function OnboardingCardSelectScreen() {
   };
 
   const handleToggleCard = (cardId: string) => {
-    const newSelectedIds = new Set(selectedCardIds);
     const cardScale = getScaleValue(cardId);
+    const isCurrentlySelected = hasCard(cardId);
 
-    if (newSelectedIds.has(cardId)) {
-      newSelectedIds.delete(cardId);
+    if (isCurrentlySelected) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Animated.timing(cardScale, {
         toValue: 1,
@@ -105,7 +102,6 @@ export default function OnboardingCardSelectScreen() {
         useNativeDriver: true,
       }).start();
     } else {
-      newSelectedIds.add(cardId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Animated.sequence([
         Animated.timing(cardScale, {
@@ -122,16 +118,15 @@ export default function OnboardingCardSelectScreen() {
         }),
       ]).start();
     }
-    setSelectedCards(Array.from(newSelectedIds));
+    toggleCard(cardId);
   };
 
   const handleNext = () => {
-    if (selectedCardIds.size === 0) return;
+    if (selectedCards.length === 0) return;
     router.push('/(onboarding)/potential-savings');
   };
 
   const handleSkip = () => {
-    setSelectedCards([]);
     router.push('/(onboarding)/onboarding-complete');
   };
 
@@ -191,7 +186,7 @@ export default function OnboardingCardSelectScreen() {
   const listAnimationDelay = subtitleAnimationDelay + 100;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContentContainer}>
         <MotiView
@@ -233,7 +228,7 @@ export default function OnboardingCardSelectScreen() {
               <CardRow
                 key={card.id}
                 card={card}
-                isSelected={selectedCardIds.has(card.id)}
+                isSelected={hasCard(card.id)}
                 onPress={handleToggleCard}
                 mode="onboard"
                 cardScaleAnim={getScaleValue(card.id)}
@@ -250,7 +245,7 @@ export default function OnboardingCardSelectScreen() {
                   <CardRow
                     key={card.id}
                     card={card}
-                    isSelected={selectedCardIds.has(card.id)}
+                    isSelected={hasCard(card.id)}
                     onPress={handleToggleCard}
                     mode="onboard"
                     cardScaleAnim={getScaleValue(card.id)}
@@ -271,18 +266,14 @@ export default function OnboardingCardSelectScreen() {
         <TouchableOpacity
           style={[
             styles.nextButton,
-            selectedCardIds.size === 0 && styles.nextButtonDisabled
+            selectedCards.length === 0 && styles.nextButtonDisabled
           ]}
           onPress={handleNext}
-          disabled={selectedCardIds.size === 0}
+          disabled={selectedCards.length === 0}
           activeOpacity={0.6}
-          
         >
-          
           <Text style={styles.nextButtonText}>Calculate My Savings</Text>
         </TouchableOpacity>
-        
-
       </MotiView>
     </SafeAreaView>
   );
@@ -350,6 +341,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: 12,
     paddingHorizontal: 20,
+    paddingBottom: 32,
     backgroundColor: 'transparent',
     alignItems: 'center',
   },
