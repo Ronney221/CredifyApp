@@ -16,8 +16,6 @@ import { useRouter, Link } from 'expo-router';
 import { MotiView } from 'moti';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
-import { useOnboardingContext } from './_context/OnboardingContext';
-import { allCards } from '../../src/data/card-data';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -33,6 +31,23 @@ import Animated, {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// All available credit card images
+const allCards = [
+  require('../../assets/images/amex_plat.avif'),
+  require('../../assets/images/chase_sapphire_reserve.png'),
+  require('../../assets/images/amex_gold.avif'),
+  require('../../assets/images/venture_x.avif'),
+  require('../../assets/images/hilton_aspire.avif'),
+  require('../../assets/images/marriott_bonvoy_brilliant.avif'),
+  require('../../assets/images/boa_premium_rewards_elite.png'),
+  require('../../assets/images/blue_cash_preferred.avif'),
+  require('../../assets/images/boa_premium_rewards.png'),
+  require('../../assets/images/amex_green.avif'),
+  require('../../assets/images/citi_prestige.jpeg'),
+  require('../../assets/images/delta_reserve.avif'),
+  require('../../assets/images/usb_altitude_reserve.png'),
+];
+
 const testimonials = [
   { name: 'Matt K.', percentage: 93 },
   { name: 'Sarah L.', percentage: 87 },
@@ -42,6 +57,13 @@ const testimonials = [
   { name: 'Sophie B.', percentage: 92 },
   { name: 'David P.', percentage: 88 },
   { name: 'Rachel W.', percentage: 90 },
+  { name: 'Michael C.', percentage: 94 },
+  { name: 'Lisa H.', percentage: 86 },
+  { name: 'John D.', percentage: 91 },
+  { name: 'Anna S.', percentage: 88 },
+  { name: 'Tom B.', percentage: 93 },
+  { name: 'Olivia M.', percentage: 87 },
+  { name: 'Daniel R.', percentage: 90 },
 ];
 
 const verbs = [
@@ -57,20 +79,34 @@ const verbs = [
   'optimized'
 ];
 
-export default function RegisterScreen() {
+export default function LoginScreen() {
   const router = useRouter();
-  const { selectedCards } = useOnboardingContext();
   const { signInGoogle, signInApple } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
+  const [selectedCards, setSelectedCards] = React.useState<typeof allCards>([]);
   const translateY = useSharedValue(0);
 
+  // Function to get random cards
+  const getRandomCards = () => {
+    const shuffled = [...allCards].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 5);
+  };
+
   useEffect(() => {
+    // Set initial random cards
+    setSelectedCards(getRandomCards());
+    
+    // Rotate cards every 30 seconds
+    const cardInterval = setInterval(() => {
+      setSelectedCards(getRandomCards());
+    }, 30000);
+
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
     
     // Rotate testimonials every 4 seconds
-    const interval = setInterval(() => {
+    const testimonialInterval = setInterval(() => {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 4000);
     
@@ -85,7 +121,8 @@ export default function RegisterScreen() {
     );
     
     return () => {
-      clearInterval(interval);
+      clearInterval(cardInterval);
+      clearInterval(testimonialInterval);
     };
   }, []);
 
@@ -98,24 +135,6 @@ export default function RegisterScreen() {
       ],
     };
   });
-
-  // Get the selected card objects with proper typing
-  const selectedCardObjects = useMemo(() => {
-    return selectedCards
-      .map((cardId: string) => allCards.find(card => card.id === cardId))
-      .filter((card): card is typeof allCards[0] => card !== undefined);
-  }, [selectedCards]);
-
-  // Calculate total value with proper typing
-  const totalValue = useMemo(() => {
-    return selectedCardObjects.reduce((total: number, card: typeof allCards[0]) => {
-      const cardValue = card.benefits.reduce((sum: number, benefit: any) => {
-        const annualValue = benefit.value * (12 / benefit.periodMonths);
-        return sum + annualValue;
-      }, 0);
-      return total + cardValue;
-    }, 0);
-  }, [selectedCardObjects]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -162,11 +181,11 @@ export default function RegisterScreen() {
         contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Personalized Card Display with Continuous Animation */}
+        {/* Credit Card Display with Continuous Animation */}
         <View style={styles.cardsContainer}>
-          {selectedCardObjects.map((card, index) => (
+          {selectedCards.map((cardImage, index) => (
             <MotiView
-              key={card.id}
+              key={index}
               from={{
                 opacity: 0,
                 translateY: -100,
@@ -190,7 +209,7 @@ export default function RegisterScreen() {
                 styles.cardWrapper,
                 {
                   transform: [
-                    { translateX: (index - (selectedCardObjects.length - 1) / 2) * 40 },
+                    { translateX: (index - (selectedCards.length - 1) / 2) * 40 },
                   ],
                 },
               ]}
@@ -202,7 +221,7 @@ export default function RegisterScreen() {
                 ]}
               >
                 <Image
-                  source={card.image}
+                  source={cardImage}
                   style={styles.cardImage}
                   resizeMode="contain"
                 />
@@ -220,10 +239,10 @@ export default function RegisterScreen() {
           <View style={styles.headerContainer}>
             <Text style={styles.brandText}>Credify</Text>
             <Text style={styles.title}>
-              Secure Your ${totalValue} Dashboard
+              Welcome Back!
             </Text>
             <Text style={styles.subtitle}>
-              Create your Credify account to stay ahead of expiring credits
+              Sign in to manage your credit card benefits and rewards
             </Text>
           </View>
 
@@ -275,13 +294,9 @@ export default function RegisterScreen() {
 
             <View style={styles.termsContainer}>
               <Text style={styles.termsText}>
-                By continuing, you agree to our{' '}
-                <Link href="/legal/terms" asChild>
-                  <Text style={styles.termsLink}>Terms of Service</Text>
-                </Link>
-                {' '}and{' '}
-                <Link href="/legal/terms" asChild>
-                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                Don't have an account?{' '}
+                <Link href="/(onboarding)/register" asChild>
+                  <Text style={styles.termsLink}>Sign up</Text>
                 </Link>
               </Text>
             </View>
