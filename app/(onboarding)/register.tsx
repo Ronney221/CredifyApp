@@ -281,7 +281,7 @@ export default function RegisterScreen() {
               <View style={styles.socialButtonContent}>
                 <Ionicons name="logo-google" size={20} color="#4285f4" />
                 <Text style={styles.socialButtonText}>
-                  Continue with Google
+                  Sign up with Google
                 </Text>
               </View>
             </TouchableOpacity>
@@ -289,7 +289,7 @@ export default function RegisterScreen() {
             {Platform.OS === 'ios' && isAppleAuthAvailable && (
               <View style={styles.appleButtonWrapper}>
                 <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
                   buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                   cornerRadius={12}
                   style={styles.appleButton}
