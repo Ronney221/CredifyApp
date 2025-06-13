@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { Card } from '../../../src/data/card-data';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
 
 interface OnboardingContextType {
   // Card Management
@@ -17,6 +20,11 @@ interface OnboardingContextType {
   // UI State
   isHeaderGloballyHidden: boolean;
   setIsHeaderGloballyHidden: (hidden: boolean) => void;
+
+  // Perk Redemption State
+  hasRedeemedFirstPerk: boolean;
+  setHasRedeemedFirstPerk: (value: boolean) => void;
+  markFirstPerkRedeemed: () => Promise<void>;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -34,6 +42,24 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   
   // UI State
   const [isHeaderGloballyHidden, setIsHeaderGloballyHidden] = useState(false);
+
+  // Perk Redemption State
+  const [hasRedeemedFirstPerk, setHasRedeemedFirstPerk] = useState(false);
+
+  // Load hasRedeemedFirstPerk from AsyncStorage on mount
+  useEffect(() => {
+    const loadRedemptionState = async () => {
+      try {
+        const value = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
+        if (value !== null) {
+          setHasRedeemedFirstPerk(JSON.parse(value));
+        }
+      } catch (error) {
+        console.error('Error loading redemption state:', error);
+      }
+    };
+    loadRedemptionState();
+  }, []);
 
   // Card Management Functions
   const addCard = useCallback((cardId: string) => {
@@ -66,6 +92,16 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     });
   }, []);
 
+  // Perk Redemption Functions
+  const markFirstPerkRedeemed = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(HAS_REDEEMED_FIRST_PERK_KEY, JSON.stringify(true));
+      setHasRedeemedFirstPerk(true);
+    } catch (error) {
+      console.error('Error saving redemption state:', error);
+    }
+  }, []);
+
   const value: OnboardingContextType = {
     // Card Management
     selectedCards,
@@ -82,6 +118,11 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     // UI State
     isHeaderGloballyHidden,
     setIsHeaderGloballyHidden,
+
+    // Perk Redemption State
+    hasRedeemedFirstPerk,
+    setHasRedeemedFirstPerk,
+    markFirstPerkRedeemed,
   };
 
   return (

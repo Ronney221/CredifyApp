@@ -44,6 +44,8 @@ import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAuto
 import ActionHintPill from '../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
+import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext';
+import OnboardingSheet from '../components/home/OnboardingSheet';
 
 // Import notification functions
 import {
@@ -173,6 +175,9 @@ const defaultNotificationPreferences: NotificationPreferences = {
   monthlyPerkExpiryReminderDays: [7, 3, 1],
   perkExpiryReminderTime: '09:00',
   renewalReminderDays: [7],
+  quarterlyPerkRemindersEnabled: true,
+  semiAnnualPerkRemindersEnabled: true,
+  annualPerkRemindersEnabled: true
 };
 
 // Add constant for tab bar offset
@@ -234,6 +239,8 @@ export default function Dashboard() {
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
+  const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
+  const [showOnboardingSheet, setShowOnboardingSheet] = useState(false);
 
   // Initial log after hooks have run
   console.log("DEBUG: Dashboard component - AFTER hooks. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isUserCardsRefreshing, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
@@ -624,52 +631,58 @@ export default function Dashboard() {
         const originalStatus = selectedPerk.status; 
 
         // Optimistic update for redemption
-          setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+        setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
           
-          // Background database operation
-          const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
+        // Background database operation
+        const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
           
-          if (error) {
+        if (error) {
           console.error('Error tracking redemption in DB:', error);
-            // Revert optimistic update on error
+          // Revert optimistic update on error
           setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-            handlePerkStatusChange();
+          handlePerkStatusChange();
             
-            if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+          if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
             Alert.alert('Already Redeemed', 'This perk was already marked as redeemed.');
-            } else {
+          } else {
             Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
-            }
-            return;
           }
+          return;
+        }
 
         // DB operation successful
-          handlePerkStatusChange();
+        handlePerkStatusChange();
           
-          // Defer the toast until the user returns to the app
-          setPendingToast({
-            message: `${selectedPerk.name} marked as redeemed`,
-            onUndo: async () => {
-              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
-              try {
-                const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
-                if (undoError) {
-                  console.error('Error undoing redemption in DB:', undoError);
-                  setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
-                  handlePerkStatusChange(); 
-                  showToast('Error undoing redemption');
-                } else {
-                  handlePerkStatusChange();
-                  showToast(`${selectedPerk.name} redemption undone.`);
-                }
-              } catch (undoCatchError) {
-                console.error('Unexpected error during undo redemption:', undoCatchError);
+        // Defer the toast until the user returns to the app
+        setPendingToast({
+          message: `${selectedPerk.name} marked as redeemed`,
+          onUndo: async () => {
+            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+            try {
+              const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+              if (undoError) {
+                console.error('Error undoing redemption in DB:', undoError);
                 setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
                 handlePerkStatusChange(); 
                 showToast('Error undoing redemption');
+              } else {
+                handlePerkStatusChange();
+                showToast(`${selectedPerk.name} redemption undone.`);
               }
-            },
-          });
+            } catch (undoCatchError) {
+              console.error('Unexpected error during undo redemption:', undoCatchError);
+              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
+              handlePerkStatusChange(); 
+              showToast('Error undoing redemption');
+            }
+          },
+        });
+
+        // Check if this is the first perk redemption
+        if (!hasRedeemedFirstPerk) {
+          await markFirstPerkRedeemed();
+          setShowOnboardingSheet(true);
+        }
       } else if (selectedPerk.status === 'redeemed') {
         // Perk is already redeemed, we just opened the app.
       }
@@ -772,7 +785,13 @@ export default function Dashboard() {
       // Show toast after successful operation
       showToast(
         `${selectedPerk.name} ${isPartialRedemption ? 'partially' : ''} redeemed${isPartialRedemption ? ` ($${valueToRedeem})` : ''}.`
-      ); 
+      );
+
+      // Check if this is the first perk redemption
+      if (!hasRedeemedFirstPerk) {
+        await markFirstPerkRedeemed();
+        setShowOnboardingSheet(true);
+      }
       
     } catch (dbError) {
       console.error('Unexpected error marking perk as redeemed:', dbError);
@@ -1115,6 +1134,12 @@ export default function Dashboard() {
           onOpenApp={handleOpenApp}
           onMarkRedeemed={handleMarkRedeemed}
           onMarkAvailable={handleMarkAvailable}
+        />
+
+        {/* Add OnboardingSheet */}
+        <OnboardingSheet
+          visible={showOnboardingSheet}
+          onDismiss={() => setShowOnboardingSheet(false)}
         />
       </View>
     </SafeAreaView>

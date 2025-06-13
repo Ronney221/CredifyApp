@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
+const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
 
 interface ProfileRow {
   id: string;
@@ -40,6 +41,20 @@ interface ProfileSection {
 const ProfileScreen = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
+
+  const handleResetFirstRedemption = async () => {
+    try {
+      await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      Alert.alert(
+        "Success",
+        "First redemption state has been reset. The onboarding sheet will show after your next perk redemption.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Error resetting first redemption state:', error);
+      Alert.alert('Error', 'Failed to reset first redemption state.');
+    }
+  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -90,6 +105,18 @@ const ProfileScreen = () => {
         { id: 'help-faq', title: 'Help & FAQ', icon: 'help-circle-outline', onPress: () => router.push('/(tabs)/profile/help-faq') },
       ],
       footer: 'Get help with your account, cards, and more.',
+    },
+    {
+      title: 'Developer',
+      data: [
+        { 
+          id: 'reset-first-redemption', 
+          title: 'Reset First Redemption', 
+          icon: 'refresh-outline', 
+          onPress: handleResetFirstRedemption 
+        },
+      ],
+      footer: 'Development tools and testing options.',
     },
   ];
 

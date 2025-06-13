@@ -24,6 +24,7 @@ import { useRouter } from 'expo-router';
 import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
 import OnboardingSheet from './OnboardingSheet';
+import { useOnboardingContext } from '../../../app/(onboarding)/_context/OnboardingContext';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -113,6 +114,7 @@ const ExpandableCardComponent = ({
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
   const router = useRouter();
+  const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
   
   // Ref to track if the card had redeemed perks in the previous render
   const hadRedeemedPerks = useRef(perks.some(p => p.status === 'redeemed'));
@@ -390,6 +392,12 @@ const ExpandableCardComponent = ({
           onPerkStatusChange?.(),
           refreshAutoRedemptions?.()
         ]);
+
+        // Check if this is the first perk redemption
+        if (!hasRedeemedFirstPerk) {
+          await markFirstPerkRedeemed();
+          setShowOnboarding(true);
+        }
 
         showToast(
           `${perk.name} marked as redeemed`,
