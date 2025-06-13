@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,12 +17,204 @@ import Animated, {
   useSharedValue,
   withSpring,
   runOnJS,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+  Easing,
 } from 'react-native-reanimated';
+
+// Define colors
+const COLORS = {
+  primary: '#4A90E2', // Lighter blue
+  secondary: '#8A7AD6', // Lighter purple
+  tertiary: '#5CB85C', // Lighter green
+  background: '#F8F8F8',
+  text: {
+    primary: '#1C1C1E',
+    secondary: '#666666',
+  },
+  border: 'rgba(60, 60, 67, 0.1)',
+};
+
+// Define layout constants
+const LAYOUT = {
+  iconSize: 44,
+  gutter: 16,
+  itemSpacing: 24,
+  modalPadding: 24,
+};
 
 interface OnboardingSheetProps {
   visible: boolean;
   onDismiss: () => void;
 }
+
+// Animated components for each tip
+const TapAnimation = () => {
+  const scale = useSharedValue(1);
+  const rippleScale = useSharedValue(0);
+  const rippleOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(0.9, { duration: 400, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
+        withTiming(1, { duration: 400, easing: Easing.bezier(0.25, 0.1, 0.25, 1) })
+      ),
+      -1,
+      true
+    );
+
+    rippleScale.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 0 }),
+        withTiming(1.5, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) })
+      ),
+      -1,
+      false
+    );
+
+    rippleOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.6, { duration: 0 }),
+        withTiming(0, { duration: 800, easing: Easing.bezier(0.25, 0.1, 0.25, 1) })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const rippleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: rippleScale.value }],
+    opacity: rippleOpacity.value,
+  }));
+
+  return (
+    <View style={styles.iconWrapper}>
+      <Animated.View style={[styles.rippleContainer, rippleStyle]}>
+        <View style={[styles.ripple, { backgroundColor: COLORS.tertiary }]} />
+      </Animated.View>
+      <Animated.View style={[styles.iconContainer, animatedStyle]}>
+        <Ionicons name="hand-left" size={28} color={COLORS.tertiary} />
+      </Animated.View>
+    </View>
+  );
+};
+
+const OpenAppAnimation = () => {
+  const arrowTranslate = useSharedValue(0);
+  const arrowOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    const sequence = withSequence(
+      withTiming(0, { duration: 0 }),
+      withDelay(500,
+        withSequence(
+          withTiming(10, { duration: 300 }),
+          withTiming(0, { duration: 300 })
+        )
+      )
+    );
+
+    arrowTranslate.value = withRepeat(sequence, -1, false);
+    arrowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 0 }),
+        withDelay(500, withTiming(0.5, { duration: 300 })),
+        withTiming(1, { duration: 300 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const arrowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: arrowTranslate.value }],
+    opacity: arrowOpacity.value,
+  }));
+
+  return (
+    <View style={styles.iconWrapper}>
+      <View style={styles.iconContainer}>
+        <Ionicons name="open-outline" size={28} color={COLORS.primary} />
+        <Animated.View style={[styles.arrowOverlay, arrowStyle]}>
+          <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+        </Animated.View>
+      </View>
+    </View>
+  );
+};
+
+const LongPressAnimation = () => {
+  const scale = useSharedValue(1);
+  const progress = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+  const fingerScale = useSharedValue(1);
+
+  useEffect(() => {
+    // Finger press animation
+    fingerScale.value = withRepeat(
+      withSequence(
+        withTiming(0.9, { duration: 1000 }),
+        withTiming(1, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
+
+    // Clock pulse animation
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1000 }),
+        withTiming(1.1, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
+
+    // Progress bar animation
+    progress.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 0 }),
+        withTiming(1, { duration: 2000 }),
+        withTiming(0, { duration: 0 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const fingerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: fingerScale.value }],
+  }));
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  return (
+    <View style={styles.iconWrapper}>
+      <Animated.View style={[styles.iconContainer, fingerStyle]}>
+        <Ionicons name="finger-print" size={28} color={COLORS.secondary} />
+      </Animated.View>
+      <Animated.View style={[styles.clockOverlay, pulseStyle]}>
+        <Ionicons name="time" size={20} color={COLORS.secondary} />
+        <View style={styles.progressContainer}>
+          <Animated.View style={[styles.progressBar, progressStyle, { backgroundColor: COLORS.secondary }]} />
+        </View>
+      </Animated.View>
+    </View>
+  );
+};
 
 export default function OnboardingSheet({
   visible,
@@ -72,45 +264,36 @@ export default function OnboardingSheet({
       <PanGestureHandler onGestureEvent={handlePanGesture}>
         <Animated.View style={[styles.modalContainer, animatedStyle]}>
           <View style={styles.modalContent}>
-            {/* Handle bar */}
             <View style={styles.handleBar} />
             
             <Text style={styles.title}>Pro Tips 🎯</Text>
             
-            {/* Tip items */}
             <View style={styles.tipContainer}>
               <View style={styles.tipItem}>
-                <View style={styles.tipIconContainer}>
-                  <Ionicons name="information-circle" size={24} color="#007AFF" />
-                </View>
+                <TapAnimation />
                 <View style={styles.tipTextContainer}>
                   <Text style={styles.tipTitle}>Tap for Details</Text>
-                  <Text style={styles.tipDescription}>Tap any perk to see more information and quick actions</Text>
+                  <Text style={styles.tipDescription}>Peek at all the perks and quick actions available</Text>
                 </View>
               </View>
 
               <View style={styles.tipItem}>
-                <View style={styles.tipIconContainer}>
-                  <Ionicons name="open-outline" size={24} color="#007AFF" />
-                </View>
+                <OpenAppAnimation />
                 <View style={styles.tipTextContainer}>
                   <Text style={styles.tipTitle}>Open Apps Directly</Text>
-                  <Text style={styles.tipDescription}>Launch the relevant app to redeem your perk instantly</Text>
+                  <Text style={styles.tipDescription}>Jump straight to your apps and we'll handle the rest</Text>
                 </View>
               </View>
 
               <View style={styles.tipItem}>
-                <View style={styles.tipIconContainer}>
-                  <Ionicons name="time" size={24} color="#007AFF" />
-                </View>
+                <LongPressAnimation />
                 <View style={styles.tipTextContainer}>
                   <Text style={styles.tipTitle}>Auto-Redeem Monthly</Text>
-                  <Text style={styles.tipDescription}>Long-press to set up automatic redemption for recurring credits</Text>
+                  <Text style={styles.tipDescription}>Set it and forget it for your favorite subscriptions</Text>
                 </View>
               </View>
             </View>
 
-            {/* Got it button */}
             <TouchableOpacity
               style={styles.gotItButton}
               onPress={onDismiss}
@@ -138,10 +321,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: COLORS.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 10,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -155,57 +338,107 @@ const styles = StyleSheet.create({
     }),
   },
   modalContent: {
-    padding: 20,
+    padding: LAYOUT.modalPadding,
     paddingTop: 12,
   },
   handleBar: {
     width: 36,
     height: 4,
-    backgroundColor: '#C7C7CC',
+    backgroundColor: COLORS.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 24,
+    color: COLORS.text.primary,
+    marginBottom: 20,
     textAlign: 'center',
   },
   tipContainer: {
-    gap: 20,
-    marginBottom: 32,
+    gap: LAYOUT.itemSpacing,
+    marginBottom: 24,
   },
   tipItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  tipIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F0F7FF',
+  iconWrapper: {
+    width: LAYOUT.iconSize,
+    height: LAYOUT.iconSize,
+    marginRight: LAYOUT.gutter,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+  },
+  iconContainer: {
+    width: LAYOUT.iconSize,
+    height: LAYOUT.iconSize,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: `${COLORS.primary}10`,
+    borderRadius: LAYOUT.iconSize / 2,
+  },
+  rippleContainer: {
+    position: 'absolute',
+    width: LAYOUT.iconSize,
+    height: LAYOUT.iconSize,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ripple: {
+    width: LAYOUT.iconSize,
+    height: LAYOUT.iconSize,
+    borderRadius: LAYOUT.iconSize / 2,
+    opacity: 0.2,
+  },
+  arrowOverlay: {
+    position: 'absolute',
+    right: -4,
+    top: -4,
+  },
+  clockOverlay: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: `${COLORS.secondary}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressContainer: {
+    position: 'absolute',
+    bottom: 2,
+    left: 4,
+    right: 4,
+    height: 2,
+    backgroundColor: `${COLORS.secondary}20`,
+    borderRadius: 1,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 1,
   },
   tipTextContainer: {
     flex: 1,
+    paddingTop: 2,
   },
   tipTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 4,
+    color: COLORS.text.primary,
+    marginBottom: 2,
   },
   tipDescription: {
     fontSize: 15,
-    color: '#666',
+    color: COLORS.text.secondary,
     lineHeight: 20,
   },
   gotItButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
