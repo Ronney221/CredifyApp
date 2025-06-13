@@ -98,12 +98,18 @@ export default function OnboardingCardSelectScreen() {
     if (newSelectedIds.has(cardId)) {
       newSelectedIds.delete(cardId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Animated.timing(cardScale, {
+        toValue: 1,
+        duration: 200,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        useNativeDriver: true,
+      }).start();
     } else {
       newSelectedIds.add(cardId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Animated.sequence([
         Animated.timing(cardScale, {
-          toValue: 1.08,
+          toValue: 1.1,
           duration: 150,
           easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: true,
@@ -236,7 +242,7 @@ export default function OnboardingCardSelectScreen() {
           </View>
           
           <View style={styles.issuerGroup}>
-            <Text style={styles.issuerName}>All Cards by Issuer</Text>
+            <Text style={styles.issuerName}>Browse All Cards</Text>
             {Object.entries(groupedCards.allCardsByIssuer).map(([issuerName, cards]) => (
               <View key={issuerName} style={styles.subIssuerGroup}>
                 <Text style={styles.subIssuerName}>{issuerName}</Text>
@@ -317,7 +323,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   scrollContent: {
-    paddingBottom: 150,
   },
   issuerGroup: {
     marginBottom: 24,

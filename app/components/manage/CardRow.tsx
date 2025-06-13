@@ -201,9 +201,24 @@ const styles = StyleSheet.create({
     minHeight: 60,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginHorizontal: 16,
+    marginVertical: 4,
+    backgroundColor: '#fff',
   },
   cardRowSelected: {
     backgroundColor: '#eef7ff',
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardRowDisabled: {
     opacity: 0.5,
@@ -239,6 +254,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 1,
+    backgroundColor: 'transparent',
   },
   cardIconWrapper: {
     width: 28,
@@ -248,8 +264,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardImage: {
-    width: '90%',
-    height: '90%',
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
     resizeMode: 'contain',
   },
   cardContent: {
