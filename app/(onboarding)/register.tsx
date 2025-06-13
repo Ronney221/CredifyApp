@@ -34,10 +34,27 @@ import Animated, {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const testimonials = [
-  { name: 'Matt', percentage: 93 },
-  { name: 'Sarah', percentage: 87 },
-  { name: 'James', percentage: 91 },
-  { name: 'Emma', percentage: 85 },
+  { name: 'Matt K.', percentage: 93 },
+  { name: 'Sarah L.', percentage: 87 },
+  { name: 'James R.', percentage: 91 },
+  { name: 'Emma T.', percentage: 85 },
+  { name: 'Alex M.', percentage: 89 },
+  { name: 'Sophie B.', percentage: 92 },
+  { name: 'David P.', percentage: 88 },
+  { name: 'Rachel W.', percentage: 90 },
+];
+
+const verbs = [
+  'captured',
+  'redeemed',
+  'unlocked',
+  'maximized',
+  'secured',
+  'claimed',
+  'earned',
+  'collected',
+  'leveraged',
+  'optimized'
 ];
 
 export default function RegisterScreen() {
@@ -246,7 +263,7 @@ export default function RegisterScreen() {
               style={styles.testimonialContainer}
             >
               <Text style={styles.testimonialText}>
-                {testimonials[currentTestimonial].name} captured {testimonials[currentTestimonial].percentage}% of their perks last year
+                {testimonials[currentTestimonial].name} {verbs[currentTestimonial % verbs.length]} {testimonials[currentTestimonial].percentage}% of their perks last year
               </Text>
             </MotiView>
 
