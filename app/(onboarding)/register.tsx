@@ -1,120 +1,155 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   TextInput,
-  Platform,
-  StatusBar,
+  TouchableOpacity,
   KeyboardAvoidingView,
+  Platform,
   ScrollView,
+  Image,
+  StatusBar,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MotiView } from 'moti';
 import { Colors } from '../../constants/Colors';
-import * as Haptics from 'expo-haptics';
+import { MotiView } from 'moti';
 import { useOnboardingContext } from './_context/OnboardingContext';
+import { allCards } from '../../src/data/card-data';
+import * as Haptics from 'expo-haptics';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { selectedCards } = useOnboardingContext();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  // Get the selected card objects with proper typing
+  const selectedCardObjects = useMemo(() => {
+    return selectedCards
+      .map((cardId: string) => allCards.find(card => card.id === cardId))
+      .filter((card): card is typeof allCards[0] => card !== undefined);
+  }, [selectedCards]);
+
+  // Calculate total value with proper typing
+  const totalValue = useMemo(() => {
+    return selectedCardObjects.reduce((total: number, card: typeof allCards[0]) => {
+      const cardValue = card.benefits.reduce((sum: number, benefit: any) => {
+        const annualValue = benefit.value * (12 / benefit.periodMonths);
+        return sum + annualValue;
+      }, 0);
+      return total + cardValue;
+    }, 0);
+  }, [selectedCardObjects]);
 
   const handleRegister = async () => {
     if (!email || !password) return;
     
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    try {
-      // TODO: Implement actual registration logic here
-      // For now, just simulate a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // After successful registration, navigate to the main app
-      router.replace('/(tabs)');
-    } catch (error) {
-      console.error('Registration error:', error);
-      // TODO: Show error message to user
-    } finally {
-      setIsLoading(false);
-    }
+    // Simulate registration process
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    setIsLoading(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.replace('/home' as any);
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+      
+      {/* Personalized Card Display */}
+      <View style={styles.cardsContainer}>
+        {selectedCardObjects.map((card, index) => (
           <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 400 }}
-            style={styles.contentContainer}
-          >
-            <View style={styles.headerContainer}>
-              <Text style={styles.title}>Create Your Account</Text>
-              <Text style={styles.subtitle}>
-                Track your {selectedCards.length} selected cards and maximize your benefits
-              </Text>
-            </View>
-
-            <View style={styles.formContainer}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  placeholderTextColor={Colors.light.secondaryLabel}
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Create a password"
-                  placeholderTextColor={Colors.light.secondaryLabel}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password-new"
-                />
-              </View>
-            </View>
-          </MotiView>
-        </ScrollView>
-
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 400, delay: 200 }}
-          style={styles.footer}
-        >
-          <TouchableOpacity
+            key={card.id}
+            from={{
+              opacity: 0,
+              translateY: -100,
+              scale: 0.8,
+              rotate: '-15deg',
+            }}
+            animate={{
+              opacity: 1,
+              translateY: 0,
+              scale: 1,
+              rotate: '0deg',
+            }}
+            transition={{
+              type: 'spring',
+              delay: index * 200,
+              damping: 12,
+              mass: 1,
+              stiffness: 100,
+            }}
             style={[
-              styles.registerButton,
-              (!email || !password || isLoading) && styles.registerButtonDisabled
+              styles.cardWrapper,
+              {
+                transform: [
+                  { translateX: (index - (selectedCardObjects.length - 1) / 2) * 40 },
+                ],
+              },
             ]}
+          >
+            <Image
+              source={card.image}
+              style={styles.cardImage}
+              resizeMode="contain"
+            />
+          </MotiView>
+        ))}
+      </View>
+
+      <MotiView
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 600, delay: 400 }}
+        style={styles.contentContainer}
+      >
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>
+            Save Your ${totalValue} Perk Dashboard
+          </Text>
+          <Text style={styles.subtitle}>
+            Create a free account to get personalized reminders and ensure you never miss a benefit
+          </Text>
+        </View>
+
+        <View style={styles.formContainer}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Create a password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.registerButton, (!email || !password) && styles.registerButtonDisabled]}
             onPress={handleRegister}
             disabled={!email || !password || isLoading}
-            activeOpacity={0.8}
           >
             <Text style={styles.registerButtonText}>
               {isLoading ? 'Creating Account...' : 'Create Account'}
@@ -123,14 +158,14 @@ export default function RegisterScreen() {
 
           <TouchableOpacity
             style={styles.loginLink}
-            onPress={() => router.push('/(auth)/login')}
+            onPress={() => router.push('/login' as any)}
           >
             <Text style={styles.loginLinkText}>
               Already have an account? <Text style={styles.loginLinkTextBold}>Log in</Text>
             </Text>
           </TouchableOpacity>
-        </MotiView>
-      </KeyboardAvoidingView>
+        </View>
+      </MotiView>
     </SafeAreaView>
   );
 }
@@ -140,11 +175,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  keyboardAvoidingView: {
-    flex: 1,
+  cardsContainer: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginTop: 20,
   },
-  scrollContent: {
-    flexGrow: 1,
+  cardWrapper: {
+    width: SCREEN_WIDTH * 0.4,
+    height: 120,
+    marginHorizontal: -20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
   },
   contentContainer: {
     flex: 1,
@@ -169,6 +223,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     letterSpacing: -0.2,
+    paddingHorizontal: 24,
   },
   formContainer: {
     gap: 20,
@@ -180,28 +235,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Colors.light.text,
-    letterSpacing: -0.2,
+    marginBottom: 4,
   },
   input: {
-    height: 50,
-    backgroundColor: Colors.light.background,
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 17,
+    padding: 16,
+    fontSize: 16,
     color: Colors.light.text,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 24,
-    backgroundColor: 'transparent',
+    borderColor: '#E5E5EA',
   },
   registerButton: {
     backgroundColor: Colors.light.tint,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
+    marginTop: 8,
     shadowColor: Colors.light.tint,
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -220,13 +270,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   loginLink: {
-    marginTop: 16,
     alignItems: 'center',
+    marginTop: 16,
   },
   loginLinkText: {
     fontSize: 15,
     color: Colors.light.secondaryLabel,
-    textAlign: 'center',
   },
   loginLinkTextBold: {
     color: Colors.light.tint,
