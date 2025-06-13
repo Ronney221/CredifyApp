@@ -184,6 +184,7 @@ export default function Dashboard() {
   const donutDisplayRef = useRef<{ refresh: () => void }>(null);
   const flatListRef = useRef<FlatList<CardListItem>>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
   const nextPerkRef = useRef<CardPerkWithMeta | null>(null);
 
   // State for pending toast notification after returning from another app
@@ -750,9 +751,9 @@ export default function Dashboard() {
         return;
       }
 
-      // Store current scroll position using getValue()
-      const currentOffset = scrollY.getValue();
-
+      // Store current scroll position
+      const currentOffset = lastScrollY.current;
+      
       // Perform full refresh of data
       await Promise.all([
         refreshUserCards(),
@@ -807,9 +808,9 @@ export default function Dashboard() {
         return;
       }
 
-      // Store current scroll position using getValue()
-      const currentOffset = scrollY.getValue();
-
+      // Store current scroll position
+      const currentOffset = lastScrollY.current;
+      
       // Perform full refresh of data
       await Promise.all([
         refreshUserCards(),
@@ -977,11 +978,28 @@ export default function Dashboard() {
   // Log before returning the main JSX tree
   console.log("DEBUG: Dashboard component - BEFORE MAIN RETURN. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isUserCardsRefreshing, "isCalculatingSavings:", isCalculatingSavings, "sortedCards count:", sortedCards?.length);
 
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: { nativeEvent: { contentOffset: { y: number } } }) => {
+        lastScrollY.current = event.nativeEvent.contentOffset.y;
+      }
+    }
+  );
+
+  // Separate animation for height
+  const animatedHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [100, 0],
+    extrapolate: 'clamp'
+  });
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="dark" />
       <View style={styles.mainContainer}>
-        <Animated.View style={[styles.animatedHeaderContainer, { height: animatedHeaderHeight }]}>
+        <Animated.View style={[styles.animatedHeaderContainer, { height: animatedHeight }]}>
           {/* Expanded Header Content (Greeting) */}
           <Animated.View 
             style={[
@@ -1022,10 +1040,7 @@ export default function Dashboard() {
             contentContainerStyle={styles.flatListContentContainer} // New style for FlatList specific content padding
             style={styles.flatListOverallStyle} // Style for the FlatList container itself
             showsVerticalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false }
-            )}
+            onScroll={handleScroll}
             scrollEventThrottle={16}
             extraData={activeCardId} // Changed extraData
           />
@@ -1038,10 +1053,7 @@ export default function Dashboard() {
           <ScrollView 
             contentContainerStyle={styles.scrollContent} // Re-use existing scrollContent for padding
             showsVerticalScrollIndicator={false}
-             onScroll={Animated.event( // Also attach scroll handler here for header animation
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false }
-            )}
+             onScroll={handleScroll}
             scrollEventThrottle={16}
           >
             {/* {listHeaderElement} Temporarily removed for testing no-cards scenario */}
