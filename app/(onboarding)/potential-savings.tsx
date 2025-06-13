@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StatusBar,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,10 +16,12 @@ import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { CardPerks } from '../components/onboarding/CardPerks';
 import { allCards } from '../../src/data/card-data';
+import * as Haptics from 'expo-haptics';
 
 export default function PotentialSavingsScreen() {
   const router = useRouter();
   const { selectedCards } = useOnboardingContext();
+  const [displayValue, setDisplayValue] = useState(0);
 
   // Get the selected card objects
   const selectedCardObjects = useMemo(() => {
@@ -27,11 +30,10 @@ export default function PotentialSavingsScreen() {
       .filter((card): card is NonNullable<typeof card> => card !== undefined);
   }, [selectedCards]);
 
-  // Calculate total value (placeholder - replace with actual calculation)
+  // Calculate total value
   const totalValue = useMemo(() => {
     return selectedCardObjects.reduce((total, card) => {
       const cardValue = card.benefits.reduce((sum, benefit) => {
-        // Convert benefit value to annual value
         const annualValue = benefit.value * (12 / benefit.periodMonths);
         return sum + annualValue;
       }, 0);
@@ -39,30 +41,64 @@ export default function PotentialSavingsScreen() {
     }, 0);
   }, [selectedCardObjects]);
 
+  // Animate the value counting up
+  useEffect(() => {
+    const finalValue = Math.round(totalValue);
+    const duration = 2000; // 2 seconds
+    const steps = 60; // 60 steps for smooth animation
+    const stepDuration = duration / steps;
+    const increment = finalValue / steps;
+    let currentStep = 0;
+
+    const interval = setInterval(() => {
+      currentStep++;
+      const newValue = Math.round(increment * currentStep);
+      setDisplayValue(newValue);
+
+      // Add haptic feedback at certain thresholds
+      if (currentStep === 1 || currentStep === steps) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      if (currentStep >= steps) {
+        clearInterval(interval);
+        setDisplayValue(finalValue);
+      }
+    }, stepDuration);
+
+    return () => clearInterval(interval);
+  }, [totalValue]);
+
+  const handleStartTracking = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.push('/(auth)/register');
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <StatusBar barStyle="dark-content" />
       
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 400 }}
-        style={styles.content}
-      >
-        <View style={styles.heroSection}>
-          <Text style={styles.heroLabel}>Your Potential Annual Savings</Text>
-          <Text style={styles.heroValue}>${Math.round(totalValue)}</Text>
-        </View>
-
+      <View style={styles.content}>
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
           animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 400, delay: 200 }}
-          style={styles.detailsSection}
+          transition={{ type: 'timing', duration: 400 }}
         >
-          <Text style={styles.detailsText}>
-            Based on your selected cards and typical spending patterns
-          </Text>
+          <View style={styles.heroSection}>
+            <Text style={styles.heroLabel}>Your Potential Annual Savings</Text>
+            <Text style={styles.heroValue}>${displayValue}</Text>
+          </View>
+
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400, delay: 200 }}
+            style={styles.detailsSection}
+          >
+            <Text style={styles.detailsText}>
+              Based on your selected cards and typical spending patterns
+            </Text>
+          </MotiView>
         </MotiView>
 
         <ScrollView 
@@ -74,7 +110,22 @@ export default function PotentialSavingsScreen() {
             <CardPerks key={card.id} card={card} index={index} />
           ))}
         </ScrollView>
-      </MotiView>
+
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 400, delay: 400 }}
+          style={styles.footer}
+        >
+          <TouchableOpacity
+            style={styles.ctaButton}
+            onPress={handleStartTracking}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.ctaButtonText}>Save and Start Tracking</Text>
+          </TouchableOpacity>
+        </MotiView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -87,11 +138,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
   },
   heroSection: {
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: 20,
   },
   heroLabel: {
     fontSize: 20,
@@ -107,7 +157,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   detailsSection: {
-    marginTop: 32,
+    marginTop: 24,
     alignItems: 'center',
   },
   detailsText: {
@@ -119,9 +169,35 @@ const styles = StyleSheet.create({
   },
   cardsList: {
     flex: 1,
-    marginTop: 32,
+    marginTop: 24,
   },
   cardsListContent: {
-    paddingBottom: 32,
+    paddingBottom: 16,
+  },
+  footer: {
+    paddingTop: 12,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  ctaButton: {
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: Colors.light.tint,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  ctaButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
 }); 
