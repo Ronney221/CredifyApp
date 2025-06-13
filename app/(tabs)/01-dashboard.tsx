@@ -1128,6 +1128,7 @@ export default function Dashboard() {
 
         {/* Perk Action Modal */}
         <PerkActionModal
+          key={selectedPerk ? selectedPerk.name : null}
           visible={modalVisible}
           perk={selectedPerk}
           onDismiss={handleModalDismiss}

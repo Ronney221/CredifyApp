@@ -244,7 +244,7 @@ export default function PerkActionModal({
   const sliderPosition = useSharedValue(0);
   const sliderAnimation = useSharedValue<number>(0);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const descriptionHeight = useSharedValue(0);
+  const descriptionMeasuredHeight = useSharedValue(0);
   const modalHeight = useSharedValue('auto');
   
   // Get the currently redeemed amount if partially redeemed
@@ -292,7 +292,6 @@ export default function PerkActionModal({
       // Then animate the modal
       translateY.value = withTiming(0, { duration: 300 });
       opacity.value = withTiming(1, { duration: 300 });
-      setIsDescriptionExpanded(false);
       
       // Set remaining values based on perk status
       const currentRedeemedAmount = getCurrentRedeemedAmount();
@@ -499,13 +498,34 @@ export default function PerkActionModal({
   };
 
   const toggleDescription = () => {
-    Haptics.selectionAsync();
-    setIsDescriptionExpanded(!isDescriptionExpanded);
+    if (!isDescriptionExpanded) {
+      Haptics.selectionAsync();
+      setIsDescriptionExpanded(true);
+    }
   };
 
   const animatedDescriptionStyle = useAnimatedStyle(() => {
+    let targetHeight = 0;
+
+    if (isDescriptionExpanded) {
+      // If we are expanding:
+      if (descriptionMeasuredHeight.value > 0) {
+        // And we HAVE a measurement, use it.
+        targetHeight = descriptionMeasuredHeight.value;
+      } else {
+        // And we DON'T have a measurement, render naturally to trigger onLayout.
+        // This will make it appear instantly instead of animating, which is fine for the first open.
+        return {
+          height: 'auto',
+          opacity: 1,
+          marginBottom: 24,
+        };
+      }
+    }
+
+    // For all other cases (collapsing, or expanding when we have a measurement), animate smoothly.
     return {
-      height: withSpring(isDescriptionExpanded ? 'auto' : 0, {
+      height: withSpring(targetHeight, {
         damping: 20,
         stiffness: 90,
       }),
@@ -584,7 +604,17 @@ export default function PerkActionModal({
               </View>
               
               <Animated.View style={[styles.descriptionContainer, animatedDescriptionStyle]}>
-                <Text style={styles.description}>{perk.description}</Text>
+                <View
+                  onLayout={(event) => {
+                    const { height } = event.nativeEvent.layout;
+                    if (height > 0) {
+                      // When the view lays out, store its height.
+                      descriptionMeasuredHeight.value = height;
+                    }
+                  }}
+                >
+                  <Text style={styles.description}>{perk.description}</Text>
+                </View>
               </Animated.View>
 
               <View style={styles.valueContainer}>
@@ -697,7 +727,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
   },
   scrollView: {
     flexGrow: 0,
@@ -718,7 +747,7 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 8,
   },
   title: {
     fontSize: 20,
