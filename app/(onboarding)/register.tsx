@@ -1,33 +1,38 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  Image,
   StatusBar,
+  Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Colors } from '../../constants/Colors';
+import { useRouter, Link } from 'expo-router';
 import { MotiView } from 'moti';
+import { Colors } from '../../constants/Colors';
+import * as Haptics from 'expo-haptics';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { allCards } from '../../src/data/card-data';
-import * as Haptics from 'expo-haptics';
+import { useAuth } from '../../contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { selectedCards } = useOnboardingContext();
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const { signInGoogle, signInApple } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
+
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
+  }, []);
 
   // Get the selected card objects with proper typing
   const selectedCardObjects = useMemo(() => {
@@ -47,18 +52,40 @@ export default function RegisterScreen() {
     }, 0);
   }, [selectedCardObjects]);
 
-  const handleRegister = async () => {
-    if (!email || !password) return;
-    
+  const handleGoogleSignIn = async () => {
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // Simulate registration process
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const { data, error } = await signInGoogle();
+      if (error) throw error;
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/home' as any);
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setIsLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    setIsLoading(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace('/home' as any);
+    try {
+      const { data, error } = await signInApple();
+      if (error) throw error;
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/home' as any);
+    } catch (error) {
+      console.error('Apple sign in error:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -122,50 +149,53 @@ export default function RegisterScreen() {
           </Text>
         </View>
 
-        <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Create a password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.registerButton, (!email || !password) && styles.registerButtonDisabled]}
-            onPress={handleRegister}
-            disabled={!email || !password || isLoading}
+        <View style={styles.authContainer}>
+          <TouchableOpacity 
+            style={styles.socialButton} 
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
+            activeOpacity={0.8}
           >
-            <Text style={styles.registerButtonText}>
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-            </Text>
+            <View style={styles.socialButtonContent}>
+              <Ionicons name="logo-google" size={20} color="#4285f4" />
+              <Text style={styles.socialButtonText}>
+                Continue with Google
+              </Text>
+            </View>
           </TouchableOpacity>
+          
+          {Platform.OS === 'ios' && isAppleAuthAvailable && (
+            <View style={styles.appleButtonWrapper}>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={12}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            </View>
+          )}
 
-          <TouchableOpacity
-            style={styles.loginLink}
-            onPress={() => router.push('/login' as any)}
-          >
-            <Text style={styles.loginLinkText}>
-              Already have an account? <Text style={styles.loginLinkTextBold}>Log in</Text>
+          <View style={styles.termsContainer}>
+            <Text style={styles.termsText}>
+              By continuing, you agree to our{' '}
+              <Link href="/legal/terms" asChild>
+                <Text style={styles.termsLink}>Terms of Service</Text>
+              </Link>
+              {' '}and{' '}
+              <Link href="/legal/terms" asChild>
+                <Text style={styles.termsLink}>Privacy Policy</Text>
+              </Link>
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </MotiView>
+
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={Colors.light.tint} />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -225,60 +255,68 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     paddingHorizontal: 24,
   },
-  formContainer: {
-    gap: 20,
+  authContainer: {
+    paddingTop: 16,
   },
-  inputContainer: {
-    gap: 8,
-  },
-  inputLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
+  socialButton: {
+    backgroundColor: '#ffffff',
+    height: 50,
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: Colors.light.text,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginHorizontal: 16,
   },
-  registerButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 16,
-    borderRadius: 14,
+  socialButtonContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: Colors.light.tint,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    justifyContent: 'center',
+    height: '100%',
+    paddingHorizontal: 20,
   },
-  registerButtonDisabled: {
-    backgroundColor: '#d1d1d6',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  registerButtonText: {
-    color: '#ffffff',
+  socialButtonText: {
+    color: '#1c1c1e',
     fontSize: 17,
     fontWeight: '600',
-    letterSpacing: -0.2,
+    marginLeft: 8,
   },
-  loginLink: {
+  appleButtonWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    height: 50,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  appleButton: {
+    height: '100%',
+    width: '100%',
+  },
+  termsContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  termsText: {
+    color: '#8e8e93',
+    textAlign: 'center',
+    lineHeight: 18,
+    fontSize: Platform.OS === 'ios' ? 11 : 12,
+    opacity: 0.6,
+  },
+  termsLink: {
+    color: '#007aff',
+    textDecorationLine: 'underline',
+    fontSize: Platform.OS === 'ios' ? 11 : 12,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
-  },
-  loginLinkText: {
-    fontSize: 15,
-    color: Colors.light.secondaryLabel,
-  },
-  loginLinkTextBold: {
-    color: Colors.light.tint,
-    fontWeight: '600',
   },
 }); 
