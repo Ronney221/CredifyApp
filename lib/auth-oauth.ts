@@ -5,13 +5,26 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
+// Ensure browser sessions are cleaned up
 WebBrowser.maybeCompleteAuthSession();
+
+// Add a function to safely close any open browser sessions
+const closeBrowserSession = async () => {
+  try {
+    await WebBrowser.dismissBrowser();
+  } catch (error) {
+    console.log('No active browser session to close');
+  }
+};
 
 export const signInWithGoogle = async () => {
   const redirectUrl = 'credify://auth/callback';
   console.log('Using redirect URL:', redirectUrl);
 
   try {
+    // First, ensure any existing browser sessions are closed
+    await closeBrowserSession();
+
     // Kick off OAuth; supabase-js will open the browser for you
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -65,12 +78,17 @@ export const signInWithGoogle = async () => {
     return { data: null, error: null };
   } catch (error) {
     console.error('Unexpected error during Google Sign In:', error);
+    // Ensure browser session is closed on error
+    await closeBrowserSession();
     return { data: null, error };
   }
 };
 
 export const signInWithApple = async () => {
   try {
+    // First, ensure any existing browser sessions are closed
+    await closeBrowserSession();
+
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -99,6 +117,8 @@ export const signInWithApple = async () => {
       return { data: null, error: null }; // User cancelled, return without error
     }
     console.error('Unexpected error during Apple Sign In:', error);
+    // Ensure browser session is closed on error
+    await closeBrowserSession();
     return { data: null, error };
   }
 };
