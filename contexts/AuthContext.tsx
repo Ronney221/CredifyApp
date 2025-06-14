@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 // These are the functions we are importing
-import { signInWithGoogle, signInWithApple } from '../lib/auth-oauth';
+import { signInWithGoogle, signInWithApple, signInWithEmail } from '../lib/auth-oauth';
 
 // Define the context shape
 interface AuthContextType {
@@ -13,6 +13,7 @@ interface AuthContextType {
   loading: boolean;
   signInGoogle: () => Promise<any>;
   signInApple: () => Promise<any>;
+  signInEmail: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
 }
 
@@ -51,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signInGoogle: signInWithGoogle, // Assign the imported function
     signInApple: signInWithApple,   // Assign the imported function
+    signInEmail: signInWithEmail,   // Assign the imported function
     signOut: () => supabase.auth.signOut(),
   };
   // --------------------

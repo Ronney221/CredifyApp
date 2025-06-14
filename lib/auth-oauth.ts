@@ -103,6 +103,26 @@ export const signInWithApple = async () => {
   }
 };
 
+export const signInWithEmail = async (email: string, password: string) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('Supabase Email Sign In error:', error);
+      return { data: null, error };
+    }
+
+    console.log('Email Sign In successful');
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Unexpected error during Email Sign In:', error);
+    return { data: null, error };
+  }
+};
+
 // OAuth configuration helpers
 export const getOAuthRedirectUrl = () => {
   return makeRedirectUri();

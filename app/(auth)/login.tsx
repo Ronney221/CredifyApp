@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,11 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  Modal,
+  TextInput,
+  TouchableWithoutFeedback,
+  Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
@@ -83,12 +88,18 @@ const verbs = [
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signInGoogle, signInApple } = useAuth();
+  const { signInGoogle, signInApple, signInEmail } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
   const [selectedCards, setSelectedCards] = React.useState<typeof allCards>([]);
   const translateY = useSharedValue(0);
+  const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const passwordInputRef = useRef<TextInput | null>(null);
 
   // Function to get random cards
   const getRandomCards = () => {
@@ -174,6 +185,26 @@ export default function LoginScreen() {
     }
   };
 
+  const handleEmailLogin = async () => {
+    setIsLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    try {
+      const { data, error } = await signInEmail(email, password);
+      if (error) throw error;
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/(tabs)/01-dashboard' as any);
+    } catch (error) {
+      console.error('Email sign in error:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
+      setIsEmailModalVisible(false);
+    }
+  };
+
   const handleResetStorage = async () => {
     try {
       await AsyncStorage.clear();
@@ -182,6 +213,10 @@ export default function LoginScreen() {
       console.error('Failed to reset storage:', e);
       Alert.alert('Error', 'Failed to reset storage');
     }
+  };
+
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
   };
 
   return (
@@ -279,6 +314,20 @@ export default function LoginScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.socialButton} 
+              onPress={() => setIsEmailModalVisible(true)}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              <View style={styles.socialButtonContent}>
+                <Ionicons name="mail" size={20} color={Colors.light.tint} />
+                <Text style={styles.socialButtonText}>
+                  Continue with Email
+                </Text>
+              </View>
+            </TouchableOpacity>
             
             {Platform.OS === 'ios' && isAppleAuthAvailable && (
               <View style={styles.appleButtonWrapper}>
@@ -322,6 +371,89 @@ export default function LoginScreen() {
           </View>
         </MotiView>
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isEmailModalVisible}
+        onRequestClose={() => setIsEmailModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.modalContent}
+            >
+              <TouchableWithoutFeedback onPress={dismissKeyboard}>
+                <View>
+                  <Text style={styles.modalTitle}>Sign in with Email</Text>
+                  
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Email</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter your email"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      onFocus={() => setIsEmailFocused(true)}
+                      onBlur={() => setIsEmailFocused(false)}
+                      returnKeyType="next"
+                      onSubmitEditing={() => {
+                        // Focus the password input when email is submitted
+                        passwordInputRef.current?.focus();
+                      }}
+                    />
+                    {isEmailFocused && (
+                      <Text style={styles.helperText}>Use: test@example.com</Text>
+                    )}
+                  </View>
+                  
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Password</Text>
+                    <TextInput
+                      ref={passwordInputRef}
+                      style={styles.input}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
+                      autoCapitalize="none"
+                      autoComplete="password"
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
+                      returnKeyType="done"
+                      onSubmitEditing={handleEmailLogin}
+                    />
+                    {isPasswordFocused && (
+                      <Text style={styles.helperText}>Use: password</Text>
+                    )}
+                  </View>
+                  
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity 
+                      style={[styles.modalButton, styles.cancelButton]}
+                      onPress={() => setIsEmailModalVisible(false)}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[styles.modalButton, styles.loginButton]}
+                      onPress={handleEmailLogin}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.loginButtonText}>Sign In</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
@@ -508,5 +640,89 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: Colors.light.text,
+  },
+  input: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    fontSize: 16,
+    backgroundColor: '#f8f8f8',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingBottom: 16,
+  },
+  modalButton: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  cancelButton: {
+    backgroundColor: '#f2f2f2',
+  },
+  loginButton: {
+    backgroundColor: Colors.light.tint,
+  },
+  cancelButtonText: {
+    color: Colors.light.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: Colors.light.secondaryLabel,
+    marginTop: 4,
+    marginLeft: 4,
+    fontStyle: 'italic',
   },
 }); 
