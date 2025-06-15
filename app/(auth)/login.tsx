@@ -155,7 +155,14 @@ export default function LoginScreen() {
     
     try {
       const { data, error } = await signInGoogle();
-      if (error) throw error;
+      if (error) {
+        // Only throw if it's not a cancellation
+        if (error.message !== 'User cancelled') {
+          throw error;
+        }
+        // If it's a cancellation, just return without navigation
+        return;
+      }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)/01-dashboard' as any);
@@ -173,7 +180,14 @@ export default function LoginScreen() {
     
     try {
       const { data, error } = await signInApple();
-      if (error) throw error;
+      if (error) {
+        // Only throw if it's not a cancellation
+        if (error.message !== 'User cancelled') {
+          throw error;
+        }
+        // If it's a cancellation, just return without navigation
+        return;
+      }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)/01-dashboard' as any);
