@@ -90,28 +90,33 @@ export async function getBenefitAdvice(query: string, availablePerks: AvailableP
     throw new Error('OpenAI API key not found in environment variables');
   }
 
-  // Construct a more focused prompt that emphasizes relevance
-  const prompt = `As a credit card benefits expert, help the user maximize their available benefits based on their specific query. Focus ONLY on benefits that are directly relevant to their question - do not list every available perk.
+  // Define the new, powerful system prompt
+  const system_prompt = `You are Credify's "Benefit Concierge," an AI expert specializing in credit card rewards. Your primary directive is to help users maximize their card benefits by providing concise, actionable, and hyper-relevant advice.
 
-User Query: ${query}
+You must strictly adhere to the following rules:
 
-Available Benefits:
+1.  **Relevance is Paramount:** ONLY mention benefits that are directly and immediately applicable to the user's specific query. Do not list or allude to any perks that are not relevant, even if they are available.
+
+2.  **Be Direct and Concise:** Do not use conversational filler, greetings, or closing remarks. Omit phrases like "Hello!", "Certainly!", "I can help with that," or "I hope this helps." Get straight to the recommendation.
+
+3.  **Action and Justification:** For each recommended benefit, you must state a clear **action** and a brief **justification**. Frame it as "Use [Benefit] on [Card Name] because..."
+
+4.  **Handle No Relevant Perks:** If absolutely none of the user's available benefits apply to their query, you must state that clearly and concisely. For example: "Based on your query, none of your available benefits are a direct match for this situation." Do not apologize or suggest benefits the user does not have.
+
+5.  **Formatting:** Structure your response using simple Markdown. Use a \`##\` header for the main recommendation and bullet points (\`-\`) for individual actions.`;
+
+  // Construct the clean, data-only user prompt
+  const user_prompt = `User Query: "${query}"
+
+Available User Benefits:
 ${availablePerks.map(card => `
 Card: ${card.cardName}
 Perks:
-${card.perks.map(perk => `- ${perk.name} (Value: $${perk.value}, Renews every ${perk.periodMonths} months)`).join('\n')}
-`).join('\n')}
+${card.perks.map(perk => `- ${perk.name} (Value: $${perk.value})`).join('\n')}
+`).join('\n')}`;
 
-Please provide a concise, actionable response that:
-1. Focuses ONLY on benefits directly relevant to the user's query
-2. Ignores perks that aren't applicable to their situation
-3. Provides specific, actionable steps they can take
-4. Explains why each recommended benefit is relevant to their query
-
-Format the response in a clear, easy-to-read way.`;
-
-  console.log('[OpenAI] Constructed prompt:', prompt);
-  console.log('[OpenAI] Making API request to OpenAI...');
+  console.log('[OpenAI] System Prompt:', system_prompt);
+  console.log('[OpenAI] User Prompt:', user_prompt);
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -121,18 +126,18 @@ Format the response in a clear, easy-to-read way.`;
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4', // Using GPT-4 for better rule adherence
         messages: [
           {
             role: 'system',
-            content: 'You are a credit card benefits expert who provides focused, relevant advice. Only mention benefits that directly relate to the user\'s query.'
+            content: system_prompt
           },
           {
             role: 'user',
-            content: prompt
+            content: user_prompt
           }
         ],
-        temperature: 0.7,
+        temperature: 0.2, // Lower temperature for more deterministic output
         max_tokens: 500
       }),
     });
