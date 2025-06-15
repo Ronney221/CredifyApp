@@ -55,16 +55,16 @@ interface ExamplePrompt {
 
 const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   {
-    text: "I'm booking a trip to New York for 3 nights for my anniversary.",
+    text: "I'm planning a 3-night weekend trip to New York next month. How can I use my card benefits to save money on flights and my hotel stay?",
     icon: "airplane-outline"
   },
   {
-    text: "I need to buy a new iPhone and want to make sure I'm protected.",
-    icon: "shield-checkmark-outline"
+    text: "It's the first week of the month. What are my most time-sensitive monthly credits that I should focus on using first?",
+    icon: "time-outline"
   },
   {
-    text: "Which card should I use for dinner tonight?",
-    icon: "restaurant-outline"
+    text: "I'm about to buy a new laptop for around $1,200. Which of my cards offers the best warranty and purchase protection for an expensive electronic item like this?",
+    icon: "shield-checkmark-outline"
   }
 ];
 
