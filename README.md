@@ -1,6 +1,6 @@
-# Credify: Your Credit Card Benefits Companion 🚀
+# Credify: Your Smart Credit Card Companion 🚀
 
-Track, redeem, and maximize all your credit-card benefits in one place. Stop letting credits expire and start getting the most value from your cards!
+**Stop leaving money on the table. Credify is the ultimate app for tracking, managing, and maximizing your credit card benefits, ensuring you get every dollar of value from your annual fees.**
 
 ![1-portrait](https://github.com/user-attachments/assets/3c13b338-c85f-43d9-856f-0c534a8f9ada)
 
@@ -8,15 +8,31 @@ Track, redeem, and maximize all your credit-card benefits in one place. Stop let
 
 ## What is Credify? 🤔
 
-Managing multiple credit cards with various perks, credits, and benefits can be overwhelming. From monthly dining credits to annual travel benefits, it's easy to miss out on value you're already paying for through annual fees.
+Are you juggling multiple credit cards with a dizzying array of perks? From monthly dining credits and streaming subscriptions to annual travel stipends, it's nearly impossible to keep track of it all. You're paying for these benefits through annual fees—it's time to start using them.
 
-Credify simplifies this by:
+Credify is your intelligent command center for credit card perks. We make it effortless to:
 
-* **Comprehensive Tracking:** Import any credit cards you're paying annual fees on and see all available benefits—monthly, quarterly, semi-annual, and annual—in one place.
-* **Smart Notifications:** Receive customizable reminders (3, 7, or 1 day before deadlines) for perk expirations and renewal windows.
-* **One-Tap Redemption:** Instantly open associated apps (Uber, Grubhub, airline portals, etc.) and mark perks as used.
-* **Value Tracking:** Monitor your progress toward "breaking even" on annual fees and see the total value you've redeemed.
-* **Intelligent Insights:** Get spending recommendations and card comparisons to maximize your benefits.
+* **See Everything in One Place:** Add your credit cards and instantly see a unified dashboard of all your available benefits—monthly, quarterly, and annual.
+* **Never Miss a Deadline:** Get smart, customizable reminders before any perk expires. We'll notify you when it's time to use your credits.
+* **Redeem with a Single Tap:** Our app deep-links directly to the merchant apps and websites you need (like Uber, Grubhub, and airline portals), so you can redeem and track perks in seconds.
+* **Track Your ROI:** Watch your savings add up! Credify visualizes your progress toward breaking even on annual fees, showing you the real-time value you've redeemed.
+
+---
+
+### **Update: Version 1.1 Features (Released 06/15/2025)**
+
+This release focuses on a more robust user experience, deeper insights, and seamless integration.
+
+*   **Revamped Onboarding Experience:** A step-by-step wizard that guides you through adding your cards, setting renewal dates, and instantly showing your potential annual savings.
+*   **Enhanced Dashboard:** A more intuitive interface to view, sort, and filter your perks by card, category, or expiration date.
+*   **Social Logins:** Sign up and log in faster with support for Apple and Google accounts.
+*   **Interactive UI:**
+    *   **Draggable Card Lists:** Organize your cards in the dashboard exactly how you want them.
+    *   **Context Menus:** Long-press on a perk or card for quick actions.
+    *   **Modern Bottom Sheets:** A clean, native feel for menus and selection options.
+*   **Deeper Insights:** The new 'Insights' tab provides more detailed analytics on your redemption habits and which cards are giving you the most value.
+
+---
 
 ## Key Features ✨
 
@@ -36,16 +52,20 @@ Credify simplifies this by:
   * Automatic redemption marking with manual override options
 
 * **Progress & Analytics:**
-  * Visual dashboards showing redemption progress
+  * Visual dashboards showing redemption progress and total savings
   * Annual fee break-even tracking
-  * Card-by-card value comparison
-  * Cumulative savings metrics
+  * Card-by-card value comparison to identify your most valuable cards
+  * Cumulative savings metrics over time
 
 * **Customizable Notifications:**
   * Flexible reminder windows (3 days, 7 days, 1 day before deadlines)
   * Perk expiration alerts
   * Renewal date notifications
   * Custom notification preferences per card
+
+* **Secure Authentication:**
+  * Sign in with Email, Google, or Apple
+  * Secure handling of all user data via Supabase
 
 * **User Experience:**
   * Clean, intuitive interface
@@ -56,22 +76,23 @@ Credify simplifies this by:
 
 ## Why Use Credify? 💰
 
-* **Maximize Value:** Never miss a credit or benefit you're already paying for
-* **Save Time:** All your card perks organized in one place
-* **Stay Informed:** Smart notifications keep you on top of deadlines
-* **Easy Redemption:** One tap to open relevant apps and track usage
-* **Make Better Decisions:** See which cards provide the most value
-* **Break Even Faster:** Track your progress toward offsetting annual fees
+* **Maximize Value:** Stop letting the benefits you pay for expire.
+* **Save Time:** All your card perks, organized in one beautiful dashboard.
+* **Stay Organized:** Smart notifications keep you on top of every deadline.
+* **Redeem Effortlessly:** One tap to open the right app and track your usage.
+* **Make Smarter Decisions:** See exactly which cards are providing the most value.
+* **Break Even, Faster:** Visually track your progress toward offsetting your annual fees.
 
 ## Technology Stack 💻
 
-Built with modern, reliable technologies:
+Built with a modern, reliable, and scalable technology stack:
 
 * **Frontend:**
   * React Native with Expo
   * TypeScript for type safety
   * Expo Router for file-based navigation
   * Lottie for smooth animations
+  * **Moti & Reanimated:** for fluid, performant animations.
 
 * **State Management:**
   * React Context for global state
@@ -79,16 +100,14 @@ Built with modern, reliable technologies:
   * Async Storage for persistence
 
 * **Backend & Auth:**
-  * Supabase for authentication and data storage
-  * Real-time sync capabilities
-  * Secure user data handling
+  * Supabase for authentication, database, and real-time sync
+  * Secure user data handling with social logins (Apple, Google)
 
-* **Features & APIs:**
-  * Deep linking for app integrations
-  * Push notifications
-  * Analytics tracking
-  * Haptic feedback
-  * Safe area handling
+* **Core Functionality:**
+  * **Expo SDK:** Access to native device APIs like Haptics, Notifications, and Secure Storage.
+  * **Deep Linking:** For seamless integration with other apps.
+  * **Push Notifications:** For timely reminders and alerts.
+  * **Analytics & Tracking:** To help you understand your benefits.
 
 ## Getting Started 🚀
 
