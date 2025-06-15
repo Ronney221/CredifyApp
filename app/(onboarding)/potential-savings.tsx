@@ -144,6 +144,9 @@ export default function PotentialSavingsScreen() {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
+      // Set the flag in storage
+      await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
+      
       // Navigate to the register screen
       router.push('/(onboarding)/register');
     } catch (e) {
@@ -189,14 +192,6 @@ export default function PotentialSavingsScreen() {
               <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
                 <Text style={styles.heroValue}>${displayValue}</Text>
               </Animated.View>
-              <View style={styles.netValueContainer}>
-                <Text style={styles.netGainText}>
-                  ${displayNetValue} Net Gain
-                </Text>
-                <Text style={styles.savingsBreakdownText}>
-                  ${displayValue} savings – ${displayFees} fees
-                </Text>
-              </View>
             </View>
           </View>
 
@@ -215,7 +210,9 @@ export default function PotentialSavingsScreen() {
             style={styles.subheadContainer}
           >
             <Text style={styles.subheadText}>
-              Use your perks to cover your <Text style={styles.emphasisText}>${displayFees}</Text> annual fees and get <Text style={styles.emphasisText}>${displayNetValue}</Text> extra cash.
+              in yearly perks{'\n'}
+              covers your <Text style={styles.subheadHighlight}>${displayFees}</Text> annual fees{'\n'}
+              with <Text style={styles.subheadHighlight}>${displayNetValue}</Text> extra value to claim
             </Text>
           </MotiView>
 
@@ -280,6 +277,7 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     marginTop: 20,
+    marginBottom: -8,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -299,6 +297,7 @@ const styles = StyleSheet.create({
   valueContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 0,
   },
   heroValue: {
     fontSize: 72,
@@ -426,23 +425,27 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   savingsBreakdownText: {
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
     opacity: 0.8,
+    lineHeight: 20,
+    paddingHorizontal: 20,
   },
   subheadContainer: {
     marginBottom: 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
   subheadText: {
     fontSize: 17,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 26,
+    letterSpacing: -0.2,
   },
-  emphasisText: {
+  subheadHighlight: {
     color: Colors.light.tint,
     fontWeight: '600',
+    letterSpacing: -0.3,
   },
 }); 
