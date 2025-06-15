@@ -5,7 +5,7 @@ export interface Benefit {
   id: string;
   name: string;
   value: number; // Can be monetary value or other unit
-  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
+  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual' | 'other';
   periodMonths: 1 | 3 | 6 | 12; // Number of months between resets
   resetType: 'calendar' | 'anniversary'; // Whether benefit resets on calendar year or card anniversary
   definition_id: string;
@@ -324,7 +324,7 @@ export const allCards: Card[] = [
     id: 'amex_gold',
     name: 'American Express Gold',
     image: require('../../assets/images/amex_gold.avif'),
-    annualFee: 250,
+    annualFee: 325,
     benefits: [
       {
         id: 'amex_gold_uber',
