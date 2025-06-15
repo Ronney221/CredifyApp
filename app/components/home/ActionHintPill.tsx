@@ -18,16 +18,19 @@ export const ActionHintPill: React.FC<ActionHintPillProps> = ({ perk, daysRemain
     maximumFractionDigits: 0,
   });
 
+  // Add 1 day to maintain consistency with the rest of the app
+  const adjustedDaysRemaining = daysRemaining + 1;
+
   let urgencyColor = Colors.light.tint;
-  let daysText = `${daysRemaining} days left`;
+  let daysText = `${adjustedDaysRemaining} days left`;
   let iconName: keyof typeof Ionicons.glyphMap = 'arrow-forward-circle';
 
-  if (daysRemaining <= 0) {
+  if (adjustedDaysRemaining <= 0) {
     urgencyColor = '#f57c00'; // Orange for urgent (expired or today)
     daysText = 'Expires today!';
-    if (daysRemaining < 0) daysText = 'Expired';
+    if (adjustedDaysRemaining < 0) daysText = 'Expired';
     iconName = 'alert-circle';
-  } else if (daysRemaining <= 3) {
+  } else if (adjustedDaysRemaining <= 3) {
     urgencyColor = '#f57c00'; // Orange for urgent
     daysText = 'Expires soon!';
     iconName = 'time-outline';
