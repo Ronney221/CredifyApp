@@ -143,14 +143,9 @@ export default function PotentialSavingsScreen() {
   const handleStartTracking = async () => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      // Set the flag in storage
-      await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
-      
-      // Navigate to the register screen
       router.push('/(onboarding)/register');
     } catch (e) {
-      console.error("Failed to save onboarding status", e);
+      console.error("Failed to navigate", e);
     }
   };
 
@@ -190,19 +185,14 @@ export default function PotentialSavingsScreen() {
             </View>
             <View style={styles.valueContainer}>
               <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                <Text style={styles.heroValue}>${displayValue}</Text>
+                <Text style={styles.heroValue}>${displayNetValue}</Text>
               </Animated.View>
+              <Text style={styles.extraValueText}>
+                Extra Cash After Covering Your Fees
+              </Text>
             </View>
           </View>
 
-         
-        </MotiView>
-
-        <ScrollView 
-          style={styles.cardsList}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.cardsListContent}
-        >
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
             animate={{ opacity: 1, translateY: 0 }}
@@ -210,12 +200,16 @@ export default function PotentialSavingsScreen() {
             style={styles.subheadContainer}
           >
             <Text style={styles.subheadText}>
-              in yearly perks{'\n'}
-              covers your <Text style={styles.subheadHighlight}>${displayFees}</Text> annual fees{'\n'}
-              with <Text style={styles.subheadHighlight}>${displayNetValue}</Text> extra value to claim
+              Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks covers your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees and leave you with <Text style={styles.subheadHighlight}>${displayNetValue}</Text> to claim.
             </Text>
           </MotiView>
+        </MotiView>
 
+        <ScrollView 
+          style={styles.cardsList}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.cardsListContent}
+        >
           {selectedCardObjects.map((card: Card, index: number) => (
             <CardPerks key={card.id} card={card} index={index} />
           ))}
@@ -232,7 +226,7 @@ export default function PotentialSavingsScreen() {
             onPress={handleStartTracking}
             activeOpacity={0.6}
           >
-            <Text style={styles.ctaButtonText}>Lock in My Savings</Text>
+            <Text style={styles.ctaButtonText}>Start Tracking My Perks</Text>
           </TouchableOpacity>
         </MotiView>
       </View>
@@ -248,9 +242,12 @@ export default function PotentialSavingsScreen() {
           onPress={() => setShowInfoModal(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>How is this calculated?</Text>
+            <Text style={styles.modalTitle}>Annual Perk Paycheck</Text>
             <Text style={styles.modalText}>
-              We sum the face value of the major annual statement credits and benefits for your selected cards. This is the potential value you can get if you maximize your perks each year.
+              This is the estimated net value of your card perks after subtracting annual fees. It represents the potential value you can get by maximizing your card benefits throughout the year.
+            </Text>
+            <Text style={styles.modalSubtext}>
+              Note: This is not actual cash you can withdraw, but rather the total value of statement credits, travel benefits, and other perks available to you.
             </Text>
             <TouchableOpacity
               style={styles.modalCloseButton}
@@ -277,7 +274,6 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     marginTop: 20,
-    marginBottom: -8,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -306,6 +302,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -1,
     transform: [{ scale: 1 }],
+  },
+  extraValueText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.light.text,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+    letterSpacing: -0.3,
   },
   detailsSection: {
     marginTop: 24,
@@ -384,7 +389,15 @@ const styles = StyleSheet.create({
     color: Colors.light.secondaryLabel,
     lineHeight: 22,
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalSubtext: {
+    fontSize: 14,
+    color: Colors.light.secondaryLabel,
+    lineHeight: 20,
+    textAlign: 'center',
     marginBottom: 24,
+    opacity: 0.8,
   },
   modalCloseButton: {
     backgroundColor: Colors.light.tint,
@@ -433,19 +446,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   subheadContainer: {
-    marginBottom: 24,
     paddingHorizontal: 24,
   },
   subheadText: {
-    fontSize: 17,
+    fontSize: 16,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
-    lineHeight: 26,
-    letterSpacing: -0.2,
+    lineHeight: 22,
   },
   subheadHighlight: {
     color: Colors.light.tint,
     fontWeight: '600',
-    letterSpacing: -0.3,
   },
 }); 

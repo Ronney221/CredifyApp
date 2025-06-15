@@ -120,6 +120,18 @@ export default function RegisterScreen() {
     }, 0);
   }, [selectedCardObjects]);
 
+  // Calculate total fees
+  const totalFees = useMemo(() => {
+    return selectedCardObjects.reduce((total: number, card: typeof allCards[0]) => {
+      return total + (card.annualFee || 0);
+    }, 0);
+  }, [selectedCardObjects]);
+
+  // Calculate net value
+  const netValue = useMemo(() => {
+    return totalValue - totalFees;
+  }, [totalValue, totalFees]);
+
   const saveCardsToDatabase = async (userId: string) => {
     try {
       const { error } = await saveUserCards(userId, selectedCardObjects, {});
@@ -285,7 +297,7 @@ export default function RegisterScreen() {
           <View style={styles.headerContainer}>
             <Text style={styles.brandText}>Credify</Text>
             <Text style={styles.title}>
-              Secure Your ${totalValue} Dashboard
+              Secure Your ${netValue} Dashboard
             </Text>
             <Text style={styles.subtitle}>
               Create your Credify account to stay ahead of expiring credits

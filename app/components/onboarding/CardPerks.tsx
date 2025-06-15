@@ -36,6 +36,14 @@ export function CardPerks({ card, index }: CardPerksProps) {
             </Text>
           </View>
         ))}
+        <View style={styles.subtotalContainer}>
+          <Text style={styles.subtotalLabel}>Total Perks</Text>
+          <Text style={styles.subtotalValue}>
+            ${card.benefits.reduce((total, benefit) => 
+              total + (benefit.value * (12 / benefit.periodMonths)), 0
+            ).toFixed(0)}/yr
+          </Text>
+        </View>
       </View>
     </MotiView>
   );
@@ -94,6 +102,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   benefitValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.tint,
+  },
+  subtotalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  subtotalLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  subtotalValue: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.light.tint,
