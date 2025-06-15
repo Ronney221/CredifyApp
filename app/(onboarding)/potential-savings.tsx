@@ -185,10 +185,15 @@ export default function PotentialSavingsScreen() {
             </View>
             <View style={styles.valueContainer}>
               <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-                <Text style={styles.heroValue}>${displayNetValue}</Text>
+                <Text style={styles.heroValue}>
+                  {displayNetValue > 0 ? `$${displayNetValue}` : `$${displayValue}`}
+                </Text>
               </Animated.View>
               <Text style={styles.extraValueText}>
-                Extra Cash After Covering Your Fees
+                {displayNetValue > 0 
+                  ? "Extra Cash After Covering Your Fees"
+                  : "Total Perks Value"
+                }
               </Text>
             </View>
           </View>
@@ -200,7 +205,15 @@ export default function PotentialSavingsScreen() {
             style={styles.subheadContainer}
           >
             <Text style={styles.subheadText}>
-              Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks covers your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees and leave you with <Text style={styles.subheadHighlight}>${displayNetValue}</Text> to claim.
+              {displayNetValue > 0 ? (
+                <>
+                  Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks covers your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees and leave you with <Text style={styles.subheadHighlight}>${displayNetValue}</Text> to claim.
+                </>
+              ) : (
+                <>
+                  Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks helps offset your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees. Let&apos;s track your perks to maximize their value.
+                </>
+              )}
             </Text>
           </MotiView>
         </MotiView>

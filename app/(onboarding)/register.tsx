@@ -297,10 +297,18 @@ export default function RegisterScreen() {
           <View style={styles.headerContainer}>
             <Text style={styles.brandText}>Credify</Text>
             <Text style={styles.title}>
-              Secure Your ${netValue} Dashboard
+              {netValue > 0 ? (
+                `Secure Your $${netValue} Dashboard`
+              ) : (
+                `Maximize Your Card Benefits`
+              )}
             </Text>
             <Text style={styles.subtitle}>
-              Create your Credify account to stay ahead of expiring credits
+              {netValue > 0 ? (
+                'Create your Credify account to stay ahead of expiring credits'
+              ) : (
+                'Create your Credify account to track and optimize your card perks'
+              )}
             </Text>
           </View>
 
