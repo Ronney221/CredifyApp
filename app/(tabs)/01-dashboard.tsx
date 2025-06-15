@@ -368,8 +368,9 @@ export default function Dashboard() {
   }, [processedCardsFromPerkStatus]);
 
   // Update state for headerPillContent when nextActionablePerkToHighlight changes
+  // hiding headerpill for now 
   useEffect(() => {
-    setHeaderPillContent(nextActionablePerkToHighlight);
+    // setHeaderPillContent(nextActionablePerkToHighlight);
   }, [nextActionablePerkToHighlight]);
 
   // Effect for handling app state changes to show deferred toasts

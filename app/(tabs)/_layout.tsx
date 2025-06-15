@@ -143,7 +143,7 @@ export default function TabLayout() {
             title: 'Dashboard',
             headerShown: false,
             tabBarIcon: ({ color, size, focused }) => (
-              <AnimatedTabIcon name="wallet-outline" color={color} size={size} focused={focused} />
+              <AnimatedTabIcon name="card-outline" color={color} size={size} focused={focused} />
             ),
             tabBarAccessibilityLabel: 'Dashboard',
           }}

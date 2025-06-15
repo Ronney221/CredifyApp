@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../constants/Colors'; // Adjust path as needed
+import { Colors } from '../../../constants/Colors';
 
 // Fallback colors - ideally, add these to your Colors.ts
 const FauxColors = {
@@ -40,31 +40,39 @@ export default function HelpFAQScreen() {
   const faqs = [
     {
       question: 'How do I add my first credit card?',
-      answer: 'Navigate to the "Cards" tab (second icon in the bottom bar). Tap the "Add New Card" button or the plus icon in the header. Search for your card provider and select your specific card. Follow the prompts to add it to your wallet.',
+      answer: 'Go to the "Cards" tab and tap the "+" icon in the top right. Search for your card provider and select your specific card. You\'ll be prompted to set up your card\'s renewal date and any auto-redemption preferences for recurring perks.',
     },
     {
-      question: 'How does perk tracking work?',
-      answer: 'The app helps you track perks associated with your added cards. For most perks, you&apos;ll need to manually mark them as "Redeemed" once you&apos;ve used them. Some perks might offer an "Auto-Redeem" option if they are credits you use consistently each cycle (e.g., monthly streaming credits). You can usually open the relevant app directly from a perk item by tapping on it.',
+      question: 'How does the Dashboard work?',
+      answer: 'The Dashboard shows an overview of all your cards and their perks. The donut chart displays your available and redeemed perks for the current period. You can tap on any card to expand it and see detailed perk information. The action pill at the top highlights perks that need your attention.',
     },
     {
-      question: 'How do I mark a perk as redeemed or available?',
-      answer: 'From the Dashboard, expand the card to see its perks. You can swipe a perk to the right to mark it as "Redeemed", or swipe left to mark it as "Available". Alternatively, tapping a perk will open a modal with options to open the associated app, mark as redeemed, or mark as available.',
+      question: 'How do I track my perks?',
+      answer: 'There are several ways to track perks:\n\n1. Tap a perk to open a modal with options to:\n   - Open the associated app\n   - Mark as redeemed\n   - Mark as available\n\n2. Use auto-redemption for recurring perks like monthly credits\n\n3. Set up notifications for perk expiry reminders\n\nThe app will automatically track your savings and show them in the Dashboard.',
     },
     {
-      question: 'What notifications does the app send?',
-      answer: 'The app can send reminders for perk expiry (e.g., 7 days before a monthly perk resets) and for card renewal dates if you&apos;ve set them up. Notification preferences can be managed in the Card settings.',
+      question: 'What are auto-redemptions?',
+      answer: 'Auto-redemption is a feature that automatically marks certain perks as redeemed at the start of each cycle. This is perfect for recurring credits like monthly streaming credits or dining credits. You can set up auto-redemption when adding a card or by editing an existing card\'s perks.',
     },
     {
-      question: 'My donut display or perk values are not updating immediately. What should I do?',
-      answer: 'If you notice data not updating right away after an action, try pulling down to refresh the screen on the Dashboard. If the issue persists, navigating away from the Dashboard tab and back to it can also trigger a data refresh. We are continuously working to improve real-time updates!',
+      question: 'How do I manage my card renewal dates?',
+      answer: 'When adding a card, you\'ll be prompted to set its renewal date. You can update this later by going to the "Cards" tab, tapping on the card, and selecting "Edit". Setting renewal dates helps us track your annual fee and send timely reminders.',
     },
-     {
+    {
+      question: 'What notifications will I receive?',
+      answer: 'The app can send you:\n\n- Perk expiry reminders (configurable: 7, 3, and 1 day before expiry)\n- Card renewal reminders\n- Weekly digest of available perks\n- Monthly summary of your savings\n\nYou can manage these in your notification settings.',
+    },
+    {
       question: 'How do I edit or remove a card?',
-      answer: 'Go to the "Cards" tab. Tap on the card you wish to manage. You should see options to edit its details (like nickname or notification preferences) or remove the card entirely.',
+      answer: 'Go to the "Cards" tab and tap on the card you want to manage. You can:\n\n- Edit card details\n- Set up auto-redemptions\n- Configure notifications\n- Remove the card\n\nTo remove a card, tap "Edit" in the top left, then tap the remove button on the card.',
     },
     {
-      question: 'Can I customize notification reminders?',
-      answer: 'Yes, for perk expiry reminders, you can typically set how many days in advance you want to be notified. These settings are usually found when editing a specific card in the "Cards" tab.',
+      question: 'How is my savings calculated?',
+      answer: 'The app tracks the value of perks you\'ve redeemed and displays your total savings in the Dashboard. This includes:\n\n- Redeemed perks (manually or auto-redeemed)\n- Partially redeemed perks\n- Perks with pending redemption\n\nThe savings are calculated per card and shown in the expanded card view.',
+    },
+    {
+      question: 'What if I need to undo a redemption?',
+      answer: 'If you accidentally mark a perk as redeemed, you can:\n\n1. Tap the perk to open the action modal\n2. Select "Mark as Available"\n\nOr, if you just redeemed it, you can tap the toast notification that appears to undo the action.',
     },
   ];
 
@@ -76,7 +84,7 @@ export default function HelpFAQScreen() {
           <Ionicons name="help-buoy-outline" size={48} color={Colors.light.tint} />
           <Text style={styles.title}>Help & FAQ</Text>
           <Text style={styles.subtitle}>
-            Find answers to common questions about using Credify. If you can&apos;t find what you&apos;re looking for, feel free to reach out to our support.
+            Find answers to common questions about using Credify. If you can't find what you're looking for, feel free to reach out to our support team.
           </Text>
         </View>
 
@@ -87,9 +95,12 @@ export default function HelpFAQScreen() {
         <View style={styles.supportSection}>
           <Text style={styles.supportTitle}>Still Need Help?</Text>
           <Text style={styles.supportText}>
-            If your question isn&apos;t answered here, please don&apos;t hesitate to contact our support team.
+            If your question isn't answered here, please don't hesitate to contact our support team.
           </Text>
-          <TouchableOpacity style={styles.contactButton} onPress={() => Linking.openURL('mailto:support@example.com?subject=CredifyApp%20Support')}>
+          <TouchableOpacity 
+            style={styles.contactButton} 
+            onPress={() => Linking.openURL('mailto:ronneydo1@gmail.com?subject=CredifyApp%20Support')}
+          >
             <Text style={styles.contactButtonText}>Contact Support</Text>
           </TouchableOpacity>
         </View>
@@ -125,18 +136,18 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: FauxColors.textSecondary, // Using fallback
+    color: Colors.light.secondaryLabel,
     textAlign: 'center',
     lineHeight: 22,
   },
   faqItemContainer: {
-    backgroundColor: FauxColors.cardBackground, // Using fallback
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     marginBottom: 12,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: FauxColors.borderColor, // Using fallback
+    borderColor: Colors.light.separator,
     overflow: 'hidden',
   },
   questionContainer: {
@@ -158,16 +169,16 @@ const styles = StyleSheet.create({
   },
   answerText: {
     fontSize: 15,
-    color: FauxColors.textSecondary, // Using fallback
+    color: Colors.light.secondaryLabel,
     lineHeight: 22,
   },
   supportSection: {
     marginTop: 32,
     padding: 20,
-    backgroundColor: FauxColors.cardBackground, // Using fallback
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: FauxColors.borderColor, // Using fallback
+    borderColor: Colors.light.separator,
     alignItems: 'center',
   },
   supportTitle: {
@@ -178,7 +189,7 @@ const styles = StyleSheet.create({
   },
   supportText: {
     fontSize: 16,
-    color: FauxColors.textSecondary, // Using fallback
+    color: Colors.light.secondaryLabel,
     textAlign: 'center',
     lineHeight: 23,
     marginBottom: 20,
