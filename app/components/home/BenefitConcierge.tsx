@@ -16,6 +16,16 @@ import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
 import { Card, CardPerk } from '../../../src/data/card-data';
 
+interface ChatMessage {
+  id: string;
+  query: string;
+  response: {
+    advice: string;
+    usage: TokenUsage;
+  };
+  timestamp: Date;
+}
+
 interface BenefitConciergeProps {
   onClose: () => void;
 }
@@ -31,10 +41,37 @@ interface CardWithPerks {
   perks: AvailablePerk[];
 }
 
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost: number;
+}
+
+interface ExamplePrompt {
+  text: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
+const EXAMPLE_PROMPTS: ExamplePrompt[] = [
+  {
+    text: "I'm booking a trip to New York for 3 nights for my anniversary.",
+    icon: "airplane-outline"
+  },
+  {
+    text: "I need to buy a new iPhone and want to make sure I'm protected.",
+    icon: "shield-checkmark-outline"
+  },
+  {
+    text: "Which card should I use for dinner tonight?",
+    icon: "restaurant-outline"
+  }
+];
+
 export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const { userCardsWithPerks } = useUserCards();
   const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
 
@@ -54,8 +91,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   }, [isLoading]);
 
   useEffect(() => {
-    console.log('[BenefitConcierge] Response updated:', response);
-  }, [response]);
+    console.log('[BenefitConcierge] Response updated:', chatHistory);
+  }, [chatHistory]);
 
   const handleSubmit = async () => {
     if (!query.trim()) {
@@ -65,11 +102,9 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
 
     console.log('[BenefitConcierge] Starting handleSubmit');
     setIsLoading(true);
-    setResponse(null);
 
     try {
       console.log('[BenefitConcierge] Processing available perks');
-      // Get available perks
       const availablePerks: CardWithPerks[] = processedCards.map(card => ({
         cardName: card.card.name,
         perks: card.perks
@@ -82,19 +117,46 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       })).filter(card => card.perks.length > 0);
 
       console.log('[BenefitConcierge] Available perks:', JSON.stringify(availablePerks, null, 2));
-
       console.log('[BenefitConcierge] Calling getBenefitAdvice');
-      const advice = await getBenefitAdvice(query, availablePerks);
-      console.log('[BenefitConcierge] Received advice:', advice);
+      const result = await getBenefitAdvice(query, availablePerks);
+      console.log('[BenefitConcierge] Received advice:', result);
       
-      setResponse(advice);
+      // Add to chat history
+      const newMessage: ChatMessage = {
+        id: Date.now().toString(),
+        query: query,
+        response: result,
+        timestamp: new Date()
+      };
+      
+      setChatHistory(prev => [...prev, newMessage]);
+      setQuery(''); // Clear input after successful submission
     } catch (error) {
       console.error('[BenefitConcierge] Error in handleSubmit:', error);
-      setResponse('Sorry, I encountered an error. Please try again.');
+      // Add error message to chat history
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        query: query,
+        response: {
+          advice: 'Sorry, I encountered an error. Please try again.',
+          usage: {
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            estimatedCost: 0
+          }
+        },
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
     } finally {
       console.log('[BenefitConcierge] Finishing handleSubmit');
       setIsLoading(false);
     }
+  };
+
+  const handleExamplePrompt = (prompt: string) => {
+    setQuery(prompt);
   };
 
   return (
@@ -119,6 +181,23 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
           Ask how to make the most of your available benefits for any situation.
         </Text>
 
+        {/* Chat History */}
+        {chatHistory.map((message) => (
+          <View key={message.id} style={styles.chatMessageContainer}>
+            <View style={styles.queryContainer}>
+              <Text style={styles.queryText}>{message.query}</Text>
+            </View>
+            <View style={styles.chatResponseContainer}>
+              <Text style={styles.chatResponseText}>{message.response.advice}</Text>
+              <View style={styles.chatUsageContainer}>
+                <Text style={styles.chatUsageText}>
+                  Tokens used: {message.response.usage.totalTokens} (${message.response.usage.estimatedCost.toFixed(4)})
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))}
+
         <TextInput
           style={styles.input}
           value={query}
@@ -128,6 +207,20 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
           multiline
           maxLength={200}
         />
+
+        <View style={styles.examplePromptsContainer}>
+          <Text style={styles.examplePromptsTitle}>Try asking about:</Text>
+          {EXAMPLE_PROMPTS.map((prompt, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.examplePromptButton}
+              onPress={() => handleExamplePrompt(prompt.text)}
+            >
+              <Ionicons name={prompt.icon} size={20} color="#007AFF" style={styles.examplePromptIcon} />
+              <Text style={styles.examplePromptText} numberOfLines={2}>{prompt.text}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <TouchableOpacity
           style={[styles.submitButton, (!query.trim() || isLoading) && styles.submitButtonDisabled]}
@@ -140,12 +233,6 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             <Text style={styles.submitButtonText}>Get Advice</Text>
           )}
         </TouchableOpacity>
-
-        {response && (
-          <View style={styles.responseContainer}>
-            <Text style={styles.responseText}>{response}</Text>
-          </View>
-        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -210,14 +297,73 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  responseContainer: {
+  chatMessageContainer: {
+    marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  queryContainer: {
+    backgroundColor: '#E5E5EA',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    alignSelf: 'flex-end',
+    maxWidth: '85%',
+  },
+  queryText: {
+    fontSize: 14,
+    color: '#1C1C1E',
+    lineHeight: 20,
+  },
+  chatResponseContainer: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    maxWidth: '85%',
+  },
+  chatResponseText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    lineHeight: 20,
+  },
+  chatUsageContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  chatUsageText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'left',
+  },
+  examplePromptsContainer: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  examplePromptsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  examplePromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#F2F2F7',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
   },
-  responseText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#1C1C1E',
+  examplePromptIcon: {
+    marginRight: 12,
+  },
+  examplePromptText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#007AFF',
+    lineHeight: 20,
   },
 }); 
