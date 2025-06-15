@@ -31,7 +31,9 @@ export function CardPerks({ card, index }: CardPerksProps) {
         {card.benefits.map((benefit, idx) => (
           <View key={benefit.id} style={styles.benefitItem}>
             <Text style={styles.benefitName}>{benefit.name}</Text>
-            <Text style={styles.benefitValue}>${benefit.value}</Text>
+            <Text style={styles.benefitValue}>
+              ${(benefit.value * (12 / benefit.periodMonths)).toFixed(0)}/yr
+            </Text>
           </View>
         ))}
       </View>

@@ -148,17 +148,6 @@ export default function TabLayout() {
             tabBarAccessibilityLabel: 'Dashboard',
           }}
         />
-        {/* <Tabs.Screen
-          name="02-dashboard-test"
-          options={{
-            title: 'Dashboard',
-            headerShown: false,
-            tabBarIcon: ({ color, size, focused }) => (
-              <AnimatedTabIcon name="card-outline" color={color} size={size} focused={focused} />
-            ),
-            tabBarAccessibilityLabel: 'Dashboard',
-          }}
-        /> */}
         <Tabs.Screen
           name="03-insights"
           options={{

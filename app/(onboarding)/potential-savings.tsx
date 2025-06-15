@@ -49,6 +49,8 @@ export default function PotentialSavingsScreen() {
   const totalValue = useMemo(() => {
     return selectedCardObjects.reduce((total: number, card: Card) => {
       const cardValue = card.benefits.reduce((sum: number, benefit: Benefit) => {
+        // Convert benefit value to annual value by multiplying by (12/periodMonths)
+        // For example: $100 quarterly benefit = $100 * (12/3) = $400 annual value
         const annualValue = benefit.value * (12 / benefit.periodMonths);
         return sum + annualValue;
       }, 0);
