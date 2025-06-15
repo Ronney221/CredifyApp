@@ -332,11 +332,19 @@ export default function ManageCardsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        !isEditMode ? (
-          <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
-            <Ionicons name="add" size={28} color={Colors.light.tint} />
-          </TouchableOpacity>
-        ) : null
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {isEditMode ? (
+            <TouchableOpacity onPress={handleEditModeToggle} style={{ marginRight: 15 }}>
+              <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
+                Done
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
+              <Ionicons name="add" size={28} color={Colors.light.tint} />
+            </TouchableOpacity>
+          )}
+        </View>
       ),
       headerLeft: () => {
         if (selectedCards.length === 0) {
@@ -346,7 +354,7 @@ export default function ManageCardsScreen() {
         return (
           <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
             <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
-              {isEditMode ? 'Done' : 'Edit'}
+              {isEditMode ? '' : 'Edit'}
             </Text>
           </TouchableOpacity>
         );

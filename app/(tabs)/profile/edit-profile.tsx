@@ -13,6 +13,7 @@ import {
   Image,
   ScrollView,
   Pressable,
+  Linking,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -101,26 +102,63 @@ export default function EditProfileScreen() {
   };
 
   const handlePickImage = async () => {
-    const { status } = await requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
+    try {
+      // Request permissions first
+      const { status } = await requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please grant camera roll permissions to change your profile picture.',
+          [
+            { 
+              text: 'Open Settings', 
+              onPress: () => {
+                if (Platform.OS === 'ios') {
+                  Linking.openURL('app-settings:');
+                } else {
+                  Linking.openSettings();
+                }
+              }
+            },
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        );
+        return;
+      }
+
+      // Launch image picker with error handling
+      const result = await launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        exif: false, // Disable EXIF data to reduce file size
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        
+        // Validate the selected image
+        if (!selectedAsset.uri) {
+          throw new Error('No image URI found');
+        }
+
+        // Set the new avatar URI
+        setAvatarUri(selectedAsset.uri);
+        
+        // Provide haptic feedback
+        if (Platform.OS === 'ios') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      }
+    } catch (error) {
+      console.error('[EditProfileScreen] Error picking image:', error);
       Alert.alert(
-        'Permission Required',
-        'Please grant camera roll permissions to change your profile picture.',
+        'Error',
+        'Failed to select image. Please try again.',
         [{ text: 'OK' }]
       );
-      return;
-    }
-
-    const result = await launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setAvatarUri(result.assets[0].uri);
     }
   };
 
