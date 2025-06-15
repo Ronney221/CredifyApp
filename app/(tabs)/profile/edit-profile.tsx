@@ -218,7 +218,7 @@ export default function EditProfileScreen() {
                 </View>
               )}
               <View style={styles.cameraButton}>
-                <Ionicons name="camera" size={14} color={Colors.light.textOnPrimary} />
+                <Ionicons name="camera" size={16} color={Colors.light.textOnAccent} />
               </View>
             </Pressable>
           </View>
@@ -304,19 +304,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: Colors.light.background,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    backgroundColor: Colors.light.accent,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.light.separator,
+    borderWidth: 3,
+    borderColor: Colors.light.background,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
   section: {
     backgroundColor: Colors.light.background,
