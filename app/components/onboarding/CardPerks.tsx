@@ -29,7 +29,13 @@ export function CardPerks({ card, index }: CardPerksProps) {
 
       <View style={styles.benefitsList}>
         {card.benefits.map((benefit, idx) => (
-          <View key={benefit.id} style={styles.benefitItem}>
+          <View 
+            key={benefit.id} 
+            style={[
+              styles.benefitItem,
+              idx === card.benefits.length - 1 && styles.lastBenefitItem
+            ]}
+          >
             <Text style={styles.benefitName}>{benefit.name}</Text>
             <Text style={styles.benefitValue}>
               ${(benefit.value * (12 / benefit.periodMonths)).toFixed(0)}/yr
@@ -96,6 +102,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
   },
+  lastBenefitItem: {
+    borderBottomWidth: 0,
+  },
   benefitName: {
     fontSize: 15,
     color: Colors.light.text,
@@ -111,7 +120,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
-    marginTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.1)',
   },
