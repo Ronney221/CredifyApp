@@ -41,7 +41,11 @@ export default function PotentialSavingsScreen() {
       .filter((card): card is Card => card !== undefined)
       .map(card => ({
         ...card,
-        benefits: [...card.benefits].sort((a, b) => b.value - a.value) // Sort benefits by value in descending order
+        benefits: [...card.benefits].sort((a, b) => {
+          const annualValueA = a.value * (12 / a.periodMonths);
+          const annualValueB = b.value * (12 / b.periodMonths);
+          return annualValueB - annualValueA; // Sort in descending order
+        })
       }));
   }, [selectedCards]);
 
@@ -140,9 +144,6 @@ export default function PotentialSavingsScreen() {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      // Set the flag in storage
-      await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
-      
       // Navigate to the register screen
       router.push('/(onboarding)/register');
     } catch (e) {
@@ -214,7 +215,7 @@ export default function PotentialSavingsScreen() {
             style={styles.subheadContainer}
           >
             <Text style={styles.subheadText}>
-              Every year your cards are secretly worth ${displayValue}. Ready to collect?
+              Use your perks to cover your <Text style={styles.emphasisText}>${displayFees}</Text> annual fees and get <Text style={styles.emphasisText}>${displayNetValue}</Text> extra cash.
             </Text>
           </MotiView>
 
@@ -439,5 +440,9 @@ const styles = StyleSheet.create({
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  emphasisText: {
+    color: Colors.light.tint,
+    fontWeight: '600',
   },
 }); 

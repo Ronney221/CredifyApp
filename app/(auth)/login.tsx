@@ -207,10 +207,21 @@ export default function LoginScreen() {
 
   const handleResetStorage = async () => {
     try {
+      console.log('🧹 Clearing AsyncStorage...');
       await AsyncStorage.clear();
-      Alert.alert('Success', 'Local storage has been reset');
+      console.log('✅ AsyncStorage cleared successfully');
+      
+      Alert.alert('Success', 'Local storage has been reset', [
+        {
+          text: 'OK',
+          onPress: () => {
+            console.log('🔄 Navigating to root...');
+            router.replace('/');
+          }
+        }
+      ]);
     } catch (e) {
-      console.error('Failed to reset storage:', e);
+      console.error('❌ Failed to reset storage:', e);
       Alert.alert('Error', 'Failed to reset storage');
     }
   };

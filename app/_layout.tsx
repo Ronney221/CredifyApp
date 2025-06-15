@@ -6,8 +6,9 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { OnboardingProvider } from './(onboarding)/_context/OnboardingContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Colors } from '../constants/Colors';
 
 // This is a simple Presentational Component. No hooks, no logic.
 function RootStack() {
@@ -26,6 +27,7 @@ function AuthStateHandler() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [isInitialized, setIsInitialized] = React.useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -35,34 +37,71 @@ function AuthStateHandler() {
 
     const checkOnboardingStatus = async () => {
       try {
-        const hasCompletedOnboarding = await AsyncStorage.getItem('@hasCompletedOnboarding');
+        console.log('🔍 [Layout] Checking auth state...');
+        console.log('👤 User:', user ? 'exists' : 'none');
+        console.log('📍 Current segment:', segments[0]);
         
+        const hasCompletedOnboarding = await AsyncStorage.getItem('@hasCompletedOnboarding');
+        console.log('🎯 [Layout] hasCompletedOnboarding:', hasCompletedOnboarding);
+
+        // If segments is undefined or empty, we're at the root
+        if (!segments[0]) {
+          console.log('➡️ [Layout] At root, determining initial route...');
+          if (!user) {
+            if (hasCompletedOnboarding === null) {
+              console.log('➡️ [Layout] New user at root, routing to welcome');
+              router.replace('/(onboarding)/welcome');
+            } else {
+              console.log('➡️ [Layout] Returning user at root, routing to login');
+              router.replace('/(auth)/login');
+            }
+          } else {
+            console.log('➡️ [Layout] Logged in user at root, routing to dashboard');
+            router.replace('/(tabs)/01-dashboard');
+          }
+          return;
+        }
+
         if (!user) {
           // Not signed in
-          if (!inAuthGroup) {
-            router.replace('/(auth)/login');
-          }
-        } else {
-          // Signed in
           if (hasCompletedOnboarding === null) {
             // New user, hasn't completed onboarding
+            console.log('➡️ [Layout] New user, routing to welcome');
             if (!inOnboardingGroup) {
               router.replace('/(onboarding)/welcome');
             }
           } else {
             // Returning user, has completed onboarding
-            if (inAuthGroup || inOnboardingGroup) {
-              router.replace('/(tabs)/01-dashboard');
+            console.log('➡️ [Layout] Returning user, routing to login');
+            if (!inAuthGroup) {
+              router.replace('/(auth)/login');
             }
+          }
+        } else {
+          // Signed in
+          console.log('➡️ [Layout] User is logged in, routing to dashboard');
+          if (inAuthGroup || inOnboardingGroup) {
+            router.replace('/(tabs)/01-dashboard');
           }
         }
       } catch (error) {
         console.error('Error checking onboarding status:', error);
+      } finally {
+        setIsInitialized(true);
       }
     };
 
     checkOnboardingStatus();
   }, [user, loading, segments]);
+
+  // Show loading state while initializing
+  if (!isInitialized || loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.light.tint} />
+      </View>
+    );
+  }
 
   return null;
 }
@@ -85,5 +124,11 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
   },
 });

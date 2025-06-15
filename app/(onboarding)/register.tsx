@@ -32,6 +32,7 @@ import Animated, {
   Easing,
   useSharedValue,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -160,6 +161,9 @@ export default function RegisterScreen() {
         }
       }
       
+      // Set onboarding as complete after successful registration
+      await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
+      
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)/01-dashboard' as any);
     } catch (error) {
@@ -186,6 +190,9 @@ export default function RegisterScreen() {
           return;
         }
       }
+      
+      // Set onboarding as complete after successful registration
+      await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)/01-dashboard' as any);
