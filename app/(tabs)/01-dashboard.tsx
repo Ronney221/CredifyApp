@@ -46,6 +46,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext';
 import OnboardingSheet from '../components/home/OnboardingSheet';
+import AIChatButton from '../components/home/AIChatButton';
 
 // Import notification functions
 import {
@@ -958,6 +959,7 @@ export default function Dashboard() {
         </View>
         <View style={styles.cardsSectionHeader}>
           <Text style={styles.sectionTitle}>Your Cards</Text>
+          <AIChatButton />
         </View>
       </View>
     );
