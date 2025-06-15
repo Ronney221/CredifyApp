@@ -127,25 +127,31 @@ export default function EditProfileScreen() {
         return;
       }
 
-      // Launch image picker with error handling
+      // Launch image picker with more conservative settings for TestFlight
       const result = await launchImageLibraryAsync({
         mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
-        exif: false, // Disable EXIF data to reduce file size
+        quality: 0.5, // Reduced quality for better performance
+        exif: false,
+        allowsMultipleSelection: false, // Explicitly disable multiple selection
+        base64: false, // Disable base64 to reduce memory usage
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      // More defensive checking of the result
+      if (result && !result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
         
-        // Validate the selected image
+        // Additional validation
         if (!selectedAsset.uri) {
           throw new Error('No image URI found');
         }
 
+        // Ensure the URI is a string
+        const imageUri = String(selectedAsset.uri);
+        
         // Set the new avatar URI
-        setAvatarUri(selectedAsset.uri);
+        setAvatarUri(imageUri);
         
         // Provide haptic feedback
         if (Platform.OS === 'ios') {
@@ -154,9 +160,19 @@ export default function EditProfileScreen() {
       }
     } catch (error) {
       console.error('[EditProfileScreen] Error picking image:', error);
+      // More specific error message based on the error type
+      let errorMessage = 'Failed to select image. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('permission')) {
+          errorMessage = 'Please grant camera roll permissions in Settings.';
+        } else if (error.message.includes('canceled')) {
+          return; // User canceled, no need to show error
+        }
+      }
+      
       Alert.alert(
         'Error',
-        'Failed to select image. Please try again.',
+        errorMessage,
         [{ text: 'OK' }]
       );
     }
