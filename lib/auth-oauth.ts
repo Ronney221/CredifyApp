@@ -59,10 +59,11 @@ export const signInWithGoogle = async () => {
       
       return { data: null, error: { message: 'No access token received' } };
     } else if (result.type === 'cancel') {
-      return { data: null, error: null }; // User cancelled, return without error
+      console.log('OAuth cancelled by user');
+      return { data: null, error: { message: 'User cancelled' } };
     }
     
-    return { data: null, error: null };
+    return { data: null, error: { message: 'Unknown error occurred' } };
   } catch (error) {
     console.error('Unexpected error during Google Sign In:', error);
     return { data: null, error };
@@ -96,7 +97,8 @@ export const signInWithApple = async () => {
     return { data: null, error: { message: 'No identity token received from Apple' } };
   } catch (error: any) {
     if (error.code === 'ERR_REQUEST_CANCELED') {
-      return { data: null, error: null }; // User cancelled, return without error
+      console.log('Apple Sign In cancelled by user');
+      return { data: null, error: { message: 'User cancelled' } };
     }
     console.error('Unexpected error during Apple Sign In:', error);
     return { data: null, error };

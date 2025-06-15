@@ -150,7 +150,14 @@ export default function RegisterScreen() {
     
     try {
       const { data, error } = await signInGoogle();
-      if (error) throw error;
+      if (error) {
+        // Only throw if it's not a cancellation
+        if (error.message !== 'User cancelled') {
+          throw error;
+        }
+        // If it's a cancellation, just return without navigation
+        return;
+      }
       
       // Save cards to database after successful authentication
       if (data?.user?.id) {
@@ -180,7 +187,14 @@ export default function RegisterScreen() {
     
     try {
       const { data, error } = await signInApple();
-      if (error) throw error;
+      if (error) {
+        // Only throw if it's not a cancellation
+        if (error.message !== 'User cancelled') {
+          throw error;
+        }
+        // If it's a cancellation, just return without navigation
+        return;
+      }
       
       // Save cards to database after successful authentication
       if (data?.user?.id) {
