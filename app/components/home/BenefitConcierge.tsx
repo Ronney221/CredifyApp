@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  Animated,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,6 +20,7 @@ import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
 import { Card, CardPerk } from '../../../src/data/card-data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 interface ChatMessage {
   id: string;
@@ -87,6 +90,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const { userCardsWithPerks } = useUserCards();
   const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // Load chat history from AsyncStorage on component mount
   useEffect(() => {
@@ -152,11 +157,24 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
     console.log('[BenefitConcierge] Response updated:', chatHistory);
   }, [chatHistory]);
 
+  // Add animation for new messages
+  const animateNewMessage = () => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
   const handleSubmit = async () => {
     if (!query.trim()) {
       console.log('[BenefitConcierge] Submit attempted with empty query');
       return;
     }
+
+    // Trigger haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     console.log('[BenefitConcierge] Starting handleSubmit');
     setIsLoading(true);
@@ -191,7 +209,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       const result = await getBenefitAdvice(query, availablePerks);
       console.log('[BenefitConcierge] Received advice:', result);
       
-      // Add to chat history
+      // Add to chat history with animation
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
         query: query,
@@ -201,6 +219,15 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       
       setChatHistory(prev => [...prev, newMessage]);
       setQuery(''); // Clear input after successful submission
+
+      // Animate new message
+      animateNewMessage();
+
+      // Scroll to bottom with animation
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
     } catch (error) {
       console.error('[BenefitConcierge] Error in handleSubmit:', error);
       // Add error message to chat history with more specific error handling
@@ -252,32 +279,44 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       </View>
 
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.content}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom }
         ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <Text style={styles.description}>
           Ask how to make the most of your available benefits for any situation.
         </Text>
 
         {/* Chat History */}
-        {chatHistory.map((message) => (
-          <View key={message.id} style={styles.chatMessageContainer}>
+        {chatHistory.map((message, index) => (
+          <Animated.View 
+            key={message.id} 
+            style={[
+              styles.chatMessageContainer,
+              { opacity: fadeAnim }
+            ]}
+          >
             <View style={styles.queryContainer}>
-              <Text style={styles.queryText}>{message.query}</Text>
-            </View>
-            <View style={styles.chatResponseContainer}>
-              <Text style={styles.chatResponseText}>{message.response.advice}</Text>
-              <View style={styles.chatUsageContainer}>
-                <Text style={styles.chatUsageText}>
-                  Tokens used: {message.response.usage.totalTokens} (${message.response.usage.estimatedCost.toFixed(4)})
-                </Text>
+              <View style={styles.queryBubble}>
+                <Text style={styles.queryText}>{message.query}</Text>
               </View>
             </View>
-          </View>
+            <View style={styles.chatResponseContainer}>
+              <View style={styles.responseBubble}>
+                <Text style={styles.chatResponseText}>{message.response.advice}</Text>
+                <View style={styles.chatUsageContainer}>
+                  <Text style={styles.chatUsageText}>
+                    Tokens used: {message.response.usage.totalTokens} (${message.response.usage.estimatedCost.toFixed(4)})
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
         ))}
 
         <View style={styles.examplePromptsContainer}>
@@ -295,7 +334,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
         </View>
       </ScrollView>
 
-      <View style={[styles.inputContainer, {}]}>
+      <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
         <TextInput
           style={styles.input}
           value={query}
@@ -334,17 +373,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: '#FFFFFF',
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
     color: '#1C1C1E',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   closeButton: {
     padding: 4,
   },
   content: {
     flex: 1,
+    backgroundColor: '#F2F2F7',
   },
   scrollContent: {
     flexGrow: 1,
@@ -354,6 +396,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#8E8E93',
     marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   inputContainer: {
     borderTopWidth: 1,
@@ -372,6 +415,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     textAlignVertical: 'top',
     marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   submitButton: {
     backgroundColor: '#007AFF',
@@ -387,45 +431,55 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   chatMessageContainer: {
     marginBottom: 12,
   },
   queryContainer: {
-    backgroundColor: '#E5E5EA',
-    padding: 12,
-    borderRadius: 20,
+    alignItems: 'flex-end',
     marginBottom: 8,
-    alignSelf: 'flex-end',
-    maxWidth: '85%',
   },
-  queryText: {
-    fontSize: 16,
-    color: '#1C1C1E',
-    lineHeight: 20,
-  },
-  chatResponseContainer: {
+  queryBubble: {
     backgroundColor: '#007AFF',
     padding: 12,
     borderRadius: 20,
-    alignSelf: 'flex-start',
     maxWidth: '85%',
+    borderTopRightRadius: 4,
   },
-  chatResponseText: {
+  queryText: {
     fontSize: 16,
     color: '#FFFFFF',
     lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  chatResponseContainer: {
+    alignItems: 'flex-start',
+  },
+  responseBubble: {
+    backgroundColor: '#E5E5EA',
+    padding: 12,
+    borderRadius: 20,
+    maxWidth: '85%',
+    borderTopLeftRadius: 4,
+  },
+  chatResponseText: {
+    fontSize: 16,
+    color: '#1C1C1E',
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   chatUsageContainer: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   chatUsageText: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#8E8E93',
     textAlign: 'left',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   examplePromptsContainer: {
     marginTop: 16,
@@ -437,15 +491,21 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     marginBottom: 8,
     paddingHorizontal: 16,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   examplePromptButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginHorizontal: 16,
     marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   examplePromptIcon: {
     marginRight: 12,
@@ -455,6 +515,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007AFF',
     lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   headerButtons: {
     flexDirection: 'row',
