@@ -12,6 +12,8 @@ import {
   SafeAreaView,
   Animated,
   Pressable,
+  FlatList,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -93,6 +95,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const inputRef = useRef<TextInput>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load chat history from AsyncStorage on component mount
   useEffect(() => {
@@ -130,13 +133,32 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   }, [chatHistory]);
 
   // Clear chat history function
-  const clearChatHistory = async () => {
-    try {
-      await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
-      setChatHistory([]);
-    } catch (error) {
-      console.error('[BenefitConcierge] Error clearing chat history:', error);
-    }
+  const handleClearChat = () => {
+    Alert.alert(
+      "Clear Chat History",
+      "Are you sure you want to clear all chat history?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
+              setChatHistory([]);
+              // Trigger haptic feedback
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error) {
+              console.error('[BenefitConcierge] Error clearing chat history:', error);
+              Alert.alert('Error', 'Failed to clear chat history. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Debug logging for component mount and state changes
@@ -169,8 +191,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   };
 
   const handleSubmit = async () => {
-    if (!query.trim()) {
-      console.log('[BenefitConcierge] Submit attempted with empty query');
+    if (!query.trim() || isLoading || isSubmitting) {
+      console.log('[BenefitConcierge] Submit attempted with empty query or while loading');
       return;
     }
 
@@ -179,6 +201,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
 
     console.log('[BenefitConcierge] Starting handleSubmit');
     setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       // Validate processedCards
@@ -220,6 +243,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       
       setChatHistory(prev => [...prev, newMessage]);
       setQuery(''); // Clear input after successful submission
+      setIsSubmitting(false); // Reset submitting state
 
       // Animate new message
       animateNewMessage();
@@ -249,6 +273,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, errorMessage]);
+      setIsSubmitting(false); // Reset submitting state on error
     } finally {
       console.log('[BenefitConcierge] Finishing handleSubmit');
       setIsLoading(false);
@@ -256,19 +281,60 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   };
 
   const handleExamplePrompt = (prompt: string) => {
+    // Just update the query text without submitting
     setQuery(prompt);
+    
+    // Trigger haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Focus the input field
+    inputRef.current?.focus();
   };
+
+  // Add effect to scroll to bottom when chat history changes
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [chatHistory]);
+
+  // Add effect to scroll to bottom when component mounts
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    }
+  }, []);
+
+  const renderSuggestionChip = ({ item }: { item: ExamplePrompt }) => (
+    <TouchableOpacity
+      style={styles.suggestionChip}
+      onPress={() => handleExamplePrompt(item.text)}
+    >
+      <Ionicons name={item.icon} size={16} color="#007AFF" style={styles.suggestionIcon} />
+      <Text style={styles.suggestionText} numberOfLines={1}>{item.text}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.title}>Benefit Concierge</Text>
         <View style={styles.headerButtons}>
-          {chatHistory.length > 0 && (
-            <TouchableOpacity onPress={clearChatHistory} style={styles.clearButton}>
-              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity 
+            onPress={handleClearChat} 
+            style={styles.clearButton}
+            disabled={chatHistory.length === 0}
+          >
+            <Ionicons 
+              name="trash-outline" 
+              size={20} 
+              color={chatHistory.length === 0 ? "#C7C7CC" : "#FF3B30"} 
+            />
+          </TouchableOpacity>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="remove-outline" size={24} color="#1C1C1E" />
           </TouchableOpacity>
@@ -293,18 +359,19 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
               <Text style={styles.welcomeText}>
                 Ask how to make the most of your available benefits for any situation.
               </Text>
-              <View style={styles.examplePromptsContainer}>
-                <Text style={styles.examplePromptsTitle}>Try asking about:</Text>
-                {EXAMPLE_PROMPTS.map((prompt, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.examplePromptButton}
-                    onPress={() => handleExamplePrompt(prompt.text)}
-                  >
-                    <Ionicons name={prompt.icon} size={20} color="#007AFF" style={styles.examplePromptIcon} />
-                    <Text style={styles.examplePromptText} numberOfLines={2}>{prompt.text}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.suggestionsContainer}>
+                <Text style={styles.suggestionsTitle}>Try asking about:</Text>
+                <View style={styles.chipsContainer}>
+                  <FlatList
+                    data={EXAMPLE_PROMPTS}
+                    renderItem={renderSuggestionChip}
+                    keyExtractor={(_, index) => index.toString()}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.suggestionsScrollContent}
+                    ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+                  />
+                </View>
               </View>
             </View>
           )}
@@ -344,16 +411,24 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             returnKeyType="send"
             onSubmitEditing={handleSubmit}
             blurOnSubmit={false}
+            editable={!isSubmitting}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!query.trim() || isLoading) && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton, 
+              (!query.trim() || isLoading || isSubmitting) && styles.sendButtonDisabled
+            ]}
             onPress={handleSubmit}
-            disabled={!query.trim() || isLoading}
+            disabled={!query.trim() || isLoading || isSubmitting}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Ionicons name="arrow-up-circle" size={32} color={query.trim() ? "#007AFF" : "#C7C7CC"} />
+              <Ionicons 
+                name="arrow-up-circle" 
+                size={32} 
+                color={query.trim() && !isSubmitting ? "#007AFF" : "#C7C7CC"} 
+              />
             )}
           </TouchableOpacity>
         </View>
@@ -386,13 +461,17 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12, // Add consistent spacing between buttons
   },
   clearButton: {
-    padding: 4,
-    marginRight: 8,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)', // Light red background
   },
   closeButton: {
-    padding: 4,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)', // Light gray background
   },
   container: {
     flex: 1,
@@ -408,6 +487,7 @@ const styles = StyleSheet.create({
   welcomeContainer: {
     alignItems: 'center',
     paddingVertical: 24,
+    width: '100%',
   },
   welcomeTitle: {
     fontSize: 24,
@@ -421,6 +501,7 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
     marginBottom: 24,
+    paddingHorizontal: 32,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   inputContainer: {
@@ -486,40 +567,50 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  examplePromptsContainer: {
+  suggestionsContainer: {
     width: '100%',
-    marginTop: 24,
+    marginTop: 16,
   },
-  examplePromptsTitle: {
+  suggestionsTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#8E8E93',
-    marginBottom: 8,
+    marginBottom: 12,
     paddingHorizontal: 16,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
-  examplePromptButton: {
+  chipsContainer: {
+    height: 44, // Fixed height for the chips container
+    width: '100%',
+  },
+  suggestionsScrollContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 16,
-    marginBottom: 8,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
+    minWidth: 200, // Minimum width for each chip
+    maxWidth: 300, // Maximum width for each chip
   },
-  examplePromptIcon: {
-    marginRight: 12,
+  suggestionIcon: {
+    marginRight: 6,
   },
-  examplePromptText: {
-    flex: 1,
+  suggestionText: {
     fontSize: 14,
-    color: '#007AFF',
-    lineHeight: 20,
+    color: '#1C1C1E',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    flex: 1,
   },
 }); 
