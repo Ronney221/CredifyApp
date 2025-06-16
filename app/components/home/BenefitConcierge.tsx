@@ -232,6 +232,13 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       return;
     }
 
+    // Store the current query and clear it immediately
+    const currentQuery = query;
+    setQuery('');
+    
+    // Dismiss keyboard immediately
+    inputRef.current?.blur();
+
     // Trigger haptic feedback for sending
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -247,7 +254,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
 
       console.log('[BenefitConcierge] Processing available perks');
       const availablePerks: AvailablePerk[] = processedCards
-        .filter(card => card && card.card && card.perks) // Validate card structure
+        .filter(card => card && card.card && card.perks)
         .map(card => ({
           cardName: card.card.name,
           perks: card.perks
@@ -255,7 +262,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             .map(perk => ({
               name: perk.name,
               value: perk.value,
-              periodMonths: perk.periodMonths || 12 // Default to annual if not specified
+              periodMonths: perk.periodMonths || 12
             }))
         }))
         .filter(card => card.perks.length > 0);
@@ -266,18 +273,17 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
 
       console.log('[BenefitConcierge] Available perks:', JSON.stringify(availablePerks, null, 2));
       console.log('[BenefitConcierge] Calling getBenefitAdvice');
-      const result = await getBenefitAdvice(query, availablePerks);
+      const result = await getBenefitAdvice(currentQuery, availablePerks);
       console.log('[BenefitConcierge] Received advice:', result);
       
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
-        query: query,
+        query: currentQuery,
         response: result,
         timestamp: new Date()
       };
       
       setChatHistory(prev => [...prev, newMessage]);
-      setQuery('');
       setIsSubmitting(false);
 
       // Animate new message
@@ -302,7 +308,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       // Add error message to chat history with more specific error handling
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
-        query: query,
+        query: currentQuery,
         response: {
           advice: error instanceof Error 
             ? `Sorry, ${error.message}. Please try again.`
@@ -317,7 +323,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, errorMessage]);
-      setIsSubmitting(false); // Reset submitting state on error
+      setIsSubmitting(false);
     } finally {
       setIsTyping(false);
       setIsLoading(false);
@@ -436,13 +442,11 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
                   <View style={styles.queryBubble}>
                     <Text style={styles.queryText}>{message.query}</Text>
                   </View>
-                  <View style={styles.queryTail} />
                 </View>
                 <View style={styles.chatResponseContainer}>
                   <View style={styles.responseBubble}>
                     <Text style={styles.chatResponseText}>{message.response.advice}</Text>
                   </View>
-                  <View style={styles.responseTail} />
                 </View>
               </Animated.View>
             ))}
@@ -462,7 +466,11 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             multiline
             maxLength={200}
             returnKeyType="send"
-            onSubmitEditing={handleSubmit}
+            onSubmitEditing={() => {
+              if (query.trim() && !isLoading && !isSubmitting) {
+                handleSubmit();
+              }
+            }}
             blurOnSubmit={false}
             editable={!isSubmitting}
           />
@@ -485,8 +493,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Ionicons 
-                  name="arrow-up" 
-                  size={20} 
+                  name="arrow-up-circle" 
+                  size={24} 
                   color="#FFFFFF" 
                 />
               )}
@@ -615,7 +623,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    position: 'relative',
   },
   queryBubble: {
     backgroundColor: '#007AFF',
@@ -629,23 +636,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  queryTail: {
-    position: 'absolute',
-    right: -4,
-    bottom: 8,
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 0,
-    borderBottomWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#007AFF',
-    transform: [{ rotate: '45deg' }],
-    zIndex: -1, // Ensure tail is behind the bubble
-  },
   queryText: {
     fontSize: 16,
     color: '#FFFFFF',
@@ -656,7 +646,6 @@ const styles = StyleSheet.create({
   chatResponseContainer: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    position: 'relative',
   },
   responseBubble: {
     backgroundColor: '#F2F2F7',
@@ -669,23 +658,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
-  },
-  responseTail: {
-    position: 'absolute',
-    left: -4,
-    bottom: 8,
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 0,
-    borderBottomWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#F2F2F7',
-    transform: [{ rotate: '45deg' }],
-    zIndex: -1, // Ensure tail is behind the bubble
   },
   chatResponseText: {
     fontSize: 16,
