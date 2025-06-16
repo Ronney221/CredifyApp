@@ -85,6 +85,16 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
 
 const CHAT_HISTORY_KEY = '@benefit_concierge_chat_history';
 
+const TypingIndicator = () => (
+  <View style={styles.typingContainer}>
+    <View style={styles.typingBubble}>
+      <View style={styles.typingDot} />
+      <View style={[styles.typingDot, { marginLeft: 4 }]} />
+      <View style={[styles.typingDot, { marginLeft: 4 }]} />
+    </View>
+  </View>
+);
+
 export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -96,6 +106,9 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const inputRef = useRef<TextInput>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const messageAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
+  const sendButtonScale = useRef(new Animated.Value(0)).current;
 
   // Load chat history from AsyncStorage on component mount
   useEffect(() => {
@@ -180,15 +193,38 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
     console.log('[BenefitConcierge] Response updated:', chatHistory);
   }, [chatHistory]);
 
-  // Add animation for new messages
-  const animateNewMessage = () => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
+  // Animation for new messages
+  const animateNewMessage = (messageId: string) => {
+    if (!messageAnimations[messageId]) {
+      messageAnimations[messageId] = new Animated.Value(0);
+    }
+
+    Animated.spring(messageAnimations[messageId], {
       toValue: 1,
-      duration: 300,
       useNativeDriver: true,
+      tension: 50,
+      friction: 7,
     }).start();
   };
+
+  // Animation for send button
+  useEffect(() => {
+    if (query.trim()) {
+      Animated.spring(sendButtonScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    } else {
+      Animated.spring(sendButtonScale, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    }
+  }, [query]);
 
   const handleSubmit = async () => {
     if (!query.trim() || isLoading || isSubmitting) {
@@ -196,7 +232,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       return;
     }
 
-    // Trigger haptic feedback
+    // Trigger haptic feedback for sending
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     console.log('[BenefitConcierge] Starting handleSubmit');
@@ -233,7 +269,6 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       const result = await getBenefitAdvice(query, availablePerks);
       console.log('[BenefitConcierge] Received advice:', result);
       
-      // Add to chat history with animation
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
         query: query,
@@ -242,11 +277,20 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       };
       
       setChatHistory(prev => [...prev, newMessage]);
-      setQuery(''); // Clear input after successful submission
-      setIsSubmitting(false); // Reset submitting state
+      setQuery('');
+      setIsSubmitting(false);
 
       // Animate new message
-      animateNewMessage();
+      animateNewMessage(newMessage.id);
+
+      // Show typing indicator
+      setIsTyping(true);
+
+      // Simulate bot thinking time (remove this in production)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Trigger haptic feedback for bot response
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
 
       // Scroll to bottom with animation
       setTimeout(() => {
@@ -275,19 +319,14 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       setChatHistory(prev => [...prev, errorMessage]);
       setIsSubmitting(false); // Reset submitting state on error
     } finally {
-      console.log('[BenefitConcierge] Finishing handleSubmit');
+      setIsTyping(false);
       setIsLoading(false);
     }
   };
 
   const handleExamplePrompt = (prompt: string) => {
-    // Just update the query text without submitting
     setQuery(prompt);
-    
-    // Trigger haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Focus the input field
     inputRef.current?.focus();
   };
 
@@ -353,49 +392,63 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          {chatHistory.length === 0 && (
-            <View style={styles.welcomeContainer}>
-              <Text style={styles.welcomeTitle}>Welcome to Benefit Concierge</Text>
-              <Text style={styles.welcomeText}>
-                Ask how to make the most of your available benefits for any situation.
-              </Text>
-              <View style={styles.suggestionsContainer}>
-                <Text style={styles.suggestionsTitle}>Try asking about:</Text>
-                <View style={styles.chipsContainer}>
-                  <FlatList
-                    data={EXAMPLE_PROMPTS}
-                    renderItem={renderSuggestionChip}
-                    keyExtractor={(_, index) => index.toString()}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.suggestionsScrollContent}
-                    ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
-                  />
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            {chatHistory.length === 0 && (
+              <View style={styles.welcomeContainer}>
+                <Text style={styles.welcomeTitle}>Welcome to Benefit Concierge</Text>
+                <Text style={styles.welcomeText}>
+                  Ask how to make the most of your available benefits for any situation.
+                </Text>
+                <View style={styles.suggestionsContainer}>
+                  <Text style={styles.suggestionsTitle}>Try asking about:</Text>
+                  <View style={styles.chipsContainer}>
+                    <FlatList
+                      data={EXAMPLE_PROMPTS}
+                      renderItem={renderSuggestionChip}
+                      keyExtractor={(_, index) => index.toString()}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.suggestionsScrollContent}
+                      ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {chatHistory.map((message, index) => (
-            <Animated.View 
-              key={message.id} 
-              style={[
-                styles.chatMessageContainer,
-                { opacity: fadeAnim }
-              ]}
-            >
-              <View style={styles.queryContainer}>
-                <View style={styles.queryBubble}>
-                  <Text style={styles.queryText}>{message.query}</Text>
+            {chatHistory.map((message, index) => (
+              <Animated.View 
+                key={message.id} 
+                style={[
+                  styles.chatMessageContainer,
+                  {
+                    opacity: messageAnimations[message.id] || 1,
+                    transform: [{
+                      translateY: messageAnimations[message.id]?.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [20, 0]
+                      }) || 0
+                    }]
+                  }
+                ]}
+              >
+                <View style={styles.queryContainer}>
+                  <View style={styles.queryBubble}>
+                    <Text style={styles.queryText}>{message.query}</Text>
+                  </View>
+                  <View style={styles.queryTail} />
                 </View>
-              </View>
-              <View style={styles.chatResponseContainer}>
-                <View style={styles.responseBubble}>
-                  <Text style={styles.chatResponseText}>{message.response.advice}</Text>
+                <View style={styles.chatResponseContainer}>
+                  <View style={styles.responseBubble}>
+                    <Text style={styles.chatResponseText}>{message.response.advice}</Text>
+                  </View>
+                  <View style={styles.responseTail} />
                 </View>
-              </View>
-            </Animated.View>
-          ))}
+              </Animated.View>
+            ))}
+
+            {isTyping && <TypingIndicator />}
+          </View>
         </ScrollView>
 
         <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
@@ -404,7 +457,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             style={styles.input}
             value={query}
             onChangeText={setQuery}
-            placeholder="Ask about your benefits..."
+            placeholder="Message your concierge..."
             placeholderTextColor="#8E8E93"
             multiline
             maxLength={200}
@@ -413,24 +466,32 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             blurOnSubmit={false}
             editable={!isSubmitting}
           />
-          <TouchableOpacity
-            style={[
-              styles.sendButton, 
-              (!query.trim() || isLoading || isSubmitting) && styles.sendButtonDisabled
-            ]}
-            onPress={handleSubmit}
-            disabled={!query.trim() || isLoading || isSubmitting}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Ionicons 
-                name="arrow-up-circle" 
-                size={32} 
-                color={query.trim() && !isSubmitting ? "#007AFF" : "#C7C7CC"} 
-              />
-            )}
-          </TouchableOpacity>
+          <Animated.View style={[
+            styles.sendButtonContainer,
+            {
+              opacity: sendButtonScale,
+              transform: [{ scale: sendButtonScale }]
+            }
+          ]}>
+            <TouchableOpacity
+              style={[
+                styles.sendButton, 
+                (!query.trim() || isLoading || isSubmitting) && styles.sendButtonDisabled
+              ]}
+              onPress={handleSubmit}
+              disabled={!query.trim() || isLoading || isSubmitting}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Ionicons 
+                  name="arrow-up" 
+                  size={20} 
+                  color="#FFFFFF" 
+                />
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -483,6 +544,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: 16,
+    justifyContent: 'flex-end',
   },
   welcomeContainer: {
     alignItems: 'center',
@@ -524,48 +586,113 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  sendButton: {
+  sendButtonContainer: {
     marginLeft: 8,
     marginBottom: 4,
+  },
+  sendButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   sendButtonDisabled: {
     opacity: 0.5,
   },
   chatMessageContainer: {
     marginBottom: 12,
+    flexDirection: 'column',
   },
   queryContainer: {
     alignItems: 'flex-end',
     marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    position: 'relative',
   },
   queryBubble: {
     backgroundColor: '#007AFF',
     padding: 12,
-    borderRadius: 20,
+    borderRadius: 22,
     maxWidth: '85%',
     borderTopRightRadius: 4,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  queryTail: {
+    position: 'absolute',
+    right: -4,
+    bottom: 8,
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 0,
+    borderBottomWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#007AFF',
+    transform: [{ rotate: '45deg' }],
+    zIndex: -1, // Ensure tail is behind the bubble
   },
   queryText: {
     fontSize: 16,
     color: '#FFFFFF',
-    lineHeight: 20,
+    lineHeight: 22,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    letterSpacing: -0.2,
   },
   chatResponseContainer: {
     alignItems: 'flex-start',
+    flexDirection: 'row',
+    position: 'relative',
   },
   responseBubble: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: '#F2F2F7',
     padding: 12,
-    borderRadius: 20,
+    borderRadius: 22,
     maxWidth: '85%',
     borderTopLeftRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  responseTail: {
+    position: 'absolute',
+    left: -4,
+    bottom: 8,
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 0,
+    borderBottomWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#F2F2F7',
+    transform: [{ rotate: '45deg' }],
+    zIndex: -1, // Ensure tail is behind the bubble
   },
   chatResponseText: {
     fontSize: 16,
     color: '#1C1C1E',
-    lineHeight: 20,
+    lineHeight: 22,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    letterSpacing: -0.2,
   },
   suggestionsContainer: {
     width: '100%',
@@ -612,5 +739,29 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     flex: 1,
+  },
+  typingContainer: {
+    padding: 12,
+    alignItems: 'flex-start',
+  },
+  typingBubble: {
+    backgroundColor: '#F2F2F7',
+    padding: 12,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopLeftRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#8E8E93',
+    opacity: 0.6,
   },
 }); 
