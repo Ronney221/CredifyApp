@@ -1,4 +1,5 @@
 import { Card, CardPerk } from '../src/data/card-data';
+import { supabase } from './supabase';
 
 interface AvailablePerk {
   cardName: string;
@@ -81,13 +82,53 @@ export async function getBenefitAdvice(query: string, availablePerks: AvailableP
   console.log('[OpenAI] Query:', query);
   console.log('[OpenAI] Available cards:', JSON.stringify(availablePerks, null, 2));
 
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_SECRET_KEY;
-  console.log('[OpenAI] API Key present:', !!apiKey);
-  console.log('[OpenAI] API Key length:', apiKey?.length);
-  console.log('[OpenAI] API Key first 4 chars:', apiKey?.substring(0, 4));
+  // Fetch API key from Supabase
+  const { data: configData, error: configError } = await supabase
+    .from('app_config')
+    .select('openai_api_key')
+    .single();
 
-  if (!apiKey) {
-    throw new Error('OpenAI API key not found in environment variables');
+  if (configError || !configData?.openai_api_key) {
+    console.error('[OpenAI] Failed to fetch API key from Supabase:', configError);
+    return {
+      advice: 'Sorry, the AI service is currently unavailable. Please try again later.',
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        estimatedCost: 0
+      }
+    };
+  }
+
+  const apiKey = configData.openai_api_key;
+  
+  // More robust API key validation
+  if (!apiKey || apiKey.trim() === '') {
+    console.error('[OpenAI] API Key is missing or empty');
+    return {
+      advice: 'Sorry, the AI service is currently unavailable. Please try again later.',
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        estimatedCost: 0
+      }
+    };
+  }
+
+  // Validate availablePerks
+  if (!availablePerks || !Array.isArray(availablePerks) || availablePerks.length === 0) {
+    console.error('[OpenAI] No available perks provided');
+    return {
+      advice: 'No available benefits found. Please add some cards to get started.',
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        estimatedCost: 0
+      }
+    };
   }
 
   // Define the new, powerful system prompt

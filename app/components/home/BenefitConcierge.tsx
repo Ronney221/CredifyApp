@@ -9,12 +9,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
 import { Card, CardPerk } from '../../../src/data/card-data';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatMessage {
   id: string;
@@ -31,14 +33,21 @@ interface BenefitConciergeProps {
 }
 
 interface AvailablePerk {
-  name: string;
-  value: number;
-  periodMonths?: number;
+  cardName: string;
+  perks: {
+    name: string;
+    value: number;
+    periodMonths: number;
+  }[];
 }
 
 interface CardWithPerks {
   cardName: string;
-  perks: AvailablePerk[];
+  perks: {
+    name: string;
+    value: number;
+    periodMonths: number;
+  }[];
 }
 
 interface TokenUsage {
@@ -69,6 +78,7 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
 ];
 
 export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -104,17 +114,29 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
     setIsLoading(true);
 
     try {
+      // Validate processedCards
+      if (!processedCards || !Array.isArray(processedCards)) {
+        throw new Error('Invalid card data');
+      }
+
       console.log('[BenefitConcierge] Processing available perks');
-      const availablePerks: CardWithPerks[] = processedCards.map(card => ({
-        cardName: card.card.name,
-        perks: card.perks
-          .filter(perk => perk.status === 'available')
-          .map(perk => ({
-            name: perk.name,
-            value: perk.value,
-            periodMonths: perk.periodMonths
-          }))
-      })).filter(card => card.perks.length > 0);
+      const availablePerks: AvailablePerk[] = processedCards
+        .filter(card => card && card.card && card.perks) // Validate card structure
+        .map(card => ({
+          cardName: card.card.name,
+          perks: card.perks
+            .filter(perk => perk && perk.status === 'available')
+            .map(perk => ({
+              name: perk.name,
+              value: perk.value,
+              periodMonths: perk.periodMonths || 12 // Default to annual if not specified
+            }))
+        }))
+        .filter(card => card.perks.length > 0);
+
+      if (availablePerks.length === 0) {
+        throw new Error('No available perks found');
+      }
 
       console.log('[BenefitConcierge] Available perks:', JSON.stringify(availablePerks, null, 2));
       console.log('[BenefitConcierge] Calling getBenefitAdvice');
@@ -133,12 +155,14 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       setQuery(''); // Clear input after successful submission
     } catch (error) {
       console.error('[BenefitConcierge] Error in handleSubmit:', error);
-      // Add error message to chat history
+      // Add error message to chat history with more specific error handling
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         query: query,
         response: {
-          advice: 'Sorry, I encountered an error. Please try again.',
+          advice: error instanceof Error 
+            ? `Sorry, ${error.message}. Please try again.`
+            : 'Sorry, I encountered an error. Please try again.',
           usage: {
             promptTokens: 0,
             completionTokens: 0,
@@ -163,7 +187,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={styles.header}>
         <Text style={styles.title}>Benefit Concierge</Text>
@@ -174,7 +198,10 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
 
       <ScrollView 
         style={styles.content}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom }
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.description}>
@@ -198,16 +225,6 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
           </View>
         ))}
 
-        <TextInput
-          style={styles.input}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="e.g., I'm booking a trip to New York for 3 nights..."
-          placeholderTextColor="#8E8E93"
-          multiline
-          maxLength={200}
-        />
-
         <View style={styles.examplePromptsContainer}>
           <Text style={styles.examplePromptsTitle}>Try asking about:</Text>
           {EXAMPLE_PROMPTS.map((prompt, index) => (
@@ -221,7 +238,18 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             </TouchableOpacity>
           ))}
         </View>
+      </ScrollView>
 
+      <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
+        <TextInput
+          style={styles.input}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="e.g., I'm booking a trip to New York for 3 nights..."
+          placeholderTextColor="#8E8E93"
+          multiline
+          maxLength={200}
+        />
         <TouchableOpacity
           style={[styles.submitButton, (!query.trim() || isLoading) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
@@ -233,7 +261,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             <Text style={styles.submitButtonText}>Get Advice</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -264,30 +292,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
     padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
   },
   description: {
     fontSize: 15,
     color: '#8E8E93',
     marginBottom: 16,
   },
+  inputContainer: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+  },
   input: {
     backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 12,
     fontSize: 16,
     color: '#1C1C1E',
-    minHeight: 100,
+    minHeight: 40,
+    maxHeight: 100,
     textAlignVertical: 'top',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   submitButton: {
     backgroundColor: '#007AFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 12,
     alignItems: 'center',
-    marginBottom: 24,
   },
   submitButtonDisabled: {
     opacity: 0.5,
@@ -298,31 +332,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chatMessageContainer: {
-    marginBottom: 20,
-    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   queryContainer: {
     backgroundColor: '#E5E5EA',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 20,
     marginBottom: 8,
     alignSelf: 'flex-end',
     maxWidth: '85%',
   },
   queryText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#1C1C1E',
     lineHeight: 20,
   },
   chatResponseContainer: {
     backgroundColor: '#007AFF',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 20,
     alignSelf: 'flex-start',
     maxWidth: '85%',
   },
   chatResponseText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#FFFFFF',
     lineHeight: 20,
   },
@@ -339,7 +372,7 @@ const styles = StyleSheet.create({
   },
   examplePromptsContainer: {
     marginTop: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   examplePromptsTitle: {
     fontSize: 14,
