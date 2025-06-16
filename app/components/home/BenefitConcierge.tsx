@@ -12,6 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
@@ -77,6 +78,8 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   }
 ];
 
+const CHAT_HISTORY_KEY = '@benefit_concierge_chat_history';
+
 export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -84,6 +87,51 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const { userCardsWithPerks } = useUserCards();
   const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
+
+  // Load chat history from AsyncStorage on component mount
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        const savedHistory = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
+        if (savedHistory) {
+          const parsedHistory = JSON.parse(savedHistory);
+          // Convert string dates back to Date objects
+          const historyWithDates = parsedHistory.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+          setChatHistory(historyWithDates);
+        }
+      } catch (error) {
+        console.error('[BenefitConcierge] Error loading chat history:', error);
+      }
+    };
+    loadChatHistory();
+  }, []);
+
+  // Save chat history to AsyncStorage whenever it changes
+  useEffect(() => {
+    const saveChatHistory = async () => {
+      try {
+        await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+      } catch (error) {
+        console.error('[BenefitConcierge] Error saving chat history:', error);
+      }
+    };
+    if (chatHistory.length > 0) {
+      saveChatHistory();
+    }
+  }, [chatHistory]);
+
+  // Clear chat history function
+  const clearChatHistory = async () => {
+    try {
+      await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
+      setChatHistory([]);
+    } catch (error) {
+      console.error('[BenefitConcierge] Error clearing chat history:', error);
+    }
+  };
 
   // Debug logging for component mount and state changes
   useEffect(() => {
@@ -191,9 +239,16 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
     >
       <View style={styles.header}>
         <Text style={styles.title}>Benefit Concierge</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color="#1C1C1E" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          {chatHistory.length > 0 && (
+            <TouchableOpacity onPress={clearChatHistory} style={styles.clearButton}>
+              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="remove-outline" size={24} color="#1C1C1E" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView 
@@ -240,7 +295,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
         </View>
       </ScrollView>
 
-      <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.inputContainer, {}]}>
         <TextInput
           style={styles.input}
           value={query}
@@ -305,6 +360,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
     backgroundColor: '#FFFFFF',
     padding: 8,
+    paddingBottom: 0,
   },
   input: {
     backgroundColor: '#F2F2F7',
@@ -322,6 +378,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 12,
     alignItems: 'center',
+    marginBottom: 0,
   },
   submitButtonDisabled: {
     opacity: 0.5,
@@ -398,5 +455,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007AFF',
     lineHeight: 20,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clearButton: {
+    padding: 4,
+    marginRight: 8,
   },
 }); 

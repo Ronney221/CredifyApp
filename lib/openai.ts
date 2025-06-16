@@ -82,28 +82,10 @@ export async function getBenefitAdvice(query: string, availablePerks: AvailableP
   console.log('[OpenAI] Query:', query);
   console.log('[OpenAI] Available cards:', JSON.stringify(availablePerks, null, 2));
 
-  // Fetch API key from Supabase
-  const { data: configData, error: configError } = await supabase
-    .from('app_config')
-    .select('openai_api_key')
-    .single();
-
-  if (configError || !configData?.openai_api_key) {
-    console.error('[OpenAI] Failed to fetch API key from Supabase:', configError);
-    return {
-      advice: 'Sorry, the AI service is currently unavailable. Please try again later.',
-      usage: {
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimatedCost: 0
-      }
-    };
-  }
-
-  const apiKey = configData.openai_api_key;
+  // Get API key from environment variable
+  const apiKey = process.env.EXPO_PUBLIC_OPENAI_SECRET_KEY;
   
-  // More robust API key validation
+  // Validate API key
   if (!apiKey || apiKey.trim() === '') {
     console.error('[OpenAI] API Key is missing or empty');
     return {
