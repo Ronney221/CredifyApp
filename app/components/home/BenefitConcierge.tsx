@@ -92,6 +92,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const inputRef = useRef<TextInput>(null);
 
   // Load chat history from AsyncStorage on component mount
   useEffect(() => {
@@ -259,11 +260,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.title}>Benefit Concierge</Text>
         <View style={styles.headerButtons}>
@@ -278,90 +275,95 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
         </View>
       </View>
 
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.content}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom }
-        ]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <Text style={styles.description}>
-          Ask how to make the most of your available benefits for any situation.
-        </Text>
-
-        {/* Chat History */}
-        {chatHistory.map((message, index) => (
-          <Animated.View 
-            key={message.id} 
-            style={[
-              styles.chatMessageContainer,
-              { opacity: fadeAnim }
-            ]}
-          >
-            <View style={styles.queryContainer}>
-              <View style={styles.queryBubble}>
-                <Text style={styles.queryText}>{message.query}</Text>
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          {chatHistory.length === 0 && (
+            <View style={styles.welcomeContainer}>
+              <Text style={styles.welcomeTitle}>Welcome to Benefit Concierge</Text>
+              <Text style={styles.welcomeText}>
+                Ask how to make the most of your available benefits for any situation.
+              </Text>
+              <View style={styles.examplePromptsContainer}>
+                <Text style={styles.examplePromptsTitle}>Try asking about:</Text>
+                {EXAMPLE_PROMPTS.map((prompt, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.examplePromptButton}
+                    onPress={() => handleExamplePrompt(prompt.text)}
+                  >
+                    <Ionicons name={prompt.icon} size={20} color="#007AFF" style={styles.examplePromptIcon} />
+                    <Text style={styles.examplePromptText} numberOfLines={2}>{prompt.text}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
-            <View style={styles.chatResponseContainer}>
-              <View style={styles.responseBubble}>
-                <Text style={styles.chatResponseText}>{message.response.advice}</Text>
-                <View style={styles.chatUsageContainer}>
-                  <Text style={styles.chatUsageText}>
-                    Tokens used: {message.response.usage.totalTokens} (${message.response.usage.estimatedCost.toFixed(4)})
-                  </Text>
+          )}
+
+          {chatHistory.map((message, index) => (
+            <Animated.View 
+              key={message.id} 
+              style={[
+                styles.chatMessageContainer,
+                { opacity: fadeAnim }
+              ]}
+            >
+              <View style={styles.queryContainer}>
+                <View style={styles.queryBubble}>
+                  <Text style={styles.queryText}>{message.query}</Text>
                 </View>
               </View>
-            </View>
-          </Animated.View>
-        ))}
-
-        <View style={styles.examplePromptsContainer}>
-          <Text style={styles.examplePromptsTitle}>Try asking about:</Text>
-          {EXAMPLE_PROMPTS.map((prompt, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.examplePromptButton}
-              onPress={() => handleExamplePrompt(prompt.text)}
-            >
-              <Ionicons name={prompt.icon} size={20} color="#007AFF" style={styles.examplePromptIcon} />
-              <Text style={styles.examplePromptText} numberOfLines={2}>{prompt.text}</Text>
-            </TouchableOpacity>
+              <View style={styles.chatResponseContainer}>
+                <View style={styles.responseBubble}>
+                  <Text style={styles.chatResponseText}>{message.response.advice}</Text>
+                </View>
+              </View>
+            </Animated.View>
           ))}
-        </View>
-      </ScrollView>
+        </ScrollView>
 
-      <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
-        <TextInput
-          style={styles.input}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="e.g., I'm booking a trip to New York for 3 nights..."
-          placeholderTextColor="#8E8E93"
-          multiline
-          maxLength={200}
-        />
-        <TouchableOpacity
-          style={[styles.submitButton, (!query.trim() || isLoading) && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={!query.trim() || isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.submitButtonText}>Get Advice</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Ask about your benefits..."
+            placeholderTextColor="#8E8E93"
+            multiline
+            maxLength={200}
+            returnKeyType="send"
+            onSubmitEditing={handleSubmit}
+            blurOnSubmit={false}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!query.trim() || isLoading) && styles.sendButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={!query.trim() || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Ionicons name="arrow-up-circle" size={32} color={query.trim() ? "#007AFF" : "#C7C7CC"} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
@@ -381,57 +383,72 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clearButton: {
+    padding: 4,
+    marginRight: 8,
+  },
   closeButton: {
     padding: 4,
   },
-  content: {
+  container: {
     flex: 1,
     backgroundColor: '#F2F2F7',
+  },
+  content: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     padding: 16,
   },
-  description: {
-    fontSize: 15,
+  welcomeContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  welcomeText: {
+    fontSize: 16,
     color: '#8E8E93',
-    marginBottom: 16,
+    textAlign: 'center',
+    marginBottom: 24,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 8,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
-    backgroundColor: '#FFFFFF',
-    padding: 8,
-    paddingBottom: 0,
   },
   input: {
+    flex: 1,
     backgroundColor: '#F2F2F7',
     borderRadius: 20,
-    padding: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingTop: 8,
+    maxHeight: 100,
     fontSize: 16,
     color: '#1C1C1E',
-    minHeight: 40,
-    maxHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 8,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  submitButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 20,
-    padding: 12,
-    alignItems: 'center',
-    marginBottom: 0,
+  sendButton: {
+    marginLeft: 8,
+    marginBottom: 4,
   },
-  submitButtonDisabled: {
+  sendButtonDisabled: {
     opacity: 0.5,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   chatMessageContainer: {
     marginBottom: 12,
@@ -469,21 +486,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  chatUsageContainer: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  chatUsageText: {
-    fontSize: 12,
-    color: '#8E8E93',
-    textAlign: 'left',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
   examplePromptsContainer: {
-    marginTop: 16,
-    marginBottom: 16,
+    width: '100%',
+    marginTop: 24,
   },
   examplePromptsTitle: {
     fontSize: 14,
@@ -516,13 +521,5 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     lineHeight: 20,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  clearButton: {
-    padding: 4,
-    marginRight: 8,
   },
 }); 
