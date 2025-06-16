@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Pressable,
   FlatList,
   Alert,
+  PermissionsAndroid,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +24,14 @@ import { getBenefitAdvice } from '../../../lib/openai';
 import { Card, CardPerk } from '../../../src/data/card-data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
+import * as SpeechRecognition from 'expo-speech-recognition';
+
+// Add these constants at the top of the file, after the imports
+const USER_MESSAGE_COLOR = '#007AFF';
+const BOT_MESSAGE_COLOR = '#E5E5EA';
+const PRIMARY_TEXT_COLOR = '#000000';
+const SECONDARY_TEXT_COLOR = '#FFFFFF';
 
 interface ChatMessage {
   id: string;
@@ -68,6 +77,67 @@ interface ExamplePrompt {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
+interface ChatMessageBubbleProps {
+  text: string;
+  isCurrentUser: boolean;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+}
+
+const ChatMessageBubble = ({ text, isCurrentUser, isFirstInGroup, isLastInGroup }: ChatMessageBubbleProps) => {
+  const bubbleStyle = {
+    backgroundColor: isCurrentUser ? USER_MESSAGE_COLOR : BOT_MESSAGE_COLOR,
+    borderTopLeftRadius: isCurrentUser || isFirstInGroup ? 20 : 5,
+    borderTopRightRadius: !isCurrentUser || isFirstInGroup ? 20 : 5,
+    borderBottomLeftRadius: isCurrentUser || isLastInGroup ? 20 : 5,
+    borderBottomRightRadius: !isCurrentUser || isLastInGroup ? 20 : 5,
+  };
+
+  const textStyle = {
+    color: isCurrentUser ? SECONDARY_TEXT_COLOR : PRIMARY_TEXT_COLOR,
+  };
+
+  const renderTail = () => {
+    if (isLastInGroup) {
+      return (
+        <View style={[
+          styles.tail,
+          isCurrentUser ? styles.tailRight : styles.tailLeft,
+          { backgroundColor: isCurrentUser ? USER_MESSAGE_COLOR : BOT_MESSAGE_COLOR }
+        ]} />
+      );
+    }
+    return null;
+  };
+
+  const formatText = (inputText: string) => {
+    const cardNameRegex = /(\b[A-Z][a-z]+(\s[A-Z][a-z]+)+\b)/g;
+    const parts = inputText.split(cardNameRegex);
+    
+    return (
+      <Text style={[styles.messageText, textStyle]}>
+        {parts.map((part, index) => 
+          cardNameRegex.test(part) ? 
+          <Text key={index} style={{fontWeight: '600'}}>{part}</Text> : 
+          part
+        )}
+      </Text>
+    );
+  };
+
+  return (
+    <View style={[
+      styles.messageRow,
+      { justifyContent: isCurrentUser ? 'flex-end' : 'flex-start' }
+    ]}>
+      <View style={[styles.bubble, bubbleStyle]}>
+        {formatText(text)}
+      </View>
+      {renderTail()}
+    </View>
+  );
+};
+
 const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   {
     text: "I'm planning a 3-night weekend trip to New York next month. How can I use my card benefits to save money on flights and my hotel stay?",
@@ -85,15 +155,41 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
 
 const CHAT_HISTORY_KEY = '@benefit_concierge_chat_history';
 
-const TypingIndicator = () => (
-  <View style={styles.typingContainer}>
-    <View style={styles.typingBubble}>
-      <View style={styles.typingDot} />
-      <View style={[styles.typingDot, { marginLeft: 4 }]} />
-      <View style={[styles.typingDot, { marginLeft: 4 }]} />
+const TypingIndicator = () => {
+  const [dots, setDots] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => (prev + 1) % 4);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View style={styles.messageRow}>
+      <View style={[styles.bubble, styles.typingBubble]}>
+        <View style={styles.typingDotsContainer}>
+          {[...Array(3)].map((_, i) => (
+            <Animated.View
+              key={i}
+              style={[
+                styles.typingDot,
+                {
+                  opacity: i < dots ? 1 : 0.3,
+                  transform: [
+                    {
+                      scale: i < dots ? 1 : 0.8,
+                    },
+                  ],
+                },
+              ]}
+            />
+          ))}
+        </View>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const insets = useSafeAreaInsets();
@@ -109,6 +205,16 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const [isTyping, setIsTyping] = useState(false);
   const messageAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
   const sendButtonScale = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef<FlatList>(null);
+
+  const unifiedChatList = useMemo(() => {
+    const list: { id: string; text: string; isFromUser: boolean }[] = [];
+    chatHistory.forEach(msg => {
+      list.push({ id: `${msg.id}-q`, text: msg.query, isFromUser: true });
+      list.push({ id: `${msg.id}-r`, text: msg.response.advice, isFromUser: false });
+    });
+    return list;
+  }, [chatHistory]);
 
   // Load chat history from AsyncStorage on component mount
   useEffect(() => {
@@ -226,25 +332,30 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
     }
   }, [query]);
 
-  const handleSubmit = async () => {
-    if (!query.trim() || isLoading || isSubmitting) {
-      console.log('[BenefitConcierge] Submit attempted with empty query or while loading');
-      return;
+  // Add this effect to handle scrolling when typing indicator appears
+  useEffect(() => {
+    if (isTyping) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     }
+  }, [isTyping]);
 
-    // Store the current query and clear it immediately
+  // Update handleSubmit to ensure proper scrolling
+  const handleSubmit = async () => {
+    if (!query.trim() || isLoading || isSubmitting) return;
+
     const currentQuery = query;
     setQuery('');
-    
-    // Dismiss keyboard immediately
-    inputRef.current?.blur();
-
-    // Trigger haptic feedback for sending
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    console.log('[BenefitConcierge] Starting handleSubmit');
     setIsLoading(true);
     setIsSubmitting(true);
+    setIsTyping(true);
+
+    // Scroll to bottom immediately after sending
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
 
     try {
       // Validate processedCards
@@ -284,23 +395,12 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       };
       
       setChatHistory(prev => [...prev, newMessage]);
-      setIsSubmitting(false);
-
-      // Animate new message
       animateNewMessage(newMessage.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Show typing indicator
-      setIsTyping(true);
-
-      // Simulate bot thinking time (remove this in production)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Trigger haptic feedback for bot response
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-
-      // Scroll to bottom with animation
+      // Scroll to bottom after new message
       setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
 
     } catch (error) {
@@ -324,8 +424,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       };
       setChatHistory(prev => [...prev, errorMessage]);
       setIsSubmitting(false);
+      setTimeout(() => setIsTyping(false), 1000);
     } finally {
-      setIsTyping(false);
       setIsLoading(false);
     }
   };
@@ -363,6 +463,42 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
       <Text style={styles.suggestionText} numberOfLines={1}>{item.text}</Text>
     </TouchableOpacity>
   );
+
+  const renderMessage = ({ item, index }: { item: any; index: number }) => {
+    const prevMessage = unifiedChatList[index - 1];
+    const nextMessage = unifiedChatList[index + 1];
+
+    const isFirstInGroup = !prevMessage || prevMessage.isFromUser !== item.isFromUser;
+    const isLastInGroup = !nextMessage || nextMessage.isFromUser !== item.isFromUser;
+
+    const messageId = item.id;
+    if (!messageAnimations[messageId]) {
+      messageAnimations[messageId] = new Animated.Value(0);
+    }
+
+    return (
+      <Animated.View
+        style={{
+          opacity: messageAnimations[messageId],
+          transform: [
+            {
+              translateY: messageAnimations[messageId].interpolate({
+                inputRange: [0, 1],
+                outputRange: [20, 0],
+              }),
+            },
+          ],
+        }}
+      >
+        <ChatMessageBubble
+          text={item.text}
+          isCurrentUser={item.isFromUser}
+          isFirstInGroup={isFirstInGroup}
+          isLastInGroup={isLastInGroup}
+        />
+      </Animated.View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -461,8 +597,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             style={styles.input}
             value={query}
             onChangeText={setQuery}
-            placeholder="Message your concierge..."
-            placeholderTextColor="#8E8E93"
+            placeholder="Ask about your benefits..."
+            placeholderTextColor="rgba(142, 142, 147, 0.8)"
             multiline
             maxLength={200}
             returnKeyType="send"
@@ -473,6 +609,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             }}
             blurOnSubmit={false}
             editable={!isSubmitting}
+            textAlignVertical="center"
           />
           <Animated.View style={[
             styles.sendButtonContainer,
@@ -584,7 +721,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: 'rgba(142, 142, 147, 0.12)',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -593,6 +730,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1C1C1E',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    textAlignVertical: 'center',
   },
   sendButtonContainer: {
     marginLeft: 8,
@@ -602,10 +740,10 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0A84FF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#007AFF',
+    shadowColor: '#0A84FF',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -712,28 +850,51 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     flex: 1,
   },
-  typingContainer: {
-    padding: 12,
-    alignItems: 'flex-start',
-  },
   typingBubble: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: BOT_MESSAGE_COLOR,
     padding: 12,
-    borderRadius: 22,
+    borderRadius: 20,
+    borderTopLeftRadius: 4,
+  },
+  typingDotsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopLeftRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    justifyContent: 'center',
+    height: 20,
   },
   typingDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#8E8E93',
-    opacity: 0.6,
+    marginHorizontal: 2,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    marginVertical: 2,
+    alignItems: 'flex-end',
+  },
+  bubble: {
+    maxWidth: '80%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  messageText: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  tail: {
+    width: 10,
+    height: 10,
+    position: 'absolute',
+    bottom: 0,
+  },
+  tailLeft: {
+    left: -5,
+    borderBottomRightRadius: 10,
+  },
+  tailRight: {
+    right: -5,
+    borderBottomLeftRadius: 10,
   },
 }); 

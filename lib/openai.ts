@@ -10,11 +10,6 @@ interface AvailablePerk {
   }[];
 }
 
-interface CardWithPerks {
-  cardName: string;
-  perks: AvailablePerk[];
-}
-
 interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
@@ -28,64 +23,13 @@ function calculateCost(usage: { promptTokens: number; completionTokens: number }
   return promptCost + completionCost;
 }
 
-function formatMarkdownToReadable(markdown: string): string {
-  console.log('[OpenAI] Raw markdown input:', markdown);
-  
-  let text = markdown;
-
-  // Remove markdown code block markers
-  text = text.replace(/```markdown\n?/g, '');
-  text = text.replace(/```\n?/g, '');
-  
-  // Remove markdown headers and convert to plain text
-  text = text.replace(/^#+\s+/gm, '');
-  
-  // Convert bullet points to readable format
-  text = text.replace(/^\s*[-*]\s+/gm, '• ');
-  
-  // Remove code blocks and their content
-  text = text.replace(/```[\s\S]*?```/g, '');
-  
-  // Remove inline code
-  text = text.replace(/`([^`]+)`/g, '$1');
-  
-  // Remove bold/italic markers
-  text = text.replace(/\*\*/g, '');
-  text = text.replace(/\*/g, '');
-  text = text.replace(/_/g, '');
-  
-  // Remove links but keep the text
-  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-  
-  // Remove horizontal rules
-  text = text.replace(/^[-*_]{3,}$/gm, '');
-  
-  // Clean up extra whitespace
-  text = text.replace(/\n{3,}/g, '\n\n');
-  text = text.replace(/^\s+/gm, '');
-  text = text.replace(/\s+$/gm, '');
-  
-  // Add proper spacing between sections
-  text = text.split('\n').map(line => line.trim()).join('\n');
-  
-  // Remove any remaining markdown artifacts
-  text = text.replace(/\[|\]|\(|\)/g, '');
-  
-  const finalText = text.trim();
-  console.log('[OpenAI] Formatted text output:', finalText);
-  
-  return finalText;
-}
-
 export async function getBenefitAdvice(query: string, availablePerks: AvailablePerk[]): Promise<{ advice: string; usage: TokenUsage }> {
   console.log('[OpenAI] Starting getBenefitAdvice function');
   console.log('[OpenAI] Query:', query);
   console.log('[OpenAI] Available cards:', JSON.stringify(availablePerks, null, 2));
 
-  // Get API key from environment variable
   const apiKey = process.env.EXPO_PUBLIC_OPENAI_SECRET_KEY;
   
-  // Validate API key
   if (!apiKey || apiKey.trim() === '') {
     console.error('[OpenAI] API Key is missing or empty');
     return {
@@ -99,7 +43,6 @@ export async function getBenefitAdvice(query: string, availablePerks: AvailableP
     };
   }
 
-  // Validate availablePerks
   if (!availablePerks || !Array.isArray(availablePerks) || availablePerks.length === 0) {
     console.error('[OpenAI] No available perks provided');
     return {
@@ -113,30 +56,51 @@ export async function getBenefitAdvice(query: string, availablePerks: AvailableP
     };
   }
 
-  // Define the new, powerful system prompt
-  const system_prompt = `You are Credify's "Benefit Concierge," an AI expert specializing in credit card rewards. Your primary directive is to help users maximize their card benefits by providing concise, actionable, and hyper-relevant advice.
+  const system_prompt = `
+// ROLE & PERSONA
+You are a "Benefit Concierge" for Credify, an expert financial assistant. Your tone is helpful, professional, and confident. You are not a generic chatbot; you are a specialist.
 
-You must strictly adhere to the following rules:
+// CORE DIRECTIVE
+Your goal is to analyze a user's query and their available credit card benefits to provide a single, actionable, and conversational recommendation.
 
-1.  **Relevance is Paramount:** ONLY mention benefits that are directly and immediately applicable to the user's specific query. Do not list or allude to any perks that are not relevant, even if they are available.
+// THE GOLDEN RULE: OUTPUT FORMAT
+You MUST structure your response in one of the following two formats, and NOTHING else.
 
-2.  **Be Direct and Concise:** Do not use conversational filler, greetings, or closing remarks. Omit phrases like "Hello!", "Certainly!", "I can help with that," or "I hope this helps." Get straight to the recommendation.
+---
+**FORMAT 1: When a relevant benefit is found:**
 
-3.  **Action and Justification:** For each recommended benefit, you must state a clear **action** and a brief **justification**. Frame it as "Use [Benefit] on [Card Name] because..."
+It looks like the **[Benefit Name]** on your **[Card Name]** is a perfect match for this. Use it because [brief, compelling reason].
 
-4.  **Handle No Relevant Perks:** If absolutely none of the user's available benefits apply to their query, you must state that clearly and concisely. For example: "Based on your query, none of your available benefits are a direct match for this situation." Do not apologize or suggest benefits the user does not have.
+// If there are multiple relevant benefits, list them as a clear, bulleted list.
 
-5.  **Formatting:** Structure your response using simple Markdown. Use a \`##\` header for the main recommendation and bullet points (\`-\`) for individual actions.`;
+It looks like you have a few great options for this:
+• The **[Benefit Name]** on your **[Card Name]** is a good choice because [brief, compelling reason].
+• The **[Benefit Name]** on your **[Card Name]** also works well since [brief, compelling reason].
 
-  // Construct the clean, data-only user prompt
-  const user_prompt = `User Query: "${query}"
+---
+**FORMAT 2: When NO relevant benefits are found:**
 
-Available User Benefits:
-${availablePerks.map(card => `
-Card: ${card.cardName}
-Perks:
-${card.perks.map(perk => `- ${perk.name} (Value: $${perk.value})`).join('\n')}
-`).join('\n')}`;
+Based on your query, none of your available benefits are a direct match for this situation.
+
+---
+
+// CRUCIAL FORMATTING & CONTENT RULES
+1.  **BOLDING:** You MUST use Markdown double asterisks (\`**\`) to bold the [Benefit Name] and the [Card Name]. This is not optional.
+2.  **BULLET POINTS:** If you create a list, you MUST use the "•" character for bullet points.
+3.  **CONVERSATIONAL TONE:** Begin your successful response with phrases like "It looks like..." or "You have a great option..." to sound natural, as shown in the format templates.
+4.  **HYPER-RELEVANCE:** ONLY recommend benefits from the user's provided list that directly apply to their query. Never suggest applying for new cards or mention benefits the user does not have.
+5.  **ABSOLUTELY NO FILLER:** Do NOT use greetings, apologies (unless for no match), or closing remarks like "I hope this helps!". Do not use Markdown headers (\`#\`), blockquotes (\`>\`), or code blocks (\`\`\`). Your entire response should be a single, clean block of text.
+`;
+
+  const user_prompt = `
+Analyze the following user query based on their available benefits.
+
+User Query:
+${query}
+
+Available Benefits (JSON):
+${JSON.stringify(availablePerks, null, 2)}
+`;
 
   console.log('[OpenAI] System Prompt:', system_prompt);
   console.log('[OpenAI] User Prompt:', user_prompt);
@@ -149,24 +113,15 @@ ${card.perks.map(perk => `- ${perk.name} (Value: $${perk.value})`).join('\n')}
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4', // Using GPT-4 for better rule adherence
+        model: 'gpt-4',
         messages: [
-          {
-            role: 'system',
-            content: system_prompt
-          },
-          {
-            role: 'user',
-            content: user_prompt
-          }
+          { role: 'system', content: system_prompt },
+          { role: 'user', content: user_prompt }
         ],
-        temperature: 0.2, // Lower temperature for more deterministic output
-        max_tokens: 500
+        temperature: 0.1,
+        max_tokens: 300
       }),
     });
-
-    console.log('[OpenAI] Response status:', response.status);
-    console.log('[OpenAI] Response headers:', response.headers);
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -177,28 +132,23 @@ ${card.perks.map(perk => `- ${perk.name} (Value: $${perk.value})`).join('\n')}
     const data = await response.json();
     console.log('[OpenAI] API Response:', data);
 
-    const completionTokens = data.usage.completion_tokens;
-    const promptTokens = data.usage.prompt_tokens;
-    const totalTokens = data.usage.total_tokens;
-    const estimatedCost = calculateCost({ promptTokens, completionTokens });
-
+    const usage = data.usage;
     const tokenUsage: TokenUsage = {
-      promptTokens,
-      completionTokens,
-      totalTokens,
-      estimatedCost
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+      estimatedCost: calculateCost({ 
+        promptTokens: usage.prompt_tokens, 
+        completionTokens: usage.completion_tokens 
+      })
     };
 
+    const advice = data.choices[0].message.content.trim();
+    console.log('[OpenAI] Clean AI advice:', advice);
     console.log('[OpenAI] Token Usage:', tokenUsage);
 
-    const rawMarkdownAdvice = data.choices[0].message.content;
-    console.log('[OpenAI] Raw markdown advice:', rawMarkdownAdvice);
-
-    const formattedAdvice = formatMarkdownToReadable(rawMarkdownAdvice);
-    console.log('[OpenAI] Final formatted advice:', formattedAdvice);
-
     return {
-      advice: formattedAdvice,
+      advice,
       usage: tokenUsage
     };
   } catch (error) {
