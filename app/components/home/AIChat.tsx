@@ -45,10 +45,15 @@ interface TokenUsage {
 
 interface AvailablePerk {
   cardName: string;
+  annualFee?: number;
+  breakEvenProgress?: number;
   perks: {
     name: string;
     value: number;
-    periodMonths: number;
+    remainingValue?: number;
+    status: string;
+    expiry?: string;
+    actionLink?: string;
   }[];
 }
 
@@ -66,6 +71,18 @@ const MONTHLY_CHAT_LIMIT = 30;
 
 // Debug flag - set to false for production
 const DEBUG_MODE = true;
+
+// Define welcome message as a constant to avoid duplication
+const WELCOME_MESSAGE = `Welcome to **Credify AI**, your personal rewards assistant.
+
+I keep track of all your active credit card perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.
+
+For example, you could say:
+
+• "I'm booking a trip to New York."
+• "I'm about to order dinner."
+• "I'm craving a coffee."
+How can I help you save?`;
 
 // --- Header Component ---
 const ChatHeader = ({ onClose, onClear, hasMessages }: { 
@@ -138,8 +155,8 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses }: {
     ]).start();
   }, []);
 
-  const formatText = (input: string) => {
-    // First split on **bold** text
+  const formatText = (input: string, isAI: boolean) => {
+    // Split on **bold** text
     const boldRegex = /(\*\*[^*]+\*\*)/g;
     const parts = input.split(boldRegex);
 
@@ -163,23 +180,8 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses }: {
               );
             }
             
-            // For non-bold text, check for card names
-            const cardNameRegex = /(\b[A-Z][a-z]+(\s[A-Z][a-z]+)+\b)/g;
-            const cardParts = part.split(cardNameRegex);
-            
-            return cardParts.map((cardPart, j) => 
-              cardNameRegex.test(cardPart) ? 
-                <Text 
-                  key={`${i}-${j}`} 
-                  style={[
-                    styles.boldText,
-                    { color: isAI ? '#0A84FF' : '#FFFFFF' }
-                  ]}
-                >
-                  {cardPart}
-                </Text> : 
-                cardPart
-            );
+            // Return non-bold text as is
+            return part;
           })}
         </Text>
         <View style={styles.debugContainer}>
@@ -208,7 +210,7 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses }: {
       ]}
     >
       <View style={[styles.messageBubble, isAI ? styles.aiBubble : styles.userBubble]}>
-        {formatText(text)}
+        {formatText(text, isAI)}
       </View>
     </Animated.View>
   );
@@ -243,16 +245,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           // Set initial greeting message
           setMessages([{
             _id: 1,
-            text: `Welcome to Credify AI, your personal rewards assistant.
-
-I keep track of all your active credit card perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.
-
-For example, you could say:
-
-• "I'm booking a trip to New York."
-• "I'm about to order dinner."
-• "I'm craving a coffee."
-How can I help you save?`,
+            text: WELCOME_MESSAGE,
             createdAt: new Date(),
             user: AI,
           }]);
@@ -337,6 +330,23 @@ How can I help you save?`,
     }).start();
   }, [inputText]);
 
+  // Transform the card data to match the new interface
+  const transformCardData = (cards: any[]): AvailablePerk[] => {
+    return cards.map(card => ({
+      cardName: card.card.name,
+      annualFee: card.card.annualFee,
+      breakEvenProgress: card.card.breakEvenProgress,
+      perks: card.perks.map((perk: any) => ({
+        name: perk.name,
+        value: perk.value,
+        remainingValue: perk.remainingValue,
+        status: perk.status || 'Available',
+        expiry: perk.expiry,
+        actionLink: perk.actionLink
+      }))
+    }));
+  };
+
   const handleAIResponse = async (userMessageText: string) => {
     if (remainingUses <= 0) {
       const errorMessage: Message = {
@@ -357,19 +367,8 @@ How can I help you save?`,
       }
 
       console.log('[AIChat] Processing available perks');
-      const availablePerks: AvailablePerk[] = processedCards
-        .filter(card => card && card.card && card.perks)
-        .map(card => ({
-          cardName: card.card.name,
-          perks: card.perks
-            .filter(perk => perk && perk.status === 'available')
-            .map(perk => ({
-              name: perk.name,
-              value: perk.value,
-              periodMonths: perk.periodMonths || 12
-            }))
-        }))
-        .filter(card => card.perks.length > 0);
+      const transformedCards = transformCardData(processedCards);
+      const availablePerks = transformedCards.filter(card => card.perks.length > 0);
 
       if (availablePerks.length === 0) {
         throw new Error('No available perks found');
@@ -444,16 +443,7 @@ How can I help you save?`,
               await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
               setMessages([{
                 _id: 1,
-                text: `Welcome to Credify AI, your personal rewards assistant.
-
-I keep track of all your active credit card perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.
-
-For example, you could say:
-
-• "I'm booking a trip to New York."
-• "I'm about to order dinner."
-• "I'm craving a coffee."
-How can I help you save?`,
+                text: WELCOME_MESSAGE,
                 createdAt: new Date(),
                 user: AI,
               }]);
