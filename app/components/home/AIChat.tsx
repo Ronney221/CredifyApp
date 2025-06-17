@@ -57,6 +57,9 @@ const USER = { _id: 1, name: 'User' };
 const AI = { _id: 2, name: 'AI Assistant' };
 const CHAT_HISTORY_KEY = '@ai_chat_history';
 
+// Debug flag - set to false for production
+const DEBUG_MODE = true;
+
 // --- Header Component ---
 const ChatHeader = ({ onClose, onClear, hasMessages }: { 
   onClose: () => void;
@@ -101,7 +104,12 @@ const ChatHeader = ({ onClose, onClear, hasMessages }: {
 );
 
 // --- Message Bubble Component ---
-const MessageBubble = ({ isAI, text, pending }: { isAI: boolean; text: string; pending?: boolean }) => {
+const MessageBubble = ({ isAI, text, pending, usage }: { 
+  isAI: boolean; 
+  text: string; 
+  pending?: boolean;
+  usage?: TokenUsage;
+}) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -128,43 +136,50 @@ const MessageBubble = ({ isAI, text, pending }: { isAI: boolean; text: string; p
     const parts = input.split(boldRegex);
 
     return (
-      <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
-        {parts.map((part, i) => {
-          if (boldRegex.test(part)) {
-            // Strip the ** wrappers
-            const clean = part.slice(2, -2);
-            return (
-              <Text 
-                key={i} 
-                style={[
-                  styles.boldText,
-                  { color: isAI ? '#0A84FF' : '#FFFFFF' }
-                ]}
-              >
-                {clean}
-              </Text>
+      <View>
+        <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
+          {parts.map((part, i) => {
+            if (boldRegex.test(part)) {
+              // Strip the ** wrappers
+              const clean = part.slice(2, -2);
+              return (
+                <Text 
+                  key={i} 
+                  style={[
+                    styles.boldText,
+                    { color: isAI ? '#0A84FF' : '#FFFFFF' }
+                  ]}
+                >
+                  {clean}
+                </Text>
+              );
+            }
+            
+            // For non-bold text, check for card names
+            const cardNameRegex = /(\b[A-Z][a-z]+(\s[A-Z][a-z]+)+\b)/g;
+            const cardParts = part.split(cardNameRegex);
+            
+            return cardParts.map((cardPart, j) => 
+              cardNameRegex.test(cardPart) ? 
+                <Text 
+                  key={`${i}-${j}`} 
+                  style={[
+                    styles.boldText,
+                    { color: isAI ? '#0A84FF' : '#FFFFFF' }
+                  ]}
+                >
+                  {cardPart}
+                </Text> : 
+                cardPart
             );
-          }
-          
-          // For non-bold text, check for card names
-          const cardNameRegex = /(\b[A-Z][a-z]+(\s[A-Z][a-z]+)+\b)/g;
-          const cardParts = part.split(cardNameRegex);
-          
-          return cardParts.map((cardPart, j) => 
-            cardNameRegex.test(cardPart) ? 
-              <Text 
-                key={`${i}-${j}`} 
-                style={[
-                  styles.boldText,
-                  { color: isAI ? '#0A84FF' : '#FFFFFF' }
-                ]}
-              >
-                {cardPart}
-              </Text> : 
-              cardPart
-          );
-        })}
-      </Text>
+          })}
+        </Text>
+        {DEBUG_MODE && usage && isAI && (
+          <Text style={styles.debugText}>
+            Tokens: {usage.promptTokens} + {usage.completionTokens} = {usage.totalTokens} (${usage.estimatedCost.toFixed(4)})
+          </Text>
+        )}
+      </View>
     );
   };
 
@@ -365,6 +380,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       isAI={item.user._id === AI._id}
       text={item.text}
       pending={item.pending}
+      usage={item.usage}
     />
   );
 
@@ -589,6 +605,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 4,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginTop: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'monospace',
   },
 });
 

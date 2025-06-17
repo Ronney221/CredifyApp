@@ -18,6 +18,16 @@ interface TokenUsage {
   estimatedCost: number;
 }
 
+/**
+ * Calculates the cost of an API call using GPT-3.5-turbo pricing
+ * GPT-3.5-turbo pricing (as of 2025):
+ * - Input: $0.0015 per 1K tokens
+ * - Output: $0.002 per 1K tokens
+ * 
+ * Note: GPT-4 pricing is different:
+ * - Input: $0.03 per 1K tokens
+ * - Output: $0.06 per 1K tokens
+ */
 function calculateCost(usage: { promptTokens: number; completionTokens: number }): number {
   const promptCost = (usage.promptTokens / 1000) * 0.0015; // $0.0015 per 1K tokens for input
   const completionCost = (usage.completionTokens / 1000) * 0.002; // $0.002 per 1K tokens for output
@@ -57,32 +67,22 @@ export async function getBenefitAdvice(query: string, availablePerks: AvailableP
     };
   }
 
-  const system_prompt = `You are a financial assistant. Your tone is professional and confident.
-
+  const system_prompt = `
+You are a financial assistant. Your tone is professional and confident.
 Analyze the user's query and their JSON benefits list to find relevant perks.
-
 Your response MUST follow one of these two formats exactly:
-
 1.  **Benefit(s) found:**
     - Single: "It looks like the **[Benefit Name]** on your **[Card Name]** is a perfect match for this. Use it because [brief, compelling reason]."
     - Multiple: Start with "It looks like you have a few great options for this:" followed by a bulleted list using the "•" character. Each item should be: "The **$[Value Remaining]** **[Benefit Name]** on your **[Card Name]** is a good choice because [brief reason]."
-
 2.  **No benefit found:** "Based on your query, none of your available benefits are a direct match for this situation."
-
 **Rules:**
 - ONLY recommend benefits from the user's list.
 - MUST bold the benefit and card name using \`**\`.
-- NO greetings, closings, or other filler. Your entire response must be one of the templates above.`;
-
-  const user_prompt = `
-Analyze the following user query based on their available benefits.
-
-User Query:
-${query}
-
-Available Benefits (JSON):
-${JSON.stringify(availablePerks, null, 2)}
+- NO greetings, closings, or other filler. Your entire response must be one of the templates above.
 `;
+
+  const user_prompt = `User Query: ${query}
+Benefits JSON: ${JSON.stringify(availablePerks)}`;
 
   console.log('[OpenAI] System Prompt:', system_prompt);
   console.log('[OpenAI] User Prompt:', user_prompt);
