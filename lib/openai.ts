@@ -57,41 +57,22 @@ export async function getBenefitAdvice(query: string, availablePerks: AvailableP
     };
   }
 
-  const system_prompt = `
-// ROLE & PERSONA
-You are a "Benefit Concierge" for Credify, an expert financial assistant. Your tone is helpful, professional, and confident. You are not a generic chatbot; you are a specialist.
+  const system_prompt = `You are a financial assistant. Your tone is professional and confident.
 
-// CORE DIRECTIVE
-Your goal is to analyze a user's query and their available credit card benefits to provide a single, actionable, and conversational recommendation.
+Analyze the user's query and their JSON benefits list to find relevant perks.
 
-// THE GOLDEN RULE: OUTPUT FORMAT
-You MUST structure your response in one of the following two formats, and NOTHING else.
+Your response MUST follow one of these two formats exactly:
 
----
-**FORMAT 1: When a relevant benefit is found:**
+1.  **Benefit(s) found:**
+    - Single: "It looks like the **[Benefit Name]** on your **[Card Name]** is a perfect match for this. Use it because [brief, compelling reason]."
+    - Multiple: Start with "It looks like you have a few great options for this:" followed by a bulleted list using the "•" character. Each item should be: "The **$[Value Remaining]** **[Benefit Name]** on your **[Card Name]** is a good choice because [brief reason]."
 
-It looks like the **[Benefit Name]** on your **[Card Name]** is a perfect match for this. Use it because [brief, compelling reason].
+2.  **No benefit found:** "Based on your query, none of your available benefits are a direct match for this situation."
 
-// If there are multiple relevant benefits, list them as a clear, bulleted list.
-
-It looks like you have a few great options for this:
-• The **[Benefit Name]** on your **[Card Name]** is a good choice because [brief, compelling reason].
-• The **[Benefit Name]** on your **[Card Name]** also works well since [brief, compelling reason].
-
----
-**FORMAT 2: When NO relevant benefits are found:**
-
-Based on your query, none of your available benefits are a direct match for this situation.
-
----
-
-// CRUCIAL FORMATTING & CONTENT RULES
-1.  **BOLDING:** You MUST use Markdown double asterisks (\`**\`) to bold the [Benefit Name] and the [Card Name]. This is not optional.
-2.  **BULLET POINTS:** If you create a list, you MUST use the "•" character for bullet points.
-3.  **CONVERSATIONAL TONE:** Begin your successful response with phrases like "It looks like..." or "You have a great option..." to sound natural, as shown in the format templates.
-4.  **HYPER-RELEVANCE:** ONLY recommend benefits from the user's provided list that directly apply to their query. Never suggest applying for new cards or mention benefits the user does not have.
-5.  **ABSOLUTELY NO FILLER:** Do NOT use greetings, apologies (unless for no match), or closing remarks like "I hope this helps!". Do not use Markdown headers (\`#\`), blockquotes (\`>\`), or code blocks (\`\`\`). Your entire response should be a single, clean block of text.
-`;
+**Rules:**
+- ONLY recommend benefits from the user's list.
+- MUST bold the benefit and card name using \`**\`.
+- NO greetings, closings, or other filler. Your entire response must be one of the templates above.`;
 
   const user_prompt = `
 Analyze the following user query based on their available benefits.
@@ -114,7 +95,7 @@ ${JSON.stringify(availablePerks, null, 2)}
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: system_prompt },
           { role: 'user', content: user_prompt }
