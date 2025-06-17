@@ -11,14 +11,19 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Alert,
 } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserCards } from '../../hooks/useUserCards';
+import { usePerkStatus } from '../../hooks/usePerkStatus';
+import { getBenefitAdvice } from '../../../lib/openai';
 
-// --- Interface for a single message ---
+// --- Interfaces ---
 interface Message {
   _id: string | number;
   text: string;
@@ -28,30 +33,69 @@ interface Message {
     name: string;
   };
   pending?: boolean;
+  usage?: TokenUsage;
 }
 
-// --- Define User and AI objects ---
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost: number;
+}
+
+interface AvailablePerk {
+  cardName: string;
+  perks: {
+    name: string;
+    value: number;
+    periodMonths: number;
+  }[];
+}
+
+// --- Constants ---
 const USER = { _id: 1, name: 'User' };
 const AI = { _id: 2, name: 'AI Assistant' };
+const CHAT_HISTORY_KEY = '@ai_chat_history';
 
 // --- Header Component ---
-const ChatHeader = ({ onClose }: { onClose: () => void }) => (
+const ChatHeader = ({ onClose, onClear, hasMessages }: { 
+  onClose: () => void;
+  onClear: () => void;
+  hasMessages: boolean;
+}) => (
   <BlurView intensity={50} tint="light" style={styles.headerBlur}>
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Credify AI</Text>
-      <Pressable 
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onClose();
-        }} 
-        hitSlop={10}
-        style={({ pressed }) => [
-          styles.headerButton,
-          pressed && { opacity: 0.7 }
-        ]}
-      >
-        <Text style={styles.headerButtonText}>Done</Text>
-      </Pressable>
+      <View style={styles.headerButtons}>
+        <Pressable 
+          onPress={onClear}
+          hitSlop={10}
+          style={({ pressed }) => [
+            styles.headerButton,
+            pressed && { opacity: 0.7 }
+          ]}
+          disabled={!hasMessages}
+        >
+          <Ionicons 
+            name="trash-outline" 
+            size={20} 
+            color={hasMessages ? "#FF3B30" : "#C7C7CC"} 
+          />
+        </Pressable>
+        <Pressable 
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onClose();
+          }} 
+          hitSlop={10}
+          style={({ pressed }) => [
+            styles.headerButton,
+            pressed && { opacity: 0.7 }
+          ]}
+        >
+          <Text style={styles.headerButtonText}>Done</Text>
+        </Pressable>
+      </View>
     </View>
   </BlurView>
 );
@@ -78,6 +122,52 @@ const MessageBubble = ({ isAI, text, pending }: { isAI: boolean; text: string; p
     ]).start();
   }, []);
 
+  const formatText = (input: string) => {
+    // First split on **bold** text
+    const boldRegex = /(\*\*[^*]+\*\*)/g;
+    const parts = input.split(boldRegex);
+
+    return (
+      <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
+        {parts.map((part, i) => {
+          if (boldRegex.test(part)) {
+            // Strip the ** wrappers
+            const clean = part.slice(2, -2);
+            return (
+              <Text 
+                key={i} 
+                style={[
+                  styles.boldText,
+                  { color: isAI ? '#0A84FF' : '#FFFFFF' }
+                ]}
+              >
+                {clean}
+              </Text>
+            );
+          }
+          
+          // For non-bold text, check for card names
+          const cardNameRegex = /(\b[A-Z][a-z]+(\s[A-Z][a-z]+)+\b)/g;
+          const cardParts = part.split(cardNameRegex);
+          
+          return cardParts.map((cardPart, j) => 
+            cardNameRegex.test(cardPart) ? 
+              <Text 
+                key={`${i}-${j}`} 
+                style={[
+                  styles.boldText,
+                  { color: isAI ? '#0A84FF' : '#FFFFFF' }
+                ]}
+              >
+                {cardPart}
+              </Text> : 
+              cardPart
+          );
+        })}
+      </Text>
+    );
+  };
+
   return (
     <Animated.View
       style={[
@@ -88,7 +178,7 @@ const MessageBubble = ({ isAI, text, pending }: { isAI: boolean; text: string; p
       ]}
     >
       <View style={[styles.messageBubble, isAI ? styles.aiBubble : styles.userBubble]}>
-        <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>{text}</Text>
+        {formatText(text)}
       </View>
     </Animated.View>
   );
@@ -102,17 +192,53 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const sendButtonScale = useRef(new Animated.Value(0)).current;
+  const { userCardsWithPerks } = useUserCards();
+  const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
 
+  // Load chat history from AsyncStorage
   useEffect(() => {
-    setMessages([
-      {
-        _id: 1,
-        text: "Hello! I'm your AI assistant. How can I help you today?",
-        createdAt: new Date(),
-        user: AI,
-      },
-    ]);
+    const loadChatHistory = async () => {
+      try {
+        const savedHistory = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
+        if (savedHistory) {
+          const parsedHistory = JSON.parse(savedHistory);
+          // Convert string dates back to Date objects
+          const historyWithDates = parsedHistory.map((msg: any) => ({
+            ...msg,
+            createdAt: new Date(msg.createdAt)
+          }));
+          setMessages(historyWithDates);
+        } else {
+          // Set initial greeting message
+          setMessages([
+            {
+              _id: 1,
+              text: "Hello! I'm your AI assistant. I can help you make the most of your credit card benefits. How can I help you today?",
+              createdAt: new Date(),
+              user: AI,
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('[AIChat] Error loading chat history:', error);
+      }
+    };
+    loadChatHistory();
   }, []);
+
+  // Save chat history to AsyncStorage
+  useEffect(() => {
+    const saveChatHistory = async () => {
+      try {
+        await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
+      } catch (error) {
+        console.error('[AIChat] Error saving chat history:', error);
+      }
+    };
+    if (messages.length > 0) {
+      saveChatHistory();
+    }
+  }, [messages]);
 
   useEffect(() => {
     // Animate send button based on input text
@@ -124,26 +250,63 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     }).start();
   }, [inputText]);
 
-  const handleAIResponse = (userMessageText: string) => {
+  const handleAIResponse = async (userMessageText: string) => {
     setIsTyping(true);
-    setTimeout(() => {
-      let responseText = '';
-      if (userMessageText.toLowerCase().includes('fact')) {
-        responseText = 'The heart of a shrimp is located in its head.';
-      } else {
-        responseText = `I received your message: "${userMessageText}".`;
+    try {
+      // Validate processedCards
+      if (!processedCards || !Array.isArray(processedCards)) {
+        throw new Error('Invalid card data');
       }
+
+      console.log('[AIChat] Processing available perks');
+      const availablePerks: AvailablePerk[] = processedCards
+        .filter(card => card && card.card && card.perks)
+        .map(card => ({
+          cardName: card.card.name,
+          perks: card.perks
+            .filter(perk => perk && perk.status === 'available')
+            .map(perk => ({
+              name: perk.name,
+              value: perk.value,
+              periodMonths: perk.periodMonths || 12
+            }))
+        }))
+        .filter(card => card.perks.length > 0);
+
+      if (availablePerks.length === 0) {
+        throw new Error('No available perks found');
+      }
+
+      console.log('[AIChat] Available perks:', JSON.stringify(availablePerks, null, 2));
+      console.log('[AIChat] Calling getBenefitAdvice');
+      const result = await getBenefitAdvice(userMessageText, availablePerks);
+      console.log('[AIChat] Received advice:', result);
 
       const aiResponse: Message = {
         _id: Math.random().toString(),
-        text: responseText,
+        text: result.advice,
+        createdAt: new Date(),
+        user: AI,
+        usage: result.usage
+      };
+
+      setMessages(previousMessages => [aiResponse, ...previousMessages]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    } catch (error) {
+      console.error('[AIChat] Error in handleAIResponse:', error);
+      const errorMessage: Message = {
+        _id: Math.random().toString(),
+        text: error instanceof Error 
+          ? `Sorry, ${error.message}. Please try again.`
+          : 'Sorry, I encountered an error. Please try again.',
         createdAt: new Date(),
         user: AI,
       };
+      setMessages(previousMessages => [errorMessage, ...previousMessages]);
+    } finally {
       setIsTyping(false);
-      setMessages((previousMessages) => [aiResponse, ...previousMessages]);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, 1500);
+    }
   };
 
   const onSend = () => {
@@ -165,6 +328,38 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     handleAIResponse(trimmedText);
   };
 
+  const handleClearChat = () => {
+    Alert.alert(
+      "Clear Chat History",
+      "Are you sure you want to clear all chat history?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
+              setMessages([{
+                _id: 1,
+                text: "Hello! I'm your AI assistant. I can help you make the most of your credit card benefits. How can I help you today?",
+                createdAt: new Date(),
+                user: AI,
+              }]);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error) {
+              console.error('[AIChat] Error clearing chat history:', error);
+              Alert.alert('Error', 'Failed to clear chat history. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderItem = ({ item }: { item: Message }) => (
     <MessageBubble
       isAI={item.user._id === AI._id}
@@ -176,7 +371,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <ChatHeader onClose={onClose} />
+        <ChatHeader 
+          onClose={onClose} 
+          onClear={handleClearChat}
+          hasMessages={messages.length > 1}
+        />
         <KeyboardAvoidingView
           style={styles.flex_1}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -267,6 +466,11 @@ const styles = StyleSheet.create({
     color: '#000000',
     letterSpacing: -0.5,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   headerButton: {
     padding: 8,
   },
@@ -301,6 +505,11 @@ const styles = StyleSheet.create({
   userBubble: {
     backgroundColor: '#007AFF',
     borderBottomRightRadius: 4,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   aiBubble: {
     backgroundColor: '#FFFFFF',
@@ -316,6 +525,9 @@ const styles = StyleSheet.create({
   },
   aiText: {
     color: '#000000',
+  },
+  boldText: {
+    fontWeight: '600',
   },
   typingContainer: {
     position: 'absolute',
