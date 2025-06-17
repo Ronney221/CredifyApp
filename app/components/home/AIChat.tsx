@@ -52,10 +52,17 @@ interface AvailablePerk {
   }[];
 }
 
+interface ChatUsage {
+  remainingUses: number;
+  lastResetDate: string;
+}
+
 // --- Constants ---
 const USER = { _id: 1, name: 'User' };
 const AI = { _id: 2, name: 'AI Assistant' };
 const CHAT_HISTORY_KEY = '@ai_chat_history';
+const CHAT_USAGE_KEY = '@ai_chat_usage';
+const MONTHLY_CHAT_LIMIT = 30;
 
 // Debug flag - set to false for production
 const DEBUG_MODE = true;
@@ -104,11 +111,12 @@ const ChatHeader = ({ onClose, onClear, hasMessages }: {
 );
 
 // --- Message Bubble Component ---
-const MessageBubble = ({ isAI, text, pending, usage }: { 
+const MessageBubble = ({ isAI, text, pending, usage, remainingUses }: { 
   isAI: boolean; 
   text: string; 
   pending?: boolean;
   usage?: TokenUsage;
+  remainingUses?: number;
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
@@ -174,11 +182,18 @@ const MessageBubble = ({ isAI, text, pending, usage }: {
             );
           })}
         </Text>
-        {DEBUG_MODE && usage && isAI && (
-          <Text style={styles.debugText}>
-            Tokens: {usage.promptTokens} + {usage.completionTokens} = {usage.totalTokens} (${usage.estimatedCost.toFixed(4)})
-          </Text>
-        )}
+        <View style={styles.debugContainer}>
+          {DEBUG_MODE && usage && isAI && (
+            <Text style={styles.debugText}>
+              Tokens: {usage.promptTokens} + {usage.completionTokens} = {usage.totalTokens} (${usage.estimatedCost.toFixed(4)})
+            </Text>
+          )}
+          {remainingUses !== undefined && isAI && (
+            <Text style={styles.usageText}>
+              {remainingUses} chats remaining this month
+            </Text>
+          )}
+        </View>
       </View>
     );
   };
@@ -204,6 +219,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [remainingUses, setRemainingUses] = useState<number>(MONTHLY_CHAT_LIMIT);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const sendButtonScale = useRef(new Animated.Value(0)).current;
@@ -225,14 +241,21 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           setMessages(historyWithDates);
         } else {
           // Set initial greeting message
-          setMessages([
-            {
-              _id: 1,
-              text: "Hello! I'm your AI assistant. I can help you make the most of your credit card benefits. How can I help you today?",
-              createdAt: new Date(),
-              user: AI,
-            },
-          ]);
+          setMessages([{
+            _id: 1,
+            text: `Welcome to Credify AI, your personal rewards assistant.
+
+I keep track of all your active credit card perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.
+
+For example, you could say:
+
+• "I'm booking a trip to New York."
+• "I'm about to order dinner."
+• "I'm craving a coffee."
+How can I help you save?`,
+            createdAt: new Date(),
+            user: AI,
+          }]);
         }
       } catch (error) {
         console.error('[AIChat] Error loading chat history:', error);
@@ -255,6 +278,55 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     }
   }, [messages]);
 
+  // Load chat usage from AsyncStorage
+  useEffect(() => {
+    const loadChatUsage = async () => {
+      try {
+        const savedUsage = await AsyncStorage.getItem(CHAT_USAGE_KEY);
+        if (savedUsage) {
+          const usage: ChatUsage = JSON.parse(savedUsage);
+          const lastReset = new Date(usage.lastResetDate);
+          const now = new Date();
+          
+          // Check if we need to reset the counter (new month)
+          if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+            setRemainingUses(MONTHLY_CHAT_LIMIT);
+            await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
+              remainingUses: MONTHLY_CHAT_LIMIT,
+              lastResetDate: now.toISOString()
+            }));
+          } else {
+            setRemainingUses(usage.remainingUses);
+          }
+        } else {
+          // First time user
+          setRemainingUses(MONTHLY_CHAT_LIMIT);
+          await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
+            remainingUses: MONTHLY_CHAT_LIMIT,
+            lastResetDate: new Date().toISOString()
+          }));
+        }
+      } catch (error) {
+        console.error('[AIChat] Error loading chat usage:', error);
+      }
+    };
+    loadChatUsage();
+  }, []);
+
+  // Update chat usage after each message
+  const updateChatUsage = async () => {
+    try {
+      const newRemaining = remainingUses - 1;
+      setRemainingUses(newRemaining);
+      await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
+        remainingUses: newRemaining,
+        lastResetDate: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.error('[AIChat] Error updating chat usage:', error);
+    }
+  };
+
   useEffect(() => {
     // Animate send button based on input text
     Animated.spring(sendButtonScale, {
@@ -266,6 +338,17 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   }, [inputText]);
 
   const handleAIResponse = async (userMessageText: string) => {
+    if (remainingUses <= 0) {
+      const errorMessage: Message = {
+        _id: Math.random().toString(),
+        text: "You've reached your monthly chat limit. Please try again next month.",
+        createdAt: new Date(),
+        user: AI,
+      };
+      setMessages(previousMessages => [errorMessage, ...previousMessages]);
+      return;
+    }
+
     setIsTyping(true);
     try {
       // Validate processedCards
@@ -308,6 +391,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       setMessages(previousMessages => [aiResponse, ...previousMessages]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+      await updateChatUsage();
     } catch (error) {
       console.error('[AIChat] Error in handleAIResponse:', error);
       const errorMessage: Message = {
@@ -360,7 +444,16 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
               await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
               setMessages([{
                 _id: 1,
-                text: "Hello! I'm your AI assistant. I can help you make the most of your credit card benefits. How can I help you today?",
+                text: `Welcome to Credify AI, your personal rewards assistant.
+
+I keep track of all your active credit card perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.
+
+For example, you could say:
+
+• "I'm booking a trip to New York."
+• "I'm about to order dinner."
+• "I'm craving a coffee."
+How can I help you save?`,
                 createdAt: new Date(),
                 user: AI,
               }]);
@@ -381,6 +474,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       text={item.text}
       pending={item.pending}
       usage={item.usage}
+      remainingUses={remainingUses}
     />
   );
 
@@ -606,11 +700,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
+  debugContainer: {
+    marginTop: 4,
+  },
   debugText: {
     fontSize: 12,
     color: '#8E8E93',
-    marginTop: 4,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'monospace',
+  },
+  usageText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
 });
 
