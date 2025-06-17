@@ -81,6 +81,7 @@ interface AvailablePerk {
     remainingValue: number;
     status: string;
     expiry: string | undefined;
+    categories: string[];
   }[];
 }
 
@@ -474,6 +475,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           remainingValue: perk.remaining_value ?? perk.value,
           status: perk.status || 'Available',
           expiry: expiryDate,
+          categories: perk.categories || [],
         };
       })
     }));
@@ -546,6 +548,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
         uiRecommendations = result.response.recommendations.map((rec) => {
           const [benefitName, cardName, displayText, remainingValue] = rec;
+
+          // Create a regex to find and remove phrases like "on your [Card Name]"
+          const escapedCardName = cardName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const cardRemovalRegex = new RegExp(`\\s+(on|from)\\s+(your|the)\\s+(\\*\\*)?${escapedCardName}(\\*\\*)?`, 'gi');
+          const cleanedDisplayText = displayText.replace(cardRemovalRegex, '');
           
           let perk: CardPerk | undefined;
           const card = processedCards.find(c => c.card.name === cardName);
@@ -553,7 +560,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             perk = card.perks.find(p => p.name === benefitName);
           }
 
-          return { benefitName, cardName, displayText, remainingValue, perk };
+          return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
         });
 
         const grouped = uiRecommendations.reduce((acc, rec) => {

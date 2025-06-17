@@ -12,6 +12,7 @@ interface AvailablePerk {
     remainingValue: number;
     status: string;
     expiry: string | undefined;
+    categories: string[];
   }[];
 }
 
