@@ -38,6 +38,12 @@ interface UIBenefitRecommendation {
   perk?: CardPerk;
 }
 
+interface GroupedRecommendation {
+  cardName: string;
+  cardId: string;
+  perks: UIBenefitRecommendation[];
+}
+
 interface AIResponse {
   responseType: 'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational';
   recommendations: BenefitRecommendationTuple[];
@@ -54,7 +60,7 @@ interface Message {
   pending?: boolean;
   usage?: TokenUsage;
   structuredResponse?: AIResponse;
-  uiRecommendations?: UIBenefitRecommendation[];
+  groupedRecommendations?: GroupedRecommendation[];
   remainingUses?: number;
 }
 
@@ -196,13 +202,13 @@ const ChatHeader = ({ onClose, onClear, hasMessages }: {
 );
 
 // --- Message Bubble Component ---
-const MessageBubble = ({ isAI, text, pending, usage, remainingUses, recommendations }: { 
+const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecommendations }: { 
   isAI: boolean; 
   text: string; 
   pending?: boolean;
   usage?: TokenUsage;
   remainingUses?: number;
-  recommendations?: UIBenefitRecommendation[];
+  groupedRecommendations?: GroupedRecommendation[];
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
@@ -224,6 +230,22 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, recommendati
     ]).start();
   }, []);
 
+  const getButtonText = (rec: UIBenefitRecommendation) => {
+    if (!rec.perk) return "Use Perk";
+    
+    // Use remainingValue for partially redeemed, otherwise use the total value.
+    const value = rec.perk.status === 'partially_redeemed' ? rec.remainingValue : rec.perk.value;
+    const action = rec.perk.status === 'partially_redeemed' ? 'Apply' : 'Redeem';
+    
+    // Format to currency, removing trailing .00 for whole numbers
+    const formattedValue = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+
+    return `${action} ${formattedValue}`;
+  }
+
   // This is a separate function to handle rich text formatting
   const formatTextWithBold = (text: string) => {
     const boldRegex = /(\*\*[^*]+\*\*)/g;
@@ -237,7 +259,7 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, recommendati
             key={i} 
             style={[
               styles.boldText,
-              { color: isAI ? '#0A84FF' : '#FFFFFF' }
+              { color: isAI ? '#007AFF' : '#FFFFFF' }
             ]}
           >
             {clean}
@@ -259,35 +281,41 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, recommendati
     >
       <View style={[styles.messageBubble, isAI ? styles.aiBubble : styles.userBubble]}>
         {/* Render the main text (which can now be a header) */}
-        <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
-          {formatTextWithBold(text)}
-        </Text>
+        {text && text.length > 0 && (
+          <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
+            {formatTextWithBold(text)}
+          </Text>
+        )}
   
         {/* NEW: Render the interactive recommendations if they exist */}
-        {isAI && recommendations && recommendations.length > 0 && (
+        {isAI && groupedRecommendations && groupedRecommendations.length > 0 && (
           <View style={styles.recommendationsContainer}>
-            {recommendations.map((rec, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.recommendationBox,
-                  // Add a border top to all but the first item
-                  index > 0 && styles.recommendationSeparator,
-                ]}
-              >
-                <Text style={styles.recommendationText}>{formatTextWithBold(rec.displayText)}</Text>
-                {rec.perk && (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.redeemButton,
-                      pressed && { opacity: 0.7 },
+            {groupedRecommendations.map((group, groupIndex) => (
+              <View key={group.cardId} style={groupIndex > 0 ? styles.cardGroup : {}}>
+                <Text style={styles.cardHeader}>{group.cardName}</Text>
+                {group.perks.map((rec, recIndex) => (
+                  <View
+                    key={recIndex}
+                    style={[
+                      styles.recommendationBox,
+                      recIndex > 0 && styles.recommendationSeparator,
                     ]}
-                    onPress={() => openPerkTarget(rec.perk!)}
                   >
-                    <Text style={styles.redeemButtonText}>Use Perk</Text>
-                    <Ionicons name="arrow-forward-circle" size={20} color="#FFFFFF" />
-                  </Pressable>
-                )}
+                    <Text style={styles.recommendationText}>{formatTextWithBold(rec.displayText)}</Text>
+                    {rec.perk && (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.redeemButton,
+                          pressed && { opacity: 0.7 },
+                        ]}
+                        onPress={() => openPerkTarget(rec.perk!)}
+                      >
+                        <Text style={styles.redeemButtonText}>{getButtonText(rec)}</Text>
+                        <Ionicons name="arrow-forward-circle" size={20} color="#FFFFFF" />
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
               </View>
             ))}
           </View>
@@ -509,17 +537,16 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
       let adviceText = '';
       let uiRecommendations: UIBenefitRecommendation[] = [];
+      let groupedRecommendations: GroupedRecommendation[] = [];
 
       if (result.response.responseType === 'BenefitRecommendation' && result.response.recommendations.length > 0) {
         console.log('[AIChat] Processing recommendations. Full object:', result.response);
         
-        // Let the individual recommendations speak for themselves.
-        adviceText = ""; 
+        adviceText = "Here are a few perks that could help:"; 
 
         uiRecommendations = result.response.recommendations.map((rec) => {
           const [benefitName, cardName, displayText, remainingValue] = rec;
           
-          // Find the original perk to get the actionLink
           let perk: CardPerk | undefined;
           const card = processedCards.find(c => c.card.name === cardName);
           if (card) {
@@ -527,6 +554,35 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           }
 
           return { benefitName, cardName, displayText, remainingValue, perk };
+        });
+
+        const grouped = uiRecommendations.reduce((acc, rec) => {
+          const card = processedCards.find(c => c.card.name === rec.cardName);
+          if (!card) return acc;
+      
+          if (!acc[rec.cardName]) {
+              acc[rec.cardName] = {
+                  cardName: rec.cardName,
+                  cardId: card.card.id,
+                  perks: []
+              };
+          }
+          acc[rec.cardName].perks.push(rec);
+          return acc;
+        }, {} as { [key: string]: GroupedRecommendation });
+      
+        groupedRecommendations = Object.values(grouped);
+      
+        // Sort perks within each group by urgency then value
+        groupedRecommendations.forEach(group => {
+            group.perks.sort((a, b) => {
+                const aExpiry = a.perk ? calculatePerkCycleDetails(a.perk, new Date()).daysRemaining : 999;
+                const bExpiry = b.perk ? calculatePerkCycleDetails(b.perk, new Date()).daysRemaining : 999;
+                if (aExpiry !== bExpiry) {
+                    return aExpiry - bExpiry;
+                }
+                return b.remainingValue - a.remainingValue;
+            });
         });
 
       } else if (result.response.responseType === 'NoBenefitFound') {
@@ -539,7 +595,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         _id: Math.random().toString(),
         text: adviceText,
         structuredResponse: result.response,
-        uiRecommendations: uiRecommendations,
+        groupedRecommendations: groupedRecommendations,
         createdAt: new Date(),
         user: AI,
         usage: result.usage,
@@ -624,7 +680,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       pending={item.pending}
       usage={item.usage}
       remainingUses={item.remainingUses}
-      recommendations={item.uiRecommendations}
+      groupedRecommendations={item.groupedRecommendations}
     />
   );
 
@@ -763,25 +819,20 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   userBubble: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#E5F3FF',
     borderBottomRightRadius: 4,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   aiBubble: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7F7F7',
     borderBottomLeftRadius: 4,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
   userText: {
-    color: '#FFFFFF',
+    color: '#000000',
   },
   aiText: {
     color: '#000000',
@@ -865,11 +916,26 @@ const styles = StyleSheet.create({
   },
   recommendationsContainer: {
     marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E5EA',
+  },
+  cardHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6D6D72',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingBottom: 4,
+  },
+  cardGroup: {
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E5E5EA',
   },
   recommendationBox: {
-    paddingTop: 12,
+    paddingTop: 8,
   },
   recommendationSeparator: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -880,12 +946,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     color: '#000000',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   redeemButton: {
     backgroundColor: '#007AFF',
     borderRadius: 8,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
