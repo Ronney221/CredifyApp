@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
 const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
+const CHAT_HISTORY_KEY = '@benefit_concierge_chat_history';
 
 interface ProfileRow {
   id: string;
@@ -54,6 +55,33 @@ const ProfileScreen = () => {
       console.error('Error resetting first redemption state:', error);
       Alert.alert('Error', 'Failed to reset first redemption state.');
     }
+  };
+
+  const handleClearChat = async () => {
+    Alert.alert(
+      "Clear Chat History",
+      "Are you sure you want to clear all chat history?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Clear", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
+              Alert.alert(
+                "Success",
+                "Chat history has been cleared.",
+                [{ text: "OK" }]
+              );
+            } catch (error) {
+              console.error('Error clearing chat history:', error);
+              Alert.alert('Error', 'Failed to clear chat history.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleSignOut = async () => {
@@ -114,6 +142,12 @@ const ProfileScreen = () => {
           title: 'Reset First Redemption', 
           icon: 'refresh-outline', 
           onPress: handleResetFirstRedemption 
+        },
+        {
+          id: 'clear-chat',
+          title: 'Clear Chat History',
+          icon: 'chatbubble-ellipses-outline',
+          onPress: handleClearChat
         },
       ],
       footer: 'Development tools and testing options.',
