@@ -22,8 +22,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
+import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
+import { CardPerk } from '../../../src/data/card-data';
 
 // --- Interfaces ---
+interface BenefitRecommendation {
+  benefitName: string;
+  cardName: string;
+  displayText: string;
+  value: number;
+  expiryDays: number;
+  actionLink: string;
+  status: 'Available';
+}
+
+interface AIResponse {
+  responseType: 'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational';
+  recommendations: BenefitRecommendation[];
+}
+
 interface Message {
   _id: string | number;
   text: string;
@@ -34,6 +51,7 @@ interface Message {
   };
   pending?: boolean;
   usage?: TokenUsage;
+  structuredResponse?: AIResponse;
 }
 
 interface TokenUsage {
@@ -83,6 +101,53 @@ For example, you could say:
 • "I'm about to order dinner."
 • "I'm craving a coffee."
 How can I help you save?`;
+
+// Helper function to calculate perk cycle end date and days remaining
+const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEndDate: Date; daysRemaining: number } => {
+  if (!perk.periodMonths) {
+    // Should not happen for perks we are considering for cycles
+    return { cycleEndDate: endOfYear(addMonths(currentDate, 24)), daysRemaining: 365 * 2 }; // Far future
+  }
+
+  const currentMonth = getMonth(currentDate); // 0-11
+  const currentYear = getYear(currentDate);
+  let cycleEndDate: Date;
+
+  switch (perk.periodMonths) {
+    case 1: // Monthly
+      cycleEndDate = endOfMonth(currentDate);
+      break;
+    case 3: // Quarterly
+      const quarter = Math.floor(currentMonth / 3);
+      const endMonthOfQuarter = quarter * 3 + 2; // Q1 (0) -> 2 (Mar), Q2 (1) -> 5 (Jun), etc.
+      cycleEndDate = endOfMonth(new Date(currentYear, endMonthOfQuarter, 1));
+      break;
+    case 6: // Bi-Annually
+      const half = Math.floor(currentMonth / 6);
+      const endMonthOfHalf = half * 6 + 5; // H1 (0) -> 5 (Jun), H2 (1) -> 11 (Dec)
+      cycleEndDate = endOfMonth(new Date(currentYear, endMonthOfHalf, 1));
+      break;
+    case 12: // Annually
+      cycleEndDate = endOfYear(currentDate);
+      break;
+    default:
+      // For other uncommon periods, estimate as end of month after periodMonths from start of current month
+      // This is a fallback and might need refinement based on specific perk rules
+      const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+      cycleEndDate = endOfMonth(addMonths(startOfCurrentMonth, perk.periodMonths -1));
+      // If this calculation results in a date in the past for the current cycle, advance it by periodMonths
+      if (cycleEndDate < currentDate) {
+         cycleEndDate = endOfMonth(addMonths(cycleEndDate, perk.periodMonths));
+      }
+      break;
+  }
+
+  let daysRemaining = differenceInDays(cycleEndDate, currentDate);
+  // Ensure daysRemaining is not negative if cycleEndDate is slightly in the past due to timing.
+  daysRemaining = Math.max(0, daysRemaining);
+
+  return { cycleEndDate, daysRemaining };
+};
 
 // --- Header Component ---
 const ChatHeader = ({ onClose, onClear, hasMessages }: { 
@@ -332,18 +397,27 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
   // Transform the card data to match the new interface
   const transformCardData = (cards: any[]): AvailablePerk[] => {
+    const currentDate = new Date();
     return cards.map(card => ({
       cardName: card.card.name,
       annualFee: card.card.annualFee,
       breakEvenProgress: card.card.breakEvenProgress,
-      perks: card.perks.map((perk: any) => ({
-        name: perk.name,
-        value: perk.value,
-        remainingValue: perk.remainingValue,
-        status: perk.status || 'Available',
-        expiry: perk.expiry,
-        actionLink: perk.actionLink
-      }))
+      perks: card.perks.map((perk: any) => {
+        let expiryDate = perk.expiry;
+        if (!expiryDate && perk.periodMonths) {
+          const { cycleEndDate } = calculatePerkCycleDetails(perk, currentDate);
+          expiryDate = format(cycleEndDate, 'yyyy-MM-dd');
+        }
+        
+        return {
+          name: perk.name,
+          value: perk.value,
+          remainingValue: perk.remainingValue,
+          status: perk.status || 'Available',
+          expiry: expiryDate,
+          actionLink: perk.actionLink
+        };
+      })
     }));
   };
 
@@ -367,21 +441,45 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       }
 
       console.log('[AIChat] Processing available perks');
-      const transformedCards = transformCardData(processedCards);
-      const availablePerks = transformedCards.filter(card => card.perks.length > 0);
+      
+      // 1. Filter out unusable perks BEFORE transforming the data.
+      const usablePerksData = processedCards
+        .map(card => ({
+          ...card,
+          perks: card.perks.filter(perk => 
+            perk.status === 'available' || perk.status === 'partially_redeemed'
+          ),
+        }))
+        .filter(card => card.perks.length > 0); // Remove cards that have no usable perks left
 
-      if (availablePerks.length === 0) {
+      // 2. Now transform the clean, usable data.
+      const transformedCards = transformCardData(usablePerksData);
+
+      if (transformedCards.length === 0) {
         throw new Error('No available perks found');
       }
 
-      console.log('[AIChat] Available perks:', JSON.stringify(availablePerks, null, 2));
+      console.log('[AIChat] Available perks:', JSON.stringify(transformedCards, null, 2));
       console.log('[AIChat] Calling getBenefitAdvice');
-      const result = await getBenefitAdvice(userMessageText, availablePerks);
-      console.log('[AIChat] Received advice:', result);
+      const result = await getBenefitAdvice(userMessageText, transformedCards);
+      console.log('[AIChat] Received advice:', result.response);
+
+      let adviceText = '';
+      if (result.response.responseType === 'BenefitRecommendation' && result.response.recommendations.length > 0) {
+        console.log('[AIChat] Processing recommendations. Full object:', result.response);
+        adviceText = result.response.recommendations.map(r => r.displayText).join('\n\n');
+        console.log('[AIChat] Final combined displayText for UI:', JSON.stringify(adviceText));
+
+      } else if (result.response.responseType === 'NoBenefitFound') {
+        adviceText = "I couldn't find any relevant benefits for that. Try asking about dining, travel, or shopping benefits!";
+      } else if (result.response.responseType === 'Conversational') {
+        adviceText = 'How else can I help you maximize your credit card benefits?';
+      }
 
       const aiResponse: Message = {
         _id: Math.random().toString(),
-        text: result.advice,
+        text: adviceText,
+        structuredResponse: result.response,
         createdAt: new Date(),
         user: AI,
         usage: result.usage
