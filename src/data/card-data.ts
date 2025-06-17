@@ -13,7 +13,7 @@ export interface Benefit {
   redemptionInstructions?: string; // How to redeem, e.g., link, in-app action
   appScheme?: keyof typeof APP_SCHEMES; // Link benefits to app schemes
   eligibleServices?: string[]; // Array of eligible services/merchants for redemption
-  category?: 'travel' | 'dining' | 'entertainment' | 'shopping' | 'other';
+  categories: string[]; // Explicit categories for AI classification
   isActive?: boolean;
   startDate?: string;
   endDate?: string;
@@ -237,6 +237,7 @@ export const allCards: Card[] = [
         description: 'Up to $15 in Uber Cash each month for U.S. Uber rides or Uber Eats orders (extra $20 in December, totaling $200/year).',
         redemptionInstructions: 'Add your Platinum Card to the Uber app to automatically receive Uber Cash each month.',
         appScheme: 'uber',
+        categories: ['Transportation', 'Dining'],
       },
       {
         id: 'platinum_digital_ent',
@@ -248,6 +249,7 @@ export const allCards: Card[] = [
         definition_id: '7e10ad1b-792e-4c34-8d36-bd0ebbca8591',
         description: 'Up to $20 back each month on eligible digital subscriptions. As of 2024–2025, covered services include Disney+ (and bundle with Hulu/ESPN+), Hulu, ESPN+, Peacock, The New York Times, and The Wall Street Journal.',
         redemptionInstructions: 'Enroll and pay with your Platinum Card for eligible digital subscriptions. The credit posts as a statement credit each month after an eligible charge.',
+        categories: ['Bills & Utilities', 'Entertainment'],
       },
       {
         id: 'platinum_walmart_plus',
@@ -260,6 +262,7 @@ export const allCards: Card[] = [
         description: 'Full reimbursement of Walmart+ monthly membership fee ($12.95 plus applicable taxes, ~$155/year).',
         redemptionInstructions: 'Enroll and use your Platinum Card to pay for a Walmart+ monthly membership. The credit will appear after the charge posts each month.',
         appScheme: 'walmart',
+        categories: ['Shopping', 'Grocery'],
       },
       {
         id: 'platinum_equinox',
@@ -271,6 +274,7 @@ export const allCards: Card[] = [
         definition_id: '360e8050-d55d-46e4-a604-a3006dc39724',
         description: 'Up to $25 back each month on Equinox gym memberships or Equinox+ digital fitness subscriptions (up to $300 annually).',
         redemptionInstructions: 'Use your Platinum Card to pay for an Equinox gym membership or Equinox+ digital fitness subscription. Credit posts monthly after charge.',
+        categories: ['Fitness', 'Wellness'],
       },
       {
         id: 'platinum_saks',
@@ -282,6 +286,7 @@ export const allCards: Card[] = [
         definition_id: '008f140c-56fe-48f1-9e89-6c39391e3def',
         description: 'Up to $50 in statement credits twice per year (Jan–Jun and Jul–Dec; $100 total annually).',
         redemptionInstructions: 'Enroll, then use your Platinum Card at Saks Fifth Avenue (in-store or online). Unused semiannual credits do not carry over.',
+        categories: ['Shopping'],
       },
       {
         id: 'platinum_clear',
@@ -293,6 +298,7 @@ export const allCards: Card[] = [
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
         description: 'Up to $189 in statement credits per calendar year to cover CLEAR Plus membership.',
         redemptionInstructions: 'Enroll in CLEAR Plus and pay with your Platinum Card. The credit covers one annual CLEAR membership.',
+        categories: ['Travel', 'Flights'],
       },
       {
         id: 'platinum_airline_fee',
@@ -304,6 +310,7 @@ export const allCards: Card[] = [
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
         description: 'Up to $200 in statement credits per calendar year for incidental fees with one selected qualifying airline.',
         redemptionInstructions: 'Enroll and select one qualifying airline on your Amex account. Charges for incidental airline fees (checked bags, seat upgrades, lounge passes, etc.) will be reimbursed. Credit resets every Jan 1.',
+        categories: ['Travel', 'Flights'],
       },
       {
         id: 'platinum_hotel_credit',
@@ -315,6 +322,7 @@ export const allCards: Card[] = [
         definition_id: '37eeb419-2110-4ca2-ac70-0eebbd587530',
         description: 'Up to $200 back in statement credits each calendar year for prepaid hotels booked through Amex Fine Hotels + Resorts or The Hotel Collection.',
         redemptionInstructions: 'Use your Platinum Card to book prepaid hotels through Amex FHR or The Hotel Collection (minimum 2-night stay for THC) via Amex Travel.',
+        categories: ['Travel', 'Lodging'],
       },
     ],
   },
@@ -337,6 +345,7 @@ export const allCards: Card[] = [
         description: 'Up to $10 in Uber Cash each month for U.S. Uber rides or Uber Eats orders. Credits do not roll over - use it or lose it each month.',
         redemptionInstructions: 'Add your Gold Card to the Uber wallet and the credit auto-appears as Uber Cash.',
         appScheme: 'uber',
+        categories: ['Transportation', 'Dining'],
       },
       {
         id: 'amex_gold_grubhub',
@@ -349,6 +358,7 @@ export const allCards: Card[] = [
         description: 'Up to $10 back each month at eligible dining partners: Grubhub/Seamless, The Cheesecake Factory, Goldbelly, Wine.com, and select Resy restaurants.',
         redemptionInstructions: 'Enroll your card and use it at eligible merchants. Credit appears automatically after qualifying purchase of $10 or more.',
         appScheme: 'grubhub',
+        categories: ['Dining'],
       },
       {
         id: 'amex_gold_resy',
@@ -361,6 +371,7 @@ export const allCards: Card[] = [
         description: 'Up to $50 in statement credits twice per year (Jan-Jun and Jul-Dec) for dining purchases at Resy-booked restaurants in the U.S.',
         redemptionInstructions: 'Book and dine at Resy partner restaurants. No special code needed; credit posts automatically after dining.',
         appScheme: 'resy',
+        categories: ['Dining'],
       },
       {
         id: 'amex_gold_dunkin',
@@ -373,6 +384,7 @@ export const allCards: Card[] = [
         description: "Up to $7 in statement credits each month for Dunkin' Donuts purchases in the U.S. when you spend $7 or more.",
         redemptionInstructions: "Enroll your card and use it at Dunkin' Donuts. Credit appears on statement after qualifying purchase.",
         appScheme: 'dunkin',
+        categories: ['Dining', 'Coffee'],
       },
     ],
   },
@@ -394,6 +406,7 @@ export const allCards: Card[] = [
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
         description: 'Up to $300 in statement credits for travel purchases each calendar year. Applies to a broad range of travel expenses including airfare, hotels, car rentals, cruises, taxis, public transit, parking, tolls, etc.',
         redemptionInstructions: 'Use your Sapphire Reserve for any travel or transit purchases. Credits are applied in real time until you hit $300. Resets every January.',
+        categories: ['Travel'],
       },
       {
         id: 'csr_doordash_restaurant',
@@ -406,6 +419,7 @@ export const allCards: Card[] = [
         description: '$5 off one eligible DoorDash restaurant order each month when paying with the Reserve card and enrolled in complimentary DashPass (valid through Dec 2027).',
         redemptionInstructions: 'Enroll for complimentary DashPass membership. The $5 discount is available in your DoorDash account\'s "Promo" section each month and must be applied at checkout.',
         appScheme: 'doordash',
+        categories: ['Dining'],
       },
       {
         id: 'csr_doordash_non_restaurant_1',
@@ -418,6 +432,7 @@ export const allCards: Card[] = [
         description: '$10 off one eligible non-restaurant order (grocery, convenience store, etc.) per month with DashPass enrollment (valid through Dec 2027).',
         redemptionInstructions: 'Use your Reserve card with active DashPass membership. The $10 discount appears in your DoorDash account\'s "Promo" section and must be applied at checkout.',
         appScheme: 'doordash',
+        categories: ['Shopping', 'Grocery'],
       },
       {
         id: 'csr_doordash_non_restaurant_2',
@@ -430,6 +445,7 @@ export const allCards: Card[] = [
         description: 'Second $10 off eligible non-restaurant order (grocery, convenience store, etc.) per month with DashPass enrollment (valid through Dec 2027).',
         redemptionInstructions: 'Use your Reserve card with active DashPass membership. The second $10 discount appears in your DoorDash account\'s "Promo" section after using the first credit.',
         appScheme: 'doordash',
+        categories: ['Shopping', 'Grocery'],
       },
       {
         id: 'csr_lyft',
@@ -441,6 +457,7 @@ export const allCards: Card[] = [
         definition_id: 'f79316d4-5ddd-4591-830b-6e897a3dd0f5',
         description: '$10 in-app Lyft ride credit each month (April 2025 through Sept 2027). Plus earn 5x points on Lyft rides.',
         redemptionInstructions: 'Add your Sapphire Reserve as the payment method in the Lyft app. Credit appears automatically (usually labeled as "Amp" or Chase credit) and applies to your next ride(s).',
+        categories: ['Transportation'],
       },
     ],
   },
@@ -462,6 +479,7 @@ export const allCards: Card[] = [
         definition_id: '32a15587-31ef-473a-a73b-b40c68026419',
         description: 'Up to $50 statement credit each account anniversary year for hotel stays booked via the Chase Ultimate Rewards travel portal.',
         redemptionInstructions: 'Book a hotel through Chase Travel using your Sapphire Preferred; the first $50 of hotel charges will be automatically refunded. Credit resets every account anniversary.',
+        categories: ['Travel', 'Lodging'],
       },
       {
         id: 'csp_doordash_grocery',
@@ -474,6 +492,7 @@ export const allCards: Card[] = [
         description: '$10 monthly DoorDash credit for non-restaurant purchases (grocery stores, convenience stores, DashMart, etc.) through 2027.',
         redemptionInstructions: 'Use your Preferred card with DashPass activated. You\'ll see a $10 off promo automatically for eligible non-restaurant orders each month. Credit does not roll over.',
         appScheme: 'doordash',
+        categories: ['Dining', 'Grocery'],
       },
     ],
   },
@@ -494,6 +513,7 @@ export const allCards: Card[] = [
         resetType: 'calendar',
         definition_id: '8c57ee72-0b5b-4d93-aeee-150c15539514',
         description: '$25 dining statement credit each month (up to $300 per year) at restaurants worldwide.',
+        categories: ['Dining'],
       },
     ],
   },
@@ -514,6 +534,7 @@ export const allCards: Card[] = [
         resetType: 'anniversary',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
         description: 'Up to $50 back in statement credits each quarter on eligible flight purchases (total $200 yr).',
+        categories: ['Travel', 'Flights'],
       },
     ],
   },
@@ -536,6 +557,7 @@ export const allCards: Card[] = [
         description: 'Up to $300 per year in credits to offset bookings made through the Capital One Travel portal. Can be used in part or full across multiple bookings.',
         redemptionInstructions: 'Use your Venture X to book travel through the Capital One Travel portal. At checkout, you can apply the credit to your booking. Credit resets on your account anniversary each year.',
         appScheme: 'capitalOne',
+        categories: ['Travel'],
       },
       {
         id: 'venturex_anniversary',
@@ -547,6 +569,7 @@ export const allCards: Card[] = [
         definition_id: 'c6004d5f-c5c4-435e-b717-eb6cafd9a089',
         description: '10,000 bonus miles awarded every account anniversary (≈$100 in travel value).',
         redemptionInstructions: 'Automatic benefit - miles are deposited into your account each anniversary.',
+        categories: ['Travel', 'Rewards'],
       },
     ],
   },
@@ -568,6 +591,7 @@ export const allCards: Card[] = [
         definition_id: '55fec7a1-de50-40c9-b5a2-0f456161def0',
         description: 'Up to $7 back each month on Disney Bundle subscription (Disney+, Hulu, and ESPN+) when you spend $9.99 or more.',
         redemptionInstructions: 'Enroll your Blue Cash Preferred and use it to pay for the Disney Bundle. Credit posts monthly after the charge.',
+        categories: ['Bills & Utilities', 'Entertainment'],
       },
     ],
   },
@@ -588,6 +612,7 @@ export const allCards: Card[] = [
         resetType: 'calendar',
         definition_id: 'd538f219-3595-4a96-85da-508054a9b36d',
         description: 'Up to $20 back each month on Resy restaurant purchases.',
+        categories: ['Dining'],
       },
     ],
   },
@@ -609,6 +634,7 @@ export const allCards: Card[] = [
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
         description: 'Up to $189 in statement credits per calendar year for CLEAR Plus airport security membership.',
         redemptionInstructions: 'Use your Green Card to pay for a CLEAR Plus membership. No enrollment required beyond using the card for payment.',
+        categories: ['Travel', 'Flights'],
       },
     ],
   },
@@ -630,6 +656,7 @@ export const allCards: Card[] = [
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
         description: 'Up to $100 in statement credits per calendar year for qualifying airline incidental fees (checked baggage, seat selection fees, lounge passes, onboard food, etc.).',
         redemptionInstructions: 'Use your Premium Rewards card to pay for qualifying airline incidental fees. No enrollment needed; credits post usually within a week of an eligible charge until you hit $100 for the year.',
+        categories: ['Travel', 'Flights'],
       },
     ],
   },
@@ -651,6 +678,7 @@ export const allCards: Card[] = [
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
         description: 'Up to $300 annually in airline incidental fee credits for charges like seat upgrades, baggage fees, airline lounge memberships, etc. (not airfare).',
         redemptionInstructions: 'Use the card for qualifying airline fees and you\'ll be reimbursed automatically, up to $300 per year. Resets each calendar year.',
+        categories: ['Travel', 'Flights'],
       },
       {
         id: 'boa_pre_lifestyle',
@@ -662,6 +690,7 @@ export const allCards: Card[] = [
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5261',
         description: 'Up to $150 annually in statement credits for lifestyle expenses including ride-hailing, streaming services, food delivery, and fitness subscriptions.',
         redemptionInstructions: 'Use the card for eligible lifestyle purchases like monthly streaming subscriptions, Uber/Lyft rides, food delivery, or gym memberships. Credits post automatically as eligible transactions occur.',
+        categories: ['Shopping', 'Dining', 'Transportation', 'Fitness'],
       },
     ],
   },
@@ -683,6 +712,7 @@ export const allCards: Card[] = [
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
         description: 'Up to $325 per year in combined travel and dining purchases reimbursement. Includes airlines, hotels, rental cars, taxis, restaurants, takeout, and food delivery.',
         redemptionInstructions: 'Use the Altitude Reserve for any travel or dining expenses. Charges in those categories will be credited back until you\'ve accumulated $325 in credits. Resets on your cardmember anniversary.',
+        categories: ['Travel', 'Dining'],
       },
     ],
   },
@@ -704,6 +734,7 @@ export const allCards: Card[] = [
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
         description: 'Up to $250 in statement credits for travel purchases each year. Any purchase that codes as travel (flights, hotels, travel agencies, parking, Uber/Lyft, etc.) will be automatically reimbursed.',
         redemptionInstructions: 'No activation needed; use the card for travel purchases and receive automatic statement credits until you hit $250 for the year. Credit resets every Jan 1.',
+        categories: ['Travel'],
       },
     ],
   },
