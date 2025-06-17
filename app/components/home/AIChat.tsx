@@ -12,6 +12,7 @@ import {
   Animated,
   Easing,
   Alert,
+  Linking,
 } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,22 +24,23 @@ import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
-import { CardPerk } from '../../../src/data/card-data';
+import { CardPerk, openPerkTarget } from '../../../src/data/card-data';
 
 // --- Interfaces ---
-interface BenefitRecommendation {
+type BenefitRecommendationTuple = [string, string, string, number]; // [benefitName, cardName, displayText, remainingValue]
+
+// Reconstructed recommendation object for UI use
+interface UIBenefitRecommendation {
   benefitName: string;
   cardName: string;
   displayText: string;
-  value: number;
-  expiryDays: number;
-  actionLink: string;
-  status: 'Available';
+  remainingValue: number;
+  perk?: CardPerk;
 }
 
 interface AIResponse {
   responseType: 'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational';
-  recommendations: BenefitRecommendation[];
+  recommendations: BenefitRecommendationTuple[];
 }
 
 interface Message {
@@ -52,6 +54,7 @@ interface Message {
   pending?: boolean;
   usage?: TokenUsage;
   structuredResponse?: AIResponse;
+  uiRecommendations?: UIBenefitRecommendation[];
 }
 
 interface TokenUsage {
@@ -67,11 +70,10 @@ interface AvailablePerk {
   breakEvenProgress?: number;
   perks: {
     name: string;
-    value: number;
-    remainingValue?: number;
+    totalValue: number;
+    remainingValue: number;
     status: string;
-    expiry?: string;
-    actionLink?: string;
+    expiry: string | undefined;
   }[];
 }
 
@@ -193,12 +195,13 @@ const ChatHeader = ({ onClose, onClear, hasMessages }: {
 );
 
 // --- Message Bubble Component ---
-const MessageBubble = ({ isAI, text, pending, usage, remainingUses }: { 
+const MessageBubble = ({ isAI, text, pending, usage, remainingUses, recommendations }: { 
   isAI: boolean; 
   text: string; 
   pending?: boolean;
   usage?: TokenUsage;
   remainingUses?: number;
+  recommendations?: UIBenefitRecommendation[];
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
@@ -220,49 +223,28 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses }: {
     ]).start();
   }, []);
 
-  const formatText = (input: string, isAI: boolean) => {
-    // Split on **bold** text
+  // This is a separate function to handle rich text formatting
+  const formatTextWithBold = (text: string) => {
     const boldRegex = /(\*\*[^*]+\*\*)/g;
-    const parts = input.split(boldRegex);
+    const parts = text.split(boldRegex);
 
-    return (
-      <View>
-        <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
-          {parts.map((part, i) => {
-            if (boldRegex.test(part)) {
-              // Strip the ** wrappers
-              const clean = part.slice(2, -2);
-              return (
-                <Text 
-                  key={i} 
-                  style={[
-                    styles.boldText,
-                    { color: isAI ? '#0A84FF' : '#FFFFFF' }
-                  ]}
-                >
-                  {clean}
-                </Text>
-              );
-            }
-            
-            // Return non-bold text as is
-            return part;
-          })}
-        </Text>
-        <View style={styles.debugContainer}>
-          {DEBUG_MODE && usage && isAI && (
-            <Text style={styles.debugText}>
-              Tokens: {usage.promptTokens} + {usage.completionTokens} = {usage.totalTokens} (${usage.estimatedCost.toFixed(4)})
-            </Text>
-          )}
-          {remainingUses !== undefined && isAI && (
-            <Text style={styles.usageText}>
-              {remainingUses} chats remaining this month
-            </Text>
-          )}
-        </View>
-      </View>
-    );
+    return parts.map((part, i) => {
+      if (boldRegex.test(part)) {
+        const clean = part.slice(2, -2);
+        return (
+          <Text 
+            key={i} 
+            style={[
+              styles.boldText,
+              { color: isAI ? '#0A84FF' : '#FFFFFF' }
+            ]}
+          >
+            {clean}
+          </Text>
+        );
+      }
+      return part;
+    });
   };
 
   return (
@@ -275,7 +257,55 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses }: {
       ]}
     >
       <View style={[styles.messageBubble, isAI ? styles.aiBubble : styles.userBubble]}>
-        {formatText(text, isAI)}
+        {/* Render the main text (which can now be a header) */}
+        <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
+          {formatTextWithBold(text)}
+        </Text>
+  
+        {/* NEW: Render the interactive recommendations if they exist */}
+        {isAI && recommendations && recommendations.length > 0 && (
+          <View style={styles.recommendationsContainer}>
+            {recommendations.map((rec, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.recommendationBox,
+                  // Add a border top to all but the first item
+                  index > 0 && styles.recommendationSeparator,
+                ]}
+              >
+                <Text style={styles.recommendationText}>{formatTextWithBold(rec.displayText)}</Text>
+                {rec.perk && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.redeemButton,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                    onPress={() => openPerkTarget(rec.perk!)}
+                  >
+                    <Text style={styles.redeemButtonText}>Use Perk</Text>
+                    <Ionicons name="arrow-forward-circle" size={20} color="#FFFFFF" />
+                  </Pressable>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+  
+        {/* The debug info remains the same */}
+        <View style={styles.debugContainer}>
+          {DEBUG_MODE && usage && isAI && (
+            <Text style={styles.debugText}>
+              Tokens: {usage.promptTokens} + {usage.completionTokens} = {usage.totalTokens} ($
+              {usage.estimatedCost.toFixed(5)})
+            </Text>
+          )}
+          {remainingUses !== undefined && isAI && (
+            <Text style={styles.usageText}>
+              {remainingUses} chats remaining this month
+            </Text>
+          )}
+        </View>
       </View>
     </Animated.View>
   );
@@ -411,11 +441,10 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         
         return {
           name: perk.name,
-          value: perk.value,
-          remainingValue: perk.remainingValue,
+          totalValue: perk.value,
+          remainingValue: perk.remaining_value ?? perk.value,
           status: perk.status || 'Available',
           expiry: expiryDate,
-          actionLink: perk.actionLink
         };
       })
     }));
@@ -442,7 +471,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
       console.log('[AIChat] Processing available perks');
       
-      // 1. Filter out unusable perks BEFORE transforming the data.
+      // 1. Filter out unusable perks.
       const usablePerksData = processedCards
         .map(card => ({
           ...card,
@@ -450,9 +479,22 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             perk.status === 'available' || perk.status === 'partially_redeemed'
           ),
         }))
-        .filter(card => card.perks.length > 0); // Remove cards that have no usable perks left
+        .filter(card => card.perks.length > 0);
 
-      // 2. Now transform the clean, usable data.
+      // Tier 3: Pre-sort the data before sending it to the AI
+      const currentDate = new Date();
+      usablePerksData.forEach(card => {
+        card.perks.sort((a, b) => {
+          const aDetails = calculatePerkCycleDetails(a, currentDate);
+          const bDetails = calculatePerkCycleDetails(b, currentDate);
+          if (aDetails.daysRemaining !== bDetails.daysRemaining) {
+            return aDetails.daysRemaining - bDetails.daysRemaining;
+          }
+          return (b.remaining_value ?? b.value) - (a.remaining_value ?? a.value);
+        });
+      });
+
+      // 2. Now transform the clean, sorted, usable data.
       const transformedCards = transformCardData(usablePerksData);
 
       if (transformedCards.length === 0) {
@@ -465,10 +507,26 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       console.log('[AIChat] Received advice:', result.response);
 
       let adviceText = '';
+      let uiRecommendations: UIBenefitRecommendation[] = [];
+
       if (result.response.responseType === 'BenefitRecommendation' && result.response.recommendations.length > 0) {
         console.log('[AIChat] Processing recommendations. Full object:', result.response);
-        adviceText = result.response.recommendations.map(r => r.displayText).join('\n\n');
-        console.log('[AIChat] Final combined displayText for UI:', JSON.stringify(adviceText));
+        
+        // NEW -> Set a generic header text
+        adviceText = "Here are a few perks that could help with your trip:";
+
+        uiRecommendations = result.response.recommendations.map((rec) => {
+          const [benefitName, cardName, displayText, remainingValue] = rec;
+          
+          // Find the original perk to get the actionLink
+          let perk: CardPerk | undefined;
+          const card = processedCards.find(c => c.card.name === cardName);
+          if (card) {
+            perk = card.perks.find(p => p.name === benefitName);
+          }
+
+          return { benefitName, cardName, displayText, remainingValue, perk };
+        });
 
       } else if (result.response.responseType === 'NoBenefitFound') {
         adviceText = "I couldn't find any relevant benefits for that. Try asking about dining, travel, or shopping benefits!";
@@ -480,6 +538,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         _id: Math.random().toString(),
         text: adviceText,
         structuredResponse: result.response,
+        uiRecommendations: uiRecommendations,
         createdAt: new Date(),
         user: AI,
         usage: result.usage
@@ -563,6 +622,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       pending={item.pending}
       usage={item.usage}
       remainingUses={remainingUses}
+      recommendations={item.uiRecommendations}
     />
   );
 
@@ -800,6 +860,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8E8E93',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  recommendationsContainer: {
+    marginTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E5EA',
+  },
+  recommendationBox: {
+    paddingTop: 12,
+  },
+  recommendationSeparator: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E5EA',
+    marginTop: 12,
+  },
+  recommendationText: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#000000',
+    marginBottom: 8,
+  },
+  redeemButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  redeemButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginRight: 4,
   },
 });
 
