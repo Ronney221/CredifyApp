@@ -55,6 +55,7 @@ interface Message {
   usage?: TokenUsage;
   structuredResponse?: AIResponse;
   uiRecommendations?: UIBenefitRecommendation[];
+  remainingUses?: number;
 }
 
 interface TokenUsage {
@@ -512,8 +513,8 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       if (result.response.responseType === 'BenefitRecommendation' && result.response.recommendations.length > 0) {
         console.log('[AIChat] Processing recommendations. Full object:', result.response);
         
-        // NEW -> Set a generic header text
-        adviceText = "Here are a few perks that could help with your trip:";
+        // Let the individual recommendations speak for themselves.
+        adviceText = ""; 
 
         uiRecommendations = result.response.recommendations.map((rec) => {
           const [benefitName, cardName, displayText, remainingValue] = rec;
@@ -541,7 +542,8 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         uiRecommendations: uiRecommendations,
         createdAt: new Date(),
         user: AI,
-        usage: result.usage
+        usage: result.usage,
+        remainingUses: remainingUses - 1,
       };
 
       setMessages(previousMessages => [aiResponse, ...previousMessages]);
@@ -621,7 +623,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       text={item.text}
       pending={item.pending}
       usage={item.usage}
-      remainingUses={remainingUses}
+      remainingUses={item.remainingUses}
       recommendations={item.uiRecommendations}
     />
   );

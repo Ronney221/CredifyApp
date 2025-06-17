@@ -98,3 +98,5 @@ yarn-error.log*
 
 todo.md
 refactor_plan.md
+userinput.py
+.cursor/rules/mobile.mdc
