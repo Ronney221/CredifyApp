@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet, View, Modal, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import BenefitConcierge from './BenefitConcierge';
+import AIChat from './AIChat';
 
 interface AIChatButtonProps {
   onPress?: () => void;
@@ -24,6 +24,8 @@ export default function AIChatButton({ onPress }: AIChatButtonProps) {
         style={styles.container}
         onPress={handlePress}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Open AI Chat"
       >
         <View style={styles.iconContainer}>
           <Ionicons name="sparkles" size={20} color="#007AFF" />
@@ -37,7 +39,7 @@ export default function AIChatButton({ onPress }: AIChatButtonProps) {
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer}>
-          <BenefitConcierge onClose={() => setIsModalVisible(false)} />
+          <AIChat onClose={() => setIsModalVisible(false)} />
         </SafeAreaView>
       </Modal>
     </>

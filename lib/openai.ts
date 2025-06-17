@@ -1,3 +1,4 @@
+//openai.ts
 import { Card, CardPerk } from '../src/data/card-data';
 import { supabase } from './supabase';
 

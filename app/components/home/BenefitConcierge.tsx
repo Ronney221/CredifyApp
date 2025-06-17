@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+//BenefitConcierge.tsx
+
+import React, { useState, useEffect, useRef, useMemo, useReducer } from 'react';
 import {
   View,
   Text,
@@ -15,6 +17,7 @@ import {
   FlatList,
   Alert,
   PermissionsAndroid,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -84,6 +87,34 @@ interface ChatMessageBubbleProps {
   isLastInGroup: boolean;
 }
 
+// Add chat state reducer
+type ChatState = {
+  isLoading: boolean;
+  isTyping: boolean;
+  isSubmitting: boolean;
+};
+
+type ChatAction = 
+  | { type: 'START_SUBMIT' }
+  | { type: 'START_TYPING' }
+  | { type: 'STOP_TYPING' }
+  | { type: 'RESET' };
+
+function chatReducer(state: ChatState, action: ChatAction): ChatState {
+  switch (action.type) {
+    case 'START_SUBMIT':
+      return { ...state, isSubmitting: true, isLoading: true };
+    case 'START_TYPING':
+      return { ...state, isTyping: true };
+    case 'STOP_TYPING':
+      return { ...state, isTyping: false };
+    case 'RESET':
+      return { isLoading: false, isTyping: false, isSubmitting: false };
+    default:
+      return state;
+  }
+}
+
 const ChatMessageBubble = ({ text, isCurrentUser, isFirstInGroup, isLastInGroup }: ChatMessageBubbleProps) => {
   const bubbleStyle = {
     backgroundColor: isCurrentUser ? USER_MESSAGE_COLOR : BOT_MESSAGE_COLOR,
@@ -91,6 +122,11 @@ const ChatMessageBubble = ({ text, isCurrentUser, isFirstInGroup, isLastInGroup 
     borderTopRightRadius: !isCurrentUser || isFirstInGroup ? 20 : 5,
     borderBottomLeftRadius: isCurrentUser || isLastInGroup ? 20 : 5,
     borderBottomRightRadius: !isCurrentUser || isLastInGroup ? 20 : 5,
+    // Add tail using border radius instead of extra View
+    ...(isLastInGroup && {
+      borderBottomRightRadius: isCurrentUser ? 0 : 20,
+      borderBottomLeftRadius: !isCurrentUser ? 0 : 20,
+    }),
   };
 
   const textStyle = {
@@ -110,17 +146,48 @@ const ChatMessageBubble = ({ text, isCurrentUser, isFirstInGroup, isLastInGroup 
     return null;
   };
 
-  const formatText = (inputText: string) => {
-    const cardNameRegex = /(\b[A-Z][a-z]+(\s[A-Z][a-z]+)+\b)/g;
-    const parts = inputText.split(cardNameRegex);
-    
+  const formatText = (input: string) => {
+    // First split on **bold** text
+    const boldRegex = /(\*\*[^*]+\*\*)/g;
+    const parts = input.split(boldRegex);
+
     return (
       <Text style={[styles.messageText, textStyle]}>
-        {parts.map((part, index) => 
-          cardNameRegex.test(part) ? 
-          <Text key={index} style={{fontWeight: '600'}}>{part}</Text> : 
-          part
-        )}
+        {parts.map((part, i) => {
+          if (boldRegex.test(part)) {
+            // Strip the ** wrappers
+            const clean = part.slice(2, -2);
+            return (
+              <Text 
+                key={i} 
+                style={[
+                  styles.boldText,
+                  { color: isCurrentUser ? SECONDARY_TEXT_COLOR : '#0A84FF' }
+                ]}
+              >
+                {clean}
+              </Text>
+            );
+          }
+          
+          // For non-bold text, check for card names
+          const cardNameRegex = /(\b[A-Z][a-z]+(\s[A-Z][a-z]+)+\b)/g;
+          const cardParts = part.split(cardNameRegex);
+          
+          return cardParts.map((cardPart, j) => 
+            cardNameRegex.test(cardPart) ? 
+              <Text 
+                key={`${i}-${j}`} 
+                style={[
+                  styles.boldText,
+                  { color: isCurrentUser ? SECONDARY_TEXT_COLOR : '#0A84FF' }
+                ]}
+              >
+                {cardPart}
+              </Text> : 
+              cardPart
+          );
+        })}
       </Text>
     );
   };
@@ -194,15 +261,17 @@ const TypingIndicator = () => {
 export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const { userCardsWithPerks } = useUserCards();
   const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
+  const [chatState, dispatch] = useReducer(chatReducer, {
+    isLoading: false,
+    isTyping: false,
+    isSubmitting: false,
+  });
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const inputRef = useRef<TextInput>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const messageAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
   const sendButtonScale = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
@@ -292,8 +361,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
   }, [query]);
 
   useEffect(() => {
-    console.log('[BenefitConcierge] Loading state changed:', isLoading);
-  }, [isLoading]);
+    console.log('[BenefitConcierge] Loading state changed:', chatState.isLoading);
+  }, [chatState.isLoading]);
 
   useEffect(() => {
     console.log('[BenefitConcierge] Response updated:', chatHistory);
@@ -334,23 +403,23 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
 
   // Add this effect to handle scrolling when typing indicator appears
   useEffect(() => {
-    if (isTyping) {
+    if (chatState.isTyping) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [isTyping]);
+  }, [chatState.isTyping]);
 
   // Update handleSubmit to ensure proper scrolling
   const handleSubmit = async () => {
-    if (!query.trim() || isLoading || isSubmitting) return;
+    if (!query.trim() || chatState.isLoading || chatState.isSubmitting) return;
 
     const currentQuery = query;
     setQuery('');
+    Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsLoading(true);
-    setIsSubmitting(true);
-    setIsTyping(true);
+    dispatch({ type: 'START_SUBMIT' });
+    dispatch({ type: 'START_TYPING' });
 
     // Scroll to bottom immediately after sending
     setTimeout(() => {
@@ -405,7 +474,6 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
 
     } catch (error) {
       console.error('[BenefitConcierge] Error in handleSubmit:', error);
-      // Add error message to chat history with more specific error handling
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         query: currentQuery,
@@ -423,10 +491,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, errorMessage]);
-      setIsSubmitting(false);
-      setTimeout(() => setIsTyping(false), 1000);
     } finally {
-      setIsLoading(false);
+      dispatch({ type: 'RESET' });
     }
   };
 
@@ -509,6 +575,8 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             onPress={handleClearChat} 
             style={styles.clearButton}
             disabled={chatHistory.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel="Clear chat history"
           >
             <Ionicons 
               name="trash-outline" 
@@ -516,7 +584,12 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
               color={chatHistory.length === 0 ? "#C7C7CC" : "#FF3B30"} 
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity 
+            onPress={onClose} 
+            style={styles.closeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Close chat"
+          >
             <Ionicons name="remove-outline" size={24} color="#1C1C1E" />
           </TouchableOpacity>
         </View>
@@ -587,7 +660,7 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
               </Animated.View>
             ))}
 
-            {isTyping && <TypingIndicator />}
+            {chatState.isTyping && <TypingIndicator />}
           </View>
         </ScrollView>
 
@@ -603,12 +676,12 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             maxLength={200}
             returnKeyType="send"
             onSubmitEditing={() => {
-              if (query.trim() && !isLoading && !isSubmitting) {
+              if (query.trim() && !chatState.isLoading && !chatState.isSubmitting) {
                 handleSubmit();
               }
             }}
             blurOnSubmit={false}
-            editable={!isSubmitting}
+            editable={!chatState.isSubmitting}
             textAlignVertical="center"
           />
           <Animated.View style={[
@@ -621,12 +694,14 @@ export default function BenefitConcierge({ onClose }: BenefitConciergeProps) {
             <TouchableOpacity
               style={[
                 styles.sendButton, 
-                (!query.trim() || isLoading || isSubmitting) && styles.sendButtonDisabled
+                (!query.trim() || chatState.isLoading || chatState.isSubmitting) && styles.sendButtonDisabled
               ]}
               onPress={handleSubmit}
-              disabled={!query.trim() || isLoading || isSubmitting}
+              disabled={!query.trim() || chatState.isLoading || chatState.isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
             >
-              {isLoading ? (
+              {chatState.isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Ionicons 
@@ -681,7 +756,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#EFEFF4', // iOS Messages background color
   },
   content: {
     flex: 1,
@@ -896,5 +971,8 @@ const styles = StyleSheet.create({
   tailRight: {
     right: -5,
     borderBottomLeftRadius: 10,
+  },
+  boldText: {
+    fontWeight: '600',
   },
 }); 
