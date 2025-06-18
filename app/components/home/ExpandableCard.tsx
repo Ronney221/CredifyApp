@@ -109,7 +109,6 @@ const ExpandableCardComponent = ({
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showUndoHint, setShowUndoHint] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [hasShownOnboarding, setHasShownOnboarding] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const [autoRedeemUpdateKey, setAutoRedeemUpdateKey] = useState(0);
   const { user } = useAuth();
@@ -266,30 +265,21 @@ const ExpandableCardComponent = ({
   useEffect(() => {
     const nowHasRedeemedPerks = perks.some(p => p.status === 'redeemed');
 
-    // If the card is expanded and we just transitioned from 0 redeemed to 1+ redeemed
-    // Only show undo hint if onboarding is not showing and has been shown before
-    if (isExpanded && 
-        nowHasRedeemedPerks && 
-        !hadRedeemedPerks.current && 
-        !showOnboarding && 
-        hasShownOnboarding) {
-      setShowUndoHint(true);
+    // If the card is expanded and we just transitioned from 0 redeemed perks to 1+
+    if (isExpanded && nowHasRedeemedPerks && !hadRedeemedPerks.current) {
+      // Automatically expand the redeemed section to show the user where the perk went
+      // and to reveal the "swipe to undo" hint.
+      setIsRedeemedExpanded(true);
+
+      // Show the undo hint, unless the main onboarding popup is about to appear.
+      if (!showOnboarding) {
+        setShowUndoHint(true);
+      }
     }
     
     // Update the ref for the next render
     hadRedeemedPerks.current = nowHasRedeemedPerks;
-  }, [perks, isExpanded, showOnboarding, hasShownOnboarding]);
-
-  // New effect to show undo hint after onboarding is dismissed
-  useEffect(() => {
-    if (!showOnboarding && 
-        hasShownOnboarding && 
-        isExpanded && 
-        perks.some(p => p.status === 'redeemed') && 
-        !showUndoHint) {
-      setShowUndoHint(true);
-    }
-  }, [showOnboarding, hasShownOnboarding, isExpanded, perks]);
+  }, [perks, isExpanded, showOnboarding]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
@@ -306,7 +296,8 @@ const ExpandableCardComponent = ({
   }));
 
   const firstAvailablePerkId = useMemo(() => {
-    const sortedAvailablePerks = sortPerks(perks.filter(p => p.status === 'available'));
+    const availablePerks = perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed');
+    const sortedAvailablePerks = sortPerks(availablePerks);
     return sortedAvailablePerks[0]?.id;
   }, [perks]);
 
@@ -325,6 +316,7 @@ const ExpandableCardComponent = ({
       setShowSwipeHint(true);
     } else if (!newExpandedState) {
       setShowSwipeHint(false); // Hide hint on collapse
+      setIsRedeemedExpanded(false); // Also collapse the redeemed perks section
     }
 
     // Show undo hint if there are redeemed perks (remains visible for testing)
