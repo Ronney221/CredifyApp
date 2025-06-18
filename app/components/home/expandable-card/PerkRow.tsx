@@ -92,7 +92,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
 
   let periodText = '';
   if (isAutoRedeemed) {
-    periodText = 'Auto-Redeem';
+    periodText = 'Automatic';
   } else if (!isRedeemed) { // Changed condition to include partially redeemed perks
     periodText = getTimeUntilExpiry(perk);
   }
@@ -138,7 +138,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
               <Ionicons 
                 name={
                   isRedeemed 
-                    ? (isAutoRedeemed ? 'sync-circle' : 'checkmark-circle-outline')
+                    ? (isAutoRedeemed ? 'sync-circle-outline' : 'checkmark-circle-outline')
                     : isPartiallyRedeemed
                     ? 'hourglass-outline'
                     : 'pricetag-outline'
@@ -195,7 +195,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 <Text style={[
                   styles.perkPeriodTag,
                   isRedeemed && !isAutoRedeemed && styles.perkPeriodTagRedeemed,
-                  isRedeemed && isAutoRedeemed && styles.perkPeriodTagAutoRedeemed,
+                  isAutoRedeemed && styles.perkPeriodTagAutoRedeemed,
                   periodText === 'Expired' && styles.perkPeriodTagExpired,
                   daysLeft !== null && daysLeft <= 7 && styles.perkPeriodTagUrgent
                 ]}>
@@ -208,12 +208,12 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 isRedeemed && isAutoRedeemed && styles.perkValueAutoRedeemed,
                 isPartiallyRedeemed && styles.perkValuePartiallyRedeemed
               ]}>
-                {isPartiallyRedeemed && formattedRemainingValue ? formattedRemainingValue : formattedValue}
-                {isPartiallyRedeemed && (
-                  <Text style={styles.remainingValueText}>
-                    {` (of ${formattedValue})`}
-                  </Text>
-                )}
+                {isPartiallyRedeemed && perk.remaining_value
+                  ? (perk.value - perk.remaining_value).toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    })
+                  : formattedValue}
               </Text>
             </View>
             <Ionicons 
@@ -344,13 +344,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   perkNameAutoRedeemed: { 
-    color: AUTO_REDEEM_FOREGROUND,
+    color: '#8E8E93',
   },
   perkDescriptionAutoRedeemed: { 
-    color: AUTO_REDEEM_FOREGROUND,
+    color: '#AEAEB2',
   },
   perkValueAutoRedeemed: { 
-    color: AUTO_REDEEM_FOREGROUND,
+    color: '#8E8E93',
   },
   perkValuePartiallyRedeemed: {
     color: PARTIAL_REDEEM_FOREGROUND,
