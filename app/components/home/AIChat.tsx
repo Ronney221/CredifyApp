@@ -22,7 +22,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
-import { getBenefitAdvice, CompactCardData, CompactPerk } from '../../../lib/openai';
+import { getBenefitAdvice } from '../../../lib/openai';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear, differenceInHours } from 'date-fns';
 import { CardPerk, openPerkTarget } from '../../../src/data/card-data';
 
@@ -72,6 +72,20 @@ interface TokenUsage {
   completionTokens: number;
   totalTokens: number;
   estimatedCost: number;
+}
+
+interface AvailablePerk {
+  cardName: string;
+  annualFee?: number;
+  breakEvenProgress?: number;
+  perks: {
+    name: string;
+    totalValue: number;
+    remainingValue: number;
+    status: string;
+    expiry: string | undefined;
+    categories: string[];
+  }[];
 }
 
 interface ChatUsage {
@@ -574,32 +588,30 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     }).start();
   }, [inputText]);
 
-  const transformCardDataToCompact = (cards: any[]): CompactCardData => {
+  // Transform the card data to match the new interface
+  const transformCardData = (cards: any[]): AvailablePerk[] => {
     const currentDate = new Date();
-    const compactData: CompactCardData = {};
-  
-    cards.forEach(card => {
-      const cardName = card.card.name;
-      const perksAsArrays: CompactPerk[] = card.perks.map((perk: any): CompactPerk => {
+    return cards.map(card => ({
+      cardName: card.card.name,
+      annualFee: card.card.annualFee,
+      breakEvenProgress: card.card.breakEvenProgress,
+      perks: card.perks.map((perk: any) => {
         let expiryDate = perk.expiry;
         if (!expiryDate && perk.periodMonths) {
           const { cycleEndDate } = calculatePerkCycleDetails(perk, currentDate);
           expiryDate = format(cycleEndDate, 'yyyy-MM-dd');
         }
         
-        return [
-          perk.name,
-          perk.remaining_value ?? perk.value,
-          expiryDate,
-          perk.categories || [],
-        ];
-      });
-      if (perksAsArrays.length > 0) {
-          compactData[cardName] = perksAsArrays;
-      }
-    });
-  
-    return compactData;
+        return {
+          name: perk.name,
+          totalValue: perk.value,
+          remainingValue: perk.remaining_value ?? perk.value,
+          status: perk.status || 'Available',
+          expiry: expiryDate,
+          categories: perk.categories || [],
+        };
+      })
+    }));
   };
 
   const handleAIResponse = async (userMessageText: string) => {
@@ -651,9 +663,9 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       });
 
       // 2. Now transform the clean, sorted, usable data.
-      const transformedCards = transformCardDataToCompact(usablePerksData);
+      const transformedCards = transformCardData(usablePerksData);
 
-      if (Object.keys(transformedCards).length === 0) {
+      if (transformedCards.length === 0) {
         throw new Error('No available perks found');
       }
 

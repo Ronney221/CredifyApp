@@ -2,8 +2,19 @@
 import { Card, CardPerk } from '../src/data/card-data';
 import { supabase } from './supabase';
 
-export type CompactPerk = [string, number, string | undefined, string[]]; // [name, remainingValue, expiry, categories[]]
-export type CompactCardData = Record<string, CompactPerk[]>;
+interface AvailablePerk {
+  cardName: string;
+  annualFee?: number;
+  breakEvenProgress?: number;
+  perks: {
+    name: string;
+    totalValue: number;
+    remainingValue: number;
+    status: string;
+    expiry: string | undefined;
+    categories: string[];
+  }[];
+}
 
 interface TokenUsage {
   promptTokens: number;
@@ -35,7 +46,7 @@ function calculateCost(usage: { promptTokens: number; completionTokens: number }
   return promptCost + completionCost;
 }
 
-export async function getBenefitAdvice(query: string, availablePerks: CompactCardData): Promise<{ response: AIResponse; usage: TokenUsage }> {
+export async function getBenefitAdvice(query: string, availablePerks: AvailablePerk[]): Promise<{ response: AIResponse; usage: TokenUsage }> {
   console.log('[OpenAI] Starting getBenefitAdvice function');
   console.log('[OpenAI] Query:', query);
   console.log('[OpenAI] Available cards:', JSON.stringify(availablePerks, null, 2));
@@ -58,7 +69,7 @@ export async function getBenefitAdvice(query: string, availablePerks: CompactCar
     };
   }
 
-  if (!availablePerks || typeof availablePerks !== 'object' || Object.keys(availablePerks).length === 0) {
+  if (!availablePerks || !Array.isArray(availablePerks) || availablePerks.length === 0) {
     console.error('[OpenAI] No available perks provided');
     return {
       response: {
@@ -76,46 +87,40 @@ export async function getBenefitAdvice(query: string, availablePerks: CompactCar
 
   // FINAL PRODUCTION system_prompt for openai.ts
   const system_prompt = `
-You are Credify's Smart Assistant, a hyper-intelligent and FLAWLESSLY ACCURATE expert in maximizing user savings. Your entire response MUST be a single, minified JSON object and you must follow all instructions with perfect precision.
-
-// -- STRATEGY --
-// Follow this two-step process rigorously:
-// 1. First, identify the key concepts, nouns, and verbs in the User's Query (e.g., for "my netflix subscription is due", keywords are "netflix", "subscription", "due", "bill").
-// 2. Second, search the User Context JSON. A perk is considered a "relevant match" if the extracted keywords OR their direct synonyms are found within the perk's name (index 0) OR its categories array (index 3).
-// 3. Find all relevant matches and generate your response using the Reasoning Engine below.
-
-// -- INPUT CONTEXT SCHEMA --
-// User Context is a compact structure to save tokens.
-// 'cards' is a dictionary where keys are card names.
-// Each value is a list of perks.
-// Each perk is a 4-element array: [name, remainingValue, expiry, categories[]]
-
-// -- REASONING ENGINE --
-// Your conversational "displayText" in the output must be unique for each recommendation.
-// IF the query contains broad keywords like "trip" or "vacation", you MUST try to find the single best available perk for EACH relevant sub-category: Lodging, Flights, and Ground Transport.
-
-// For each recommended perk, apply ONE of the following rules in order:
-// 1. (Urgency): If a perk's 'expiry' (index 2) is within 7 days of 'currentDate', your displayText MUST state the urgency and value.
-// 2. (Partial Use): If a perk's 'remainingValue' (index 1) is less than its original total value (which you must infer), your displayText MUST mention the card and the exact remaining balance.
-// 3. (General): Otherwise, provide a clear use case that includes the benefit name, card name, and its value.
-
-// -- EXAMPLES FOR RULE #3 (General) --
-// - For Dining: "Your $10 **Grubhub Credit** on the **American Express Gold** is perfect for dinner tonight."
-// - For Travel: "Your $300 **Travel Purchase Credit** on the **Chase Sapphire Reserve** is perfect for this trip."
-// - For Bills: "Your $20 **Digital Entertainment Credit** on your **Amex Platinum** is perfect for covering your Netflix subscription."
-
-// -- OUTPUT SCHEMA (Compact Array) --
-{
-  "responseType": "'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational'",
-  "recommendations": [
-    // Each recommendation is a 4-element array: [benefitName, cardName, displayText, remainingValue]
-    ["string", "string", "string", "number"]
-  ]
-}
-
-// -- EDGE CASES --
-// 1. If the query is conversational ('hi', 'thanks'), set responseType to 'Conversational'.
-// 2. If no perks are a relevant match after following the strategy, set responseType to 'NoBenefitFound'.
+  You are Credify's Smart Assistant, a hyper-intelligent and FLAWLESSLY ACCURATE expert in maximizing user savings. Your entire response MUST be a single, minified JSON object and you must follow all instructions with perfect precision.
+  
+  // -- STRATEGY --
+  // Follow this two-step process rigorously:
+  // 1. First, identify the key concepts, nouns, and verbs in the User's Query (e.g., for "my netflix subscription is due", keywords are "netflix", "subscription", "due", "bill").
+  // 2. Second, search the User Context JSON. A perk is considered a "relevant match" if the extracted keywords OR their direct synonyms are found within the perk's 'name' field OR its 'categories' array.
+  // 3. Find all relevant matches and generate your response using the Reasoning Engine below.
+  
+  // -- REASONING ENGINE --
+  // Your conversational "displayText" in the output must be unique for each recommendation.
+  // IF the query contains broad keywords like "trip" or "vacation", you MUST try to find the single best available perk for EACH relevant sub-category: Lodging, Flights, and Ground Transport.
+  
+  // For each recommended perk, apply ONE of the following rules in order:
+  // 1. (Urgency): If a perk's 'expiry' is within 7 days of 'currentDate', your displayText MUST state the urgency and value.
+  // 2. (Partial Use): If a perk's 'status' is 'partially_redeemed', your displayText MUST mention the card and the exact remaining balance.
+  // 3. (General): Otherwise, provide a clear use case that includes the benefit name, card name, and its value.
+  
+  // -- EXAMPLES FOR RULE #3 (General) --
+  // - For Dining: "Your $10 **Grubhub Credit** on the **American Express Gold** is perfect for dinner tonight."
+  // - For Travel: "Your $300 **Travel Purchase Credit** on the **Chase Sapphire Reserve** is perfect for this trip."
+  // - For Bills: "Your $20 **Digital Entertainment Credit** on your **Amex Platinum** is perfect for covering your Netflix subscription."
+  
+  // -- OUTPUT SCHEMA (Compact Array) --
+  {
+    "responseType": "'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational'",
+    "recommendations": [
+      // Each recommendation is a 4-element array: [benefitName, cardName, displayText, remainingValue]
+      ["string", "string", "string", "number"]
+    ]
+  }
+  
+  // -- EDGE CASES --
+  // 1. If the query is conversational ('hi', 'thanks'), set responseType to 'Conversational'.
+  // 2. If no perks are a relevant match after following the strategy, set responseType to 'NoBenefitFound'.
 `;
 
   const currentDate = new Date().toISOString().split('T')[0];
