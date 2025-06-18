@@ -211,6 +211,7 @@ export default function Dashboard() {
   const [selectedCardIdForModal, setSelectedCardIdForModal] = useState<string | null>(null);
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
   const [showAiChatNotification, setShowAiChatNotification] = useState(false);
+  const [isUpdatingPerk, setIsUpdatingPerk] = useState(false);
 
   // Coach Mark State - This will be handled inside ExpandableCard now
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
@@ -726,157 +727,100 @@ export default function Dashboard() {
   const handleMarkRedeemed = async (partialAmount?: number) => {
     if (!selectedPerk || !selectedCardIdForModal || !user) return;
 
-    const originalStatus = selectedPerk.status;
-    const isPartiallyRedeemed = originalStatus === 'partially_redeemed';
-
-    // Close modal first
+    // --- Start loading state ---
+    setIsUpdatingPerk(true);
     handleModalDismiss();
-    await Promise.resolve(); // Allow modal dismissal to process
-      
-    // Trigger haptic feedback immediately
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    // Determine if this is a partial redemption
-    const isPartialRedemption = partialAmount !== undefined && partialAmount < selectedPerk.value;
-    const valueToRedeem = partialAmount ?? selectedPerk.value;
 
     try {
-      // If the perk was partially redeemed before, delete that redemption first
-      if (isPartiallyRedeemed && !isPartialRedemption) {
-        const { error: deleteError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
-        if (deleteError) {
-          console.error('Error deleting partial redemption:', deleteError);
-          Alert.alert('Error', 'Failed to update perk redemption.');
-          return;
+        const isPartiallyRedeemed = selectedPerk.status === 'partially_redeemed';
+        const isPartialRedemption = partialAmount !== undefined && partialAmount < selectedPerk.value;
+        const valueToRedeem = partialAmount ?? selectedPerk.value;
+
+        // NOTE: We no longer call setPerkStatus() here.
+
+        // If fully redeeming a partially redeemed perk, delete the old record first.
+        if (isPartiallyRedeemed && !isPartialRedemption) {
+            const { error: deleteError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+            if (deleteError) {
+                throw new Error('Failed to delete prior partial redemption.');
+            }
         }
-      }
 
-      // Optimistic update: immediately update global UI state
-      setPerkStatus(
-        selectedCardIdForModal, 
-        selectedPerk.id, 
-        isPartialRedemption ? 'partially_redeemed' : 'redeemed',
-        isPartialRedemption ? selectedPerk.value - valueToRedeem : undefined
-      );
+        // --- Await the database operation ---
+        const { error } = await trackPerkRedemption(
+            user.id,
+            selectedCardIdForModal,
+            selectedPerk,
+            valueToRedeem,
+            selectedPerk.parent_redemption_id
+        );
 
-      // Background database operation
-      const { error } = await trackPerkRedemption(
-        user.id, 
-        selectedCardIdForModal, 
-        selectedPerk, 
-        valueToRedeem,
-        selectedPerk.parent_redemption_id
-      );
-      
-      if (error) {
-        console.error('Error tracking redemption in DB:', error);
-        // Revert optimistic update on error
-        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+        if (error) {
+            console.error('Error tracking redemption in DB:', error);
+            Alert.alert('Error', 'Failed to save redemption.');
+            setIsUpdatingPerk(false); // Turn off loading
+            return;
+        }
+
+        // --- On success, refresh state from the authoritative source (the server) ---
+        await refreshUserCards();
+        await refreshAutoRedemptions();
+
+        showToast(
+            `${selectedPerk.name} ${isPartialRedemption ? 'partially' : ''} redeemed${isPartialRedemption ? ` ($${valueToRedeem})` : ''}.`
+        );
         
-        if (typeof error === 'object' && error !== null && 'message' in error) {
-          if ((error as any).message === 'Perk already redeemed this period') {
-            Alert.alert('Already Redeemed', 'This perk has already been redeemed this month.');
-          } else if ((error as any).message === 'Insufficient remaining value for partial redemption') {
-            Alert.alert('Invalid Amount', 'The amount you entered exceeds the remaining value.');
-          } else {
-            Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
-          }
-        } else {
-          Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
+        if (!hasRedeemedFirstPerk) {
+            await markFirstPerkRedeemed();
+            setShowOnboardingSheet(true);
+            setShowAiChatNotification(true);
+            await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
         }
-        return;
-      }
 
-      // Store current scroll position
-      const currentOffset = lastScrollY.current;
-      
-      // Perform full refresh of data
-      await Promise.all([
-        refreshUserCards(),
-        refreshSavings(),
-        refreshAutoRedemptions()
-      ]);
-
-      // Restore scroll position after a short delay to allow for re-render
-      setTimeout(() => {
-        scrollY.setValue(currentOffset);
-      }, 100);
-
-      // Show toast after successful operation
-      showToast(
-        `${selectedPerk.name} ${isPartialRedemption ? 'partially' : ''} redeemed${isPartialRedemption ? ` ($${valueToRedeem})` : ''}.`
-      );
-
-      // Check if this is the first perk redemption
-      if (!hasRedeemedFirstPerk) {
-        await markFirstPerkRedeemed();
-        setShowOnboardingSheet(true);
-        setShowAiChatNotification(true); // Show dot immediately
-        await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true'); // Persist for next load
-      }
-      
-    } catch (dbError) {
-      console.error('Unexpected error marking perk as redeemed:', dbError);
-      setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-      Alert.alert('Error', 'An unexpected error occurred while marking perk as redeemed.');
+    } catch (err) {
+        console.error('Unexpected error marking perk as redeemed:', err);
+        Alert.alert('Error', 'An unexpected error occurred.');
+    } finally {
+        // --- End loading state ---
+        setIsUpdatingPerk(false);
     }
-  };
+};
 
   // New function to handle marking a perk as available
   const handleMarkAvailable = async () => {
     if (!selectedPerk || !selectedCardIdForModal || !user) return;
 
-    const originalStatus = selectedPerk.status;
-
-    // Close modal first
+    // --- Start loading state ---
+    setIsUpdatingPerk(true);
     handleModalDismiss();
-    await Promise.resolve(); // Allow modal dismissal to process
-
-    // Trigger haptic feedback
-    if (Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    // Optimistic update: set perk to 'available'
-    setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
 
     try {
-      // Background database operation to delete the redemption
-      const { error } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+        // NOTE: We no longer call setPerkStatus() here.
 
-      if (error) {
-        console.error('Error deleting redemption in DB:', error);
-        // Revert optimistic update on error
-        setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-        Alert.alert('Error', 'Failed to mark perk as available in the database.');
-        return;
-      }
+        // --- Await the database operation ---
+        const { error } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
 
-      // Store current scroll position
-      const currentOffset = lastScrollY.current;
-      
-      // Perform full refresh of data
-      await Promise.all([
-        refreshUserCards(),
-        refreshSavings(),
-        refreshAutoRedemptions()
-      ]);
+        if (error) {
+            console.error('Error deleting redemption in DB:', error);
+            Alert.alert('Error', 'Failed to mark perk as available.');
+            setIsUpdatingPerk(false); // Turn off loading
+            return;
+        }
 
-      // Restore scroll position after a short delay to allow for re-render
-      setTimeout(() => {
-        scrollY.setValue(currentOffset);
-      }, 100);
+        // --- On success, refresh state from the authoritative source (the server) ---
+        await refreshUserCards();
+        await refreshAutoRedemptions();
 
-      showToast(`${selectedPerk.name} marked as available.`);
+        showToast(`${selectedPerk.name} marked as available.`);
 
-    } catch (dbError) {
-      console.error('Unexpected error marking perk as available:', dbError);
-      setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
-      Alert.alert('Error', 'An unexpected error occurred while marking perk as available.');
+    } catch (err) {
+        console.error('Unexpected error marking perk as available:', err);
+        Alert.alert('Error', 'An unexpected error occurred.');
+    } finally {
+        // --- End loading state ---
+        setIsUpdatingPerk(false);
     }
-  };
+};
 
   // DEV Date Picker Handler
   const handleDevDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -1175,6 +1119,13 @@ export default function Dashboard() {
           visible={showOnboardingSheet}
           onDismiss={() => setShowOnboardingSheet(false)}
         />
+
+        {/* ADD THIS LOADING OVERLAY */}
+        {/* {isUpdatingPerk && (
+          <View style={styles.updatingOverlay}>
+            <ActivityIndicator size="large" color="#FFFFFF" />
+          </View>
+        )} */}
       </View>
     </SafeAreaView>
   );
@@ -1369,5 +1320,12 @@ const styles = StyleSheet.create({
   flatListContent: {
     flexGrow: 1,
     paddingBottom: TAB_BAR_OFFSET,
+  },
+  updatingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000, // Make sure it's on top of everything
   },
 }); 
