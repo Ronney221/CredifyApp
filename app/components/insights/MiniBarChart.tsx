@@ -33,11 +33,21 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
   const { width: screenWidth } = useWindowDimensions();
   const chartWidth = screenWidth - 60;
-  const maxValue = Math.max(...data, 1);
   const chartHeight = height - 40;
 
   // Calculate the width each bar section takes up
   const sectionWidth = chartWidth / 6; // Always 6 sections
+
+  // --- values -----------------------------------------------------------
+  // Now using the redeemed amount from rawData as our primary data
+  const normalizedData = rightPad(rawData.map(d => d.redeemed), 6, 0);
+  const normalizedRaw = rightPad(rawData, 6, { redeemed: 0, potential: 0 });
+
+  // Dynamically calculate maxValue to handle outliers and prevent overflow
+  const sortedData = [...normalizedData].filter(v => v > 0).sort((a, b) => a - b);
+  const p90 = sortedData[Math.floor(sortedData.length * 0.9)];
+  const maxReasonableValue = p90 * 1.05;
+  const maxValue = Math.max(...normalizedData, maxReasonableValue, 1);
 
   // Get last 6 months abbreviated names
   const getLastSixMonths = () => {
@@ -56,11 +66,6 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   };
 
   const monthLabels = getLastSixMonths();
-
-  // --- values -----------------------------------------------------------
-  // Now using the redeemed amount from rawData as our primary data
-  const normalizedData = rightPad(rawData.map(d => d.redeemed), 6, 0);
-  const normalizedRaw = rightPad(rawData, 6, { redeemed: 0, potential: 0 });
   
   // Count months with actual data (non-zero values)
   const monthsWithData = normalizedData.filter(value => value > 0).length;
@@ -82,7 +87,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   // Calculate tooltip position based on bar index
   const getTooltipStyle = (index: number) => {
     const isLeftEdge = index === 0;
-    const isRightEdge = index === data.length - 1;
+    const isRightEdge = index === normalizedData.length - 1;
     
     let horizontalPosition = {};
     
@@ -117,7 +122,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
     normalizedData.forEach((value, index) => {
       // Center of each bar section
       const x = (sectionWidth * index) + (sectionWidth / 2);
-      const y = chartHeight - (Math.max(4, (value / maxValue) * chartHeight)) + 20;
+      const y = chartHeight - (Math.max(4, (Math.min(value, maxValue) / maxValue) * chartHeight)) + 20;
       points.push({ x, y });
     });
     
@@ -162,7 +167,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
           </View>
 
           {normalizedData.map((value, index) => {
-            const barHeight = Math.max(4, (value / maxValue) * chartHeight);
+            const barHeight = Math.max(4, (Math.min(value, maxValue) / maxValue) * chartHeight);
             const isLastBar = index === normalizedData.length - 1;
             const hasData = value > 0;
             const percentage = normalizedRaw[index].potential > 0 
