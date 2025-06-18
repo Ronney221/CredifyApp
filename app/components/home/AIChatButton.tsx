@@ -1,21 +1,30 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, StyleSheet, View, Modal, SafeAreaView } from 'react-native';
+import { TouchableOpacity, StyleSheet, View, Modal, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AIChat from './AIChat';
 
 interface AIChatButtonProps {
-  onPress?: () => void;
+  hasRedeemedFirstPerk: boolean;
+  showNotification?: boolean;
+  onOpen?: () => void;
 }
 
-export default function AIChatButton({ onPress }: AIChatButtonProps) {
+export default function AIChatButton({ hasRedeemedFirstPerk, showNotification, onOpen }: AIChatButtonProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handlePress = () => {
-    if (onPress) {
-      onPress();
-    } else {
-      setIsModalVisible(true);
+    if (!hasRedeemedFirstPerk) {
+      Alert.alert(
+        "Unlock Credify AI",
+        "Redeem your first perk to unlock your personal AI rewards assistant!"
+      );
+      return;
     }
+
+    if (onOpen) {
+      onOpen();
+    }
+    setIsModalVisible(true);
   };
 
   return (
@@ -28,8 +37,9 @@ export default function AIChatButton({ onPress }: AIChatButtonProps) {
         accessibilityLabel="Open AI Chat"
       >
         <View style={styles.iconContainer}>
-          <Ionicons name="sparkles" size={20} color="#007AFF" />
+          <Ionicons name={hasRedeemedFirstPerk ? "sparkles" : "lock-closed"} size={20} color={hasRedeemedFirstPerk ? "#007AFF" : "#8E8E93"} />
         </View>
+        {showNotification && hasRedeemedFirstPerk && <View style={styles.notificationDot} />}
       </TouchableOpacity>
 
       <Modal
@@ -61,5 +71,16 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.1)',
   },
 }); 
