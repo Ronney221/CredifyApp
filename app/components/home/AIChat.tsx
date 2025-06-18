@@ -25,6 +25,7 @@ import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear, differenceInHours } from 'date-fns';
 import { CardPerk, openPerkTarget } from '../../../src/data/card-data';
+import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../../app/utils/perk-matcher';
 
 // --- Interfaces ---
 type BenefitRecommendationTuple = [string, string, string, number]; // [benefitName, cardName, displayText, remainingValue]
@@ -36,19 +37,6 @@ interface UIBenefitRecommendation {
   displayText: string;
   remainingValue: number;
   perk?: CardPerk;
-}
-
-interface MinifiedPerk {
-  i: string; // The original perk ID is CRUCIAL for matching
-  n: string;
-  rv: number;
-  s: 'a' | 'p' | 'r';
-  e: string | null;
-  c: string[];
-}
-interface MinifiedCard {
-  cn: string;
-  p: MinifiedPerk[];
 }
 
 interface GroupedRecommendation {
@@ -78,6 +66,7 @@ interface Message {
   isUpsell?: boolean;
   isLimitReached?: boolean;
   suggestedPrompts?: string[];
+  responseType?: 'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational';
 }
 
 interface TokenUsage {
@@ -707,7 +696,39 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       }
       
       console.log('[AIChat][handleAIResponse] Minified data prepared. Calling getBenefitAdvice.');
-      const result = await getBenefitAdvice(userMessageText, minifiedCards);
+      // STAGE 1: LOCAL PRE-FILTERING to find all potentially relevant perks
+      const allMinifiedCards = minifyCardData(processedCards);
+      const relevantCards = getRelevantPerks(userMessageText, allMinifiedCards);
+
+      // STAGE 2: FINAL FILTERING to only send perks the user can actually use
+      const usableRelevantCards = relevantCards.map((card: MinifiedCard) => ({
+          ...card,
+          p: card.p.filter((perk: MinifiedPerk) => perk.s === 'a' || perk.s === 'p')
+      })).filter((card: MinifiedCard) => card.p.length > 0);
+
+
+      // If our local search finds nothing usable, we don't need to call the AI at all.
+      if (usableRelevantCards.length === 0) {
+        console.log('[AIChat][handleAIResponse] No usable perks found after all filtering. Returning NoBenefitFound.');
+        // This is a special case where we generate the response locally
+        const noBenefitMessage: Message = {
+          _id: Math.random().toString(),
+          text: "I couldn't find any relevant benefits for that. Try asking about dining, travel, or shopping benefits!",
+          createdAt: new Date(),
+          user: AI,
+          responseType: 'NoBenefitFound'
+        };
+        
+        setMessages(previousMessages => {
+          const newMessages = previousMessages.map(m => m.pending ? { ...m, pending: false } : m);
+          return [noBenefitMessage, ...newMessages];
+        });
+        setIsTyping(false);
+        return; // Stop execution here
+      }
+
+      console.log('[AIChat][handleAIResponse] Usable, relevant cards prepared. Calling getBenefitAdvice.');
+      const result = await getBenefitAdvice(userMessageText, usableRelevantCards);
       console.log('[AIChat][handleAIResponse] Received advice from OpenAI:', result.response.responseType);
 
       let adviceText = '';
