@@ -90,6 +90,24 @@ export const signInWithApple = async () => {
         return { data: null, error };
       }
 
+      // Manually update the user's name from Apple credential
+      if (data.user && credential.fullName) {
+        const { givenName, familyName } = credential.fullName;
+        const fullName = [givenName, familyName].filter(Boolean).join(' ');
+        
+        // Only update if the name is not already set, to avoid unnecessary updates
+        if (fullName && !data.user.user_metadata.full_name) {
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: { full_name: fullName },
+          });
+
+          if (updateError) {
+            console.error('Error updating user name:', updateError);
+            // Non-critical error, so we don't need to block login
+          }
+        }
+      }
+
       console.log('Apple Sign In successful');
       return { data, error: null };
     }
