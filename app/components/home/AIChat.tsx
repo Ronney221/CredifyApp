@@ -97,7 +97,6 @@ const EXAMPLE_QUERIES = [
   "How should I pay my Disney+ bill?",
   "I'm booking flights for an international trip to Paris.",
   "What's the best card to use for my lunch order?",
-  "What credits are expiring for me at the end of this month?",
   "I need some new clothes for summer.",
   "Where should I get takeout from tonight?",
   "I'm planning a weekend trip to Chicago.",
@@ -105,8 +104,6 @@ const EXAMPLE_QUERIES = [
   "I need to get groceries for the week.",
   "What are the best perks for my vacation to Hawaii?",
   "I want to treat myself to a nice anniversary dinner.",
-  "Which of my perks have I only partially used?",
-  "Help me get the most value out of my Amex Platinum this month."
 ];
 
 const getRandomExamples = (count = 3): string[] => {
@@ -445,12 +442,12 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
   
         {/* The debug info remains the same */}
         <View style={styles.debugContainer}>
-          {DEBUG_MODE && usage && isAI && (
+          {/* {DEBUG_MODE && usage && isAI && (
             <Text style={styles.debugText}>
               Tokens: {usage.promptTokens} + {usage.completionTokens} = {usage.totalTokens} ($
               {usage.estimatedCost.toFixed(5)})
             </Text>
-          )}
+          )} */}
           {remainingUses !== undefined && isAI && (
             <Text style={styles.usageText}>
               {remainingUses} chats remaining this month
