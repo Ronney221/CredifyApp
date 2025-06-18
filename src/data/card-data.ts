@@ -13,7 +13,7 @@ export interface Benefit {
   redemptionInstructions?: string; // How to redeem, e.g., link, in-app action
   appScheme?: keyof typeof APP_SCHEMES; // Link benefits to app schemes
   eligibleServices?: string[]; // Array of eligible services/merchants for redemption
-  categories: string[]; // Explicit categories for AI classification
+  categories: string[]; // Explicit categories for AI classification Transportation, Dining, Bills & Utilities, Entertainment, Shopping, Grocery, Fitness, Wellness, Lifestyle, Travel, Flights, Lodging, Coffee, Rewards
   isActive?: boolean;
   startDate?: string;
   endDate?: string;
@@ -23,7 +23,6 @@ export interface Benefit {
   merchantName?: string;
   merchantLogo?: string;
 }
-
 export interface Card {
   id: string;
   name: string;
@@ -274,7 +273,7 @@ export const allCards: Card[] = [
         definition_id: '360e8050-d55d-46e4-a604-a3006dc39724',
         description: 'Up to $25 back each month on Equinox gym memberships or Equinox+ digital fitness subscriptions (up to $300 annually).',
         redemptionInstructions: 'Use your Platinum Card to pay for an Equinox gym membership or Equinox+ digital fitness subscription. Credit posts monthly after charge.',
-        categories: ['Fitness', 'Wellness'],
+        categories: ['Fitness', 'Wellness', 'Lifestyle'],
       },
       {
         id: 'platinum_saks',
@@ -481,7 +480,7 @@ export const allCards: Card[] = [
         definition_id: 'e5f6a7b8-c9d0-1234-5678-90abcdef1234',
         description: 'Up to $10 in monthly statement credits toward a Peloton All-Access, App+, or App One membership. Valid through December 31, 2027.',
         redemptionInstructions: 'Credits are automatically applied to your statement for eligible Peloton membership charges.',
-        categories: ['Lifestyle', 'Fitness'],
+        categories: ['Lifestyle', 'Fitness', 'Wellness'],
       },
       {
         id: 'csr_lyft',

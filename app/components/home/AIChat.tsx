@@ -38,6 +38,19 @@ interface UIBenefitRecommendation {
   perk?: CardPerk;
 }
 
+interface MinifiedPerk {
+  i: string; // The original perk ID is CRUCIAL for matching
+  n: string;
+  rv: number;
+  s: 'a' | 'p' | 'r';
+  e: string | null;
+  c: string[];
+}
+interface MinifiedCard {
+  cn: string;
+  p: MinifiedPerk[];
+}
+
 interface GroupedRecommendation {
   cardName: string;
   cardId: string;
@@ -72,20 +85,6 @@ interface TokenUsage {
   completionTokens: number;
   totalTokens: number;
   estimatedCost: number;
-}
-
-interface AvailablePerk {
-  cardName: string;
-  annualFee?: number;
-  breakEvenProgress?: number;
-  perks: {
-    name: string;
-    totalValue: number;
-    remainingValue: number;
-    status: string;
-    expiry: string | undefined;
-    categories: string[];
-  }[];
 }
 
 interface ChatUsage {
@@ -204,6 +203,51 @@ const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEn
   daysRemaining = Math.max(0, daysRemaining);
 
   return { cycleEndDate, daysRemaining };
+};
+
+// Helper function to minify card data for the AI prompt
+const minifyCardData = (cards: any[]): MinifiedCard[] => {
+  console.log('[AIChat][minifyCardData] Starting data minification for', cards.length, 'cards.');
+  const currentDate = new Date();
+  const minified = cards.map(card => {
+      const minifiedPerks = card.perks.map((perk: any) => {
+          let expiryDate: string | null = perk.expiry;
+          if (!expiryDate && perk.periodMonths) {
+              const { cycleEndDate } = calculatePerkCycleDetails(perk, currentDate);
+              expiryDate = format(cycleEndDate, 'yyyy-MM-dd');
+          }
+
+          let status_min: 'a' | 'p' | 'r';
+          switch (perk.status) {
+              case 'available':
+                  status_min = 'a';
+                  break;
+              case 'partially_redeemed':
+                  status_min = 'p';
+                  break;
+              case 'redeemed':
+                  status_min = 'r';
+                  break;
+              default:
+                  status_min = 'a';
+          }
+          
+          return {
+              i: perk.id,
+              n: perk.name,
+              rv: perk.remaining_value ?? perk.value,
+              s: status_min,
+              e: expiryDate,
+              c: perk.categories || [],
+          };
+      });
+      return {
+          cn: card.card.name,
+          p: minifiedPerks
+      };
+  });
+  console.log('[AIChat][minifyCardData] Minification complete.');
+  return minified;
 };
 
 // --- Header Component ---
@@ -443,6 +487,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
 
   const handleUpgrade = () => {
+    console.log('[AIChat][handleUpgrade] Upgrade button pressed.');
     // For now, show an alert. Later, this could navigate to a paywall.
     Alert.alert(
       "Upgrade to Pro",
@@ -457,10 +502,14 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   // Load/set the current chat ID on mount
   useEffect(() => {
     const getChatId = async () => {
+      console.log('[AIChat][useEffect] Getting chat ID.');
       let chatId = await AsyncStorage.getItem(CURRENT_CHAT_ID_KEY);
       if (!chatId) {
         chatId = `chat_${Date.now()}`;
+        console.log('[AIChat][useEffect] No chat ID found, creating new one:', chatId);
         await AsyncStorage.setItem(CURRENT_CHAT_ID_KEY, chatId);
+      } else {
+        console.log('[AIChat][useEffect] Found existing chat ID:', chatId);
       }
       setCurrentChatId(chatId);
     };
@@ -472,6 +521,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     if (!currentChatId) return;
 
     const loadChatHistory = async () => {
+      console.log('[AIChat][useEffect] Attempting to load chat history for chat ID:', currentChatId);
       try {
         const savedHistory = await AsyncStorage.getItem(`@ai_chat_history_${currentChatId}`);
         if (savedHistory) {
@@ -499,9 +549,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           } else {
             setMessages(historyWithDates);
           }
+          console.log('[AIChat][useEffect] Successfully loaded', historyWithDates.length, 'messages from history.');
         } else {
           // Set initial greeting message for a new chat
           setMessages(getOnboardingMessages());
+          console.log('[AIChat][useEffect] No chat history found, setting onboarding messages.');
         }
       } catch (error) {
         console.error('[AIChat] Error loading chat history:', error);
@@ -515,13 +567,16 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     if (!currentChatId || messages.length === 0) return;
 
     const saveChatHistory = async () => {
+      console.log('[AIChat][useEffect] Attempting to save', messages.length, 'messages to history for chat ID:', currentChatId);
       try {
         // Don't save history until the user has sent their first message
         const userHasSentMessage = messages.some(m => m.user._id === USER._id);
         if (!userHasSentMessage) {
+          console.log('[AIChat][useEffect] User has not sent a message yet, skipping save.');
           return;
         }
         await AsyncStorage.setItem(`@ai_chat_history_${currentChatId}`, JSON.stringify(messages));
+        console.log('[AIChat][useEffect] Successfully saved chat history.');
       } catch (error) {
         console.error('[AIChat] Error saving chat history:', error);
       }
@@ -532,6 +587,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   // Load chat usage from AsyncStorage
   useEffect(() => {
     const loadChatUsage = async () => {
+      console.log('[AIChat][useEffect] Loading chat usage stats.');
       try {
         const savedUsage = await AsyncStorage.getItem(CHAT_USAGE_KEY);
         if (savedUsage) {
@@ -541,6 +597,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           
           // Check if we need to reset the counter (new month)
           if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+            console.log('[AIChat][useEffect] New month detected. Resetting chat usage limit.');
             setRemainingUses(MONTHLY_CHAT_LIMIT);
             await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
               remainingUses: MONTHLY_CHAT_LIMIT,
@@ -548,9 +605,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             }));
           } else {
             setRemainingUses(usage.remainingUses);
+            console.log('[AIChat][useEffect] Loaded remaining uses:', usage.remainingUses);
           }
         } else {
           // First time user
+          console.log('[AIChat][useEffect] No usage stats found. Initializing for first-time user.');
           setRemainingUses(MONTHLY_CHAT_LIMIT);
           await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
             remainingUses: MONTHLY_CHAT_LIMIT,
@@ -588,34 +647,10 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     }).start();
   }, [inputText]);
 
-  // Transform the card data to match the new interface
-  const transformCardData = (cards: any[]): AvailablePerk[] => {
-    const currentDate = new Date();
-    return cards.map(card => ({
-      cardName: card.card.name,
-      annualFee: card.card.annualFee,
-      breakEvenProgress: card.card.breakEvenProgress,
-      perks: card.perks.map((perk: any) => {
-        let expiryDate = perk.expiry;
-        if (!expiryDate && perk.periodMonths) {
-          const { cycleEndDate } = calculatePerkCycleDetails(perk, currentDate);
-          expiryDate = format(cycleEndDate, 'yyyy-MM-dd');
-        }
-        
-        return {
-          name: perk.name,
-          totalValue: perk.value,
-          remainingValue: perk.remaining_value ?? perk.value,
-          status: perk.status || 'Available',
-          expiry: expiryDate,
-          categories: perk.categories || [],
-        };
-      })
-    }));
-  };
-
   const handleAIResponse = async (userMessageText: string) => {
+    console.log(`[AIChat][handleAIResponse] Starting AI response flow for query: "${userMessageText}"`);
     if (remainingUses <= 0) {
+      console.log('[AIChat][handleAIResponse] User has reached their monthly limit.');
       const errorMessage: Message = {
         _id: Math.random().toString(),
         text: "You've reached your monthly chat limit. Upgrade to continue getting tailored advice, or check back next month!",
@@ -637,7 +672,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         throw new Error('Invalid card data');
       }
 
-      console.log('[AIChat] Processing available perks');
+      console.log('[AIChat][handleAIResponse] Processing available perks from usePerkStatus hook.');
       
       // 1. Filter out unusable perks.
       const usablePerksData = processedCards
@@ -648,6 +683,8 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           ),
         }))
         .filter(card => card.perks.length > 0);
+
+      console.log(`[AIChat][handleAIResponse] Found ${usablePerksData.length} cards with usable perks.`);
 
       // Tier 3: Pre-sort the data before sending it to the AI
       const currentDate = new Date();
@@ -663,23 +700,22 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       });
 
       // 2. Now transform the clean, sorted, usable data.
-      const transformedCards = transformCardData(usablePerksData);
+      const minifiedCards = minifyCardData(usablePerksData);
 
-      if (transformedCards.length === 0) {
-        throw new Error('No available perks found');
+      if (minifiedCards.length === 0) {
+        throw new Error('No available perks found after minification.');
       }
-
-      console.log('[AIChat] Available perks:', JSON.stringify(transformedCards, null, 2));
-      console.log('[AIChat] Calling getBenefitAdvice');
-      const result = await getBenefitAdvice(userMessageText, transformedCards);
-      console.log('[AIChat] Received advice:', result.response);
+      
+      console.log('[AIChat][handleAIResponse] Minified data prepared. Calling getBenefitAdvice.');
+      const result = await getBenefitAdvice(userMessageText, minifiedCards);
+      console.log('[AIChat][handleAIResponse] Received advice from OpenAI:', result.response.responseType);
 
       let adviceText = '';
       let uiRecommendations: UIBenefitRecommendation[] = [];
       let groupedRecommendations: GroupedRecommendation[] = [];
 
       if (result.response.responseType === 'BenefitRecommendation' && result.response.recommendations.length > 0) {
-        console.log('[AIChat] Processing recommendations. Full object:', result.response);
+        console.log('[AIChat][handleAIResponse] Processing recommendations. Full object:', JSON.stringify(result.response, null, 2));
         
         adviceText = "Here are a few perks that could help:"; 
 
@@ -716,6 +752,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         }, {} as { [key: string]: GroupedRecommendation });
       
         groupedRecommendations = Object.values(grouped);
+        console.log(`[AIChat][handleAIResponse] Created ${groupedRecommendations.length} UI groups for recommendations.`);
       
         // Sort perks within each group by urgency then value
         groupedRecommendations.forEach(group => {
@@ -734,6 +771,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       } else if (result.response.responseType === 'Conversational') {
         adviceText = 'How else can I help you maximize your credit card benefits?';
       }
+      console.log(`[AIChat][handleAIResponse] Final AI response text: "${adviceText}"`);
 
       const aiResponse: Message = {
         _id: Math.random().toString(),
@@ -754,9 +792,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       await updateChatUsage();
+      console.log(`[AIChat][handleAIResponse] Chat usage updated. Remaining uses: ${remainingUses - 1}`);
 
       // Check for upsell opportunity AFTER setting the main response
       if (remainingUses - 1 > 0 && remainingUses - 1 <= UPSELL_THRESHOLD) {
+        console.log('[AIChat][handleAIResponse] User has entered the upsell threshold.');
         const upsellMessage: Message = {
             _id: `upsell_${Date.now()}`,
             text: `Heads-up: You have ${remainingUses - 1} free AI queries remaining this month.`,
@@ -789,6 +829,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     if (trimmedText.length === 0) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    console.log(`[AIChat][handleSendQuery] User sent new query: "${trimmedText}"`);
 
     const newMessage: Message = {
       _id: Math.random().toString(),
@@ -808,6 +849,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   };
 
   const handleStartOver = () => {
+    console.log('[AIChat][handleStartOver] User initiated start over.');
     Alert.alert(
       "Start New Conversation",
       "This will archive your current chat and start a new one. Are you sure?",
@@ -822,6 +864,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           onPress: async () => {
             try {
               const newChatId = `chat_${Date.now()}`;
+              console.log(`[AIChat][handleStartOver] Creating new chat with ID: ${newChatId}`);
               // Set the UI first to give immediate feedback
               setMessages(getOnboardingMessages());
               setCurrentChatId(newChatId);

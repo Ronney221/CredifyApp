@@ -1,19 +1,18 @@
 //openai.ts
-import { Card, CardPerk } from '../src/data/card-data';
-import { supabase } from './supabase';
+import { getRelevantPerks } from '../app/utils/perk-matcher';
 
-interface AvailablePerk {
-  cardName: string;
-  annualFee?: number;
-  breakEvenProgress?: number;
-  perks: {
-    name: string;
-    totalValue: number;
-    remainingValue: number;
-    status: string;
-    expiry: string | undefined;
-    categories: string[];
-  }[];
+// --- Make sure you have your minified types defined or imported ---
+interface MinifiedPerk {
+  i: string; // The original perk ID is CRUCIAL for matching
+  n: string;
+  rv: number;
+  s: 'a' | 'p' | 'r';
+  e: string | null;
+  c: string[];
+}
+interface MinifiedCard {
+  cn: string;
+  p: MinifiedPerk[];
 }
 
 interface TokenUsage {
@@ -46,94 +45,74 @@ function calculateCost(usage: { promptTokens: number; completionTokens: number }
   return promptCost + completionCost;
 }
 
-export async function getBenefitAdvice(query: string, availablePerks: AvailablePerk[]): Promise<{ response: AIResponse; usage: TokenUsage }> {
-  console.log('[OpenAI] Starting getBenefitAdvice function');
-  console.log('[OpenAI] Query:', query);
-  console.log('[OpenAI] Available cards:', JSON.stringify(availablePerks, null, 2));
+// The function signature now expects the minified data structure
+export async function getBenefitAdvice(query: string, availableCards: MinifiedCard[]): Promise<{ response: AIResponse; usage: TokenUsage }> {
+  console.log('[OpenAI] Starting getBenefitAdvice function with new architecture');
+  
+  const system_prompt = `
+You are an intelligent assistant for Credify. Your goal is to select the single best credit card perk from the pre-filtered list provided and explain why it's the best choice. Your entire response MUST be a single, minified JSON object.
+
+// -- CORE DIRECTIVE --
+// The user context you receive has already been pre-filtered to be relevant to the user's query. Your SOLE mission is to apply the 3-step prioritization logic to select the SINGLE BEST perk from this list.
+
+// -- INPUT DATA SCHEMA --
+// cn: cardName, p: perks, n: perk.name, rv: perk.remainingValue, s: perk.status (a, p), e: perk.expiry, c: perk.categories.
+
+// -- PRIORITIZATION LOGIC --
+// Apply this 3-step process to the provided list of perks to find the single best one.
+// 1. (Category): The perk whose 'c' array is the most specific match to the user's query wins.
+// 2. (Urgency): If category matches are equal, the perk with the soonest 'e' (expiry) date wins.
+// 3. (Value): If urgency is equal, the perk with the highest 'rv' (remainingValue) wins.
+
+// -- RESPONSE GENERATION --
+// For the winning perk, generate a friendly and suggestive 'displayText' including the perk's name, card name, and value.
+// EXAMPLE: "Good choice for dinner! How about using the **$10 Grubhub Credit** on your **American Express Gold**?"
+
+// -- OUTPUT SCHEMA --
+{
+  "responseType": "'BenefitRecommendation' | 'NoBenefitFound'",
+  "recommendations": [
+    ["string", "string", "string", "number"]
+  ]
+}`;
 
   const apiKey = process.env.EXPO_PUBLIC_OPENAI_SECRET_KEY;
   
   if (!apiKey || apiKey.trim() === '') {
-    console.error('[OpenAI] API Key is missing or empty');
+    console.error('[OpenAI] API Key is missing or empty. Check environment variables.');
     return {
       response: {
         responseType: 'Conversational',
         recommendations: []
       },
-      usage: {
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimatedCost: 0
-      }
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0 }
     };
   }
 
-  if (!availablePerks || !Array.isArray(availablePerks) || availablePerks.length === 0) {
-    console.error('[OpenAI] No available perks provided');
+  // STAGE 1: LOCAL PRE-FILTERING (No AI call)
+  const filteredPerks = getRelevantPerks(query, availableCards);
+
+  // If our local search finds nothing, we don't need to call the AI at all.
+  if (filteredPerks.length === 0) {
+    console.log('[OpenAI] No relevant perks found after pre-filtering. Returning NoBenefitFound.');
     return {
-      response: {
-        responseType: 'NoBenefitFound',
-        recommendations: []
-      },
-      usage: {
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimatedCost: 0
-      }
+      response: { responseType: 'NoBenefitFound', recommendations: [] },
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0 }
     };
   }
-
-  // FINAL PRODUCTION system_prompt for openai.ts
-  const system_prompt = `
-  You are Credify's Smart Assistant, a hyper-intelligent and FLAWLESSLY ACCURATE expert in maximizing user savings. Your entire response MUST be a single, minified JSON object and you must follow all instructions with perfect precision.
   
-  // -- STRATEGY --
-  // Follow this two-step process rigorously:
-  // 1. First, identify the key concepts, nouns, and verbs in the User's Query (e.g., for "my netflix subscription is due", keywords are "netflix", "subscription", "due", "bill").
-  // 2. Second, search the User Context JSON. A perk is considered a "relevant match" if the extracted keywords OR their direct synonyms are found within the perk's 'name' field OR its 'categories' array.
-  // 3. Find all relevant matches and generate your response using the Reasoning Engine below.
-  
-  // -- REASONING ENGINE --
-  // Your conversational "displayText" in the output must be unique for each recommendation.
-  // IF the query contains broad keywords like "trip" or "vacation", you MUST try to find the single best available perk for EACH relevant sub-category: Lodging, Flights, and Ground Transport.
-  
-  // For each recommended perk, apply ONE of the following rules in order:
-  // 1. (Urgency): If a perk's 'expiry' is within 7 days of 'currentDate', your displayText MUST state the urgency and value.
-  // 2. (Partial Use): If a perk's 'status' is 'partially_redeemed', your displayText MUST mention the card and the exact remaining balance.
-  // 3. (General): Otherwise, provide a clear use case that includes the benefit name, card name, and its value.
-  
-  // -- EXAMPLES FOR RULE #3 (General) --
-  // - For Dining: "Your $10 **Grubhub Credit** on the **American Express Gold** is perfect for dinner tonight."
-  // - For Travel: "Your $300 **Travel Purchase Credit** on the **Chase Sapphire Reserve** is perfect for this trip."
-  // - For Bills: "Your $20 **Digital Entertainment Credit** on your **Amex Platinum** is perfect for covering your Netflix subscription."
-  
-  // -- OUTPUT SCHEMA (Compact Array) --
-  {
-    "responseType": "'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational'",
-    "recommendations": [
-      // Each recommendation is a 4-element array: [benefitName, cardName, displayText, remainingValue]
-      ["string", "string", "string", "number"]
-    ]
-  }
-  
-  // -- EDGE CASES --
-  // 1. If the query is conversational ('hi', 'thanks'), set responseType to 'Conversational'.
-  // 2. If no perks are a relevant match after following the strategy, set responseType to 'NoBenefitFound'.
-`;
-
+  // STAGE 2: CHEAP AI CALL WITH PRE-FILTERED DATA
   const currentDate = new Date().toISOString().split('T')[0];
   const user_prompt = `User Query: ${query}
 
 User Context (JSON):
 {
   "currentDate": "${currentDate}",
-  "cards": ${JSON.stringify(availablePerks)}
-}`;
+  "cards": ${JSON.stringify(filteredPerks)} 
+}`; // We now use filteredPerks!
 
-  console.log('[OpenAI] System Prompt:', system_prompt);
-  console.log('[OpenAI] User Prompt:', user_prompt);
+  console.log('[OpenAI] System Prompt size is now minimal.');
+  console.log('[OpenAI] Sending lean user prompt to AI:', user_prompt);
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -162,6 +141,11 @@ User Context (JSON):
     const data = await response.json();
     console.log('[OpenAI] API Response:', data);
 
+    if (!data.choices || data.choices.length === 0 || !data.choices[0].message?.content) {
+      console.error('[OpenAI] Invalid response structure from API:', data);
+      throw new Error('Received an invalid response from the AI.');
+    }
+
     const usage = data.usage;
     const tokenUsage: TokenUsage = {
       promptTokens: usage.prompt_tokens,
@@ -172,8 +156,11 @@ User Context (JSON):
         completionTokens: usage.completion_tokens 
       })
     };
+    
+    const rawContent = data.choices[0].message.content.trim();
+    console.log('[OpenAI] Raw response content from AI:', rawContent);
 
-    const aiResponse: AIResponse = JSON.parse(data.choices[0].message.content.trim());
+    const aiResponse: AIResponse = JSON.parse(rawContent);
     console.log('[OpenAI] Parsed AI response:', aiResponse);
 
     return {
@@ -182,6 +169,13 @@ User Context (JSON):
     };
   } catch (error) {
     console.error('[OpenAI] Error in getBenefitAdvice:', error);
+    // For conversational queries that might not parse as JSON, handle gracefully
+    if (query.toLowerCase().match(/^(hi|hello|thanks|thank you)$/)) {
+        return {
+            response: { responseType: 'Conversational', recommendations: [] },
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0 }
+        };
+    }
     throw error;
   }
 } 
