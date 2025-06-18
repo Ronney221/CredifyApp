@@ -105,6 +105,7 @@ const ExpandableCardComponent = ({
   onHintDismissed,
 }: ExpandableCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isRedeemedExpanded, setIsRedeemedExpanded] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showUndoHint, setShowUndoHint] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -760,12 +761,36 @@ const ExpandableCardComponent = ({
                   {sortPerks(perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed')).map(p => renderPerkRow(p, true))}
                 </>
               )}
-              {perks.filter(p => p.status === 'redeemed').length > 0 && (
-                <>
-                  <Text style={styles.sectionLabel}>Redeemed Perks</Text>
-                  {perks.filter(p => p.status === 'redeemed').map(p => renderPerkRow(p, false))}
-                </>
-              )}
+              {(() => {
+                const redeemedPerks = perks.filter(p => p.status === 'redeemed');
+                if (redeemedPerks.length === 0) return null;
+
+                return (
+                  <>
+                    <TouchableOpacity
+                      style={styles.sectionHeader}
+                      onPress={() => setIsRedeemedExpanded(prev => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.sectionLabel}>Redeemed ({redeemedPerks.length})</Text>
+                      <Ionicons
+                        name={isRedeemedExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                        color="#666"
+                      />
+                    </TouchableOpacity>
+                    {isRedeemedExpanded && (
+                      <Reanimated.View
+                        layout={Layout.springify()}
+                        entering={FadeIn.duration(200)}
+                        exiting={FadeOut.duration(200)}
+                      >
+                        {redeemedPerks.map(p => renderPerkRow(p, false))}
+                      </Reanimated.View>
+                    )}
+                  </>
+                );
+              })()}
             </View>
           </Reanimated.View>
         )}
@@ -845,6 +870,12 @@ const styles = StyleSheet.create({
     color: '#666',
     marginVertical: 8,
     paddingHorizontal: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 4,
   },
   activeCard: {
     ...Platform.select({
