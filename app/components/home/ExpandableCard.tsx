@@ -355,13 +355,9 @@ const ExpandableCardComponent = ({
             Alert.alert('Error', 'Failed to update perk redemption.');
             return;
           }
-          
-          // Update UI to reflect deletion of partial redemption
-          setPerkStatus?.(card.id, perk.id, 'available');
-          await onPerkStatusChange?.();
         }
 
-        // Now track the full redemption
+        // Now track the full redemption, making the UI update atomic
         setPerkStatus?.(card.id, perk.id, 'redeemed');
         const result = await trackPerkRedemption(
           user.id, 

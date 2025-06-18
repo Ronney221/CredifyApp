@@ -316,6 +316,7 @@ export function usePerkStatus(
     let definitionId = '';
     let originalStatusIsRedeemed = false;
     let originalStatusIsPartiallyRedeemed = false;
+    let originalRemainingValue = 0;
 
     setProcessedCardsWithPerks(prevUserCards =>
       prevUserCards.map(cardData => {
@@ -327,9 +328,10 @@ export function usePerkStatus(
               definitionId = p.definition_id;
               originalStatusIsRedeemed = p.status === 'redeemed';
               originalStatusIsPartiallyRedeemed = p.status === 'partially_redeemed';
+              originalRemainingValue = p.remaining_value || 0;
               console.log('Found perk for status change:', { 
                 perkName: p.name, 
-                currentStatus: p.status, 
+                originalStatus: p.status, 
                 newStatusRequested: newStatus, 
                 value: perkValue, 
                 definition_id: definitionId, 
@@ -356,13 +358,16 @@ export function usePerkStatus(
       [perkId]: newStatus === 'redeemed' || newStatus === 'partially_redeemed' 
     }));
 
+    const originalRedeemedAmount = originalStatusIsPartiallyRedeemed ? (perkValue - originalRemainingValue) : 0;
+
     // Optimistic update for cumulativeValueSavedPerCard
     setCumulativeValueSavedPerCard(prevCumulative => {
       const newCumulative = { ...prevCumulative };
       const currentCardValue = newCumulative[cardId] || 0;
       
       if (newStatus === 'redeemed' && !originalStatusIsRedeemed) {
-        newCumulative[cardId] = currentCardValue + perkValue;
+        const valueToAdd = perkValue - originalRedeemedAmount;
+        newCumulative[cardId] = currentCardValue + valueToAdd;
       } else if (newStatus === 'partially_redeemed' && !originalStatusIsRedeemed && !originalStatusIsPartiallyRedeemed) {
         const redeemedValue = perkValue - (remainingValue || 0);
         newCumulative[cardId] = currentCardValue + redeemedValue;
@@ -383,7 +388,8 @@ export function usePerkStatus(
         const aggregate = newAggregates[periodMonths];
 
         if (newStatus === 'redeemed' && !originalStatusIsRedeemed) {
-          aggregate.redeemedValue += perkValue;
+          const valueToAdd = perkValue - originalRedeemedAmount;
+          aggregate.redeemedValue += valueToAdd;
           aggregate.redeemedCount++;
           if (originalStatusIsPartiallyRedeemed) {
             aggregate.partiallyRedeemedCount = Math.max(0, aggregate.partiallyRedeemedCount - 1);
