@@ -7,9 +7,10 @@ interface AIChatButtonProps {
   hasRedeemedFirstPerk: boolean;
   showNotification?: boolean;
   onOpen?: () => void;
+  onClose?: () => void;
 }
 
-export default function AIChatButton({ hasRedeemedFirstPerk, showNotification, onOpen }: AIChatButtonProps) {
+export default function AIChatButton({ hasRedeemedFirstPerk, showNotification, onOpen, onClose }: AIChatButtonProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handlePress = () => {
@@ -25,6 +26,13 @@ export default function AIChatButton({ hasRedeemedFirstPerk, showNotification, o
       onOpen();
     }
     setIsModalVisible(true);
+  };
+
+  const handleClose = () => {
+    setIsModalVisible(false);
+    if (onClose) {
+      onClose();
+    }
   };
 
   return (
@@ -45,11 +53,11 @@ export default function AIChatButton({ hasRedeemedFirstPerk, showNotification, o
       <Modal
         visible={isModalVisible}
         animationType="slide"
-        onRequestClose={() => setIsModalVisible(false)}
+        onRequestClose={handleClose}
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer}>
-          <AIChat onClose={() => setIsModalVisible(false)} />
+          <AIChat onClose={handleClose} />
         </SafeAreaView>
       </Modal>
     </>
@@ -74,13 +82,13 @@ const styles = StyleSheet.create({
   },
   notificationDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF3B30',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.1)',
+    top: -4,
+    right: -4,
+    width: 14,
+    height: 14,
+    borderRadius: 8,
+    backgroundColor: 'red',
+    borderWidth: 1.5,
+    borderColor: '#F4F4F4',
   },
 }); 

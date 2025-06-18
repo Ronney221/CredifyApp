@@ -87,6 +87,7 @@ type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> }
 
 const SWIPE_HINT_STORAGE_KEY = '@user_seen_swipe_hint';
 const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
+const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
 
 const showToast = (message: string, onUndo?: () => void) => {
   const toastMessage = onUndo ? `${message}\nTap to undo` : message;
@@ -209,6 +210,7 @@ export default function Dashboard() {
   const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
   const [selectedCardIdForModal, setSelectedCardIdForModal] = useState<string | null>(null);
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
+  const [showAiChatNotification, setShowAiChatNotification] = useState(false);
 
   // Coach Mark State - This will be handled inside ExpandableCard now
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
@@ -242,6 +244,18 @@ export default function Dashboard() {
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
   const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
   const [showOnboardingSheet, setShowOnboardingSheet] = useState(false);
+
+  const checkNotificationStatus = async () => {
+    const chatNotificationStatus = await AsyncStorage.getItem(CHAT_NOTIFICATION_KEY);
+    setShowAiChatNotification(chatNotificationStatus === 'true');
+  };
+
+  const handleOpenAiChat = useCallback(async () => {
+    if (showAiChatNotification) {
+      setShowAiChatNotification(false);
+      await AsyncStorage.removeItem(CHAT_NOTIFICATION_KEY);
+    }
+  }, [showAiChatNotification]);
 
   // Initial log after hooks have run
   console.log("DEBUG: Dashboard component - AFTER hooks. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isUserCardsRefreshing, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
@@ -422,6 +436,8 @@ export default function Dashboard() {
           console.log('[Dashboard] No stored periods found, setting default [1, 12]');
           setUniquePerkPeriodsForToggle([1, 12]); // Default if not found
         }
+
+        await checkNotificationStatus();
       } catch (e) {
         console.error("[Dashboard] Failed to load data from AsyncStorage.", e);
         setUniquePerkPeriodsForToggle([1, 12]); // Default on error
@@ -511,6 +527,8 @@ export default function Dashboard() {
           } else {
             setUniquePerkPeriodsForToggle([1, 12]);
           }
+
+          await checkNotificationStatus();
 
           await refreshUserCards();
           await refreshSavings();
@@ -684,6 +702,8 @@ export default function Dashboard() {
         if (!hasRedeemedFirstPerk) {
           await markFirstPerkRedeemed();
           setShowOnboardingSheet(true);
+          setShowAiChatNotification(true); // Show dot immediately
+          await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true'); // Persist for next load
         }
       } else if (selectedPerk.status === 'redeemed') {
         // Perk is already redeemed, we just opened the app.
@@ -793,6 +813,8 @@ export default function Dashboard() {
       if (!hasRedeemedFirstPerk) {
         await markFirstPerkRedeemed();
         setShowOnboardingSheet(true);
+        setShowAiChatNotification(true); // Show dot immediately
+        await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true'); // Persist for next load
       }
       
     } catch (dbError) {
@@ -959,7 +981,12 @@ export default function Dashboard() {
         </View>
         <View style={styles.cardsSectionHeader}>
           <Text style={styles.sectionTitle}>Your Cards</Text>
-          <AIChatButton />
+          <AIChatButton
+            hasRedeemedFirstPerk={hasRedeemedFirstPerk}
+            showNotification={showAiChatNotification}
+            onOpen={handleOpenAiChat}
+            onClose={checkNotificationStatus}
+          />
         </View>
       </View>
     );
@@ -971,7 +998,10 @@ export default function Dashboard() {
     periodAggregates, 
     redeemedInCurrentCycle, 
     uniquePerkPeriodsForToggle,
-    listHeaderHeight
+    listHeaderHeight,
+    hasRedeemedFirstPerk,
+    showAiChatNotification,
+    handleOpenAiChat
   ]);
 
   // Only show full-screen loader on the very first load of user cards.

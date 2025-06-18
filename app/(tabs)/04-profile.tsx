@@ -23,7 +23,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
 const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
-const CHAT_HISTORY_KEY = '@benefit_concierge_chat_history';
+const CURRENT_CHAT_ID_KEY = '@ai_chat_current_id';
+const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
+const CHAT_USAGE_KEY = '@ai_chat_usage';
 
 interface ProfileRow {
   id: string;
@@ -57,10 +59,78 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleShowChatNotification = async () => {
+    try {
+      await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
+      Alert.alert(
+        "Success",
+        "AI Chat notification dot enabled. Return to the Dashboard to see it.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Error setting AI chat notification:', error);
+      Alert.alert('Error', 'Failed to set AI chat notification.');
+    }
+  };
+
+  const handleTestInactivityMessage = async () => {
+    try {
+      const chatId = await AsyncStorage.getItem(CURRENT_CHAT_ID_KEY);
+      if (!chatId) {
+        Alert.alert('No Active Chat', 'Please start a chat first to test this feature.');
+        return;
+      }
+      
+      const historyKey = `@ai_chat_history_${chatId}`;
+      const savedHistory = await AsyncStorage.getItem(historyKey);
+
+      if (!savedHistory) {
+        Alert.alert('No Chat History', 'Please send at least one message in the chat to test this feature.');
+        return;
+      }
+
+      const history = JSON.parse(savedHistory);
+      if (history.length === 0) {
+        Alert.alert('Empty Chat History', 'Please send at least one message in the chat to test this feature.');
+        return;
+      }
+
+      // Modify the timestamp to be 3 days ago
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      history[0].createdAt = threeDaysAgo.toISOString();
+
+      await AsyncStorage.setItem(historyKey, JSON.stringify(history));
+
+      Alert.alert(
+        "Success",
+        "The last message's timestamp has been set to 3 days ago. Re-open the AI Chat to see the inactivity message.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Error testing inactivity message:', error);
+      Alert.alert('Error', 'Failed to modify chat history for testing.');
+    }
+  };
+
+  const handleResetChatCredits = async () => {
+    try {
+      await AsyncStorage.removeItem(CHAT_USAGE_KEY);
+      Alert.alert(
+        "Success",
+        "Chat credits have been reset. You now have 30 free queries.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Error resetting chat credits:', error);
+      Alert.alert('Error', 'Failed to reset chat credits.');
+    }
+  };
+
   const handleClearChat = async () => {
     Alert.alert(
       "Clear Chat History",
-      "Are you sure you want to clear all chat history?",
+      "This will remove all archived conversations and start a fresh session. Are you sure?",
       [
         { text: "Cancel", style: "cancel" },
         { 
@@ -68,10 +138,14 @@ const ProfileScreen = () => {
           style: "destructive",
           onPress: async () => {
             try {
-              await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
+              const allKeys = await AsyncStorage.getAllKeys();
+              const chatKeys = allKeys.filter(key => 
+                key.startsWith('@ai_chat_history_') || key === CURRENT_CHAT_ID_KEY
+              );
+              await AsyncStorage.multiRemove(chatKeys);
               Alert.alert(
                 "Success",
-                "Chat history has been cleared.",
+                "All chat history has been cleared.",
                 [{ text: "OK" }]
               );
             } catch (error) {
@@ -148,6 +222,24 @@ const ProfileScreen = () => {
           title: 'Clear Chat History',
           icon: 'chatbubble-ellipses-outline',
           onPress: handleClearChat
+        },
+        {
+          id: 'show-chat-notification',
+          title: 'Test AI Chat Notification',
+          icon: 'notifications-circle-outline',
+          onPress: handleShowChatNotification
+        },
+        {
+          id: 'reset-chat-credits',
+          title: 'Reset Chat Credits',
+          icon: 'cash-outline',
+          onPress: handleResetChatCredits
+        },
+        {
+          id: 'test-inactivity-message',
+          title: 'Test 48-hour Message',
+          icon: 'time-outline',
+          onPress: handleTestInactivityMessage
         },
       ],
       footer: 'Development tools and testing options.',

@@ -23,7 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { getBenefitAdvice } from '../../../lib/openai';
-import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
+import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear, differenceInHours } from 'date-fns';
 import { CardPerk, openPerkTarget } from '../../../src/data/card-data';
 
 // --- Interfaces ---
@@ -62,6 +62,9 @@ interface Message {
   structuredResponse?: AIResponse;
   groupedRecommendations?: GroupedRecommendation[];
   remainingUses?: number;
+  isUpsell?: boolean;
+  isLimitReached?: boolean;
+  suggestedPrompts?: string[];
 }
 
 interface TokenUsage {
@@ -93,24 +96,68 @@ interface ChatUsage {
 // --- Constants ---
 const USER = { _id: 1, name: 'User' };
 const AI = { _id: 2, name: 'AI Assistant' };
-const CHAT_HISTORY_KEY = '@ai_chat_history';
+const CURRENT_CHAT_ID_KEY = '@ai_chat_current_id';
 const CHAT_USAGE_KEY = '@ai_chat_usage';
+const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
 const MONTHLY_CHAT_LIMIT = 30;
+const UPSELL_THRESHOLD = 5;
 
 // Debug flag - set to false for production
 const DEBUG_MODE = true;
 
-// Define welcome message as a constant to avoid duplication
-const WELCOME_MESSAGE = `Welcome to **Credify AI**, your personal rewards assistant.
+const EXAMPLE_QUERIES = [
+  "How should I pay my Disney+ bill?",
+  "I'm booking flights for an international trip to Paris.",
+  "What's the best card to use for my lunch order?",
+  "What credits are expiring for me at the end of this month?",
+  "I need some new clothes for summer.",
+  "Where should I get takeout from tonight?",
+  "I'm planning a weekend trip to Chicago.",
+  "I need a ride to the airport.",
+  "I need to get groceries for the week.",
+  "What are the best perks for my vacation to Hawaii?",
+  "I want to treat myself to a nice anniversary dinner.",
+  "Which of my perks have I only partially used?",
+  "Help me get the most value out of my Amex Platinum this month."
+];
 
-I keep track of all your active credit card perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.
+const getRandomExamples = (count = 3): string[] => {
+  const shuffled = [...EXAMPLE_QUERIES].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+};
 
-For example, you could say:
-
-• "I'm booking a trip to New York."
-• "I'm about to order dinner."
-• "I'm craving a coffee."
-How can I help you save?`;
+const getOnboardingMessages = (): Message[] => {
+  const now = new Date();
+  const onboardingMessages: Message[] = [
+    {
+      _id: `onboarding_1_${now.getTime()}`,
+      text: `Welcome to **Credify AI**! I'm your personal assistant for maximizing credit card rewards.`,
+      createdAt: now,
+      user: AI,
+    },
+    {
+      _id: `onboarding_2_${now.getTime()}`,
+      text: `I keep track of all your active perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.`,
+      createdAt: new Date(now.getTime() + 100), // slightly later
+      user: AI,
+    },
+    {
+      _id: `onboarding_3_${now.getTime()}`,
+      text: `You get **30 free queries** every month. For unlimited insights, you can upgrade to **Credify Pro** for just $2.99/month.`,
+      createdAt: new Date(now.getTime() + 200),
+      user: AI,
+    },
+    {
+      _id: `onboarding_4_${now.getTime()}`,
+      text: `Here are a few things you can ask:`,
+      createdAt: new Date(now.getTime() + 300),
+      user: AI,
+      suggestedPrompts: getRandomExamples(3),
+    },
+  ];
+  // Return in reverse order for the inverted FlatList
+  return onboardingMessages.reverse();
+};
 
 // Helper function to calculate perk cycle end date and days remaining
 const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEndDate: Date; daysRemaining: number } => {
@@ -160,9 +207,9 @@ const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEn
 };
 
 // --- Header Component ---
-const ChatHeader = ({ onClose, onClear, hasMessages }: { 
+const ChatHeader = ({ onClose, onStartOver, hasMessages }: { 
   onClose: () => void;
-  onClear: () => void;
+  onStartOver: () => void;
   hasMessages: boolean;
 }) => (
   <BlurView intensity={50} tint="light" style={styles.headerBlur}>
@@ -170,7 +217,7 @@ const ChatHeader = ({ onClose, onClear, hasMessages }: {
       <Text style={styles.headerTitle}>Credify AI</Text>
       <View style={styles.headerButtons}>
         <Pressable 
-          onPress={onClear}
+          onPress={onStartOver}
           hitSlop={10}
           style={({ pressed }) => [
             styles.headerButton,
@@ -179,9 +226,9 @@ const ChatHeader = ({ onClose, onClear, hasMessages }: {
           disabled={!hasMessages}
         >
           <Ionicons 
-            name="trash-outline" 
-            size={20} 
-            color={hasMessages ? "#FF3B30" : "#C7C7CC"} 
+            name="sparkles-outline" 
+            size={22} 
+            color={hasMessages ? "#007AFF" : "#C7C7CC"} 
           />
         </Pressable>
         <Pressable 
@@ -203,13 +250,18 @@ const ChatHeader = ({ onClose, onClear, hasMessages }: {
 );
 
 // --- Message Bubble Component ---
-const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecommendations }: { 
+const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecommendations, isUpsell, isLimitReached, onUpgrade, suggestedPrompts, onPromptPress }: { 
   isAI: boolean; 
   text: string; 
   pending?: boolean;
   usage?: TokenUsage;
   remainingUses?: number;
   groupedRecommendations?: GroupedRecommendation[];
+  isUpsell?: boolean;
+  isLimitReached?: boolean;
+  onUpgrade?: () => void;
+  suggestedPrompts?: string[];
+  onPromptPress?: (prompt: string) => void;
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
@@ -322,6 +374,42 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
           </View>
         )}
   
+        {/* NEW: Clickable Suggested Prompts */}
+        {isAI && suggestedPrompts && onPromptPress && (
+          <View style={styles.promptsContainer}>
+            {suggestedPrompts.map((prompt, index) => (
+              <Pressable
+                key={index}
+                style={({ pressed }) => [
+                  styles.promptButton,
+                  pressed && { opacity: 0.7 }
+                ]}
+                onPress={() => onPromptPress(prompt)}
+              >
+                <Text style={styles.promptButtonText}>{prompt}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+  
+        {/* NEW: Upsell and Limit Reached CTAs */}
+        {(isUpsell || isLimitReached) && onUpgrade && (
+            <View style={styles.ctaContainer}>
+                <Pressable
+                    style={({ pressed }) => [
+                        styles.upgradeButton,
+                        pressed && { opacity: 0.8 },
+                    ]}
+                    onPress={onUpgrade}
+                >
+                    <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                    <Text style={styles.upgradeButtonText}>
+                        {isLimitReached ? "Upgrade to Pro" : "Unlock Unlimited"}
+                    </Text>
+                </Pressable>
+            </View>
+        )}
+  
         {/* The debug info remains the same */}
         <View style={styles.debugContainer}>
           {DEBUG_MODE && usage && isAI && (
@@ -347,54 +435,99 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [remainingUses, setRemainingUses] = useState<number>(MONTHLY_CHAT_LIMIT);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const sendButtonScale = useRef(new Animated.Value(0)).current;
   const { userCardsWithPerks } = useUserCards();
   const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
 
-  // Load chat history from AsyncStorage
+  const handleUpgrade = () => {
+    // For now, show an alert. Later, this could navigate to a paywall.
+    Alert.alert(
+      "Upgrade to Pro",
+      "Unlock unlimited insights and chat history for just $2.99/month.",
+      [
+        { text: "Maybe Later", style: "cancel" },
+        { text: "Upgrade Now", onPress: () => console.log("Navigate to paywall") }
+      ]
+    );
+  };
+
+  // Load/set the current chat ID on mount
   useEffect(() => {
+    const getChatId = async () => {
+      let chatId = await AsyncStorage.getItem(CURRENT_CHAT_ID_KEY);
+      if (!chatId) {
+        chatId = `chat_${Date.now()}`;
+        await AsyncStorage.setItem(CURRENT_CHAT_ID_KEY, chatId);
+      }
+      setCurrentChatId(chatId);
+    };
+    getChatId();
+  }, []);
+
+  // Load chat history when the chat ID changes
+  useEffect(() => {
+    if (!currentChatId) return;
+
     const loadChatHistory = async () => {
       try {
-        const savedHistory = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
+        const savedHistory = await AsyncStorage.getItem(`@ai_chat_history_${currentChatId}`);
         if (savedHistory) {
           const parsedHistory = JSON.parse(savedHistory);
           // Convert string dates back to Date objects
-          const historyWithDates = parsedHistory.map((msg: any) => ({
+          const historyWithDates: Message[] = parsedHistory.map((msg: any) => ({
             ...msg,
             createdAt: new Date(msg.createdAt)
           }));
-          setMessages(historyWithDates);
+
+          // Check for inactivity
+          const lastMessage = historyWithDates[0];
+          const now = new Date();
+          if (lastMessage && differenceInHours(now, lastMessage.createdAt) > 48) {
+            const inactivityMessage: Message = {
+              _id: `re-engagement_${Date.now()}`,
+              text: `Ready to find more savings? Here are a few ideas:`,
+              createdAt: new Date(),
+              user: AI,
+              suggestedPrompts: getRandomExamples(3),
+            };
+            setMessages([inactivityMessage, ...historyWithDates]);
+            // Set the notification flag
+            await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
+          } else {
+            setMessages(historyWithDates);
+          }
         } else {
-          // Set initial greeting message
-          setMessages([{
-            _id: 1,
-            text: WELCOME_MESSAGE,
-            createdAt: new Date(),
-            user: AI,
-          }]);
+          // Set initial greeting message for a new chat
+          setMessages(getOnboardingMessages());
         }
       } catch (error) {
         console.error('[AIChat] Error loading chat history:', error);
       }
     };
     loadChatHistory();
-  }, []);
+  }, [currentChatId]);
 
-  // Save chat history to AsyncStorage
+  // Save chat history to AsyncStorage when messages or chat ID change
   useEffect(() => {
+    if (!currentChatId || messages.length === 0) return;
+
     const saveChatHistory = async () => {
       try {
-        await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
+        // Don't save history until the user has sent their first message
+        const userHasSentMessage = messages.some(m => m.user._id === USER._id);
+        if (!userHasSentMessage) {
+          return;
+        }
+        await AsyncStorage.setItem(`@ai_chat_history_${currentChatId}`, JSON.stringify(messages));
       } catch (error) {
         console.error('[AIChat] Error saving chat history:', error);
       }
     };
-    if (messages.length > 0) {
-      saveChatHistory();
-    }
-  }, [messages]);
+    saveChatHistory();
+  }, [messages, currentChatId]);
 
   // Load chat usage from AsyncStorage
   useEffect(() => {
@@ -485,11 +618,15 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     if (remainingUses <= 0) {
       const errorMessage: Message = {
         _id: Math.random().toString(),
-        text: "You've reached your monthly chat limit. Please try again next month.",
+        text: "You've reached your monthly chat limit. Upgrade to continue getting tailored advice, or check back next month!",
         createdAt: new Date(),
         user: AI,
+        isLimitReached: true,
       };
-      setMessages(previousMessages => [errorMessage, ...previousMessages]);
+      setMessages(previousMessages => {
+        const newMessages = previousMessages.map(m => m.pending ? { ...m, pending: false } : m);
+        return [errorMessage, ...newMessages];
+      });
       return;
     }
 
@@ -608,11 +745,29 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         usage: result.usage,
         remainingUses: remainingUses - 1,
       };
+      
+      setMessages(previousMessages => {
+        const newMessages = previousMessages.map(m => m.pending ? { ...m, pending: false } : m);
+        return [aiResponse, ...newMessages];
+      });
 
-      setMessages(previousMessages => [aiResponse, ...previousMessages]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       await updateChatUsage();
+
+      // Check for upsell opportunity AFTER setting the main response
+      if (remainingUses - 1 > 0 && remainingUses - 1 <= UPSELL_THRESHOLD) {
+        const upsellMessage: Message = {
+            _id: `upsell_${Date.now()}`,
+            text: `Heads-up: You have ${remainingUses - 1} free AI queries remaining this month.`,
+            createdAt: new Date(new Date().getTime() + 100), // slightly later
+            user: AI,
+            isUpsell: true,
+        };
+        // Add the upsell message as a separate bubble
+        setMessages(previousMessages => [upsellMessage, ...previousMessages]);
+      }
+
     } catch (error) {
       console.error('[AIChat] Error in handleAIResponse:', error);
       const errorMessage: Message = {
@@ -629,8 +784,8 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     }
   };
 
-  const onSend = () => {
-    const trimmedText = inputText.trim();
+  const handleSendQuery = (queryText: string) => {
+    const trimmedText = queryText.trim();
     if (trimmedText.length === 0) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -644,35 +799,38 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     };
 
     setMessages((previousMessages) => [newMessage, ...previousMessages]);
-    setInputText('');
+    setInputText(''); // Clear input field regardless
     handleAIResponse(trimmedText);
   };
 
-  const handleClearChat = () => {
+  const onSend = () => {
+    handleSendQuery(inputText);
+  };
+
+  const handleStartOver = () => {
     Alert.alert(
-      "Clear Chat History",
-      "Are you sure you want to clear all chat history?",
+      "Start New Conversation",
+      "This will archive your current chat and start a new one. Are you sure?",
       [
         {
           text: "Cancel",
           style: "cancel"
         },
         {
-          text: "Clear",
-          style: "destructive",
+          text: "Start Over",
+          style: "default",
           onPress: async () => {
             try {
-              await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
-              setMessages([{
-                _id: 1,
-                text: WELCOME_MESSAGE,
-                createdAt: new Date(),
-                user: AI,
-              }]);
+              const newChatId = `chat_${Date.now()}`;
+              // Set the UI first to give immediate feedback
+              setMessages(getOnboardingMessages());
+              setCurrentChatId(newChatId);
+              // Then update storage
+              await AsyncStorage.setItem(CURRENT_CHAT_ID_KEY, newChatId);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error) {
-              console.error('[AIChat] Error clearing chat history:', error);
-              Alert.alert('Error', 'Failed to clear chat history. Please try again.');
+              console.error('[AIChat] Error starting new chat:', error);
+              Alert.alert('Error', 'Failed to start a new conversation. Please try again.');
             }
           }
         }
@@ -688,6 +846,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       usage={item.usage}
       remainingUses={item.remainingUses}
       groupedRecommendations={item.groupedRecommendations}
+      isUpsell={item.isUpsell}
+      isLimitReached={item.isLimitReached}
+      onUpgrade={handleUpgrade}
+      suggestedPrompts={item.suggestedPrompts}
+      onPromptPress={handleSendQuery}
     />
   );
 
@@ -696,7 +859,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       <SafeAreaView style={styles.container}>
         <ChatHeader 
           onClose={onClose} 
-          onClear={handleClearChat}
+          onStartOver={handleStartOver}
           hasMessages={messages.length > 1}
         />
         <KeyboardAvoidingView
@@ -970,6 +1133,42 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     marginRight: 4,
+  },
+  ctaContainer: {
+    marginTop: 12,
+  },
+  upgradeButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  upgradeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  promptsContainer: {
+    marginTop: 12,
+    gap: 8,
+  },
+  promptButton: {
+    backgroundColor: '#E5E5EA',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+  },
+  promptButtonText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '500',
+    lineHeight: 20,
   },
 });
 
