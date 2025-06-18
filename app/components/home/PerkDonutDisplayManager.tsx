@@ -1,3 +1,4 @@
+//perk-donut-display-manager.tsx
 import React, { useState, useMemo, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { View, StyleSheet, Platform, Text, ActivityIndicator } from 'react-native';
 import { PerksToggle, Segment } from './PerksToggle';

@@ -1,3 +1,4 @@
+//perk-row.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
