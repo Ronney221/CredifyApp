@@ -68,7 +68,7 @@ export async function getBenefitAdvice(query: string, availableCards: MinifiedCa
 // -- RESPONSE GENERATION LOGIC --
 // For EACH perk you select, generate a unique and personalized 'displayText'.
 // 1. (PERSONALIZE): The displayText MUST be tailored to the specifics of the User's Query (e.g., "Chicago", "Disney+").
-// 2. (CHECK URGENCY): First, check if the perk's 'e' (expiry) date is within 30 days of the 'currentDate'. If it is, your displayText MUST create a friendly sense of urgency.
+// 2. (CHECK URGENCY): First, check if the perk's 'e' (expiry) date is within 14 days of the 'currentDate'. If it is, your displayText MUST create a friendly sense of urgency.
 // 3. (VARY PHRASING): If returning multiple recommendations, DO NOT use the same sentence structure for each one.
 
 // -- STYLING & FORMATTING (CRITICAL) --
