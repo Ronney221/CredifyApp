@@ -15,7 +15,9 @@
       "infoPlist": {
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["credify"]
+            "CFBundleURLSchemes": [
+              "credify"
+            ]
           }
         ],
         "LSApplicationQueriesSchemes": [
@@ -30,7 +32,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIStatusBarHidden": false,
         "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
-        "UIViewControllerBasedStatusBarAppearance": true,
+        "UIViewControllerBasedStatusBarAppearance": false,
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can select a profile picture."
       }
     },
@@ -51,7 +53,10 @@
               "pathPrefix": "/auth/callback"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "queries": [
@@ -180,7 +185,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-apple-authentication" 
+      "expo-apple-authentication",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
