@@ -14,7 +14,6 @@ import {
   ScrollView,
   Pressable,
   Linking,
-  Modal,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -25,49 +24,69 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   launchImageLibraryAsync,
   requestMediaLibraryPermissionsAsync,
-  MediaTypeOptions,
 } from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import { uploadAvatar, updateUserProfile } from '../../../lib/supabase';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, updateUserMetadata } = useAuth();
+  const { user, updateUserMetadata, loading: authLoading } = useAuth();
 
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.user_metadata?.avatar_url || null);
-  const [isNameModalVisible, setNameModalVisible] = useState(false);
-  const [modalName, setModalName] = useState(fullName);
 
-  const handleSaveName = async () => {
-    if (!modalName.trim()) {
+  // Track original values for comparison
+  const originalFullName = useRef(user?.user_metadata?.full_name || '');
+  const originalAvatarUrl = useRef(user?.user_metadata?.avatar_url || null);
+
+  const hasChanges = useMemo(() => {
+    const nameChanged = fullName.trim() !== originalFullName.current.trim();
+    const avatarChanged = avatarUri !== originalAvatarUrl.current;
+    console.log('Change detection:', { nameChanged, avatarChanged, fullName, originalFullName: originalFullName.current, avatarUri, originalAvatarUrl: originalAvatarUrl.current });
+    return nameChanged || avatarChanged;
+  }, [fullName, avatarUri]);
+
+  const handleSaveChanges = async () => {
+    if (!hasChanges || isLoading) return;
+
+    if (!fullName.trim()) {
       Alert.alert('Validation Error', 'Full name cannot be empty.');
       return;
     }
-    
-    setIsLoading(true);
-    setNameModalVisible(false);
 
+    setIsLoading(true);
     try {
+      let avatarUrl = originalAvatarUrl.current;
+
+      // If avatar has changed, upload the new one
+      if (avatarUri && avatarUri !== originalAvatarUrl.current) {
+        const { url, error: uploadError } = await uploadAvatar(avatarUri, user?.id!);
+        if (uploadError) throw uploadError;
+        avatarUrl = url;
+      }
+
       const { error } = await updateUserProfile({
-        full_name: modalName.trim(),
-        avatar_url: avatarUri || undefined,
+        full_name: fullName.trim(),
+        avatar_url: avatarUrl,
       });
 
       if (error) throw error;
 
+      // Force a refresh of the auth context
       if (updateUserMetadata) {
         await updateUserMetadata({
-          full_name: modalName.trim(),
-          avatar_url: avatarUri,
+          full_name: fullName.trim(),
+          avatar_url: avatarUrl,
         });
       }
-      
-      setFullName(modalName.trim());
+
+      // Update original values to match the new values
+      originalFullName.current = fullName.trim();
+      originalAvatarUrl.current = avatarUrl;
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Toast.show('Profile updated!', {
+      Toast.show('Profile updated!', { 
         position: Toast.positions.BOTTOM,
         backgroundColor: Colors.light.accent,
         textColor: Colors.light.textOnAccent,
@@ -75,7 +94,7 @@ export default function EditProfileScreen() {
         duration: Toast.durations.SHORT,
       });
     } catch (error) {
-      console.error('[EditProfileScreen] Error updating name:', error);
+      console.error('[EditProfileScreen] Error updating profile:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -84,6 +103,7 @@ export default function EditProfileScreen() {
 
   const handlePickImage = async () => {
     try {
+      // Request permissions first
       const { status } = await requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
@@ -107,58 +127,58 @@ export default function EditProfileScreen() {
         return;
       }
 
+      // Launch image picker with more conservative settings for TestFlight
       const result = await launchImageLibraryAsync({
-        mediaTypes: MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.5,
+        quality: 0.5, // Reduced quality for better performance
+        exif: false,
+        allowsMultipleSelection: false, // Explicitly disable multiple selection
+        base64: false, // Disable base64 to reduce memory usage
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      // More defensive checking of the result
+      if (result && !result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
+        
+        // Additional validation
         if (!selectedAsset.uri) {
           throw new Error('No image URI found');
         }
 
+        // Ensure the URI is a string
         const imageUri = String(selectedAsset.uri);
+        
+        // Set the new avatar URI
         setAvatarUri(imageUri);
         
+        // Provide haptic feedback
         if (Platform.OS === 'ios') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
-
-        // Upload immediately
-        setIsLoading(true);
-        const { url, error: uploadError } = await uploadAvatar(imageUri, user?.id!);
-        if (uploadError) throw uploadError;
-
-        const { error: updateError } = await updateUserProfile({
-          full_name: fullName,
-          avatar_url: url,
-        });
-        if (updateError) throw updateError;
-        
-        if (updateUserMetadata) {
-          await updateUserMetadata({
-            full_name: fullName,
-            avatar_url: url,
-          });
-        }
-        setAvatarUri(url || null);
-
-        Toast.show('Avatar updated!', {
-            position: Toast.positions.BOTTOM,
-        });
       }
     } catch (error) {
-      console.error('[EditProfileScreen] Error picking/uploading image:', error);
-      Alert.alert('Error', 'Failed to update avatar. Please try again.');
-    } finally {
-        setIsLoading(false);
+      console.error('[EditProfileScreen] Error picking image:', error);
+      // More specific error message based on the error type
+      let errorMessage = 'Failed to select image. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('permission')) {
+          errorMessage = 'Please grant camera roll permissions in Settings.';
+        } else if (error.message.includes('canceled')) {
+          return; // User canceled, no need to show error
+        }
+      }
+      
+      Alert.alert(
+        'Error',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
     }
   };
 
-  if (!user) {
+  if (authLoading && !user) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.light.tint} />
@@ -188,11 +208,10 @@ export default function EditProfileScreen() {
                 pressed && { opacity: 0.8 }
               ]}
             >
-              {isLoading && <ActivityIndicator style={styles.avatarLoading} size="large" />}
               {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={[styles.avatar, isLoading && {opacity: 0.5}]} />
+                <Image source={{ uri: avatarUri }} style={styles.avatar} />
               ) : (
-                <View style={[styles.avatar, styles.placeholderAvatar, isLoading && {opacity: 0.5}]}>
+                <View style={[styles.avatar, styles.placeholderAvatar]}>
                   <Text style={styles.initialsText}>
                     {(fullName || user?.email || 'P')?.[0]?.toUpperCase()}
                   </Text>
@@ -205,69 +224,41 @@ export default function EditProfileScreen() {
           </View>
 
           <View style={styles.section}>
-            <TouchableOpacity 
-              onPress={() => {
-                setModalName(fullName);
-                setNameModalVisible(true);
-              }}
-              style={styles.fieldContainer}
-            >
+            <View style={styles.fieldContainer}>
               <Text style={styles.label}>Name</Text>
-              <View style={styles.valueContainer}>
-                <Text style={styles.input} numberOfLines={1}>{fullName}</Text>
-                <Ionicons name="chevron-forward" size={20} color={Colors.light.placeholder} style={{ marginLeft: 6 }}/>
-              </View>
-            </TouchableOpacity>
-            <View style={[styles.fieldContainer, { borderBottomWidth: 0 }]}>
+              <TextInput
+                style={styles.input}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Enter your full name"
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+              />
+            </View>
+            <View style={styles.fieldContainerNoBorder}>
               <Text style={styles.label}>Email</Text>
-              <Text style={[styles.input, styles.disabledInput]}>
-                {user?.email || ''}
-              </Text>
+              <TextInput
+                style={[styles.input, styles.disabledInput]}
+                value={user?.email || ''}
+                editable={false}
+              />
             </View>
           </View>
         </ScrollView>
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={isNameModalVisible}
-          onRequestClose={() => {
-            setNameModalVisible(!isNameModalVisible);
-          }}>
-          <BlurView intensity={20} tint="dark" style={styles.modalOverlay}>
-            <KeyboardAvoidingView behavior="padding" style={styles.centeredView}>
-              <View style={styles.modalView}>
-                <View style={styles.modalTextContainer}>
-                  <Text style={styles.modalText}>Change Name</Text>
-                  <Text style={styles.modalSubText}>
-                    This will be displayed on your profile.
-                  </Text>
-                </View>
-                <View style={styles.modalInputContainer}>
-                  <TextInput
-                    style={styles.modalInput}
-                    onChangeText={setModalName}
-                    value={modalName}
-                    placeholder="Enter your full name"
-                    autoCapitalize="words"
-                    autoFocus
-                  />
-                </View>
-                <View style={styles.modalButtonContainer}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, { borderRightWidth: StyleSheet.hairlineWidth, borderColor: Colors.light.separator }]}
-                    onPress={() => setNameModalVisible(!isNameModalVisible)}>
-                    <Text style={styles.modalButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.modalButton}
-                    onPress={handleSaveName}>
-                    <Text style={[styles.modalButtonText, { fontWeight: 'bold' }]}>Save</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </BlurView>
-        </Modal>
+        <View style={styles.footer}>
+          <TouchableOpacity 
+            style={[styles.saveButton, !hasChanges && styles.saveButtonDisabled]}
+            onPress={handleSaveChanges}
+            disabled={!hasChanges || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={Colors.light.textOnPrimary} />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -298,14 +289,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-  },
-  avatarLoading: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
   },
   placeholderAvatar: {
     backgroundColor: Colors.light.secondaryAccent,
@@ -348,35 +331,24 @@ const styles = StyleSheet.create({
   },
   fieldContainer: {
     minHeight: 52,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.light.separator,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: Colors.light.background,
   },
   fieldContainerNoBorder: {
     minHeight: 52,
     padding: 16,
-    borderBottomWidth: 0,
   },
   label: {
-    fontSize: 17,
-    color: Colors.light.text,
-    marginRight: 16,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.secondaryLabel,
+    marginBottom: 6,
+    letterSpacing: 0.1,
   },
   input: {
     fontSize: 17,
-    color: Colors.light.secondaryLabel,
-    textAlign: 'right',
-    flexShrink: 1,
-  },
-  valueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
+    color: Colors.light.text,
   },
   disabledInput: {
     color: Colors.light.secondaryLabel,
@@ -403,66 +375,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.4,
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalView: {
-    width: 280,
-    backgroundColor: 'rgba(249, 249, 249, 0.9)',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  modalTextContainer: {
-    padding: 20,
-    paddingBottom: 0,
-    alignItems: 'center',
-  },
-  modalText: {
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: '#000',
-  },
-  modalSubText: {
-    fontSize: 13,
-    textAlign: 'center',
-    color: '#000',
-    marginTop: 4,
-  },
-  modalInputContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  modalInput: {
-    backgroundColor: '#fff',
-    borderColor: '#D1D1D6',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    fontSize: 15,
-  },
-  modalButtonContainer: {
-    flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.light.separator,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalButtonText: {
-    fontSize: 17,
-    color: Colors.light.accent,
-  },
-});
+}); 
