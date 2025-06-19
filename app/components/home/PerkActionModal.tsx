@@ -615,6 +615,12 @@ export default function PerkActionModal({
                   }}
                 >
                   <Text style={styles.description}>{perk.description}</Text>
+                  {perk.redemptionInstructions && (
+                    <>
+                      <Text style={styles.redemptionTitle}>How to Redeem</Text>
+                      <Text style={styles.description}>{perk.redemptionInstructions}</Text>
+                    </>
+                  )}
                 </View>
               </Animated.View>
 
@@ -773,6 +779,14 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#666666',
     lineHeight: 20,
+    letterSpacing: -0.24,
+  },
+  redemptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginTop: 16,
+    marginBottom: 4,
     letterSpacing: -0.24,
   },
   valueContainer: {

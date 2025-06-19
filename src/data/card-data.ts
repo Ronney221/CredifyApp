@@ -251,10 +251,10 @@ export const APP_SCHEMES = {
   },
   hilton: {
     'ios': [
-      'hiltonhonors://',
+      'hiltonhonors://book',
     ],
     'android': [
-      'hiltonhonors://',
+      'hiltonhonors://book',
     ],
     'fallback': 'https://www.hilton.com/en/hilton-honors/',
     'androidPackage': 'com.hilton.android.hhonors',
@@ -292,11 +292,10 @@ export const APP_SCHEMES = {
   },
   peloton: {
     'ios': [
-      'peloton://',
+      'https://members.onepeloton.com/classes',
     ],
     'android': [
-      'peloton://',
-      'https://members.onepeloton.com/classes'
+      'https://members.onepeloton.com/classes',
     ],
     'fallback': 'https://www.onepeloton.com/app',
     'androidPackage': 'com.onepeloton.callisto',
@@ -757,7 +756,7 @@ export const allCards: Card[] = [
         value: 50,
         period: 'quarterly',
         periodMonths: 3,
-        resetType: 'anniversary',
+        resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
         description: 'Up to $50 back in statement credits each quarter on eligible flight purchases (total $200 yr).',
         categories: ['Travel', 'Flights'],
@@ -1105,19 +1104,7 @@ async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean
 async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<boolean> {
   const appSchemes = APP_SCHEMES[appKey];
   
-  // Special handling for native iOS apps like Apple TV and Apple Music
-  if (Platform.OS === 'ios' && (appKey === 'appletv' || appKey === 'applemusic')) {
-    const url = Array.isArray(appSchemes.ios) ? appSchemes.ios[0] : appSchemes.ios;
-    try {
-      await Linking.openURL(url);
-      return true;
-    } catch (error) {
-      console.log(`Failed to open native app ${appKey} directly, trying fallback website.`, error);
-      // If opening the app fails (e.g., it was deleted), fall back to the website.
-      await WebBrowser.openBrowserAsync(appSchemes.fallback);
-      return true;
-    }
-  }
+
   
   try {
     const isInstalled = await isAppInstalled(appKey);
