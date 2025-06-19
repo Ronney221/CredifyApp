@@ -43,6 +43,8 @@ const CardHeader: React.FC<CardHeaderProps> = ({
   const progressPercentage = monthlyPerkStats.total > 0 
     ? (monthlyPerkStats.redeemed / monthlyPerkStats.total) * 100 
     : 0;
+  
+  const allMonthlyPerksRedeemed = monthlyPerkStats.total > 0 && monthlyPerkStats.redeemed === monthlyPerkStats.total;
 
   return (
     <TouchableOpacity
@@ -58,16 +60,16 @@ const CardHeader: React.FC<CardHeaderProps> = ({
           <Text style={styles.cardName}>{card.name}</Text>
           <View style={styles.cardSubtitle}>
             {isFullyRedeemed ? (
-              <Text style={styles.subtitleText}>
+              <View style={styles.fullyRedeemedContainer}>
                 <Ionicons name="checkmark-circle" size={14} color="#34c759" />
-                <Text> All perks redeemed</Text>
+                <Text style={[styles.subtitleText, styles.redeemedText]}> All perks redeemed</Text>
                 {cumulativeSavedValue > 0 && <Text style={styles.subtitleDivider}> • </Text>}
                 {cumulativeSavedValue > 0 && (
-                  <Text style={[styles.subtitleText, styles.savedValueText]}>
-                    {cumulativeSavedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} saved
+                  <Text style={[styles.subtitleText, styles.savedValueText]} numberOfLines={1}>
+                    {`${cumulativeSavedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} saved`}
                   </Text>
                 )}
-              </Text>
+              </View>
             ) : (
               <>
                 {unredeemedPerksCount > 0 && (
@@ -85,20 +87,38 @@ const CardHeader: React.FC<CardHeaderProps> = ({
             )}
           </View>
           
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBarContainer}>
-              <View 
-                style={[
-                  styles.progressBarFill,
-                  { width: `${progressPercentage}%` },
-                  progressPercentage >= 100 && styles.progressBarSuccess
-                ]} 
-              />
+          {/* Case 1: Has monthly perks */}
+          {monthlyPerkStats.total > 0 && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarContainer}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${progressPercentage}%` },
+                    allMonthlyPerksRedeemed && styles.progressBarSuccess
+                  ]} 
+                />
+              </View>
+              {/* Text is hidden if all perks on the card are redeemed, to avoid redundancy with the subtitle */}
+              {!isFullyRedeemed && (
+                <Text style={[styles.progressText, allMonthlyPerksRedeemed && styles.progressTextSuccess]}>
+                  {allMonthlyPerksRedeemed
+                    ? 'All monthly perks redeemed!'
+                    : `${monthlyPerkStats.redeemed} of ${monthlyPerkStats.total} monthly perks redeemed`}
+                </Text>
+              )}
             </View>
-            <Text style={styles.progressText}>
-              {monthlyPerkStats.redeemed} of {monthlyPerkStats.total} monthly perks redeemed
-            </Text>
-          </View>
+          )}
+
+          {/* Case 2: No monthly perks, but IS fully redeemed */}
+          {monthlyPerkStats.total === 0 && isFullyRedeemed && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarContainer}>
+                <View style={[styles.progressBarFill, { width: '100%' }, styles.progressBarSuccess]} />
+              </View>
+              {/* Text is intentionally omitted here as per user feedback for less redundancy */}
+            </View>
+          )}
         </View>
       </View>
       <View style={styles.headerRight}>
@@ -161,12 +181,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
   },
+  fullyRedeemedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'nowrap', 
+  },
   subtitleText: {
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
     flexShrink: 1,
     marginRight: 4,
+  },
+  redeemedText: {
+    color: "#34c759",
+    marginLeft: 4,
+    marginRight: 2,
   },
   subtitleDivider: {
     color: '#6B7280',
@@ -176,6 +206,7 @@ const styles = StyleSheet.create({
     color: '#34c759',
     fontSize: 14, 
     fontWeight: '500',
+    flexShrink: 0,
   },
   headerRight: {
     flexDirection: 'row',
@@ -206,6 +237,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6B7280',
     fontWeight: '500',
+  },
+  progressTextSuccess: {
+    color: '#34C759',
+    fontWeight: '600',
   },
 });
 
