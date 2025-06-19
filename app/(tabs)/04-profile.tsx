@@ -19,6 +19,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { schedulePerkExpiryNotifications } from '../services/notification-perk-expiry';
+import { NotificationPreferences } from '../utils/notifications';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -44,6 +46,46 @@ interface ProfileSection {
 const ProfileScreen = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
+
+  const handleTestPerkExpiryNotifications = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be signed in to test notifications.');
+      return;
+    }
+
+    // Use a test-specific preference object to ensure all are enabled
+    const testPreferences: NotificationPreferences = {
+      perkExpiryRemindersEnabled: true,
+      quarterlyPerkRemindersEnabled: true,
+      semiAnnualPerkRemindersEnabled: true,
+      annualPerkRemindersEnabled: true,
+      // Other preferences are not needed for this specific test
+      renewalRemindersEnabled: false,
+      perkResetConfirmationEnabled: false,
+      weeklyDigestEnabled: false,
+    };
+
+    try {
+      console.log('[ProfileScreen] Scheduling test perk expiry notifications for all periods.');
+      const allPromises = [
+        schedulePerkExpiryNotifications(user.id, testPreferences, 1, true),
+        schedulePerkExpiryNotifications(user.id, testPreferences, 3, true),
+        schedulePerkExpiryNotifications(user.id, testPreferences, 6, true),
+        schedulePerkExpiryNotifications(user.id, testPreferences, 12, true),
+      ];
+
+      const results = await Promise.all(allPromises);
+      const scheduledIds = results.flat().filter((id: string | null) => id !== null);
+
+      Alert.alert(
+        "Success",
+        `Scheduled ${scheduledIds.length} perk expiry test notifications. You should receive them shortly.`
+      );
+    } catch (error) {
+      console.error('Error testing perk expiry notifications:', error);
+      Alert.alert('Error', 'Failed to schedule test notifications.');
+    }
+  };
 
   const handleResetFirstRedemption = async () => {
     try {
@@ -240,6 +282,12 @@ const ProfileScreen = () => {
           title: 'Test 48-hour Message',
           icon: 'time-outline',
           onPress: handleTestInactivityMessage
+        },
+        {
+          id: 'test-perk-expiry-notifications',
+          title: 'Test Perk Expiry Notifications',
+          icon: 'timer-outline',
+          onPress: handleTestPerkExpiryNotifications
         },
       ],
       footer: 'Development tools and testing options.',
