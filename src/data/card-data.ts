@@ -380,6 +380,14 @@ export const APP_SCHEMES = {
     'appStoreUrlIOS': 'https://apps.apple.com/us/app/alto/id1442044302',
     'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.ridealto.rider',
     'notes': 'Alto uses the \'ridealto://\' scheme. The \'/schedule\' path is intended to open the pre-scheduling interface. The web link to their booking page is another reliable entry point.'
+  },
+  netflix: {
+    'ios': 'nflx://',
+    'android': 'nflx://',
+    'fallback': 'https://www.netflix.com',
+    'androidPackage': 'com.netflix.mediaclient',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/netflix/id363590051',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.netflix.mediaclient',
   }
 };
 
@@ -390,6 +398,7 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'Uber Eats Credit': 'uberEats',
   'Uber Cash': 'uber',
   'Uber Cash Credit': 'uber',
+  'Uber Credit': 'uber',
   
   // Food Delivery
   'Grubhub Credit': 'grubhub',
@@ -397,6 +406,7 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'DoorDash Non-Restaurant Credit #1': 'doordash',
   'DoorDash Non-Restaurant Credit #2': 'doordash',
   'DoorDash Grocery Credit': 'doordash',
+  'DoorDash Credit': 'doordash',
   'Food Delivery Credit': 'doordash',
   
   // Streaming/Entertainment
@@ -410,6 +420,7 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'Apple TV+ Credit': 'appletv',
   'Apple Music Credit': 'applemusic',
   'StubHub / viagogo Credit': 'stubhub',
+  'Netflix Credit': 'netflix',
   
   // Retail
   'Saks Fifth Avenue Credit': 'saks',
@@ -427,6 +438,9 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   // Rideshare
   'Lyft Credit': 'lyft',
   'Rideshare Credit': 'lyft',
+  'Curb Credit': 'curb',
+  'Revel Credit': 'revel',
+  'Alto Credit': 'alto',
   
   // Travel
   'Capital One Travel Credit': 'capitalOne',
@@ -563,13 +577,13 @@ export const allCards: Card[] = [
       },
       {
         id: 'platinum_clear',
-        name: 'CLEAR Plus Credit',
+        name: 'CLEAR Plus Credit Platinum',
         value: 189,
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
-        description: 'Up to $189 in statement credits per calendar year to cover CLEAR Plus membership.',
+        description: 'Receive up to $189 in statement credits per calendar year for a CLEAR Plus membership, which provides expedited security screening at select airports and stadiums.',
         redemptionInstructions: 'Enroll in CLEAR Plus and pay with your Platinum Card. The credit covers one annual CLEAR membership.',
         appScheme: 'clear',
         categories: ['Travel', 'Flights'],
@@ -620,6 +634,7 @@ export const allCards: Card[] = [
         definition_id: '86836d3c-6573-43ec-9b42-33493bec5765',
         description: 'Receive up to $10 in Uber Cash each month, totaling $120 per year. This can be used for both U.S. Uber rides and U.S. Uber Eats orders.',
         redemptionInstructions: 'To receive the benefit, add your Gold Card as a payment method in your Uber account. The $10 in Uber Cash will be automatically deposited into your account on the first of each month. Credits do not roll over and expire at the end of the month.',
+        appScheme: 'uber',
         categories: ['Transportation', 'Dining']
       },
       {
@@ -641,7 +656,7 @@ export const allCards: Card[] = [
         value: 50,
         period: 'semi_annual',
         periodMonths: 6,
-        resetType: 'anniversary',
+        resetType: 'calendar',
         definition_id: 'd538f219-3595-4a96-85da-508054a9b36d',
         description: 'Up to $50 in statement credits twice per year (Jan-Jun and Jul-Dec) for dining purchases at Resy-booked restaurants in the U.S.',
         redemptionInstructions: 'Book and dine at Resy partner restaurants. No special code needed; credit posts automatically after dining.',
@@ -691,8 +706,8 @@ export const allCards: Card[] = [
         period: 'semi_annual',
         periodMonths: 6,
         resetType: 'calendar',
-        definition_id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
-        description: '$150 statement credit for dining experiences booked through the "Sapphire Reserve Exclusive Tables" platform on OpenTable. Valid from January 1 to June 30.]',
+        definition_id: 'ae2ab1a1-3aad-4377-97eb-542ea733d905',
+        description: '$150 statement credit for dining experiences booked through the "Sapphire Reserve Exclusive Tables" platform on OpenTable. Valid from January 1 to June 30.',
         redemptionInstructions: 'Credit is automatically applied for dining experiences booked via the "Sapphire Reserve Exclusive Tables" program.',
         appScheme: 'opentable',
         categories:['Dining'],
@@ -704,7 +719,7 @@ export const allCards: Card[] = [
         period: 'semi_annual',
         periodMonths: 6,
         resetType: 'calendar',
-        definition_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef12',
+        definition_id: '8250b448-86d1-49c1-b37d-40c0039a5a0c',
         description: '$150 statement credit for concert and event tickets purchased through StubHub or viagogo. Valid from January 1 to June 30.',
         redemptionInstructions: 'Benefit requires activation before use.',
         appScheme: 'stubhub',
@@ -756,7 +771,7 @@ export const allCards: Card[] = [
         period: 'monthly',
         periodMonths: 1,
         resetType: 'calendar',
-        definition_id: 'e5f6a7b8-c9d0-1234-5678-90abcdef1234',
+        definition_id: '66ca3bae-2feb-40ee-b907-b07c845163fd',
         description: 'Up to $10 in monthly statement credits toward a Peloton All-Access, App+, or App One membership. Valid through December 31, 2027.',
         redemptionInstructions: 'Credits are automatically applied to your statement for eligible Peloton membership charges.',
         appScheme: 'peloton',
@@ -782,7 +797,7 @@ export const allCards: Card[] = [
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
-        definition_id: 'f6a7b8c9-d0e1-2345-6789-0abcdef12345',
+        definition_id: 'be07d25c-2f76-4a09-8bfd-78c3c047163b',
         description: 'Complimentary subscriptions to Apple TV+ and Apple Music, positioned as a $250 annual value.',
         redemptionInstructions: 'Requires a one-time activation for each service through chase.com or the Chase Mobile app.',
         categories: ['Lifestyle', 'Entertainment'],
@@ -887,7 +902,7 @@ export const allCards: Card[] = [
         period: 'quarterly',
         periodMonths: 3,
         resetType: 'calendar',
-        definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
+        definition_id: '0c1d3305-e06a-4c00-99f2-053158a446a9',
         description: 'Up to $50 back in statement credits each quarter on eligible flight purchases (total $200 yr).',
         categories: ['Travel', 'Flights'],
       },
@@ -898,7 +913,7 @@ export const allCards: Card[] = [
         period: "semi_annual",
         periodMonths: 6,
         resetType: "calendar",
-        definition_id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+        definition_id: "7bd0e404-3ca4-409f-9827-a78d4f51584f",
         description: "Get up to $200 in statement credits semi-annually for eligible purchases made directly at participating Hilton Resorts. This provides a total of up to $400 in resort credits per calendar year. The credit periods are January-June and July-December.",
         categories: [
           "Travel"
@@ -909,23 +924,23 @@ export const allCards: Card[] = [
       {
         id: 'aspire_free_night_reward',
         name: 'Annual Free Night Reward',
-        value: 0,
+        value: 1000,
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
-        definition_id: 'b2c3d4e5-f6g7-8901-2345-67890abcdef1',
+        definition_id: 'ff646ff5-9d6e-4587-a44c-d6da0c219e0a',
         description: 'Receive one Free Night Reward certificate each year after your card renewal month, valid for a standard room on a weekend night at almost any Hilton property worldwide. You can earn a second Free Night Reward after you spend $30,000 in purchases on your card in a calendar year, and a third after spending a total of $60,000 in the same calendar year.',
         categories: ['Travel'],
         redemptionInstructions: "The Free Night Reward will be delivered to you via email. To redeem, you must call Hilton Honors at 1-800-446-6677 and mention the code provided. The certificate is valid for one year from the date of issuance. It's best to use this for high-value properties to maximize its value."
       },
       {
         id: 'aspire_clear_plus_credit',
-        name: 'CLEAR Plus Credit',
+        name: 'CLEAR Plus Credit Aspire',
         value: 189,
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
-        definition_id: 'd4e5f6g7-h8i9-0123-4567-890abcdef123',
+        definition_id: 'ffc46725-85ed-47a8-8454-b4df2107020f',
         description: 'Receive up to $189 in statement credits per calendar year for a CLEAR Plus membership, which provides expedited security screening at select airports and stadiums.',
         categories: ['Travel'],
         appScheme: 'clear',
@@ -971,7 +986,7 @@ export const allCards: Card[] = [
         value: 300,
         period: 'annual',
         periodMonths: 12,
-        resetType: 'anniversary',
+        resetType: 'calendar',
         definition_id: '0faeed05-234e-4110-a710-b8cb41bb0f72',
         description: 'Receive a $300 statement credit annually for travel bookings made through the Capital One Travel portal. This credit is flexible and can be applied to flights, hotels, and rental cars.',
         redemptionInstructions: 'Simply use your Venture X card to pay for a booking on the Capital One Travel portal. The credit is automatically applied as a statement credit to your account. The credit can be used in one go or across multiple bookings. Unused credit does not roll over past your card anniversary date. To maximize value, compare prices, as the portal offers price matching within 24 hours of booking.',
@@ -1022,7 +1037,7 @@ export const allCards: Card[] = [
       //   periodMonths: 0,
       //   resetType: 'none',
       //   definition_id: 'c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8',
-      //   description: 'Receive complimentary top-tier Hertz President’s Circle status, which provides benefits like guaranteed car upgrades, a wider selection of vehicles, and a dedicated customer service line.',
+      //   description: 'Receive complimentary top-tier Hertz President's Circle status, which provides benefits like guaranteed car upgrades, a wider selection of vehicles, and a dedicated customer service line.',
       //   redemptionInstructions: 'You must enroll for this benefit through your Capital One online account. You will be redirected to the Hertz website to link your accounts and activate your status.',
       //   categories: ['Travel']
       // },
@@ -1090,7 +1105,7 @@ export const allCards: Card[] = [
         period: 'monthly',
         periodMonths: 1,
         resetType: 'calendar',
-        definition_id: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
+        definition_id: '90ec407b-6efc-4b7a-b071-3aa51e68af2c',
         description: 'Get up to $10 in statement credits each month on U.S. rideshare purchases with select providers, totaling up to $120 per year.',
         categories: ['Transportation'],
         redemptionInstructions: 'Enrollment is required via your Amex account. Use your card to pay for eligible U.S. rideshare services like Uber, Lyft, Curb, Revel, and Alto. The credit is applied automatically. Unused monthly credits are forfeited.'
@@ -1102,7 +1117,7 @@ export const allCards: Card[] = [
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
-        definition_id: 'b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7',
+        definition_id: '7d82e0d9-4495-4ac4-86f8-f819b0762747',
         description: 'Receive up to a $200 statement credit each calendar year for prepaid hotels or vacation rentals booked through the Delta Stays platform.',
         categories: ['Travel'],
         appScheme: 'delta',
@@ -1155,12 +1170,12 @@ export const allCards: Card[] = [
     benefits: [
       {
         id: 'green_clear',
-        name: 'CLEAR Plus Credit',
+        name: 'CLEAR Plus Credit Green',
         value: 189,
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
-        definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
+        definition_id: '7829f4fe-8428-492e-948c-746d474fa7f5',
         description: 'Receive up to $189 in statement credits per calendar year, enough to cover the full cost of a CLEAR Plus membership for expedited airport security.',
         redemptionInstructions: 'Simply use your American Express Green card to pay for your CLEAR Plus membership. The statement credit will be applied automatically to your account, typically within 6-8 weeks. To maximize this benefit, ensure CLEAR is available at airports you frequently use.',
         appScheme: 'clear',
@@ -1195,7 +1210,7 @@ export const allCards: Card[] = [
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
-        definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
+        definition_id: '0325f1de-9ef4-45a1-9c13-9cd312709bdb',
         description: 'Receive up to $100 in statement credits annually for qualifying airline incidental fees. This helps to significantly offset the annual fee.',
         redemptionInstructions: 'The credit is automatically applied to your statement when you use your card for qualifying fees. Qualifying charges include seat upgrades, checked baggage fees, in-flight food and entertainment, and airline lounge access fees. It does not cover tickets, award fees, mileage purchases, or gift cards. It is also important to note that charges from some airlines, like Spirit and Allegiant, may not qualify. The credit resets every calendar year.',
         categories: ['Travel', 'Flights']
@@ -1253,7 +1268,7 @@ export const allCards: Card[] = [
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
-        definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
+        definition_id: '25930ec5-f49c-4ea0-96a7-0ca51c6ff4d7',
         description: 'Up to $300 annually in statement credits for qualifying airline incidental fees. This credit helps substantially offset the annual fee.',
         redemptionInstructions: 'The credit is automatically applied to your statement for qualifying charges. Qualifying fees include seat upgrades, checked baggage, in-flight food and entertainment, and airline lounge day passes. It does not cover the cost of airfare, mileage purchases, or gift cards. The credit resets each calendar year.',
         categories: ['Travel', 'Flights']
@@ -1346,8 +1361,8 @@ export const allCards: Card[] = [
         value: 325,
         period: 'annual',
         periodMonths: 12,
-        resetType: 'anniversary',
-        definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
+        resetType: 'calendar',
+        definition_id: '5413d47b-1c0b-4c29-97db-6bf586e327cc',
         description: 'Receive up to $325 in automatic statement credits for purchases made directly from airlines, hotels, car rental companies, taxis, limousines, passenger trains, cruise lines, restaurants, takeout, and food delivery services.',
         redemptionInstructions: 'This is one of the easiest credits to use. Simply use your Altitude Reserve card for any eligible travel or dining purchase and the credits will be applied automatically until you reach the $325 maximum for your cardmember year. This benefit effectively reduces the annual fee to $75 if fully utilized.',
         categories: ['Travel', 'Dining']
