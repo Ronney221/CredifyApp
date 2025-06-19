@@ -247,7 +247,7 @@ export default function WelcomeScreen() {
               accessibilityLabel="Let's Do the Math"
               accessibilityHint="Opens card selection screen"
             >
-              <Text style={styles.getStartedText}>Let's Do the Math</Text>
+              <Text style={styles.getStartedText}>Let&apos;s Do the Math</Text>
             </TouchableOpacity>
           </MotiView>
         )}
