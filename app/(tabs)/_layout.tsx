@@ -169,30 +169,6 @@ export default function TabLayout() {
             tabBarAccessibilityLabel: 'Profile',
           }}
         />
-        <Tabs.Screen
-          name="profile/manage_cards"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="profile/notifications"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="profile/edit-profile"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="profile/help-faq"
-          options={{
-            href: null,
-          }}
-        />
       </Tabs>
     </View>
   );
