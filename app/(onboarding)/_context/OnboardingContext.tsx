@@ -138,4 +138,6 @@ export function useOnboardingContext() {
     throw new Error('useOnboardingContext must be used within an OnboardingProvider');
   }
   return context;
-} 
+}
+
+export default null; 
