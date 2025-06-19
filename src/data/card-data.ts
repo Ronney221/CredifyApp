@@ -867,7 +867,7 @@ export const allCards: Card[] = [
         period: 'monthly',
         periodMonths: 1,
         resetType: 'calendar',
-        definition_id: '8c57ee72-0b5b-4d93-aeee-150c15539514',
+        definition_id: '041c3ce2-db24-4f74-a319-b8bb5e239aa2',
         description: '$25 dining statement credit each month (up to $300 per year) at restaurants worldwide.',
         categories: ['Dining'],
       },

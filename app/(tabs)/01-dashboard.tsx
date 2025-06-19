@@ -51,11 +51,11 @@ import AIChatButton from '../components/home/AIChatButton';
 // Import notification functions
 import {
   requestPermissionsAsync,
-  schedulePerkExpiryNotifications,
   scheduleCardRenewalReminder,
   cancelAllScheduledNotificationsAsync,
   NotificationPreferences,
 } from '../utils/notifications';
+import { schedulePerkExpiryNotifications } from '../services/notification-perk-expiry';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

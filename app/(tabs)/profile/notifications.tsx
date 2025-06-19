@@ -180,7 +180,7 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
 export default function NotificationSettingsScreen() {
   const { user } = useAuth();
   const { anyRenewalDateSet, loadExistingCards } = useCardManagement(user?.id);
-  const { buildNotificationItems, sendTestNotification } = useNotificationPreferences();
+  const { buildNotificationItems } = useNotificationPreferences();
 
   useFocusEffect(
     useCallback(() => {
@@ -207,20 +207,6 @@ export default function NotificationSettingsScreen() {
               />
             ))}
           </View>
-          <TouchableOpacity 
-            onPress={() => user?.id && sendTestNotification(user.id)} 
-            style={[styles.testButton, !user?.id && styles.disabledButton]}
-            disabled={!user?.id}
-          >
-            <BlurView intensity={80} tint="light" style={styles.testButtonInner}>
-              <Ionicons name="rocket-outline" size={24} color={Colors.light.tint} />
-              <View style={styles.testButtonContent}>
-                <Text style={styles.testButtonTitle}>Test Perk Reminders</Text>
-                <Text style={styles.testButtonSubtitle}>See how your notifications will look</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.light.tint} />
-            </BlurView>
-          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </>

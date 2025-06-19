@@ -6,32 +6,34 @@ import { getUserCards, getRedemptionsForPeriod } from '../../lib/database';
 import { scheduleNotificationAsync } from '../utils/notifications';
 import { NotificationPreferences } from '../utils/notifications';
 
-interface ReminderDetails {
+// For the new table perk_reminders
+interface PerkReminder {
+  days_before_expiry: number;
   title: string;
-  time_modifier: string;
+  body: string;
 }
 
-interface ReminderSchedule {
-  [daysBefore: string]: ReminderDetails;
-}
-
+// The comprehensive object we'll use in our logic
 interface AvailablePerk {
   definition_id: string;
   name: string;
   value: number;
   cardName: string;
-  base_message: string | null;
-  reminder_schedule: ReminderSchedule | null;
+  notification_emoji: string | null;
+  notification_combo_start: string | null;
+  notification_combo_end: string | null;
+  reminders: PerkReminder[];
 }
 
-interface PerkDefinitionWithNotifications {
+// To type the result from our new Supabase query
+interface PerkDefinitionWithReminders {
     id: string;
     name: string;
     value: number;
-    perk_notifications: {
-        base_message: string | null;
-        reminder_schedule: ReminderSchedule | null;
-    } | null;
+    notification_emoji: string | null;
+    notification_combo_start: string | null;
+    notification_combo_end: string | null;
+    perk_reminders: PerkReminder[];
 }
 
 const getPeriodBoundaries = (periodMonths: number, now: Date): { start: Date, end: Date } => {
@@ -70,60 +72,116 @@ const getPeriodBoundaries = (periodMonths: number, now: Date): { start: Date, en
     }
   };
   
+  // This function is no longer needed in the new logic, but can be kept for other purposes if desired.
   const getSmartReminderDays = (periodMonths: number): number[] => {
     switch (periodMonths) {
       case 1:  // Monthly
-        return [1, 3, 7];  // Remind 1, 3, and 7 days before end of month
+        return [1, 3, 7];
       case 3:  // Quarterly
-        return [7, 14];    // Remind 7 and 14 days before end of quarter
+        return [7, 14];
       case 6:  // Semi-Annual
-        return [14, 30];   // Remind 14 and 30 days before end of period
+        return [14, 30];
       case 12: // Annual
-        return [30, 60];   // Remind 30 and 60 days before end of year
+        return [30, 60];
       default:
-        return [7];        // Default to 7 days for unknown periods
+        return [7];
     }
   };
 
+// CHANGE: The generateDynamicMessage function is simplified as it now receives a pre-filtered list of perks
 const generateDynamicMessage = (
-    availablePerks: AvailablePerk[],
-    daysBefore: number
+    perksForThisDate: AvailablePerk[]
   ): { title: string; body: string } | null => {
-    if (availablePerks.length === 0) {
+
+    const perkCount = perksForThisDate.length;
+  
+    if (perkCount === 0) {
       return null;
     }
   
-    // Prioritize the most valuable perk for the notification content
-    const topPerk = availablePerks.sort((a, b) => b.value - a.value)[0];
-    const perkCount = availablePerks.length;
-    const totalValue = availablePerks.reduce((sum, perk) => sum + perk.value, 0);
+    // Case 1: Exactly one perk
+    if (perkCount === 1) {
+      const perk = perksForThisDate[0];
+      // Since all perks in this group share a reminder day, we can safely take the first one.
+      const reminder = perk.reminders[0]; 
   
-    const amountString = `$${topPerk.value.toFixed(0)}`;
-    const reminderDetails = topPerk.reminder_schedule?.[daysBefore.toString()];
+      if (!reminder) return null;
   
-    let title: string;
-    let body: string;
-  
-    if (reminderDetails) {
-      title = reminderDetails.title.replace('{{amount}}', amountString);
-      body = reminderDetails.time_modifier.replace('{{amount}}', amountString);
-    } else {
-      // Enhanced Fallback Logic
-      title = `Reminder for your ${topPerk.name}`;
-      if (topPerk.base_message) {
-        body = topPerk.base_message.replace('{{amount}}', amountString);
-      } else {
-        body = `Your ${topPerk.name} credit is expiring in ${daysBefore} days. Don't miss out!`;
-      }
+      const amountString = `$${perk.value.toFixed(0)}`;
+      return {
+        title: reminder.title.replace('{{amount}}', amountString),
+        body: reminder.body.replace('{{amount}}', amountString),
+      };
     }
   
-    if (perkCount > 1) {
-      const otherPerksValue = totalValue - topPerk.value;
-      body += ` You also have ${perkCount - 1} other perk(s) worth $${otherPerksValue.toFixed(0)} expiring.`;
+    // Case 2: Exactly two perks
+    if (perkCount === 2) {
+      const [perk1, perk2] = perksForThisDate.sort((a, b) => b.value - a.value);
+  
+      const title = `${perk1.notification_emoji || '✨'}${perk2.notification_emoji || '🛍️'} ${perk1.name} + ${perk2.name} Expiring!`;
+  
+      const fragment1 = (perk1.notification_combo_start || `Your ${perk1.name} credit is expiring.`)
+        .replace('{{amount}}', `$${perk1.value.toFixed(0)}`);
+  
+      const fragment2 = (perk2.notification_combo_end || `Don't miss your ${perk2.name} credit.`)
+        .replace('{{amount}}', `$${perk2.value.toFixed(0)}`);
+  
+      const body = `${fragment1} and ${fragment2}`;
+  
+      return { title, body };
     }
   
-    return { title, body };
+    // Case 3: Three or more perks
+    if (perkCount >= 3) {
+      const totalValue = perksForThisDate.reduce((sum, perk) => sum + perk.value, 0);
+      const title = `✨ ${perkCount} Perks Expiring Soon!`;
+      // We can get the daysBefore from the first reminder of the first perk
+      const daysBefore = perksForThisDate[0]?.reminders[0]?.days_before_expiry || 'soon';
+      const body = `You have ${perkCount} perks worth a total of $${totalValue.toFixed(0)} expiring in about ${daysBefore} days. Check the app to see them all.`;
+      return { title, body };
+    }
+  
+    return null;
   };
+
+// NEW: Helper function to group perks by their next reminder date
+const groupPerksByReminderDate = (
+    availablePerks: AvailablePerk[],
+    endOfPeriod: Date,
+    now: Date
+): Record<string, AvailablePerk[]> => {
+    const groups: Record<string, AvailablePerk[]> = {};
+
+    for (const perk of availablePerks) {
+        let nextReminderDate: Date | null = null;
+        let chosenReminder: PerkReminder | null = null;
+
+        // Find the closest reminder date in the future for this perk
+        perk.reminders
+            .sort((a, b) => a.days_before_expiry - b.days_before_expiry) // Sort from furthest to closest
+            .forEach(reminder => {
+                const reminderDate = new Date(endOfPeriod);
+                reminderDate.setDate(endOfPeriod.getDate() - reminder.days_before_expiry);
+                reminderDate.setHours(10, 0, 0, 0); // Set time for 10 AM
+
+                if (reminderDate > now) {
+                    nextReminderDate = reminderDate;
+                    chosenReminder = reminder;
+                }
+            });
+
+        // If we found a valid future reminder date, add the perk to the corresponding group
+        if (nextReminderDate && chosenReminder) {
+            const dateKey = (nextReminderDate as Date).toISOString();
+            if (!groups[dateKey]) {
+                groups[dateKey] = [];
+            }
+            // We only add the *chosen* reminder to the perk to simplify the logic later
+            groups[dateKey].push({ ...perk, reminders: [chosenReminder] });
+        }
+    }
+    return groups;
+};
 
 export const schedulePerkExpiryNotifications = async (
     userId: string, 
@@ -147,7 +205,7 @@ export const schedulePerkExpiryNotifications = async (
       return [];
     }
     
-    const availablePerks: AvailablePerk[] = [];
+    let availablePerks: AvailablePerk[] = []; // CHANGE: Made this a let instead of const
     
     try {
       console.log(`[Notifications] Fetching data for user ${userId} for ${periodMonths}-month perk reminders.`);
@@ -165,48 +223,64 @@ export const schedulePerkExpiryNotifications = async (
   
       if (userPerkDefinitionIds.length === 0) return [];
   
+      // ADD THIS LOG to see the IDs being sent to the database
+      console.log(`[DEBUG] Querying Supabase with perk definition IDs:`, userPerkDefinitionIds);
+
+      // CHANGE: Updated the Supabase query to fetch new fields and join with the new table
       const { data: perkDefinitions, error: perkDefError } = await supabase
         .from('perk_definitions')
         .select(`
           id,
           name,
           value,
-          perk_notifications!inner (
-            base_message,
-            reminder_schedule
+          notification_emoji,
+          notification_combo_start,
+          notification_combo_end,
+          perk_reminders!inner(
+            days_before_expiry,
+            title,
+            body
           )
         `)
         .in('id', userPerkDefinitionIds)
-        .returns<PerkDefinitionWithNotifications[]>();
+        .returns<PerkDefinitionWithReminders[]>();
         
       if (perkDefError) throw perkDefError;
       if (!perkDefinitions) return [];
+      
+      // ADD THIS LOG: See what the DB returns
+      console.log('[DEBUG] Raw perk definitions from Supabase:', JSON.stringify(perkDefinitions, null, 2));
       
       const { data: periodRedemptions, error: redemptionError } = await getRedemptionsForPeriod(userId, start, endOfPeriod);
       if (redemptionError) throw redemptionError;
       const redeemedPerkDefIds = new Set(periodRedemptions?.map((r: { perk_id: string }) => r.perk_id) || []);
       
+      // CHANGE: Updated the data mapping to populate the new AvailablePerk structure
+      const allAvailablePerks: AvailablePerk[] = [];
       currentUserAppCards.forEach((appCard: Card) => {
         appCard.benefits.forEach((benefit: Benefit) => {
           if (benefit.periodMonths === periodMonths) {
             const definition = perkDefinitions.find(def => def.id === benefit.definition_id);
             if (definition && !redeemedPerkDefIds.has(definition.id)) {
-              availablePerks.push({
+                allAvailablePerks.push({
                 definition_id: definition.id,
                 name: definition.name,
                 value: definition.value,
                 cardName: appCard.name,
-                base_message: definition.perk_notifications?.base_message || null,
-                reminder_schedule: definition.perk_notifications?.reminder_schedule || null,
+                notification_emoji: definition.notification_emoji,
+                notification_combo_start: definition.notification_combo_start,
+                notification_combo_end: definition.notification_combo_end,
+                reminders: definition.perk_reminders,
               });
             }
           }
         });
       });
   
-      if (availablePerks.length > 0) {
-        let logMessage = `[Notifications] User ${userId} (${periodMonths}-month): ${availablePerks.length} perks available.`;
+      if (allAvailablePerks.length > 0) {
+        let logMessage = `[Notifications] User ${userId} (${periodMonths}-month): ${allAvailablePerks.length} total perks available.`;
         console.log(logMessage);
+        availablePerks = allAvailablePerks; // Assign to the outer scope variable
       }
   
     } catch (error) {
@@ -219,31 +293,28 @@ export const schedulePerkExpiryNotifications = async (
       return [];
     }
   
-    const reminderDays = getSmartReminderDays(periodMonths);
+    // CHANGE: The main scheduling loop is completely replaced with the new grouping logic
     const tasks: Promise<string | null>[] = [];
-  
-    reminderDays.forEach((daysBefore, index) => {
-      if (daysBefore <= 0) return;
-  
-      let reminderDate: Date;
-      if (isTest) {
-        const baseDelay = periodMonths === 1 ? 2 : (periodMonths === 3 ? 4 : (periodMonths === 6 ? 6 : 8));
-        reminderDate = new Date(now.getTime() + (baseDelay + index * 2) * 1000);
-      } else {
-        reminderDate = new Date(endOfPeriod);
-        reminderDate.setDate(endOfPeriod.getDate() - (daysBefore - 1));
-        reminderDate.setHours(10, 0, 0, 0);
-      }
-      
-      if (reminderDate > now || isTest) {
-        const message = generateDynamicMessage(availablePerks, daysBefore);
-        if (message) {
-            tasks.push(
-              scheduleNotificationAsync(message.title, message.body, reminderDate)
-            );
+    const groupedPerks = groupPerksByReminderDate(availablePerks, endOfPeriod, now);
+
+    console.log(`[Notifications] Found ${Object.keys(groupedPerks).length} upcoming notification groups.`);
+
+    for (const [reminderDateStr, perksForThisDate] of Object.entries(groupedPerks)) {
+        const reminderDate = new Date(reminderDateStr);
+
+        // For testing, we can force the notification to be in a few seconds
+        const finalReminderDate = isTest ? new Date(now.getTime() + 10000) : reminderDate; // Changed from 5000 to 10000
+
+        if (finalReminderDate > now) {
+            const message = generateDynamicMessage(perksForThisDate);
+            if (message) {
+                console.log(`[Notifications] Scheduling notification for ${perksForThisDate.length} perk(s) on ${finalReminderDate.toISOString()}`);
+                tasks.push(
+                    scheduleNotificationAsync(message.title, message.body, finalReminderDate)
+                );
+            }
         }
-      }
-    });
+    }
   
     return Promise.all(tasks);
   }; 

@@ -82,7 +82,7 @@ export const scheduleNotificationAsync = async (
       : {}),
   };
 
-  console.log(`Scheduling notification: "${title}" for ${date.toLocaleString()}`);
+  console.log(`Scheduling notification: "${title}" for ${date.toLocaleString()}. Current time is ${new Date().toLocaleString()}`);
   return Notifications.scheduleNotificationAsync({
     content: { title, body },
     trigger,
@@ -124,7 +124,7 @@ export const scheduleCardRenewalNotifications = async (
       let notificationDate: Date;
       if (isTest) {
         notificationDate = new Date();
-        notificationDate.setSeconds(notificationDate.getSeconds() + 6); // Set 6 seconds from now for test
+        notificationDate.setSeconds(notificationDate.getSeconds() + 10); // Changed from 6 to 10
       } else {
         const renewalDate = new Date(card.renewal_date);
         notificationDate = new Date(renewalDate);
@@ -151,8 +151,10 @@ export const scheduleCardRenewalNotifications = async (
  * @returns {Promise<string>} The ID of the scheduled notification, or an empty string if permissions are denied.
  */
 export const sendTestNotification = async (userId: string, preferences: NotificationPreferences): Promise<(string | null)[]> => {
-  const hasPermissions = await requestPermissionsAsync();
-  if (!hasPermissions) {
+  const { status } = await Notifications.requestPermissionsAsync();
+  console.log('Current notification permission status:', status);
+
+  if (status !== 'granted') {
     console.warn('[Notifications] Permission not granted for test notification.');
     return [];
   }
