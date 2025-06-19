@@ -85,16 +85,16 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.disney.disneyplus',
   },
   hulu: {
-    ios: 'hulu://',
-    android: 'hulu://',
-    fallback: 'https://www.hulu.com/',
+    ios: 'https://www.hulu.com/',
+    android: 'https://www.hulu.com/',
+    fallback: 'https://www.hulu.com/welcome',
     androidPackage: 'com.hulu.plus',
-    appStoreUrlIOS: 'https://apps.apple.com/app/id376510438',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/hulu-stream-tv-shows-movies/id376510438',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.hulu.plus',
   },
   espn: {
     ios: 'sportscenter://',
-    android: 'sportscenter://',
+    android: 'espn://',
     fallback: 'https://www.espn.com/espnplus/',
     androidPackage: 'com.espn.score_center',
     appStoreUrlIOS: 'https://apps.apple.com/app/id317469184',
@@ -102,18 +102,18 @@ export const APP_SCHEMES = {
   },
   peacock: {
     ios: 'peacock://',
-    android: 'peacocktv://',
+    android: 'https://www.peacocktv.com/',
     fallback: 'https://www.peacocktv.com/',
     androidPackage: 'com.peacocktv.peacockandroid',
-    appStoreUrlIOS: 'https://apps.apple.com/app/id1508186374',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/peacock-tv-stream-tv-movies/id1508186374',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.peacocktv.peacockandroid',
   },
   nytimes: {
-    ios: 'nytimes://',
-    android: 'nytimes://',
+    ios: 'https://www.nytimes.com/',
+    android: 'https://www.nytimes.com/',
     fallback: 'https://www.nytimes.com/',
     androidPackage: 'com.nytimes.android',
-    appStoreUrlIOS: 'https://apps.apple.com/app/id284862083',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/the-new-york-times/id284862083',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.nytimes.android',
   },
   dunkin: {
@@ -149,20 +149,20 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.resy.android',
   },
   walmart: {
-    ios: 'walmart://',
-    android: 'com.walmart.android://',
-    fallback: 'https://www.walmart.com/plus',
+    ios: 'https://www.walmart.com/',
+    android: 'https://www.walmart.com/',
+    fallback: 'https://www.walmart.com/',
     androidPackage: 'com.walmart.android',
-    appStoreUrlIOS: 'https://apps.apple.com/app/walmart-shopping-grocery/id338137227',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/walmart-shopping-grocery/id338137227',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.walmart.android',
   },
   capitalOne: {
-    ios: 'capitalone://',
-    android: 'com.capitalone.mobile://',
-    fallback: 'https://travel.capitalone.com/',
-    androidPackage: 'com.capitalone.mobile',
-    appStoreUrlIOS: 'https://apps.apple.com/app/id407558537',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.capitalone.mobile',
+    ios: 'https://www.capitalone.com/',
+    android: 'https://www.capitalone.com/',
+    fallback: 'https://www.capitalone.com/',
+    androidPackage: 'com.konylabs.capitalone',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/capital-one-mobile/id407558537',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.konylabs.capitalone',
   },
   lyft: {
     ios: 'lyft://',
@@ -173,21 +173,30 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=me.lyft.android',
   },
   saks: {
-    ios: 'saksfifthavenue://',
-    android: 'com.saks.android://',
+    ios: 'https://www.saksfifthavenue.com/',
+    android: 'https://www.saksfifthavenue.com/',
     fallback: 'https://www.saksfifthavenue.com/',
     androidPackage: 'com.saks.android',
-    appStoreUrlIOS: 'https://apps.apple.com/app/saks-fifth-avenue/id491507258',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/saks-fifth-avenue/id491507258',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.saks.android',
   },
   equinox: {
-    ios: 'equinox://',
-    android: 'com.equinox.mobile://',
-    fallback: 'https://www.equinox.com/',
-    androidPackage: 'com.equinox.mobile',
-    appStoreUrlIOS: 'https://apps.apple.com/app/equinox/id394112157',
-    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.equinox.mobile',
+    ios: 'equinoxplus://home',
+    android: 'https://www.equinoxplus.com/',
+    fallback: 'https://www.equinoxplus.com/',
+    androidPackage: 'com.equinox.android',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/equinox/id318815572',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.equinox.android',
   },
+  wallstreetjournal: {
+    ios: 'https://www.wsj.com/',
+    android: 'https://www.wsj.com/',
+    fallback: 'https://www.wsj.com/',
+    androidPackage: 'wsj.reader_sp',
+    appStoreUrlIOS: 'https://apps.apple.com/us/app/the-wall-street-journal/id364387007',
+    appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=wsj.reader_sp',
+  },
+  
 };
 
 // Multi-choice Perk Configuration
@@ -574,6 +583,20 @@ export const allCards: Card[] = [
         description: '$25 dining statement credit each month (up to $300 per year) at restaurants worldwide.',
         categories: ['Dining'],
       },
+      {
+        id: "brilliant_free_night_award",
+        name: "Annual Free Night Award",
+        value: 765,
+        period: "annual",
+        periodMonths: 12,
+        resetType: "anniversary",
+        definition_id: "a2e8f7d1-5b7a-4b0e-8b1a-9f8d7c6b5a4d",
+        description: "Receive one Free Night Award each year after your card renewal month. The award can be used for a one-night stay at a participating Marriott Bonvoy hotel with a redemption level at or under 85,000 points. You can top off the award with up to 15,000 of your own points.",
+        categories: [
+          "Travel", "Lodging"
+        ],
+        "redemptionInstructions": "The Free Night Award will be automatically deposited into your Marriott Bonvoy account 8-12 weeks after your card renewal month. To use it, log in to your Marriott Bonvoy account and select the award at the time of booking. The award expires one year from the date of issuance. Be aware that some properties may charge resort fees, which are not covered by the award."
+      },
     ],
   },
 
@@ -818,6 +841,11 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   // Streaming/Entertainment
   'Disney+ Credit': 'disneyPlus',
   'Disney Bundle Credit': 'disneyPlus',
+  'Hulu Credit': 'hulu',
+  'ESPN+ Credit': 'espn',
+  'Peacock Credit': 'peacock',
+  'NYTimes Credit': 'nytimes',
+  'WSJ Credit': 'wallstreetjournal',
   'Digital Entertainment Credit': 'disneyPlus',
   
   // Retail
@@ -836,6 +864,9 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   // Rideshare
   'Lyft Credit': 'lyft',
   'Rideshare Credit': 'lyft',
+  
+  // Travel
+  'Capital One Travel Credit': 'capitalOne',
 };
 
 // Helper function to check if an app is installed
