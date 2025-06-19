@@ -182,7 +182,7 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.saks.android',
   },
   equinox: {
-    ios: 'equinoxplus://deeplink/navigate?screen=SCHEDULE',
+    ios: 'equinoxplus://action?id=open.equinox.com',
     android: 'https://www.equinoxplus.com/',
     fallback: 'https://www.equinoxplus.com/',
     androidPackage: 'com.equinox.android',
@@ -191,7 +191,7 @@ export const APP_SCHEMES = {
   },
   wallstreetjournal: {
     ios: 'wsj://',
-    android: 'https://www.wsj.com/',
+    android: 'wsj://',
     fallback: 'https://www.wsj.com/',
     androidPackage: 'wsj.reader_sp',
     appStoreUrlIOS: 'https://apps.apple.com/us/app/the-wall-street-journal/id364387007',
@@ -199,7 +199,7 @@ export const APP_SCHEMES = {
   },
   clear: {
     ios: [
-      "clearme://x-callback-url/show-card",
+      "clear://action?id=open.clearme.com",
     ],
     android: [
       "https://clearme.com/",
@@ -223,7 +223,7 @@ export const APP_SCHEMES = {
     'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.chase.sig.android',
     'notes': 'The base \'chase://\' scheme is the primary entry point. For specific actions, \'/origination\' is often used for account or card applications, and \'/quickdeposit\' is used to launch the check deposit feature.'
   },
-  americanExpress: {
+  amex: {
     'ios': [
       'amex://',
     ],
@@ -251,7 +251,7 @@ export const APP_SCHEMES = {
   },
   hilton: {
     'ios': [
-      'hiltonhonors://book',
+      'hiltonhonors://action?id=open.hilton.com',
     ],
     'android': [
       'hiltonhonors://book',
@@ -328,7 +328,117 @@ export const APP_SCHEMES = {
     'appStoreUrlIOS': 'https://apps.apple.com/us/app/opentable/id296581815',
     'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.opentable',
     'notes': 'OpenTable uses both a custom scheme and universal links. Replace \'12345\' with a restaurant\'s OpenTable ID for the custom scheme, or use the web URL format for the universal link.'
+  },
+  delta: {
+    'ios': [
+      'https://www.delta.com/stays'
+    ],
+    'android': [
+      'https://www.delta.com/stays'
+    ],
+    'fallback': 'https://www.delta.com/stays',
+    'androidPackage': 'com.delta.mobile.android',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/fly-delta/id388491656',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.delta.mobile.android',
+    'notes': 'The \'Delta Stays\' feature is web-centric. The most reliable way to direct a user to it is the direct web URL. The \'flydelta://\' schemes will open the main app to its home screen, but not directly to the hotel booking section.'
+  },
+  curb: {
+    'ios': [
+      'curb://',
+    ],
+    'android': [
+      'curb://',
+    ],
+    'fallback': 'https://gocurb.com/',
+    'androidPackage': 'com.ridecharge.android.taximagic',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/curb-request-pay-for-taxis/id299226386',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.ridecharge.android.taximagic',
+    'notes': 'The base \'curb://\' scheme is the most common. The variants with \'book\' are attempts to command the app to open directly to the ride booking screen.'
+  },
+  revel: {
+    'ios': [
+      'revel://',
+    ],
+    'android': [
+      'revel://',
+    ],
+    'fallback': 'https://gorevel.com/ride',
+    'androidPackage': 'com.gorevel.revel',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/revel-all-electric-rides/id1451000631',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.gorevel.revel',
+    'notes': 'Revel\'s primary scheme is \'revel://\'. The \'/rideshare\' path specifically targets the rideshare portion of their app (as they also offer mopeds). The web URL also serves as a universal link.'
+  },
+  alto: {
+    'ios': [
+      'ridealto://',
+    ],
+    'android': [
+      'ridealto://',
+    ],
+    'fallback': 'https://www.ridealto.com/',
+    'androidPackage': 'com.ridealto.rider',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/alto/id1442044302',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.ridealto.rider',
+    'notes': 'Alto uses the \'ridealto://\' scheme. The \'/schedule\' path is intended to open the pre-scheduling interface. The web link to their booking page is another reliable entry point.'
   }
+};
+
+// Helper function to map perk names to app schemes
+export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
+  // Uber/Rides
+  'Uber Ride Credit': 'uber',
+  'Uber Eats Credit': 'uberEats',
+  'Uber Cash': 'uber',
+  'Uber Cash Credit': 'uber',
+  
+  // Food Delivery
+  'Grubhub Credit': 'grubhub',
+  'DoorDash Restaurant Credit': 'doordash',
+  'DoorDash Non-Restaurant Credit #1': 'doordash',
+  'DoorDash Non-Restaurant Credit #2': 'doordash',
+  'DoorDash Grocery Credit': 'doordash',
+  'Food Delivery Credit': 'doordash',
+  
+  // Streaming/Entertainment
+  'Disney+ Credit': 'disneyPlus',
+  'Disney Bundle Credit': 'disneyPlus',
+  'Hulu Credit': 'hulu',
+  'ESPN+ Credit': 'espn',
+  'Peacock Credit': 'peacock',
+  'NYTimes Credit': 'nytimes',
+  'WSJ Credit': 'wallstreetjournal',
+  'Apple TV+ Credit': 'appletv',
+  'Apple Music Credit': 'applemusic',
+  'StubHub / viagogo Credit': 'stubhub',
+  
+  // Retail
+  'Saks Fifth Avenue Credit': 'saks',
+  'Walmart+ Membership Rebate': 'walmart',
+  
+  // Dining/Restaurants
+  'Dunkin\' Credit': 'dunkin',
+  'Resy Credit': 'resy',
+  'Resy Dining Credit': 'resy',
+  'Dining Credit': 'grubhub',
+  
+  // Fitness
+  'Equinox Credit': 'equinox',
+  
+  // Rideshare
+  'Lyft Credit': 'lyft',
+  'Rideshare Credit': 'lyft',
+  
+  // Travel
+  'Capital One Travel Credit': 'capitalOne',
+  'Annual Free Night Award': 'marriott',
+  'CLEAR Plus Credit': 'clear',
+  'The Edit by Chase Travel Credit': 'chase',
+  'Exclusive Tables Dining Credit': 'opentable',
+  'Peloton Membership Credit': 'peloton',
+    
+
+  // Lodging
+  'Hilton Resort Credit': 'hilton',
 };
 
 // Multi-choice Perk Configuration
@@ -346,7 +456,7 @@ export const multiChoicePerksConfig: Record<string, MultiChoicePerkConfig[]> = {
     { label: "Open Apple Music", targetPerkName: "Apple Music Credit" },
   ],
   "Uber Cash": [
-    { label: "Open Uber (Rides)", targetPerkName: "Uber Ride Credit" },
+    { label: "Open Uber Rides", targetPerkName: "Uber Ride Credit" },
     { label: "Open Uber Eats", targetPerkName: "Uber Eats Credit" },
   ],
   "Dining Credit": [
@@ -355,11 +465,28 @@ export const multiChoicePerksConfig: Record<string, MultiChoicePerkConfig[]> = {
     { label: "View Other Options", targetPerkName: "Dining Info" },
   ],
   "Lifestyle Convenience Credits": [
-    { label: "Open Uber/Lyft", targetPerkName: "Rideshare Credit" },
-    { label: "Open DoorDash", targetPerkName: "Food Delivery Credit" },
-    { label: "View Streaming Options", targetPerkName: "Streaming Credit" },
-    { label: "View All Options", targetPerkName: "Lifestyle Credit Info" },
+    { label: "Open Uber", targetPerkName: "Uber Credit" },
+    { label: "Open Lyft", targetPerkName: "Lyft Credit" },
+    { label: "Open DoorDash", targetPerkName: "DoorDash Credit" },
+    { label: "Open Grubhub", targetPerkName: "Grubhub Credit" },
+    { label: "Open Hulu", targetPerkName: "Hulu Credit" },
+    { label: "Open Disney+", targetPerkName: "Disney+ Credit" },
+    { label: "Open Netflix", targetPerkName: "Netflix Credit" },
+    { label: "Open Peloton", targetPerkName: "Peloton Credit" },
+    { label: "Open Equinox", targetPerkName: "Equinox Credit" },
   ],
+  "Disney Bundle Credit": [
+    { label: "Open Disney+", targetPerkName: "Disney+ Credit" },
+    { label: "Open Hulu", targetPerkName: "Hulu Credit" },
+    { label: "Open ESPN+", targetPerkName: "ESPN+ Credit" },
+  ],
+  "Rideshare Credit": [
+    { label: "Open Uber", targetPerkName: "Uber Credit" },
+    { label: "Open Lyft", targetPerkName: "Lyft Credit" },
+    { label: "Open Curb", targetPerkName: "Curb Credit" },
+    { label: "Open Revel", targetPerkName: "Revel Credit" },
+    { label: "Open Alto", targetPerkName: "Alto Credit" },
+  ]
 };
 
 export const allCards: Card[] = [
@@ -378,10 +505,10 @@ export const allCards: Card[] = [
         periodMonths: 1,
         resetType: 'calendar',
         definition_id: '207067ca-6933-40cf-ab7b-1d2d36bf067f',
-        description: 'Up to $15 in Uber Cash each month for U.S. Uber rides or Uber Eats orders (extra $20 in December, totaling $200/year).',
-        redemptionInstructions: 'Add your Platinum Card to the Uber app to automatically receive Uber Cash each month.',
+        description: 'Receive $15 in Uber Cash for U.S. rides or Uber Eats orders each month, plus a $20 bonus in December, for a total of $200 annually.',
+        redemptionInstructions: 'To activate, add your Platinum Card as a payment method in your Uber account. The Uber Cash is automatically added to your account on the first day of each month and expires at the end of that month. Unused amounts do not roll over.',
         appScheme: 'uber',
-        categories: ['Transportation', 'Dining'],
+        categories: ['Transportation', 'Dining']
       },
       {
         id: 'platinum_digital_ent',
@@ -391,35 +518,35 @@ export const allCards: Card[] = [
         periodMonths: 1,
         resetType: 'calendar',
         definition_id: '7e10ad1b-792e-4c34-8d36-bd0ebbca8591',
-        description: 'Up to $20 back each month on eligible digital subscriptions. As of 2024–2025, covered services include Disney+ (and bundle with Hulu/ESPN+), Hulu, ESPN+, Peacock, The New York Times, and The Wall Street Journal.',
-        redemptionInstructions: 'Enroll and pay with your Platinum Card for eligible digital subscriptions. The credit posts as a statement credit each month after an eligible charge.',
-        categories: ['Bills & Utilities', 'Entertainment'],
+        description: 'Up to $20 per month (totaling $240 per year) in statement credits for eligible digital subscriptions. Covered services include Audible, Disney+, The Disney Bundle, ESPN+, Hulu, Peacock, The New York Times, and The Wall Street Journal.',
+        redemptionInstructions: 'You must enroll in this benefit first via your Amex account. Then, simply use your Platinum Card to pay for the eligible subscriptions. The credit is automatically applied as a statement credit.',
+        categories: ['Bills & Utilities', 'Entertainment']
       },
       {
         id: 'platinum_walmart_plus',
-        name: 'Walmart+ Membership Rebate',
+        name: 'Walmart+ Membership Credit',
         value: 12.95,
         period: 'monthly',
         periodMonths: 1,
         resetType: 'calendar',
         definition_id: 'b4ca65e4-a537-4688-b46a-63326bd72f36',
-        description: 'Full reimbursement of Walmart+ monthly membership fee ($12.95 plus applicable taxes, ~$155/year).',
-        redemptionInstructions: 'Enroll and use your Platinum Card to pay for a Walmart+ monthly membership. The credit will appear after the charge posts each month.',
+        description: 'Receive a statement credit that covers the full cost of a Walmart+ monthly membership ($12.95 plus applicable sales tax).',
+        redemptionInstructions: 'Use your Platinum Card to pay for a Walmart+ monthly membership. This benefit does not cover the annual membership. A key value of this perk is that a Walmart+ membership also includes a complimentary Paramount+ subscription.',
         appScheme: 'walmart',
-        categories: ['Shopping', 'Grocery'],
+        categories: ['Shopping', 'Grocery', 'Entertainment']
       },
       {
         id: 'platinum_equinox',
         name: 'Equinox Credit',
-        value: 25,
-        period: 'monthly',
-        periodMonths: 1,
+        value: 300,
+        period: 'annual',
+        periodMonths: 12,
         resetType: 'calendar',
         definition_id: '360e8050-d55d-46e4-a604-a3006dc39724',
-        description: 'Up to $25 back each month on Equinox gym memberships or Equinox+ digital fitness subscriptions (up to $300 annually).',
-        redemptionInstructions: 'Use your Platinum Card to pay for an Equinox gym membership or Equinox+ digital fitness subscription. Credit posts monthly after charge.',
+        description: 'Receive up to $300 in statement credits annually for eligible Equinox memberships.',
+        redemptionInstructions: 'Enrollment is required. Use your Platinum Card to pay for an Equinox All Access, Destination, E by Equinox, or Equinox+ membership. The credit is applied monthly based on your charges, up to the annual maximum of $300.',
         appScheme: 'equinox',
-        categories: ['Fitness', 'Wellness', 'Lifestyle'],
+        categories: ['Fitness', 'Wellness']
       },
       {
         id: 'platinum_saks',
@@ -429,9 +556,10 @@ export const allCards: Card[] = [
         periodMonths: 6,
         resetType: 'calendar',
         definition_id: '008f140c-56fe-48f1-9e89-6c39391e3def',
-        description: 'Up to $50 in statement credits twice per year (Jan–Jun and Jul–Dec; $100 total annually).',
-        redemptionInstructions: 'Enroll, then use your Platinum Card at Saks Fifth Avenue (in-store or online). Unused semiannual credits do not carry over.',
-        categories: ['Shopping'],
+        appScheme: 'saks',
+        description: 'Receive up to $50 in statement credits twice per year for purchases at Saks Fifth Avenue. This provides up to $100 in total value annually.',
+        redemptionInstructions: 'Enrollment is required. The credit is split into two periods: January through June, and July through December. Use your Platinum Card at Saks in-store or online. A popular strategy is to purchase a $50 gift card in-store to use later if you don\'t have an immediate purchase to make. The credit does not apply to purchases at Saks OFF 5TH.',
+        categories: ['Shopping']
       },
       {
         id: 'platinum_clear',
@@ -455,20 +583,22 @@ export const allCards: Card[] = [
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
         description: 'Up to $200 in statement credits per calendar year for incidental fees with one selected qualifying airline.',
-        redemptionInstructions: 'Enroll and select one qualifying airline on your Amex account. Charges for incidental airline fees (checked bags, seat upgrades, lounge passes, etc.) will be reimbursed. Credit resets every Jan 1.',
-        categories: ['Travel', 'Flights'],
+        appScheme: 'amex',
+        redemptionInstructions: 'You must enroll and select one airline from the Amex website each year. This credit applies to incidental fees like checked bags, seat selection, and in-flight refreshments, but not directly to ticket purchases. Some users have found that certain charges under $100 or purchases for airline travel banks (e.g., United TravelBank) may trigger the credit, but these methods are not guaranteed. Plan to use it for standard fees to ensure reimbursement.',
+        categories: ['Travel', 'Flights']
       },
       {
         id: 'platinum_hotel_credit',
-        name: 'Hotel Credit (FHR/THC)',
+        name: 'Prepaid Hotel Credit',
         value: 200,
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '37eeb419-2110-4ca2-ac70-0eebbd587530',
-        description: 'Up to $200 back in statement credits each calendar year for prepaid hotels booked through Amex Fine Hotels + Resorts or The Hotel Collection.',
-        redemptionInstructions: 'Use your Platinum Card to book prepaid hotels through Amex FHR or The Hotel Collection (minimum 2-night stay for THC) via Amex Travel.',
-        categories: ['Travel', 'Lodging'],
+        description: 'Receive up to $200 back in statement credits each calendar year on prepaid bookings with Fine Hotels + Resorts® or The Hotel Collection made through American Express Travel.',
+        appScheme: 'amex',
+        redemptionInstructions: 'Book a prepaid stay through amextravel.com. For The Hotel Collection, a minimum two-night stay is required. The credit is automatically applied. This is in addition to the valuable on-site benefits (like room upgrades and property credits) that come with FHR and THC bookings.',
+        categories: ['Travel', 'Lodging']
       },
     ],
   },
@@ -488,10 +618,9 @@ export const allCards: Card[] = [
         periodMonths: 1,
         resetType: 'calendar',
         definition_id: '86836d3c-6573-43ec-9b42-33493bec5765',
-        description: 'Up to $10 in Uber Cash each month for U.S. Uber rides or Uber Eats orders. Credits do not roll over - use it or lose it each month.',
-        redemptionInstructions: 'Add your Gold Card to the Uber wallet and the credit auto-appears as Uber Cash.',
-        appScheme: 'uber',
-        categories: ['Transportation', 'Dining'],
+        description: 'Receive up to $10 in Uber Cash each month, totaling $120 per year. This can be used for both U.S. Uber rides and U.S. Uber Eats orders.',
+        redemptionInstructions: 'To receive the benefit, add your Gold Card as a payment method in your Uber account. The $10 in Uber Cash will be automatically deposited into your account on the first of each month. Credits do not roll over and expire at the end of the month.',
+        categories: ['Transportation', 'Dining']
       },
       {
         id: 'amex_gold_grubhub',
@@ -501,8 +630,8 @@ export const allCards: Card[] = [
         periodMonths: 1,
         resetType: 'calendar',
         definition_id: '8c57ee72-0b5b-4d93-aeee-150c15539514',
-        description: 'Up to $10 back each month at eligible dining partners: Grubhub/Seamless, The Cheesecake Factory, Goldbelly, Wine.com, and select Resy restaurants.',
-        redemptionInstructions: 'Enroll your card and use it at eligible merchants. Credit appears automatically after qualifying purchase of $10 or more.',
+        description: 'Receive up to $10 in statement credits each month for purchases at Grubhub, Five Guys, The Cheesecake Factory, Goldbelly, Wine.com, and Milk Bar.',
+        redemptionInstructions: 'You must first enroll in the benefit through your American Express online account. Then, simply use your Gold Card to pay at any of the eligible partners. The statement credit is applied automatically. Unused amounts do not roll over.',
         appScheme: 'grubhub',
         categories: ['Dining'],
       },
@@ -689,6 +818,7 @@ export const allCards: Card[] = [
         resetType: 'calendar',
         definition_id: '32a15587-31ef-473a-a73b-b40c68026419',
         description: 'Up to $50 statement credit each account anniversary year for hotel stays booked via the Chase Ultimate Rewards travel portal.',
+        appScheme: 'chase',
         redemptionInstructions: 'Book a hotel through Chase Travel using your Sapphire Preferred; the first $50 of hotel charges will be automatically refunded. Credit resets every account anniversary.',
         categories: ['Travel', 'Lodging'],
       },
@@ -801,6 +931,30 @@ export const allCards: Card[] = [
         appScheme: 'clear',
         redemptionInstructions: 'Pay for your CLEAR Plus membership using your Hilton Honors Aspire card, and the statement credit will be automatically applied. This benefit covers the full cost of an individual CLEAR Plus membership.'
       },
+      // {
+      //   id: 'aspire_diamond_status',
+      //   name: 'Hilton Honors Diamond Status',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'c3d4e5f6-g7h8-9012-3456-7890abcdef12',
+      //   description: "Receive complimentary Hilton Honors Diamond status, the top tier of Hilton's loyalty program. Benefits include a 100% point bonus on stays, executive lounge access, room upgrades (up to a one-bedroom suite), and a daily food and beverage credit at select properties.",
+      //   categories: ['Travel'],
+      //   redemptionInstructions: 'Your Hilton Honors account will be automatically upgraded to Diamond status upon card approval. Ensure your card is linked to your Hilton Honors account to receive these benefits.'
+      // },
+      // {
+      //   id: 'aspire_waldorf_conrad_credit',
+      //   name: 'Waldorf Astoria & Conrad Property Credit',
+      //   value: 100,
+      //   period: 'per_stay',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'e5f6g7h8-i9j0-1234-5678-90abcdef1234',
+      //   description: 'Receive a $100 property credit when you book a two-night minimum stay at participating Waldorf Astoria and Conrad properties.',
+      //   categories: ['Travel'],
+      //   redemptionInstructions: "To receive this credit, you must book your stay through HiltonHonors.com/aspirecard or by calling the number on the back of your card and booking the specific 'Aspire Card' rate. The credit can be used for on-property expenses such as dining and spa services."
+      // }
   ],
   },
 
@@ -817,25 +971,73 @@ export const allCards: Card[] = [
         value: 300,
         period: 'annual',
         periodMonths: 12,
-        resetType: 'calendar',
+        resetType: 'anniversary',
         definition_id: '0faeed05-234e-4110-a710-b8cb41bb0f72',
-        description: 'Up to $300 per year in credits to offset bookings made through the Capital One Travel portal. Can be used in part or full across multiple bookings.',
-        redemptionInstructions: 'Use your Venture X to book travel through the Capital One Travel portal. At checkout, you can apply the credit to your booking. Credit resets on your account anniversary each year.',
+        description: 'Receive a $300 statement credit annually for travel bookings made through the Capital One Travel portal. This credit is flexible and can be applied to flights, hotels, and rental cars.',
+        redemptionInstructions: 'Simply use your Venture X card to pay for a booking on the Capital One Travel portal. The credit is automatically applied as a statement credit to your account. The credit can be used in one go or across multiple bookings. Unused credit does not roll over past your card anniversary date. To maximize value, compare prices, as the portal offers price matching within 24 hours of booking.',
         appScheme: 'capitalOne',
-        categories: ['Travel'],
+        categories: ['Travel']
       },
-      {
-        id: 'venturex_anniversary',
-        name: 'Anniversary Miles Bonus',
-        value: 100,
-        period: 'annual',
-        periodMonths: 12,
-        resetType: 'calendar',
-        definition_id: 'c6004d5f-c5c4-435e-b717-eb6cafd9a089',
-        description: '10,000 bonus miles awarded every account anniversary (≈$100 in travel value).',
-        redemptionInstructions: 'Automatic benefit - miles are deposited into your account each anniversary.',
-        categories: ['Travel', 'Rewards'],
-      },
+      // {
+      //   id: 'venturex_anniversary',
+      //   name: 'Anniversary Miles Bonus',
+      //   value: 100,
+      //   period: 'annual',
+      //   periodMonths: 12,
+      //   resetType: 'anniversary',
+      //   definition_id: 'c6004d5f-c5c4-435e-b717-eb6cafd9a089',
+      //   description: 'Receive 10,000 bonus miles every year starting on your first account anniversary. These miles are worth a minimum of $100 when redeemed for travel.',
+      //   redemptionInstructions: 'This is an automatic benefit. The 10,000 bonus miles will be deposited into your Capital One miles account within the billing cycle of your card anniversary.',
+      //   categories: ['Travel', 'Rewards']
+      // },
+      // {
+      //   id: 'venturex_lounge_access',
+      //   name: 'Airport Lounge Access',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6',
+      //   description: 'Get unlimited complimentary access to Capital One Lounges for you and two guests. Also includes a complimentary Priority Pass Select membership, giving you access to over 1,300+ lounges worldwide.',
+      //   redemptionInstructions: 'You must enroll in Priority Pass through your Capital One online account to receive your membership. For Capital One Lounges, simply present your Venture X card and a same-day boarding pass. Note: Guest policies for Capital One Lounges are subject to change.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'venturex_global_entry',
+      //   name: 'Global Entry or TSA PreCheck Credit',
+      //   value: 100,
+      //   period: 'quadrennial',
+      //   periodMonths: 48,
+      //   resetType: 'usage',
+      //   definition_id: 'b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7',
+      //   description: 'Receive up to a $100 statement credit for the application fee for either Global Entry or TSA PreCheck.',
+      //   redemptionInstructions: 'Pay the application fee for either Global Entry or TSA PreCheck with your Venture X card. The statement credit will automatically be applied to your account. This benefit is available once every four years. You can use this credit to cover the fee for another person.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'venturex_hertz_status',
+      //   name: "Hertz President's Circle Status",
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8',
+      //   description: 'Receive complimentary top-tier Hertz President’s Circle status, which provides benefits like guaranteed car upgrades, a wider selection of vehicles, and a dedicated customer service line.',
+      //   redemptionInstructions: 'You must enroll for this benefit through your Capital One online account. You will be redirected to the Hertz website to link your accounts and activate your status.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'venturex_cell_phone_protection',
+      //   name: 'Cell Phone Protection',
+      //   value: 800,
+      //   period: 'per_incident',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'd4e5f6g7-h8i9-j0k1-l2m3-n4o5p6q7r8s9',
+      //   description: 'Get reimbursed for the repair or replacement of your stolen or damaged cell phone, up to $800 per claim.',
+      //   redemptionInstructions: 'You must pay your monthly cell phone bill with your Venture X card to be eligible for this coverage. There is a $50 deductible per claim, and you can make up to two claims per 12-month period. To file a claim, contact the benefits administrator within 60 days of the incident.',
+      //   categories: ['Insurance', 'Shopping']
+      // }
     ],
   },
 
@@ -854,9 +1056,9 @@ export const allCards: Card[] = [
         periodMonths: 1,
         resetType: 'calendar',
         definition_id: '55fec7a1-de50-40c9-b5a2-0f456161def0',
-        description: 'Up to $7 back each month on Disney Bundle subscription (Disney+, Hulu, and ESPN+) when you spend $9.99 or more.',
-        redemptionInstructions: 'Enroll your Blue Cash Preferred and use it to pay for the Disney Bundle. Credit posts monthly after the charge.',
-        categories: ['Bills & Utilities', 'Entertainment'],
+        description: 'Get a $7 statement credit each month after you spend $9.99 or more on an eligible subscription to The Disney Bundle. This can reduce the cost of subscriptions that include Disney+, Hulu, and ESPN+.',
+        redemptionInstructions: 'You must first enroll in the benefit through your American Express online account. Then, use your Blue Cash Preferred card to pay for your monthly Disney Bundle subscription of $9.99 or more. The statement credit will be applied automatically. Unused credits do not roll over.',
+        categories: ['Bills & Utilities', 'Entertainment']
       },
     ],
   },
@@ -876,9 +1078,71 @@ export const allCards: Card[] = [
         periodMonths: 1,
         resetType: 'calendar',
         definition_id: 'd538f219-3595-4a96-85da-508054a9b36d',
-        description: 'Up to $20 back each month on Resy restaurant purchases.',
+        description: 'Receive up to $20 in statement credits each month for eligible purchases at U.S. restaurants on Resy. This amounts to a total of up to $240 per calendar year.',
         categories: ['Dining'],
+        appScheme: 'resy',
+        redemptionInstructions: 'Enrollment is required through your American Express online account. After enrolling, use your Delta Reserve card to pay at eligible U.S. restaurants that offer reservations through Resy.com or the Resy app. The credit is applied automatically. Unused monthly credits do not roll over.'
       },
+      {
+        id: 'delta_rideshare',
+        name: 'Rideshare Credit',
+        value: 10,
+        period: 'monthly',
+        periodMonths: 1,
+        resetType: 'calendar',
+        definition_id: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
+        description: 'Get up to $10 in statement credits each month on U.S. rideshare purchases with select providers, totaling up to $120 per year.',
+        categories: ['Transportation'],
+        redemptionInstructions: 'Enrollment is required via your Amex account. Use your card to pay for eligible U.S. rideshare services like Uber, Lyft, Curb, Revel, and Alto. The credit is applied automatically. Unused monthly credits are forfeited.'
+      },
+      {
+        id: 'delta_stays',
+        name: 'Delta Stays Credit',
+        value: 200,
+        period: 'annual',
+        periodMonths: 12,
+        resetType: 'calendar',
+        definition_id: 'b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7',
+        description: 'Receive up to a $200 statement credit each calendar year for prepaid hotels or vacation rentals booked through the Delta Stays platform.',
+        categories: ['Travel'],
+        appScheme: 'delta',
+        redemptionInstructions: 'To redeem, book a prepaid hotel or vacation rental through delta.com/stays and pay with your Delta Reserve card. The credit is applied automatically to your statement. The credit resets each calendar year.'
+      },
+      // {
+      //   id: 'delta_companion_certificate',
+      //   name: 'Annual Companion Certificate',
+      //   value: 0,
+      //   period: 'annual',
+      //   periodMonths: 12,
+      //   resetType: 'anniversary',
+      //   definition_id: 'c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8',
+      //   description: 'Receive a Companion Certificate each year after your card renewal. This certificate is valid for one round-trip Main Cabin, Delta Comfort+, or First Class ticket for a companion traveling with you on the same itinerary.',
+      //   redemptionInstructions: 'The certificate is deposited into your Delta SkyMiles account after your card anniversary. To use it, you must book through delta.com. The certificate is valid for travel within the 48 contiguous United States, and to select destinations in Alaska, Hawaii, Mexico, the Caribbean, and Central America. You are responsible for government-imposed taxes and fees on the companion ticket. Availability is subject to certain fare classes, so booking in advance provides the best chance of successful redemption.'
+      // },
+      // {
+      //   id: 'delta_sky_club_access',
+      //   name: 'Delta Sky Club Access',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'd4e5f6g7-h8i9-j0k1-l2m3-n4o5p6q7r8s9',
+      //   description: 'Receive 15 complimentary visits to the Delta Sky Club each year. You can unlock unlimited visits for the remainder of the year after spending $75,000 on the card in a calendar year. Also includes four one-time guest passes annually.',
+      //   categories: ['Travel'],
+      //   redemptionInstructions: 'Access the Sky Club by presenting your valid Delta Reserve card and a same-day boarding pass for a Delta or partner airline flight. You also get complimentary access to The Centurion Lounge when you book your Delta flight with your Reserve Card.'
+      // },
+      // {
+      //   id: 'delta_global_entry',
+      //   name: 'Global Entry or TSA PreCheck Credit',
+      //   value: 120,
+      //   period: 'quadrennial',
+      //   periodMonths: 48,
+      //   resetType: 'usage',
+      //   definition_id: 'e5f6g7h8-i9j0-k1l2-m3n4-o5p6q7r8s9t0',
+      //   description: 'Receive a statement credit for the application fee for either Global Entry (up to $120 every 4 years) or TSA PreCheck (up to $85 every 4.5 years).',
+      //   categories: ['Travel'],
+      //   redemptionInstructions: 'Pay the application fee for either program with your Delta Reserve card to receive the statement credit automatically. You do not need to be the one applying to use the credit.'
+      // }
     ],
   },
 
@@ -891,17 +1155,29 @@ export const allCards: Card[] = [
     benefits: [
       {
         id: 'green_clear',
-        name: 'CLEAR® Plus Credit',
+        name: 'CLEAR Plus Credit',
         value: 189,
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
-        description: 'Up to $189 in statement credits per calendar year for CLEAR Plus airport security membership.',
-        redemptionInstructions: 'Use your Green Card to pay for a CLEAR Plus membership. No enrollment required beyond using the card for payment.',
+        description: 'Receive up to $189 in statement credits per calendar year, enough to cover the full cost of a CLEAR Plus membership for expedited airport security.',
+        redemptionInstructions: 'Simply use your American Express Green card to pay for your CLEAR Plus membership. The statement credit will be applied automatically to your account, typically within 6-8 weeks. To maximize this benefit, ensure CLEAR is available at airports you frequently use.',
         appScheme: 'clear',
-        categories: ['Travel', 'Flights'],
+        categories: ['Travel', 'Flights']
       },
+      // {
+      //   id: 'green_travel_rewards',
+      //   name: '3X Points on Travel, Transit & Dining',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d7',
+      //   description: 'Earn 3X Membership Rewards points on a broad range of categories. This includes travel (flights, hotels, car rentals, cruises, tours, third-party travel websites), transit (rideshares, subways, parking, tolls), and at restaurants worldwide.',
+      //   redemptionInstructions: 'Points are earned automatically when you use your card for purchases in these categories. This is a primary benefit of the card, and maximizing its value depends on using it for all eligible travel and dining expenses. Unlike some cards, the travel category is very broad and not limited to a specific travel portal.',
+      //   categories: ['Travel', 'Dining', 'Transportation', 'Rewards']
+      // },
     ],
   },
 
@@ -920,10 +1196,46 @@ export const allCards: Card[] = [
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
-        description: 'Up to $100 in statement credits per calendar year for qualifying airline incidental fees (checked baggage, seat selection fees, lounge passes, onboard food, etc.).',
-        redemptionInstructions: 'Use your Premium Rewards card to pay for qualifying airline incidental fees. No enrollment needed; credits post usually within a week of an eligible charge until you hit $100 for the year.',
-        categories: ['Travel', 'Flights'],
+        description: 'Receive up to $100 in statement credits annually for qualifying airline incidental fees. This helps to significantly offset the annual fee.',
+        redemptionInstructions: 'The credit is automatically applied to your statement when you use your card for qualifying fees. Qualifying charges include seat upgrades, checked baggage fees, in-flight food and entertainment, and airline lounge access fees. It does not cover tickets, award fees, mileage purchases, or gift cards. It is also important to note that charges from some airlines, like Spirit and Allegiant, may not qualify. The credit resets every calendar year.',
+        categories: ['Travel', 'Flights']
       },
+      // {
+      //   id: 'boa_pr_global_entry',
+      //   name: 'Global Entry or TSA PreCheck Credit',
+      //   value: 100,
+      //   period: 'quadrennial',
+      //   periodMonths: 48,
+      //   resetType: 'usage',
+      //   definition_id: 'c6004d5f-c5c4-435e-b717-eb6cafd9a089',
+      //   description: 'Receive a statement credit of up to $100 every four years to cover the application fee for either Global Entry or TSA PreCheck.',
+      //   redemptionInstructions: 'Simply pay the application fee for either Global Entry or TSA PreCheck with your Premium Rewards card. The statement credit will be automatically applied to your account. Since Global Entry includes TSA PreCheck benefits, it is generally the better value. You can also use this credit to pay for a friend or family member\'s application fee.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'boa_pr_preferred_rewards_bonus',
+      //   name: 'Preferred Rewards Bonus',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
+      //   description: 'Boost your rewards earnings by 25% to 75% on every purchase if you are a Bank of America Preferred Rewards member. This is the most significant way to maximize the value of this card.',
+      //   redemptionInstructions: 'To receive this benefit, you must be enrolled in the Bank of America Preferred Rewards program, which requires having a qualifying Bank of America checking account and maintaining a combined three-month average daily balance. Gold Tier ($20k+ balance) gets a 25% bonus, Platinum ($50k+) gets a 50% bonus, and Platinum Honors ($100k+) gets a 75% bonus. The bonus is applied automatically to the points you earn.',
+      //   categories: ['Rewards']
+      // },
+      // {
+      //   id: 'boa_pr_base_rewards',
+      //   name: 'Base Rewards Rate',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7',
+      //   description: 'Earn unlimited 2 points for every $1 spent on travel and dining purchases, and 1.5 points for every $1 spent on all other purchases. There is no limit to the points you can earn.',
+      //   redemptionInstructions: 'Points are earned automatically on all purchases. The travel and dining categories are defined broadly, including purchases from restaurants, bars, airlines, hotels, car rentals, cruise lines, and tourist attractions. The points value is a straightforward 1 cent per point when redeemed for cash back, a statement credit, travel, or gift cards.',
+      //   categories: ['Rewards']
+      // }
     ],
   },
 
@@ -942,9 +1254,9 @@ export const allCards: Card[] = [
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5263',
-        description: 'Up to $300 annually in airline incidental fee credits for charges like seat upgrades, baggage fees, airline lounge memberships, etc. (not airfare).',
-        redemptionInstructions: 'Use the card for qualifying airline fees and you\'ll be reimbursed automatically, up to $300 per year. Resets each calendar year.',
-        categories: ['Travel', 'Flights'],
+        description: 'Up to $300 annually in statement credits for qualifying airline incidental fees. This credit helps substantially offset the annual fee.',
+        redemptionInstructions: 'The credit is automatically applied to your statement for qualifying charges. Qualifying fees include seat upgrades, checked baggage, in-flight food and entertainment, and airline lounge day passes. It does not cover the cost of airfare, mileage purchases, or gift cards. The credit resets each calendar year.',
+        categories: ['Travel', 'Flights']
       },
       {
         id: 'boa_pre_lifestyle',
@@ -954,10 +1266,70 @@ export const allCards: Card[] = [
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'd8158b44-a979-40a5-ab13-1042577b5261',
-        description: 'Up to $150 annually in statement credits for lifestyle expenses including ride-hailing, streaming services, food delivery, and fitness subscriptions.',
-        redemptionInstructions: 'Use the card for eligible lifestyle purchases like monthly streaming subscriptions, Uber/Lyft rides, food delivery, or gym memberships. Credits post automatically as eligible transactions occur.',
-        categories: ['Shopping', 'Dining', 'Transportation', 'Fitness'],
+        description: 'Up to $150 annually in statement credits for lifestyle purchases. This flexible credit applies to a wide range of everyday services.',
+        redemptionInstructions: 'Credits post automatically when you use your card for eligible purchases. Confirmed eligible services include food delivery (DoorDash, Grubhub), ride-hailing (Uber, Lyft), streaming (Netflix, Hulu, Disney+), and fitness subscriptions. Some services like YouTube TV and Audible have been reported by users as not qualifying. The credit resets each calendar year.',
+        categories: ['Shopping', 'Dining', 'Transportation', 'Fitness']
       },
+      // {
+      //   id: 'boa_pre_priority_pass',
+      //   name: 'Priority Pass Select Membership',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
+      //   description: 'Receive up to four complimentary Priority Pass Select memberships, providing access to over 1,300 airport lounges and experiences worldwide for you and authorized members.',
+      //   redemptionInstructions: 'You must enroll yourself and up to three other individuals in Priority Pass Select through your Bank of America online account. This is a significant perk for families or small groups, as most premium cards offer only one membership. The membership includes access to participating airport restaurants for a dining credit in some locations.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'boa_pre_global_entry',
+      //   name: 'Global Entry or TSA PreCheck Credit',
+      //   value: 100,
+      //   period: 'quadrennial',
+      //   periodMonths: 48,
+      //   resetType: 'usage',
+      //   definition_id: 'b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7',
+      //   description: 'Receive a statement credit of up to $100 every four years to cover the application fee for either Global Entry or TSA PreCheck.',
+      //   redemptionInstructions: 'Pay the application fee for either Global Entry or TSA PreCheck with your Premium Rewards Elite card. The statement credit will be automatically applied. Global Entry includes TSA PreCheck, making it the more valuable option. You can use this credit to pay for the application fee of another person.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'boa_pre_preferred_rewards_bonus',
+      //   name: 'Preferred Rewards Bonus',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8',
+      //   description: 'Dramatically increase your rewards earnings with a 25% to 75% bonus on all points earned if you are a Bank of America Preferred Rewards member. This is the single most effective way to maximize the value of this card.',
+      //   redemptionInstructions: 'Enrollment in the Preferred Rewards program is required. You must have a qualifying Bank of America checking account and maintain a combined three-month average daily balance of $20k+ for Gold (25% bonus), $50k+ for Platinum (50% bonus), or $100k+ for Platinum Honors (75% bonus). With Platinum Honors, your earning rates become 3.5x on travel/dining and 2.625x on everything else.',
+      //   categories: ['Rewards']
+      // },
+      // {
+      //   id: 'boa_pre_airfare_discount',
+      //   name: '20% Airfare Discount',
+      //   value: 20,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'd4e5f6g7-h8i9-j0k1-l2m3-n4o5p6q7r8s9',
+      //   description: 'Receive a 20% discount on the price of airfare when you pay with points through the Bank of America Travel Center. This increases the value of your points to 1.25 cents each for these redemptions.',
+      //   redemptionInstructions: 'To receive the discount, you must book your flight through the Bank of America Travel Center and elect to pay with your points at checkout. The 20% savings will be automatically reflected in the number of points required for the booking.',
+      //   categories: ['Travel', 'Flights', 'Rewards']
+      // },
+      // {
+      //   id: 'boa_pre_base_rewards',
+      //   name: 'Base Rewards Rate',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'e5f6g7h8-i9j0-k1l2-m3n4-o5p6q7r8s9t0',
+      //   description: 'Earn unlimited 2 points for every $1 spent on travel and dining purchases, and a high base rate of 1.5 points for every $1 spent on all other purchases.',
+      //   redemptionInstructions: 'Points are earned automatically on all purchases. The travel and dining categories are defined broadly. Points can be redeemed for 1 cent each as a statement credit, for travel, or as a cash deposit into a Bank of America or Merrill account.',
+      //   categories: ['Rewards']
+      // }
     ],
   },
 
@@ -970,16 +1342,52 @@ export const allCards: Card[] = [
     benefits: [
       {
         id: 'usb_ar_travel_dining',
-        name: 'Travel/Dining Credit',
+        name: 'Travel & Dining Credit',
         value: 325,
         period: 'annual',
         periodMonths: 12,
-        resetType: 'calendar',
+        resetType: 'anniversary',
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
-        description: 'Up to $325 per year in combined travel and dining purchases reimbursement. Includes airlines, hotels, rental cars, taxis, restaurants, takeout, and food delivery.',
-        redemptionInstructions: 'Use the Altitude Reserve for any travel or dining expenses. Charges in those categories will be credited back until you\'ve accumulated $325 in credits. Resets on your cardmember anniversary.',
-        categories: ['Travel', 'Dining'],
+        description: 'Receive up to $325 in automatic statement credits for purchases made directly from airlines, hotels, car rental companies, taxis, limousines, passenger trains, cruise lines, restaurants, takeout, and food delivery services.',
+        redemptionInstructions: 'This is one of the easiest credits to use. Simply use your Altitude Reserve card for any eligible travel or dining purchase and the credits will be applied automatically until you reach the $325 maximum for your cardmember year. This benefit effectively reduces the annual fee to $75 if fully utilized.',
+        categories: ['Travel', 'Dining']
       },
+      // {
+      //   id: 'usb_ar_mobile_wallet_rewards',
+      //   name: 'Mobile Wallet Rewards',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
+      //   description: 'Earn 3X points on eligible purchases made using a mobile wallet (like Apple Pay®, Google Pay™, or Samsung Pay). This is the signature feature of the card and a primary way to accumulate points on everyday spending.',
+      //   redemptionInstructions: 'To maximize this benefit, add your Altitude Reserve card to your mobile wallet and use it for all tap-to-pay transactions. When points are redeemed for travel through the U.S. Bank Rewards Center, they are worth 1.5 cents each, making this an effective 4.5% return on mobile wallet spending. You can also redeem points via "Real-Time Rewards" for travel purchases made directly with merchants.',
+      //   categories: ['Rewards', 'Shopping']
+      // },
+      // {
+      //   id: 'usb_ar_priority_pass',
+      //   name: 'Priority Pass Select Membership',
+      //   value: 0,
+      //   period: 'annual',
+      //   periodMonths: 12,
+      //   resetType: 'anniversary',
+      //   definition_id: 'b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7',
+      //   description: 'Receive a complimentary Priority Pass Select membership, which grants access to over 1,300 airport lounges worldwide. This membership includes a limited number of free visits.',
+      //   redemptionInstructions: 'You must enroll for this benefit on the U.S. Bank website. Your membership provides eight complimentary visits per year. These can be used as four visits for yourself and four for guests, or any combination up to eight total visits. After the free visits are used, a fee will be charged for each subsequent entry.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'usb_ar_global_entry',
+      //   name: 'Global Entry or TSA PreCheck Credit',
+      //   value: 100,
+      //   period: 'quadrennial',
+      //   periodMonths: 48,
+      //   resetType: 'usage',
+      //   definition_id: 'c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8',
+      //   description: 'Receive a statement credit of up to $100 for the application fee for either Global Entry or TSA PreCheck.',
+      //   redemptionInstructions: 'Pay the application fee for either Global Entry or TSA PreCheck with your Altitude Reserve card. The statement credit will be automatically applied to your account. This benefit is available once every four years, and Global Entry is the recommended choice as it includes TSA PreCheck benefits.',
+      //   categories: ['Travel']
+      // }
     ],
   },
 
@@ -992,78 +1400,68 @@ export const allCards: Card[] = [
     benefits: [
       {
         id: 'citi_prestige_travel',
-        name: 'Travel Credit',
+        name: 'Annual Travel Credit',
         value: 250,
         period: 'annual',
         periodMonths: 12,
         resetType: 'calendar',
         definition_id: 'e1c07060-3c13-4387-be74-066ecc30b60f',
-        description: 'Up to $250 in statement credits for travel purchases each year. Any purchase that codes as travel (flights, hotels, travel agencies, parking, Uber/Lyft, etc.) will be automatically reimbursed.',
-        redemptionInstructions: 'No activation needed; use the card for travel purchases and receive automatic statement credits until you hit $250 for the year. Credit resets every Jan 1.',
-        categories: ['Travel'],
+        description: 'Up to $250 in statement credits for travel purchases each year. This is a highly flexible credit that applies to a wide range of purchases coding as travel. IMPORTANT: The Citi Prestige card is no longer available to new applicants; this benefit is for existing cardholders.',
+        redemptionInstructions: 'No activation is needed. Simply use your card for travel purchases, including airfare, hotels, car rentals, cruise lines, travel agencies, taxis, ride-hailing services, tolls, and parking. The credit is automatically applied to your statement until you have received the full $250. The benefit resets on January 1st each year.',
+        categories: ['Travel']
       },
+      // {
+      //   id: 'citi_prestige_4th_night',
+      //   name: '4th Night Free Hotel Stay',
+      //   value: 0,
+      //   period: 'per_stay',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6',
+      //   description: 'Receive a complimentary fourth night on any hotel stay of four nights or more. The credit is equal to the average nightly rate of your stay, excluding taxes and fees. This benefit can be used up to two times per calendar year.',
+      //   redemptionInstructions: 'To use this benefit, you must book your stay of four consecutive nights through thankyou.com or by calling the Citi Concierge. The credit you receive will be for the average cost of one night, not necessarily the actual cost of the fourth night. This benefit is a key feature for existing cardholders but requires booking through Citi\'s channels.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'citi_prestige_priority_pass',
+      //   name: 'Priority Pass Select Membership',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7',
+      //   description: 'Receive a complimentary Priority Pass Select membership, which grants access to over 1,300 airport lounges worldwide for you and up to two guests or immediate family.',
+      //   redemptionInstructions: 'Enrollment is required to receive your Priority Pass membership card. This can be done via your online account or by calling the number on the back of your card. While the U.S. benefit has historically been unlimited, be aware that this benefit has been reduced in some international markets, so it is prudent to confirm the current terms before use.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'citi_prestige_global_entry',
+      //   name: 'Global Entry or TSA PreCheck Credit',
+      //   value: 100,
+      //   period: 'quadrennial',
+      //   periodMonths: 48,
+      //   resetType: 'usage',
+      //   definition_id: 'c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8',
+      //   description: 'Receive a statement credit of up to $100 for the application fee for either Global Entry or TSA PreCheck.',
+      //   redemptionInstructions: 'Pay the application fee for either Global Entry or TSA PreCheck with your Citi Prestige card to automatically receive the statement credit. This benefit is available once every 4 to 5 years. Global Entry is generally the better option as it includes TSA PreCheck.',
+      //   categories: ['Travel']
+      // },
+      // {
+      //   id: 'citi_prestige_rewards_earning',
+      //   name: 'Rewards Earning Structure',
+      //   value: 0,
+      //   period: 'ongoing',
+      //   periodMonths: 0,
+      //   resetType: 'none',
+      //   definition_id: 'd4e5f6g7-h8i9-j0k1-l2m3-n4o5p6q7r8s9',
+      //   description: 'A key remaining benefit is the card\'s reward earning rates. Earn 5x Citi ThankYou Points on air travel and at restaurants, 3x on hotels and cruise lines, and 1x on all other purchases.',
+      //   redemptionInstructions: 'Points are earned automatically when you use your card in these spending categories. These points can be transferred to a variety of airline partners or used for travel bookings to maximize their value.',
+      //   categories: ['Rewards', 'Dining', 'Travel']
+      // }
     ],
   },
 ];
 
-// Helper function to map perk names to app schemes
-export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
-  // Uber/Rides
-  'Uber Ride Credit': 'uber',
-  'Uber Eats Credit': 'uberEats',
-  'Uber Cash': 'uber',
-  'Uber Cash Credit': 'uber',
-  
-  // Food Delivery
-  'Grubhub Credit': 'grubhub',
-  'DoorDash Restaurant Credit': 'doordash',
-  'DoorDash Non-Restaurant Credit #1': 'doordash',
-  'DoorDash Non-Restaurant Credit #2': 'doordash',
-  'DoorDash Grocery Credit': 'doordash',
-  'Food Delivery Credit': 'doordash',
-  
-  // Streaming/Entertainment
-  'Disney+ Credit': 'disneyPlus',
-  'Disney Bundle Credit': 'disneyPlus',
-  'Hulu Credit': 'hulu',
-  'ESPN+ Credit': 'espn',
-  'Peacock Credit': 'peacock',
-  'NYTimes Credit': 'nytimes',
-  'WSJ Credit': 'wallstreetjournal',
-  'Digital Entertainment Credit': 'disneyPlus',
-  'Apple TV+ Credit': 'appletv',
-  'Apple Music Credit': 'applemusic',
-  'StubHub / viagogo Credit': 'stubhub',
-  
-  // Retail
-  'Saks Fifth Avenue Credit': 'saks',
-  'Walmart+ Membership Rebate': 'walmart',
-  
-  // Dining/Restaurants
-  'Dunkin\' Credit': 'dunkin',
-  'Resy Credit': 'resy',
-  'Resy Dining Credit': 'resy',
-  'Dining Credit': 'grubhub',
-  
-  // Fitness
-  'Equinox Credit': 'equinox',
-  
-  // Rideshare
-  'Lyft Credit': 'lyft',
-  'Rideshare Credit': 'lyft',
-  
-  // Travel
-  'Capital One Travel Credit': 'capitalOne',
-  'Annual Free Night Award': 'marriott',
-  'CLEAR Plus Credit': 'clear',
-  'The Edit by Chase Travel Credit': 'chase',
-  'Exclusive Tables Dining Credit': 'opentable',
-  'Peloton Membership Credit': 'peloton',
-    
-
-  // Lodging
-  'Hilton Resort Credit': 'hilton',
-};
 
 // Helper function to check if an app is installed
 async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean> {
