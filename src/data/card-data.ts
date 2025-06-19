@@ -1,5 +1,6 @@
 import { Platform, Linking, Alert } from 'react-native';
 import { ImageSourcePropType } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 export interface Benefit {
   id: string;
@@ -85,8 +86,8 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.disney.disneyplus',
   },
   hulu: {
-    ios: 'https://www.hulu.com/',
-    android: 'https://www.hulu.com/',
+    ios: 'hulu://action?id=open.hulu.com',
+    android: 'hulu://action?id=open.hulu.com',
     fallback: 'https://www.hulu.com/welcome',
     androidPackage: 'com.hulu.plus',
     appStoreUrlIOS: 'https://apps.apple.com/us/app/hulu-stream-tv-shows-movies/id376510438',
@@ -181,7 +182,7 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.saks.android',
   },
   equinox: {
-    ios: 'equinoxplus://home',
+    ios: 'equinoxplus://deeplink/navigate?screen=SCHEDULE',
     android: 'https://www.equinoxplus.com/',
     fallback: 'https://www.equinoxplus.com/',
     androidPackage: 'com.equinox.android',
@@ -189,14 +190,146 @@ export const APP_SCHEMES = {
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=com.equinox.android',
   },
   wallstreetjournal: {
-    ios: 'https://www.wsj.com/',
+    ios: 'wsj://',
     android: 'https://www.wsj.com/',
     fallback: 'https://www.wsj.com/',
     androidPackage: 'wsj.reader_sp',
     appStoreUrlIOS: 'https://apps.apple.com/us/app/the-wall-street-journal/id364387007',
     appStoreUrlAndroid: 'https://play.google.com/store/apps/details?id=wsj.reader_sp',
   },
-  
+  clear: {
+    ios: [
+      "clearme://x-callback-url/show-card",
+    ],
+    android: [
+      "https://clearme.com/",
+    ],
+    fallback: "https://www.clearme.com/enroll",
+    androidPackage: "com.clearme.clear",
+    appStoreUrlIOS: "https://apps.apple.com/us/app/clear-fast-touchless-id/id1437330042",
+    appStoreUrlAndroid: "https://play.google.com/store/apps/details?id=com.clearme.clear",
+    notes: "The x-callback-url format is a specific type of scheme for app-to-app communication. The 'enroll.clearme.com' subdomain is another potential universal link entry point for the enrollment process."
+  },
+  chase: {
+    'ios': [
+      'chase://',
+    ],
+    'android': [
+      'chase://',
+    ],
+    'fallback': 'https://www.chase.com/digital/mobile-banking',
+    'androidPackage': 'com.chase.sig.android',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/chase-mobile/id298867247',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.chase.sig.android',
+    'notes': 'The base \'chase://\' scheme is the primary entry point. For specific actions, \'/origination\' is often used for account or card applications, and \'/quickdeposit\' is used to launch the check deposit feature.'
+  },
+  americanExpress: {
+    'ios': [
+      'amex://',
+    ],
+    'android': [
+      'amex://',
+    ],
+    'fallback': 'https://www.americanexpress.com/en-us/support/digital/amex-mobile-app/',
+    'androidPackage': 'com.americanexpress.android.acctsvcs.us',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/amex-mobile/id363434849',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.americanexpress.android.acctsvcs.us',
+    'notes': 'Amex uses the \'amex://\' custom scheme. The \'/offers\' path is a common deep link to show Amex Offers. The HTTPS link is their modern universal link, which may direct to the app or website.'
+  },
+  marriott: {
+    'ios': [
+      'marriott://',
+    ],
+    'android': [
+      'marriott://',
+    ],
+    'fallback': 'https://www.marriott.com/default.mi',
+    'androidPackage': 'com.marriott.mrt',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/marriott-bonvoy/id455004710',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.marriott.mrt',
+    'notes': 'The \'marriott://\' scheme is the main entry point. For the Marriott Bonvoy Brilliant card\'s \'Free Night Award\', the \'/reservation/find\' path is the most relevant as it takes the user directly to the booking flow.'
+  },
+  hilton: {
+    'ios': [
+      'hiltonhonors://',
+    ],
+    'android': [
+      'hiltonhonors://',
+    ],
+    'fallback': 'https://www.hilton.com/en/hilton-honors/',
+    'androidPackage': 'com.hilton.android.hhonors',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/hilton-honors-book-hotels/id335282542',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.hilton.android.hhonors',
+    'notes': 'The Hilton Honors app uses \'hiltonhonors://\'. For the Hilton Honors Aspire card benefits, \'/book\' takes the user to the hotel search, and \'/account\' allows them to view their status and points.'
+  },
+  appletv: {
+    'ios': [
+      'videos://',
+      'https://tv.apple.com/',
+    ],
+    'android': [
+      'https://tv.apple.com/',
+    ],
+    'fallback': 'https://tv.apple.com/',
+    'androidPackage': 'com.apple.atve.androidtv.appletv',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/apple-tv/id364147852',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.apple.atve.androidtv.appletv',
+    'notes': 'Apple heavily uses universal links. The first option is the basic custom scheme. The second is a universal link to a specific show, which is a more reliable way to deep link into content.'
+  },
+  applemusic: {
+    'ios': [
+      'music://',
+      'https://music.apple.com/',
+    ],
+    'android': [
+      'https://music.apple.com/',
+    ],
+    'fallback': 'https://music.apple.com/',
+    'androidPackage': 'com.apple.android.music',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/apple-music/id1108187390',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.apple.android.music',
+    'notes': 'The base \'music://\' scheme opens the app. For more specific actions, use the universal link format and replace \'12345\' with a specific artist, album, or song ID.'
+  },
+  peloton: {
+    'ios': [
+      'peloton://',
+    ],
+    'android': [
+      'peloton://',
+      'https://members.onepeloton.com/classes'
+    ],
+    'fallback': 'https://www.onepeloton.com/app',
+    'androidPackage': 'com.onepeloton.callisto',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/peloton-at-home-fitness/id792750946',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.onepeloton.callisto',
+    'notes': 'Peloton uses a custom scheme. To link to a specific class, you need the class ID in the format shown. The universal link to the members area is another reliable option.'
+  },
+  stubhub: {
+    'ios': [
+      'stubhub://',
+    ],
+    'android': [
+      'stubhub://',
+    ],
+    'fallback': 'https://www.stubhub.com/',
+    'androidPackage': 'com.stubhub.mobile.android.platform',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/stubhub-event-tickets/id443501546',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.stubhub.mobile.android.platform',
+    'notes': 'The \'stubhub://\' scheme can be used with a specific event ID. Universal links to performer or event pages on their website are also configured to open the app directly.'
+  },
+  opentable: {
+    'ios': [
+      'opentable://',
+    ],
+    'android': [
+      'opentable://',
+    ],
+    'fallback': 'https://www.opentable.com/',
+    'androidPackage': 'com.opentable',
+    'appStoreUrlIOS': 'https://apps.apple.com/us/app/opentable/id296581815',
+    'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.opentable',
+    'notes': 'OpenTable uses both a custom scheme and universal links. Replace \'12345\' with a restaurant\'s OpenTable ID for the custom scheme, or use the web URL format for the universal link.'
+  }
 };
 
 // Multi-choice Perk Configuration
@@ -208,6 +341,10 @@ export const multiChoicePerksConfig: Record<string, MultiChoicePerkConfig[]> = {
     { label: "Open Peacock", targetPerkName: "Peacock Credit" },
     { label: "Open NYTimes", targetPerkName: "NYTimes Credit" },
     { label: "Open Wall Street Journal", targetPerkName: "WSJ Credit" },
+  ],
+  "Apple Services Credit": [
+    { label: "Open Apple TV+", targetPerkName: "Apple TV+ Credit" },
+    { label: "Open Apple Music", targetPerkName: "Apple Music Credit" },
   ],
   "Uber Cash": [
     { label: "Open Uber (Rides)", targetPerkName: "Uber Ride Credit" },
@@ -282,6 +419,7 @@ export const allCards: Card[] = [
         definition_id: '360e8050-d55d-46e4-a604-a3006dc39724',
         description: 'Up to $25 back each month on Equinox gym memberships or Equinox+ digital fitness subscriptions (up to $300 annually).',
         redemptionInstructions: 'Use your Platinum Card to pay for an Equinox gym membership or Equinox+ digital fitness subscription. Credit posts monthly after charge.',
+        appScheme: 'equinox',
         categories: ['Fitness', 'Wellness', 'Lifestyle'],
       },
       {
@@ -298,7 +436,7 @@ export const allCards: Card[] = [
       },
       {
         id: 'platinum_clear',
-        name: 'CLEAR® Plus Credit',
+        name: 'CLEAR Plus Credit',
         value: 189,
         period: 'annual',
         periodMonths: 12,
@@ -306,6 +444,7 @@ export const allCards: Card[] = [
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
         description: 'Up to $189 in statement credits per calendar year to cover CLEAR Plus membership.',
         redemptionInstructions: 'Enroll in CLEAR Plus and pay with your Platinum Card. The credit covers one annual CLEAR membership.',
+        appScheme: 'clear',
         categories: ['Travel', 'Flights'],
       },
       {
@@ -414,6 +553,7 @@ export const allCards: Card[] = [
         definition_id: 'c2a1b459-e527-45c6-8321-59666524784e',
         description: '$250 statement credit for prepaid hotel bookings of at least two nights made through "The Edit by Chase Travel" portal. Valid from January 1 to June 30.',
         redemptionInstructions: 'Credit is automatically applied to eligible bookings. Purchases reimbursed with this credit do not earn points.',
+        appScheme: 'chase',
         categories:['Travel', 'Lodging'],
       },
       {
@@ -426,6 +566,7 @@ export const allCards: Card[] = [
         definition_id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
         description: '$150 statement credit for dining experiences booked through the "Sapphire Reserve Exclusive Tables" platform on OpenTable. Valid from January 1 to June 30.]',
         redemptionInstructions: 'Credit is automatically applied for dining experiences booked via the "Sapphire Reserve Exclusive Tables" program.',
+        appScheme: 'opentable',
         categories:['Dining'],
       },
       {
@@ -438,6 +579,7 @@ export const allCards: Card[] = [
         definition_id: 'c3d4e5f6-a7b8-9012-3456-7890abcdef12',
         description: '$150 statement credit for concert and event tickets purchased through StubHub or viagogo. Valid from January 1 to June 30.',
         redemptionInstructions: 'Benefit requires activation before use.',
+        appScheme: 'stubhub',
         categories: ['Entertainment'],
       },
       {
@@ -489,6 +631,7 @@ export const allCards: Card[] = [
         definition_id: 'e5f6a7b8-c9d0-1234-5678-90abcdef1234',
         description: 'Up to $10 in monthly statement credits toward a Peloton All-Access, App+, or App One membership. Valid through December 31, 2027.',
         redemptionInstructions: 'Credits are automatically applied to your statement for eligible Peloton membership charges.',
+        appScheme: 'peloton',
         categories: ['Lifestyle', 'Fitness', 'Wellness'],
       },
       {
@@ -500,12 +643,13 @@ export const allCards: Card[] = [
         resetType: 'calendar',
         definition_id: 'f79316d4-5ddd-4591-830b-6e897a3dd0f5',
         description: '$10 in-app Lyft ride credit each month. Plus earn 5x points on Lyft rides through September 30, 2027.',
+        appScheme: 'lyft',
         redemptionInstructions: 'Add your Sapphire Reserve as the payment method in the Lyft app. Credit appears automatically and applies to your next ride(s).',
         categories:['Transportation'],
       },
       {
         id: 'csr_apple_subscriptions',
-        name: 'Apple TV+ & Apple Music Subscription',
+        name: 'Apple Services Credit',
         value: 250,
         period: 'annual',
         periodMonths: 12,
@@ -618,7 +762,47 @@ export const allCards: Card[] = [
         description: 'Up to $50 back in statement credits each quarter on eligible flight purchases (total $200 yr).',
         categories: ['Travel', 'Flights'],
       },
-    ],
+      {
+        id: "aspire_hilton_resort_credit",
+        name: "Hilton Resort Credit",
+        value: 200,
+        period: "semi_annual",
+        periodMonths: 6,
+        resetType: "calendar",
+        definition_id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+        description: "Get up to $200 in statement credits semi-annually for eligible purchases made directly at participating Hilton Resorts. This provides a total of up to $400 in resort credits per calendar year. The credit periods are January-June and July-December.",
+        categories: [
+          "Travel"
+        ],
+        appScheme: 'hilton',
+        redemptionInstructions: "To use this credit, charge eligible purchases, including room rates and incidental charges like dining and spa treatments, to your room at a participating Hilton Resort and pay with your Hilton Honors Aspire card at checkout. A list of participating resorts is available on the Hilton website. Advance purchase or non-refundable rates may not be eligible. Unused semi-annual credits do not roll over."
+      },
+      {
+        id: 'aspire_free_night_reward',
+        name: 'Annual Free Night Reward',
+        value: 0,
+        period: 'annual',
+        periodMonths: 12,
+        resetType: 'calendar',
+        definition_id: 'b2c3d4e5-f6g7-8901-2345-67890abcdef1',
+        description: 'Receive one Free Night Reward certificate each year after your card renewal month, valid for a standard room on a weekend night at almost any Hilton property worldwide. You can earn a second Free Night Reward after you spend $30,000 in purchases on your card in a calendar year, and a third after spending a total of $60,000 in the same calendar year.',
+        categories: ['Travel'],
+        redemptionInstructions: "The Free Night Reward will be delivered to you via email. To redeem, you must call Hilton Honors at 1-800-446-6677 and mention the code provided. The certificate is valid for one year from the date of issuance. It's best to use this for high-value properties to maximize its value."
+      },
+      {
+        id: 'aspire_clear_plus_credit',
+        name: 'CLEAR Plus Credit',
+        value: 189,
+        period: 'annual',
+        periodMonths: 12,
+        resetType: 'calendar',
+        definition_id: 'd4e5f6g7-h8i9-0123-4567-890abcdef123',
+        description: 'Receive up to $189 in statement credits per calendar year for a CLEAR Plus membership, which provides expedited security screening at select airports and stadiums.',
+        categories: ['Travel'],
+        appScheme: 'clear',
+        redemptionInstructions: 'Pay for your CLEAR Plus membership using your Hilton Honors Aspire card, and the statement credit will be automatically applied. This benefit covers the full cost of an individual CLEAR Plus membership.'
+      },
+  ],
   },
 
   /* 7. ——— CAPITAL ONE VENTURE X ——— */
@@ -716,6 +900,7 @@ export const allCards: Card[] = [
         definition_id: '7d9d198c-5fd4-4d3e-b095-8059e89273d2',
         description: 'Up to $189 in statement credits per calendar year for CLEAR Plus airport security membership.',
         redemptionInstructions: 'Use your Green Card to pay for a CLEAR Plus membership. No enrollment required beyond using the card for payment.',
+        appScheme: 'clear',
         categories: ['Travel', 'Flights'],
       },
     ],
@@ -847,6 +1032,9 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'NYTimes Credit': 'nytimes',
   'WSJ Credit': 'wallstreetjournal',
   'Digital Entertainment Credit': 'disneyPlus',
+  'Apple TV+ Credit': 'appletv',
+  'Apple Music Credit': 'applemusic',
+  'StubHub / viagogo Credit': 'stubhub',
   
   // Retail
   'Saks Fifth Avenue Credit': 'saks',
@@ -867,6 +1055,15 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   
   // Travel
   'Capital One Travel Credit': 'capitalOne',
+  'Annual Free Night Award': 'marriott',
+  'CLEAR Plus Credit': 'clear',
+  'The Edit by Chase Travel Credit': 'chase',
+  'Exclusive Tables Dining Credit': 'opentable',
+  'Peloton Membership Credit': 'peloton',
+    
+
+  // Lodging
+  'Hilton Resort Credit': 'hilton',
 };
 
 // Helper function to check if an app is installed
@@ -874,13 +1071,15 @@ async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean
   const appSchemes = APP_SCHEMES[appKey];
   try {
     if (Platform.OS === 'ios') {
-      // On iOS, we need to check both the custom scheme and universal links
-      const customSchemeSupported = await Linking.canOpenURL(appSchemes.ios);
-      if (customSchemeSupported) return true;
+      const schemes = Array.isArray(appSchemes.ios) ? appSchemes.ios : [appSchemes.ios];
+      for (const scheme of schemes) {
+        if (scheme && await Linking.canOpenURL(scheme)) return true;
+      }
       
       // Try universal link if custom scheme fails
-      const universalLinkSupported = await Linking.canOpenURL(appSchemes.fallback);
-      return universalLinkSupported;
+      if (await Linking.canOpenURL(appSchemes.fallback)) return true;
+
+      return false;
     } else {
       // On Android, check if the package is installed
       const isPackageInstalled = await Linking.canOpenURL(`${appSchemes.androidPackage}://`);
@@ -906,14 +1105,29 @@ async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean
 async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<boolean> {
   const appSchemes = APP_SCHEMES[appKey];
   
+  // Special handling for native iOS apps like Apple TV and Apple Music
+  if (Platform.OS === 'ios' && (appKey === 'appletv' || appKey === 'applemusic')) {
+    const url = Array.isArray(appSchemes.ios) ? appSchemes.ios[0] : appSchemes.ios;
+    try {
+      await Linking.openURL(url);
+      return true;
+    } catch (error) {
+      console.log(`Failed to open native app ${appKey} directly, trying fallback website.`, error);
+      // If opening the app fails (e.g., it was deleted), fall back to the website.
+      await WebBrowser.openBrowserAsync(appSchemes.fallback);
+      return true;
+    }
+  }
+  
   try {
     const isInstalled = await isAppInstalled(appKey);
     
     if (isInstalled) {
       // Try to open the app directly
       if (Platform.OS === 'ios') {
+        const url = Array.isArray(appSchemes.ios) ? appSchemes.ios[0] : appSchemes.ios;
         try {
-          await Linking.openURL(appSchemes.ios);
+          await Linking.openURL(url);
           return true;
         } catch (error) {
           console.log(`Failed to open ${appKey} with iOS scheme, trying fallback:`, error);
@@ -922,10 +1136,11 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
           return true;
         }
       } else {
+        const scheme = Array.isArray(appSchemes.android) ? appSchemes.android[0] : appSchemes.android;
         // On Android, try the intent URL first
         try {
           // Use a more reliable intent format for Android
-          const intentUrl = `intent://#Intent;package=${appSchemes.androidPackage};scheme=${appSchemes.android.replace('://', '')};end`;
+          const intentUrl = `intent://#Intent;package=${appSchemes.androidPackage};scheme=${scheme.replace('://', '')};end`;
           await Linking.openURL(intentUrl);
           return true;
         } catch (error) {
@@ -938,7 +1153,7 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
             console.log(`Failed to open ${appKey} with package, trying scheme:`, packageError);
             // Try scheme as last resort
             try {
-              await Linking.openURL(appSchemes.android);
+              await Linking.openURL(scheme);
               return true;
             } catch (schemeError) {
               console.log(`Failed to open ${appKey} with scheme, falling back to website:`, schemeError);
@@ -978,11 +1193,17 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
             text: 'Open Website',
             onPress: async () => {
               try {
-                await Linking.openURL(appSchemes.fallback);
+                await WebBrowser.openBrowserAsync(appSchemes.fallback);
                 resolve(true);
               } catch (error) {
-                console.log('Error opening fallback URL:', error);
-                resolve(false);
+                console.log('Error opening fallback URL with WebBrowser:', error);
+                try {
+                  await Linking.openURL(appSchemes.fallback);
+                  resolve(true);
+                } catch (linkError) {
+                  console.log('Error opening fallback URL with Linking:', linkError);
+                  resolve(false);
+                }
               }
             },
           },
@@ -999,11 +1220,17 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
     console.log(`Error in openAppOrFallback for ${appKey}:`, error);
     // If all else fails, try the fallback URL
     try {
-      await Linking.openURL(appSchemes.fallback);
+      await WebBrowser.openBrowserAsync(appSchemes.fallback);
       return true;
     } catch (fallbackError) {
-      console.log('Fallback URL also failed:', fallbackError);
-      return false;
+      console.log('Fallback URL also failed, trying Linking:', fallbackError);
+      try {
+        await Linking.openURL(appSchemes.fallback);
+        return true;
+      } catch (linkError) {
+        console.log('Linking also failed:', linkError);
+        return false;
+      }
     }
   }
 }
