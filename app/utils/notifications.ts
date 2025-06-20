@@ -31,7 +31,6 @@ interface UserCard {
 // Tell Expo exactly how to display notifications in the foreground.
 Notifications.setNotificationHandler({
   handleNotification: async (): Promise<Notifications.NotificationBehavior> => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,    // new in recent versions

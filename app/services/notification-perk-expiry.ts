@@ -13,6 +13,11 @@ interface PerkReminder {
   body: string;
 }
 
+interface RedemptionWithStatus {
+    perk_id: string;
+    status: 'redeemed' | 'partially_redeemed' | 'pending';
+}
+
 // The comprehensive object we'll use in our logic
 interface AvailablePerk {
   definition_id: string;
@@ -183,6 +188,31 @@ const groupPerksByReminderDate = (
     return groups;
 };
 
+// NEW: Helper function to determine if a redemption is still valid for the current cycle.
+// This logic is borrowed from usePerkStatus.ts for consistency.
+const isRedemptionStillActive = (
+  redemption: { redemption_date: string; reset_date: string | null; status: string }
+): boolean => {
+  // A partially redeemed perk is NEVER considered fully redeemed.
+  // It should always be available for notifications, so we return false.
+  if (redemption.status === 'partially_redeemed') {
+    return false; 
+  }
+
+  // Only check reset dates for fully redeemed perks
+  if (redemption.status === 'redeemed') {
+    const now = new Date();
+    const resetDate = redemption.reset_date ? new Date(redemption.reset_date) : null;
+    // If there's a reset date and it's in the future, the redemption is active.
+    if (resetDate && resetDate > now) {
+      return true;
+    }
+  }
+  
+  // If status isn't 'redeemed' or the reset date has passed, it's not an active redemption.
+  return false;
+};
+
 export const schedulePerkExpiryNotifications = async (
     userId: string, 
     preferences: NotificationPreferences, 
@@ -251,9 +281,28 @@ export const schedulePerkExpiryNotifications = async (
       // ADD THIS LOG: See what the DB returns
       console.log('[DEBUG] Raw perk definitions from Supabase:', JSON.stringify(perkDefinitions, null, 2));
       
-      const { data: periodRedemptions, error: redemptionError } = await getRedemptionsForPeriod(userId, start, endOfPeriod);
+      // CHANGE: Fetch all redemptions for the user, including remaining value.
+      const { data: allRedemptions, error: redemptionError } = await supabase
+        .from('perk_redemptions')
+        .select('perk_id, status, reset_date, redemption_date, remaining_value')
+        .eq('user_id', userId);
+        
       if (redemptionError) throw redemptionError;
-      const redeemedPerkDefIds = new Set(periodRedemptions?.map((r: { perk_id: string }) => r.perk_id) || []);
+      
+      // CHANGE: Use the helper to find fully redeemed perks to exclude.
+      const fullyRedeemedPerkDefIds = new Set(
+        allRedemptions
+          ?.filter(isRedemptionStillActive)
+          .map(r => r.perk_id) || []
+      );
+      
+      // NEW: Create a map to hold the remaining value of partially redeemed perks.
+      const partialRedemptionsMap = new Map<string, number>();
+      allRedemptions?.forEach(r => {
+        if (r.status === 'partially_redeemed') {
+          partialRedemptionsMap.set(r.perk_id, r.remaining_value);
+        }
+      });
       
       // CHANGE: Updated the data mapping to populate the new AvailablePerk structure
       const allAvailablePerks: AvailablePerk[] = [];
@@ -261,11 +310,15 @@ export const schedulePerkExpiryNotifications = async (
         appCard.benefits.forEach((benefit: Benefit) => {
           if (benefit.periodMonths === periodMonths) {
             const definition = perkDefinitions.find(def => def.id === benefit.definition_id);
-            if (definition && !redeemedPerkDefIds.has(definition.id)) {
+            // Only include perks that are NOT fully redeemed.
+            if (definition && !fullyRedeemedPerkDefIds.has(definition.id)) {
+                const remainingValue = partialRedemptionsMap.get(definition.id);
+
                 allAvailablePerks.push({
                 definition_id: definition.id,
                 name: definition.name,
-                value: definition.value,
+                // Use the remaining value if this perk was partially redeemed.
+                value: remainingValue !== undefined ? remainingValue : definition.value,
                 cardName: appCard.name,
                 notification_emoji: definition.notification_emoji,
                 notification_combo_start: definition.notification_combo_start,

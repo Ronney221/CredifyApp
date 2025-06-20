@@ -215,44 +215,13 @@ export const useNotificationPreferences = () => {
 
   const sendTestNotification = async (userId: string) => {
     try {
-      const monthlyPerkExpiryReminderDays: number[] = [];
-      if (perkExpiryRemindersEnabled) {
-        if (remind1DayBeforeMonthly) monthlyPerkExpiryReminderDays.push(1);
-        if (remind3DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(3);
-        if (remind7DaysBeforeMonthly) monthlyPerkExpiryReminderDays.push(7);
-      }
-      const quarterlyPerkExpiryReminderDays: number[] = [];
-      if (quarterlyPerkRemindersEnabled) {
-        if (remind7DaysBeforeQuarterly) quarterlyPerkExpiryReminderDays.push(7);
-        if (remind14DaysBeforeQuarterly) quarterlyPerkExpiryReminderDays.push(14);
-      }
-      const semiAnnualPerkExpiryReminderDays: number[] = [];
-      if (semiAnnualPerkRemindersEnabled) {
-        if (remind14DaysBeforeSemiAnnual) semiAnnualPerkExpiryReminderDays.push(14);
-        if (remind30DaysBeforeSemiAnnual) semiAnnualPerkExpiryReminderDays.push(30);
-      }
-      const annualPerkExpiryReminderDays: number[] = [];
-      if (annualPerkRemindersEnabled) {
-        if (remind30DaysBeforeAnnual) annualPerkExpiryReminderDays.push(30);
-        if (remind60DaysBeforeAnnual) annualPerkExpiryReminderDays.push(60);
-      }
-      
-      const currentPrefs: NotificationPreferences = {
-        perkExpiryRemindersEnabled,
-        renewalRemindersEnabled,
-        perkResetConfirmationEnabled,
-        weeklyDigestEnabled,
-        monthlyPerkExpiryReminderDays,
-        quarterlyPerkExpiryReminderDays,
-        semiAnnualPerkExpiryReminderDays,
-        annualPerkExpiryReminderDays,
-      };
+      const currentPrefs = getPreferences();
 
       const notificationIds = await sendTest(userId, currentPrefs);
       if (notificationIds.length > 0) {
-        Alert.alert('Test Notifications Sent', `You should receive ${notificationIds.length} perk reminder notifications in a few seconds.`);
+        Alert.alert('Test Notifications Sent', `You should receive ${notificationIds.length} perk reminder notifications in a few seconds based on your current settings.`);
       } else {
-        Alert.alert('No Reminders to Send', 'Perk expiry reminders are disabled or all your perks have been redeemed. Enable reminders or wait for the next cycle to test.');
+        Alert.alert('No Reminders to Send', 'Based on your current settings, there are no test reminders to send. Try enabling a notification category.');
       }
     } catch (e) {
       console.error('Failed to send test notification', e);

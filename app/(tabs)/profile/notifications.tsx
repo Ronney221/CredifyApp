@@ -9,7 +9,8 @@ import {
   UIManager,
   LayoutAnimation,
   Platform,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
@@ -180,7 +181,7 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
 export default function NotificationSettingsScreen() {
   const { user } = useAuth();
   const { anyRenewalDateSet, loadExistingCards } = useCardManagement(user?.id);
-  const { buildNotificationItems } = useNotificationPreferences();
+  const { buildNotificationItems, sendTestNotification } = useNotificationPreferences();
 
   useFocusEffect(
     useCallback(() => {
@@ -192,6 +193,14 @@ export default function NotificationSettingsScreen() {
   );
   
   const notificationItems = buildNotificationItems(anyRenewalDateSet);
+
+  const handleSendTestNotification = async () => {
+    if (!user?.id) {
+      Alert.alert("Error", "You need to be logged in to send a test notification.");
+      return;
+    }
+    await sendTestNotification(user.id);
+  };
 
   return (
     <>
@@ -207,6 +216,21 @@ export default function NotificationSettingsScreen() {
               />
             ))}
           </View>
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={handleSendTestNotification}
+          >
+            <BlurView intensity={50} tint="light" style={styles.testButtonInner}>
+              <Ionicons name="paper-plane-outline" size={24} color={Colors.light.tint} />
+              <View style={styles.testButtonContent}>
+                <Text style={styles.testButtonTitle}>Send Test Notifications</Text>
+                <Text style={styles.testButtonSubtitle}>
+                  Test all enabled reminders based on your current settings.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color="#c7c7cc" />
+            </BlurView>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </>
