@@ -123,12 +123,24 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
 
   const performanceStatus = getPerformanceStatus();
 
-  // Determine if this is the current month
-  const isCurrentMonth = new Date().toLocaleString('default', { month: 'long' }) === 
-    summary.monthYear.split(' ')[0];
+  // Determine if this is the current month - make this more precise
+  const isCurrentMonth = (() => {
+    const now = new Date();
+    const [monthStr, yearStr] = summary.monthYear.split(' ');
+    return monthStr === now.toLocaleString('default', { month: 'long' }) &&
+           yearStr === now.getFullYear().toString();
+  })();
 
-  // Update the bar segments calculation
+  // Add this helper function to determine if we have any perks at all
+  const hasAnyPerks = summary.perkDetails.length > 0;
+
+  // Update the bar segments calculation to handle empty current month
   const getBarSegments = () => {
+    // If it's current month and we have no perks, show one "available" segment
+    if (isCurrentMonth && !hasAnyPerks) {
+      return [{ type: 'available', color: Colors.light.tint }];
+    }
+
     const segments = [];
     
     // Add redeemed segments
@@ -324,16 +336,27 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   <View style={styles.statsRow}>
                     <View style={styles.statItem}>
                       <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
-                      <Text style={styles.statText}>{redeemedPerks} Redeemed</Text>
+                      <Text style={styles.statText}>
+                        {hasAnyPerks ? `${redeemedPerks} Redeemed` : 'No perks redeemed yet'}
+                      </Text>
                     </View>
-                    <View style={styles.statItem}>
-                      <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
-                      <Text style={styles.statText}>{missedPerks} Missed</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
-                      <Text style={styles.statText}>{availablePerks} Available</Text>
-                    </View>
+                    {hasAnyPerks ? (
+                      <>
+                        <View style={styles.statItem}>
+                          <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
+                          <Text style={styles.statText}>{missedPerks} Missed</Text>
+                        </View>
+                        <View style={styles.statItem}>
+                          <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
+                          <Text style={styles.statText}>{availablePerks} Available</Text>
+                        </View>
+                      </>
+                    ) : (
+                      <View style={styles.statItem}>
+                        <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
+                        <Text style={styles.statText}>Start tracking your perks</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               ) : (

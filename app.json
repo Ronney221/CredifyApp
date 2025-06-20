@@ -1,8 +1,9 @@
 {
   "expo": {
+    "owner": "credifyapp",
     "name": "Credify",
-    "slug": "Credify",
-    "version": "1.0.0",
+    "slug": "ronney",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "credify",
@@ -194,7 +195,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ec64179f-210d-4298-87f3-48a2fdc065e9"
+        "projectId": "75e33702-056a-43e1-a206-50e6b8d63b05"
       }
     }
   }

@@ -773,12 +773,13 @@ export default function InsightsScreen() {
                     const raw = monthsChrono.map(m => ({
                       redeemed: m.totalRedeemedValue,
                       potential: m.totalPotentialValue,
+                      monthKey: m.monthKey // Add monthKey to raw data
                     }));
 
                     return (
                       <MiniBarChart
                         data={rightPad(pct, 6, 0)}
-                        rawData={rightPad(raw, 6, { redeemed: 0, potential: 0 })}
+                        rawData={raw}
                       />
                     );
                   })()}

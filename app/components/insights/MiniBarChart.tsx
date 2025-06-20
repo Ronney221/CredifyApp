@@ -5,7 +5,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 
 interface MiniBarChartProps {
   data: number[]; // Now represents dollar amounts saved
-  rawData?: { redeemed: number; potential: number }[]; // Optional raw data for detailed view
+  rawData?: { redeemed: number; potential: number; monthKey?: string }[]; // Added monthKey
   height?: number;
   barColor?: string;
   barWidth?: number;
@@ -38,28 +38,24 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   // Calculate the width each bar section takes up
   const sectionWidth = chartWidth / 6; // Always 6 sections
 
-  // --- values -----------------------------------------------------------
-  // Now using the redeemed amount from rawData as our primary data
-  const normalizedData = rightPad(rawData.map(d => d.redeemed), 6, 0);
-  const normalizedRaw = rightPad(rawData, 6, { redeemed: 0, potential: 0 });
-
-  // Dynamically calculate maxValue to handle outliers and prevent overflow
-  const sortedData = [...normalizedData].filter(v => v > 0).sort((a, b) => a - b);
-  const p90 = sortedData[Math.floor(sortedData.length * 0.9)];
-  const maxReasonableValue = p90 * 1.05;
-  const maxValue = Math.max(...normalizedData, maxReasonableValue, 1);
-
-  // Get last 6 months abbreviated names
+  // Get last 6 months abbreviated names with keys
   const getLastSixMonths = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const today = new Date();
     const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
     const lastSixMonths = [];
     
     // Start from 5 months ago and go forward to current month
     for (let i = 5; i >= 0; i--) {
       const monthIndex = (currentMonth - i + 12) % 12;
-      lastSixMonths.push(months[monthIndex]);
+      const yearOffset = monthIndex > currentMonth ? -1 : 0;
+      const year = currentYear + yearOffset;
+      const monthKey = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+      lastSixMonths.push({
+        label: months[monthIndex],
+        key: monthKey
+      });
     }
     
     return lastSixMonths;
@@ -67,13 +63,33 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
 
   const monthLabels = getLastSixMonths();
   
-  // Count months with actual data (non-zero values)
-  const monthsWithData = normalizedData.filter(value => value > 0).length;
-  const showSparseDataMessage = monthsWithData > 0 && monthsWithData <= 2;
+  // Align data with month keys
+  const alignedData = monthLabels.map(month => {
+    // Find matching data point by monthKey
+    const matchingData = rawData.find(d => d.monthKey === month.key);
+    return matchingData || { redeemed: 0, potential: 0 };
+  });
+
+  // Now using the aligned data for our normalized values
+  const normalizedData = alignedData.map(d => d.redeemed);
+  const normalizedRaw = alignedData;
 
   // Debug logging to help verify month alignment
   console.log('Month Labels:', monthLabels);
-  console.log('Data Values:', data);
+  console.log('Aligned Raw Data:', alignedData.map((d, i) => ({
+    month: monthLabels[i].key,
+    data: d
+  })));
+
+  // Dynamically calculate maxValue to handle outliers and prevent overflow
+  const sortedData = [...normalizedData].filter(v => v > 0).sort((a, b) => a - b);
+  const p90 = sortedData[Math.floor(sortedData.length * 0.9)];
+  const maxReasonableValue = p90 * 1.05;
+  const maxValue = Math.max(...normalizedData, maxReasonableValue, 1);
+
+  // Count months with actual data (non-zero values)
+  const monthsWithData = normalizedData.filter(value => value > 0).length;
+  const showSparseDataMessage = monthsWithData > 0 && monthsWithData <= 2;
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
@@ -209,11 +225,11 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                 <Text style={[
                   styles.monthLabel,
                   !hasData && styles.emptyMonthLabel
-                ]} numberOfLines={1}>{monthLabels[index]}</Text>
+                ]} numberOfLines={1}>{monthLabels[index].label}</Text>
                 
                 {selectedBar === index && hasData && (
                   <View style={getTooltipStyle(index)}>
-                    <Text style={styles.tooltipTitle}>{monthLabels[index]} Details</Text>
+                    <Text style={styles.tooltipTitle}>{monthLabels[index].label} Details</Text>
                     <Text style={styles.tooltipText}>
                       Saved: {formatCurrency(normalizedRaw[index].redeemed)}
                     </Text>
