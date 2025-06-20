@@ -301,7 +301,7 @@ export const APP_SCHEMES = {
     'androidPackage': 'com.onepeloton.callisto',
     'appStoreUrlIOS': 'https://apps.apple.com/us/app/peloton-at-home-fitness/id792750946',
     'appStoreUrlAndroid': 'https://play.google.com/store/apps/details?id=com.onepeloton.callisto',
-    'notes': 'Peloton uses a custom scheme. To link to a specific class, you need the class ID in the format shown. The universal link to the members area is another reliable option.'
+    'notes': 'Peloton uses a custom scheme. To link to a specific class, you need the class ID in the format shown. The universal link to the members area is another reliable entry point.'
   },
   stubhub: {
     'ios': [
@@ -424,7 +424,7 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   
   // Retail
   'Saks Fifth Avenue Credit': 'saks',
-  'Walmart+ Membership Rebate': 'walmart',
+  'Walmart+ Membership Credit': 'walmart',
   
   // Dining/Restaurants
   'Dunkin\' Credit': 'dunkin',
@@ -443,15 +443,21 @@ export const PERK_TO_APP_MAP: Record<string, keyof typeof APP_SCHEMES> = {
   'Alto Credit': 'alto',
   
   // Travel
+  'Airline Fee Credit': 'amex',
   'Capital One Travel Credit': 'capitalOne',
-  'Annual Free Night Award': 'marriott',
-  'CLEAR Plus Credit': 'clear',
-  'The Edit by Chase Travel Credit': 'chase',
+  'CLEAR Plus Credit Aspire': 'clear',
+  'CLEAR Plus Credit Green': 'clear',
+  'CLEAR Plus Credit Platinum': 'clear',
+  'Delta Stays Credit': 'delta',
   'Exclusive Tables Dining Credit': 'opentable',
+  'Hotel Credit': 'chase',
   'Peloton Membership Credit': 'peloton',
+  'Prepaid Hotel Credit': 'amex',
+  'The Edit by Chase Travel Credit': 'chase',
     
-
   // Lodging
+  'Annual Free Night Award': 'marriott',
+  'Annual Free Night Reward': 'hilton',
   'Hilton Resort Credit': 'hilton',
 };
 
@@ -878,12 +884,13 @@ export const allCards: Card[] = [
         period: "annual",
         periodMonths: 12,
         resetType: "anniversary",
+        appScheme: 'marriott',
         definition_id: "a2e8f7d1-5b7a-4b0e-8b1a-9f8d7c6b5a4d",
         description: "Receive one Free Night Award each year after your card renewal month. The award can be used for a one-night stay at a participating Marriott Bonvoy hotel with a redemption level at or under 85,000 points. You can top off the award with up to 15,000 of your own points.",
         categories: [
           "Travel", "Lodging"
         ],
-        "redemptionInstructions": "The Free Night Award will be automatically deposited into your Marriott Bonvoy account 8-12 weeks after your card renewal month. To use it, log in to your Marriott Bonvoy account and select the award at the time of booking. The award expires one year from the date of issuance. Be aware that some properties may charge resort fees, which are not covered by the award."
+        redemptionInstructions: "The Free Night Award will be automatically deposited into your Marriott Bonvoy account 8-12 weeks after your card renewal month. To use it, log in to your Marriott Bonvoy account and select the award at the time of booking. The award expires one year from the date of issuance. Be aware that some properties may charge resort fees, which are not covered by the award."
       },
     ],
   },
@@ -931,6 +938,7 @@ export const allCards: Card[] = [
         definition_id: 'ff646ff5-9d6e-4587-a44c-d6da0c219e0a',
         description: 'Receive one Free Night Reward certificate each year after your card renewal month, valid for a standard room on a weekend night at almost any Hilton property worldwide. You can earn a second Free Night Reward after you spend $30,000 in purchases on your card in a calendar year, and a third after spending a total of $60,000 in the same calendar year.',
         categories: ['Travel'],
+        appScheme: 'hilton',
         redemptionInstructions: "The Free Night Reward will be delivered to you via email. To redeem, you must call Hilton Honors at 1-800-446-6677 and mention the code provided. The certificate is valid for one year from the date of issuance. It's best to use this for high-value properties to maximize its value."
       },
       {
