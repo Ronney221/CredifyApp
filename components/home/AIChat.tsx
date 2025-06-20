@@ -91,30 +91,19 @@ const MONTHLY_CHAT_LIMIT = 30;
 const UPSELL_THRESHOLD = 5;
 
 // Debug flag - set to false for production
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 const EXAMPLE_QUERIES = [
-  "How can I save on my monthly streaming service bills?",
-  "I'm planning a trip, what are the best perks for booking flights or hotels?",
-  "What's the best card to use for dining out or ordering food delivery?",
-  "Any benefits I can use to make my experience at the airport better?",
-  "I need to do my weekly grocery shopping.",
-  "What's the best way to pay for my daily commute or rideshare trips?",
-  "I'm looking to buy some new clothes and do some shopping.",
-  "Are there any perks related to gym memberships or fitness?",
-  "How can I get value from my everyday spending on things like coffee or lunch?",
-  "I have a few online subscriptions, how do I get credit for them?",
-  "What are the best benefits for a weekend getaway?",
-  "I'm planning a special anniversary dinner and want to make it memorable.",
-  "I need to buy tickets for a concert or a sports game.",
-  "What perks are available for transportation needs?",
-  "Are there any automatic credits I should be taking advantage of for food?",
   "How should I pay my Disney+ bill?",
   "I'm booking flights for an international trip to Paris.",
   "What's the best card to use for my lunch order?",
   "I need some new clothes for summer.",
+  "Where should I get takeout from tonight?",
   "I'm planning a weekend trip to Chicago.",
+  "I need a ride to the airport.",
+  "I need to get groceries for the week.",
   "What are the best perks for my vacation to Hawaii?",
+  "I want to treat myself to a nice anniversary dinner.",
 ];
 
 const getRandomExamples = (count = 3): string[] => {

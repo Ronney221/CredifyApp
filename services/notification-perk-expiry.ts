@@ -1,11 +1,11 @@
 //app/services/notification-perk-expiry.ts
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { Card, allCards, Benefit } from '../../src/data/card-data';
-import { getUserCards, getRedemptionsForPeriod } from '../../lib/database';
-import { scheduleNotificationAsync } from '../utils/notification-scheduler';
-import { NotificationPreferences } from '../types/notification-types';
+import { supabase } from '../lib/supabase';
+import { Card, allCards, Benefit } from '../src/data/card-data';
+import { getUserCards, getRedemptionsForPeriod } from '../lib/database';
+import { scheduleNotificationAsync } from '../utils/notifications';
+import { NotificationPreferences } from '../app/types/notification-types';
 
 // For the new table perk_reminders
 interface PerkReminder {
@@ -248,13 +248,16 @@ export const schedulePerkExpiryNotifications = async (
       const userCardSet = new Set(dbUserCards.map((c: { card_name: string }) => c.card_name));
       const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
       const userPerkDefinitionIds = currentUserAppCards
-        .flatMap((card: Card) => card.benefits.map((benefit: Benefit) => benefit.definition_id));
+        .flatMap((card: Card) => card.benefits.map((benefit: Benefit) => benefit.id));
   
       if (userPerkDefinitionIds.length === 0) {
         console.log(`[Notifications] No perks found for user ${userId} in this period.`);
         return [];
       }
   
+      // ADD THIS LOG to see the IDs being sent to the database
+      console.log(`[DEBUG] Querying Supabase with perk definition IDs:`, userPerkDefinitionIds);
+
       // CHANGE: Updated the Supabase query to fetch new fields and join with the new table
       const { data: perkDefinitions, error: perkDefError } = await supabase
         .from('perk_definitions')
@@ -276,6 +279,9 @@ export const schedulePerkExpiryNotifications = async (
         
       if (perkDefError) throw perkDefError;
       if (!perkDefinitions) return [];
+      
+      // ADD THIS LOG: See what the DB returns
+      console.log('[DEBUG] Raw perk definitions from Supabase:', JSON.stringify(perkDefinitions, null, 2));
       
       // CHANGE: Fetch all redemptions for the user, including remaining value.
       const { data: allRedemptions, error: redemptionError } = await supabase

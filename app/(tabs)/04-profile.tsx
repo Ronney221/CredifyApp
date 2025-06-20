@@ -20,7 +20,7 @@ import { Colors } from '../../constants/Colors';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { schedulePerkExpiryNotifications } from '../services/notification-perk-expiry';
-import { NotificationPreferences } from '../utils/notifications';
+import { NotificationPreferences } from '../types/notification-types';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -279,48 +279,48 @@ const ProfileScreen = () => {
       ],
       footer: 'Get help with your account, cards, and more.',
     },
-    // {
-    //   title: 'Developer',
-    //   data: [
-    //     { 
-    //       id: 'reset-first-redemption', 
-    //       title: 'Reset First Redemption', 
-    //       icon: 'refresh-outline', 
-    //       onPress: handleResetFirstRedemption 
-    //     },
-    //     {
-    //       id: 'clear-chat',
-    //       title: 'Clear Chat History',
-    //       icon: 'chatbubble-ellipses-outline',
-    //       onPress: handleClearChat
-    //     },
-    //     {
-    //       id: 'show-chat-notification',
-    //       title: 'Test AI Chat Notification',
-    //       icon: 'notifications-circle-outline',
-    //       onPress: handleShowChatNotification
-    //     },
-    //     {
-    //       id: 'reset-chat-credits',
-    //       title: 'Reset Chat Credits',
-    //       icon: 'cash-outline',
-    //       onPress: handleResetChatCredits
-    //     },
-    //     {
-    //       id: 'test-inactivity-message',
-    //       title: 'Test 48-hour Message',
-    //       icon: 'time-outline',
-    //       onPress: handleTestInactivityMessage
-    //     },
-    //     {
-    //       id: 'test-perk-expiry-notifications',
-    //       title: 'Test Perk Expiry Notifications',
-    //       icon: 'timer-outline',
-    //       onPress: handleTestPerkExpiryNotifications
-    //     },
-    //   ],
-    //   footer: 'Development tools and testing options.',
-    // },
+    {
+      title: 'Developer',
+      data: [
+        { 
+          id: 'reset-first-redemption', 
+          title: 'Reset First Redemption', 
+          icon: 'refresh-outline', 
+          onPress: handleResetFirstRedemption 
+        },
+        {
+          id: 'clear-chat',
+          title: 'Clear Chat History',
+          icon: 'chatbubble-ellipses-outline',
+          onPress: handleClearChat
+        },
+        {
+          id: 'show-chat-notification',
+          title: 'Test AI Chat Notification',
+          icon: 'notifications-circle-outline',
+          onPress: handleShowChatNotification
+        },
+        {
+          id: 'reset-chat-credits',
+          title: 'Reset Chat Credits',
+          icon: 'cash-outline',
+          onPress: handleResetChatCredits
+        },
+        {
+          id: 'test-inactivity-message',
+          title: 'Test 48-hour Message',
+          icon: 'time-outline',
+          onPress: handleTestInactivityMessage
+        },
+        {
+          id: 'test-perk-expiry-notifications',
+          title: 'Test Perk Expiry Notifications',
+          icon: 'timer-outline',
+          onPress: handleTestPerkExpiryNotifications
+        },
+      ],
+      footer: 'Development tools and testing options.',
+    },
   ];
 
   const renderItem = ({ item, index, section }: SectionListRenderItemInfo<ProfileRow, ProfileSection>) => {

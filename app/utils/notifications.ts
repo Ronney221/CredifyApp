@@ -4,23 +4,8 @@ import { Platform } from 'react-native';
 import { supabase } from '../../lib/supabase'; // Corrected path
 import { Card, allCards, Benefit } from '../../src/data/card-data'; // Corrected path, removed unused CardPerk
 import { getUserCards, getRedemptionsForPeriod } from '../../lib/database';
-import { schedulePerkExpiryNotifications } from '../services/notification-perk-expiry';
-
-export interface NotificationPreferences {
-  perkExpiryRemindersEnabled: boolean;
-  renewalRemindersEnabled: boolean;
-  perkResetConfirmationEnabled: boolean;
-  weeklyDigestEnabled: boolean;
-  quarterlyPerkRemindersEnabled: boolean;
-  semiAnnualPerkRemindersEnabled: boolean;
-  annualPerkRemindersEnabled: boolean;
-  monthlyPerkExpiryReminderDays?: number[];
-  quarterlyPerkExpiryReminderDays?: number[];
-  semiAnnualPerkExpiryReminderDays?: number[];
-  annualPerkExpiryReminderDays?: number[];
-  perkExpiryReminderTime?: string;
-  renewalReminderDays?: number[];
-}
+import { NotificationPreferences } from '../types/notification-types';
+import { scheduleNotificationAsync } from './notification-scheduler';
 
 interface UserCard {
   card_name: string;
@@ -60,34 +45,6 @@ export const requestPermissionsAsync = async (): Promise<boolean> => {
 };
 
 // --- Scheduling and Canceling ---
-
-/**
- * Schedules a local notification.
- * @param title The title of the notification.
- * @param body The body/message of the notification.
- * @param date The Date object when the notification should trigger.
- * @returns {Promise<string>} The ID of the scheduled notification.
- */
-export const scheduleNotificationAsync = async (
-  title: string,
-  body: string,
-  date: Date,
-): Promise<string> => {
-  // Build a trigger that Expo expects exactly
-  const trigger: Notifications.NotificationTriggerInput = {
-    type: Notifications.SchedulableTriggerInputTypes.DATE,
-    date,                           // when to fire
-    ...(Platform.OS === 'android'
-      ? { channelId: 'default' }    // ensure Android channel
-      : {}),
-  };
-
-  console.log(`Scheduling notification: "${title}" for ${date.toLocaleString()}. Current time is ${new Date().toLocaleString()}`);
-  return Notifications.scheduleNotificationAsync({
-    content: { title, body },
-    trigger,
-  });
-};
 
 // Add this function before the sendTestNotification function
 export const scheduleCardRenewalNotifications = async (
@@ -163,22 +120,23 @@ export const sendTestNotification = async (userId: string, preferences: Notifica
   
   const allPromises: Promise<(string | null)[]>[] = [];
 
-  // Monthly
+  // NOTE: Perk expiry tests are removed from this generic function to prevent a circular dependency.
+  // They should be triggered from a dedicated test button or service.
+  /*
   if (preferences.perkExpiryRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 1, true));
   }
-  // Quarterly
   if (preferences.quarterlyPerkRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 3, true));
   }
-  // Semi-Annual
   if (preferences.semiAnnualPerkRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 6, true));
   }
-  // Annual
   if (preferences.annualPerkRemindersEnabled) {
     allPromises.push(schedulePerkExpiryNotifications(userId, preferences, 12, true));
   }
+  */
+
   // Card Renewal
   if (preferences.renewalRemindersEnabled) {
     allPromises.push(scheduleCardRenewalNotifications(userId, preferences, true));
