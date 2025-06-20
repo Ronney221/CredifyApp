@@ -398,7 +398,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: Colors.light.background,
   },
   listContent: {
     paddingHorizontal: 16,

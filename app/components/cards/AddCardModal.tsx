@@ -40,7 +40,7 @@ export function AddCardModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.doneButtonText}>Done</Text>
@@ -87,16 +87,15 @@ export function AddCardModal({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: Colors.light.systemGroupedBackground,
+    backgroundColor: Colors.light.background,
   },
   header: {
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     backgroundColor: Colors.light.systemGroupedBackground,
     borderBottomWidth: 0,
   },

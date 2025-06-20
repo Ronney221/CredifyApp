@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '../../../constants/Colors';
 
 interface MeterChipProps {
   value: number;
@@ -32,13 +33,6 @@ export const FeeCoverageMeterChip: React.FC<MeterChipProps> = ({ value, displayT
   );
 };
 
-const SUCCESS_GREEN = '#34C759';
-const SUCCESS_GREEN_BACKGROUND = 'rgba(52, 199, 89, 0.1)';
-const WARNING_YELLOW = '#FFCC00';
-const WARNING_YELLOW_BACKGROUND = 'rgba(255, 204, 0, 0.15)';
-const NEUTRAL_GRAY_COLOR = '#8A8A8E';
-const NEUTRAL_GRAY_BACKGROUND = 'rgba(142, 142, 147, 0.1)';
-
 const styles = StyleSheet.create({
   meterChipBase: {
     paddingVertical: 3,
@@ -58,24 +52,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   meterChipGreen: {
-    backgroundColor: SUCCESS_GREEN_BACKGROUND,
-    borderColor: SUCCESS_GREEN,
+    backgroundColor: Colors.light.softMint,
+    borderColor: Colors.light.success,
   },
   meterChipTextGreen: {
-    color: SUCCESS_GREEN,
+    color: Colors.light.success,
   },
   meterChipYellow: {
-    backgroundColor: WARNING_YELLOW_BACKGROUND,
-    borderColor: WARNING_YELLOW,
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    borderColor: Colors.light.warning,
   },
   meterChipTextYellow: {
-    color: '#1c1c1e',
+    color: Colors.light.warning,
   },
   meterChipGray: {
-    backgroundColor: NEUTRAL_GRAY_BACKGROUND,
-    borderColor: NEUTRAL_GRAY_COLOR,
+    backgroundColor: 'rgba(142, 142, 147, 0.1)',
+    borderColor: Colors.light.slateGrey,
   },
   meterChipTextGray: {
-    color: NEUTRAL_GRAY_COLOR,
+    color: Colors.light.slateGrey,
   },
 }); 

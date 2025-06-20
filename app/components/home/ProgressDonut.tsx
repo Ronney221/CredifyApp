@@ -11,6 +11,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Colors } from '../../constants/Colors';
 
 interface ProgressDonutProps {
   progress: number; // 0 to 1
@@ -31,8 +32,8 @@ export default function ProgressDonut({
   progress,
   size = 170,
   strokeWidth = 16,
-  color = Platform.OS === 'ios' ? '#0A84FF' : '#007AFF',
-  backgroundColor = '#ECECEC',
+  color = Colors.light.tint,
+  backgroundColor = Colors.light.separator,
   amount,
   label,
   combinedStatsText,
@@ -148,14 +149,14 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#0A0A0A',
+    color: Colors.light.text,
     textAlign: 'center',
     letterSpacing: 0.41,
   },
   label: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#3C3C4399',
+    color: Colors.light.textSecondary,
     marginTop: 4,
     marginBottom: 12,
     textAlign: 'center',
@@ -179,14 +180,14 @@ const styles = StyleSheet.create({
   progressPercentageText: {
     fontSize: 18,
     fontWeight: '400',
-    color: '#687076',
+    color: Colors.light.textSecondary,
     textAlign: 'center',
     marginBottom: 2,
   },
   combinedStatsText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#3C3C4399',
+    color: Colors.light.textSecondary,
     textAlign: 'center',
     letterSpacing: -0.24,
     marginTop: 12,

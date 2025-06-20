@@ -23,19 +23,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-
-// Define colors
-const COLORS = {
-  primary: '#4A90E2', // Lighter blue
-  secondary: '#8A7AD6', // Lighter purple
-  tertiary: '#5CB85C', // Lighter green
-  background: '#F8F8F8',
-  text: {
-    primary: '#1C1C1E',
-    secondary: '#666666',
-  },
-  border: 'rgba(60, 60, 67, 0.1)',
-};
+import { Colors } from '../../../constants/Colors';
 
 // Define layout constants
 const LAYOUT = {
@@ -97,10 +85,10 @@ const TapAnimation = () => {
   return (
     <View style={styles.iconWrapper}>
       <Animated.View style={[styles.rippleContainer, rippleStyle]}>
-        <View style={[styles.ripple, { backgroundColor: COLORS.tertiary }]} />
+        <View style={[styles.ripple, { backgroundColor: Colors.light.success }]} />
       </Animated.View>
-      <Animated.View style={[styles.iconContainer, animatedStyle]}>
-        <Ionicons name="hand-left" size={28} color={COLORS.tertiary} />
+      <Animated.View style={[styles.iconContainer, animatedStyle, { backgroundColor: `${Colors.light.success}10`}]}>
+        <Ionicons name="hand-left" size={28} color={Colors.light.success} />
       </Animated.View>
     </View>
   );
@@ -140,10 +128,10 @@ const OpenAppAnimation = () => {
 
   return (
     <View style={styles.iconWrapper}>
-      <View style={styles.iconContainer}>
-        <Ionicons name="open-outline" size={28} color={COLORS.primary} />
+      <View style={[styles.iconContainer, { backgroundColor: `${Colors.light.tint}10`}]}>
+        <Ionicons name="open-outline" size={28} color={Colors.light.tint} />
         <Animated.View style={[styles.arrowOverlay, arrowStyle]}>
-          <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+          <Ionicons name="arrow-forward" size={16} color={Colors.light.tint} />
         </Animated.View>
       </View>
     </View>
@@ -203,13 +191,13 @@ const LongPressAnimation = () => {
 
   return (
     <View style={styles.iconWrapper}>
-      <Animated.View style={[styles.iconContainer, fingerStyle]}>
-        <Ionicons name="finger-print" size={28} color={COLORS.secondary} />
+      <Animated.View style={[styles.iconContainer, fingerStyle, { backgroundColor: `${Colors.light.tealHighlight}10`}]}>
+        <Ionicons name="finger-print" size={28} color={Colors.light.tealHighlight} />
       </Animated.View>
-      <Animated.View style={[styles.clockOverlay, pulseStyle]}>
-        <Ionicons name="time" size={20} color={COLORS.secondary} />
-        <View style={styles.progressContainer}>
-          <Animated.View style={[styles.progressBar, progressStyle, { backgroundColor: COLORS.secondary }]} />
+      <Animated.View style={[styles.clockOverlay, pulseStyle, { backgroundColor: `${Colors.light.tealHighlight}10`}]}>
+        <Ionicons name="time" size={20} color={Colors.light.tealHighlight} />
+        <View style={[styles.progressContainer, { backgroundColor: `${Colors.light.tealHighlight}20`}]}>
+          <Animated.View style={[styles.progressBar, progressStyle, { backgroundColor: Colors.light.tealHighlight }]} />
         </View>
       </Animated.View>
     </View>
@@ -321,7 +309,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.background,
+    backgroundColor: Colors.light.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     ...Platform.select({
@@ -343,7 +331,7 @@ const styles = StyleSheet.create({
   handleBar: {
     width: 36,
     height: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: Colors.light.separator,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
@@ -351,7 +339,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: Colors.light.text,
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -376,7 +364,7 @@ const styles = StyleSheet.create({
     height: LAYOUT.iconSize,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: `${COLORS.primary}10`,
+    backgroundColor: `${Colors.light.tint}10`,
     borderRadius: LAYOUT.iconSize / 2,
   },
   rippleContainer: {
@@ -404,7 +392,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: `${COLORS.secondary}10`,
+    backgroundColor: `${Colors.light.tealHighlight}10`,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -414,7 +402,7 @@ const styles = StyleSheet.create({
     left: 4,
     right: 4,
     height: 2,
-    backgroundColor: `${COLORS.secondary}20`,
+    backgroundColor: `${Colors.light.tealHighlight}20`,
     borderRadius: 1,
     overflow: 'hidden',
   },
@@ -430,16 +418,16 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: Colors.light.text,
     marginBottom: 2,
   },
   tipDescription: {
     fontSize: 15,
-    color: COLORS.text.secondary,
+    color: Colors.light.textSecondary,
     lineHeight: 20,
   },
   gotItButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: Colors.light.tint,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',

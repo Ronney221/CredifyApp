@@ -58,6 +58,16 @@ const getPeriodDisplayName = (periodMonths: number): string => {
   }
 };
 
+const getDonutColor = (periodMonths: number): string => {
+  switch (periodMonths) {
+    case 1: return Colors.light.accentCoral;
+    case 3: return Colors.light.tealHighlight;
+    case 6: return Colors.light.slateGrey;
+    case 12: return Colors.light.primaryNavy;
+    default: return Colors.light.tealHighlight;
+  }
+};
+
 // New function for donut display labels
 const getDonutDisplayName = (periodMonths: number): string => {
   switch (periodMonths) {
@@ -83,7 +93,7 @@ const PerkDonutDisplayManagerInner = (
     periodAggregates,
     redeemedInCurrentCycle,
     uniquePerkPeriods,
-    backgroundColor = '#FAFAFE', // Default background color
+    backgroundColor = Colors.light.cardBackground, // Default background color
   } = props;
 
   // console.log("DEBUG_PDM_INNER: Component body START. Props:", { periodAggregatesIsPresent: !!periodAggregates, uniquePerkPeriodsCount: uniquePerkPeriods?.length, userCardsWithPerksCount: userCardsWithPerks?.length });
@@ -259,7 +269,7 @@ const PerkDonutDisplayManagerInner = (
       label: String(displayName).toUpperCase(),
       combinedStatsText,
       progressPercentageText: `${percentageUsed}% Used`,
-      color: activeSegmentKey === 1 ? '#007A7F' : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
+      color: getDonutColor(activeSegmentKey),
       displayName: String(displayName)
     };
   }, [activeSegmentKey, periodAggregates, calculateDaysUntilReset]);

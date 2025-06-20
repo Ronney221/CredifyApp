@@ -40,9 +40,9 @@ const getPeriodBadgeText = (period: string) => {
 const getPeriodBadgeColor = (period: string): string => {
   switch (period) {
     case 'monthly': return Colors.light.tint;
-    case 'quarterly': return '#4CAF50'; // Green
-    case 'semi_annual': return '#FF9800'; // Orange
-    case 'annual': return '#9C27B0'; // Purple
+    case 'quarterly': return Colors.light.success;
+    case 'semi_annual': return Colors.light.warning;
+    case 'annual': return Colors.light.primaryNavy;
     default: return Colors.light.tint;
   }
 };
@@ -115,10 +115,10 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
 
   // Get performance status and color
   const getPerformanceStatus = () => {
-    if (performanceScore >= 90) return { text: 'Excellent', color: '#34C759' };
-    if (performanceScore >= 70) return { text: 'Good', color: '#5856D6' };
-    if (performanceScore >= 50) return { text: 'Fair', color: '#FF9500' };
-    return { text: 'Needs Improvement', color: '#FF3B30' };
+    if (performanceScore >= 90) return { text: 'Excellent', color: Colors.light.success };
+    if (performanceScore >= 70) return { text: 'Good', color: Colors.light.tint };
+    if (performanceScore >= 50) return { text: 'Fair', color: Colors.light.warning };
+    return { text: 'Needs Improvement', color: Colors.light.error };
   };
 
   const performanceStatus = getPerformanceStatus();
@@ -133,12 +133,12 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     
     // Add redeemed segments
     for (let i = 0; i < redeemedPerks; i++) {
-      segments.push({ type: 'redeemed', color: SUCCESS_GREEN });
+      segments.push({ type: 'redeemed', color: Colors.light.success });
     }
     
     // Add missed segments
     for (let i = 0; i < missedPerks; i++) {
-      segments.push({ type: 'missed', color: NEUTRAL_GRAY_COLOR });
+      segments.push({ type: 'missed', color: Colors.light.slateGrey });
     }
     
     // Add available segments
@@ -231,10 +231,10 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
         size={20} 
         color={
           perk.status === 'redeemed' 
-            ? SUCCESS_GREEN 
+            ? Colors.light.success 
             : perk.status === 'available'
             ? Colors.light.tint
-            : NEUTRAL_GRAY_COLOR
+            : Colors.light.slateGrey
         }
         style={styles.perkStatusIcon}
       />
@@ -323,11 +323,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   {renderVisualMeter()}
                   <View style={styles.statsRow}>
                     <View style={styles.statItem}>
-                      <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
+                      <Ionicons name="checkmark-circle" size={16} color={Colors.light.success} />
                       <Text style={styles.statText}>{redeemedPerks} Redeemed</Text>
                     </View>
                     <View style={styles.statItem}>
-                      <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
+                      <Ionicons name="alert-circle-outline" size={16} color={Colors.light.slateGrey} />
                       <Text style={styles.statText}>{missedPerks} Missed</Text>
                     </View>
                     <View style={styles.statItem}>
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: TIMELINE_LINE_WIDTH,
     flex: 1,
-    backgroundColor: SEPARATOR_COLOR,
+    backgroundColor: Colors.light.separator,
   },
   mainContent: {
     flex: 1,
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: SEPARATOR_COLOR,
+    borderTopColor: Colors.light.separator,
     overflow: 'hidden',
   },
   detailedHeader: {
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
   },
   noPerksText: {
     fontSize: 14,
-    color: SUBTLE_GRAY_TEXT,
+    color: Colors.light.textSecondary,
     textAlign: 'center',
     paddingVertical: 20,
   },
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   },
   expirationText: {
     fontSize: 12,
-    color: NEUTRAL_GRAY_COLOR,
+    color: Colors.light.slateGrey,
     marginTop: 4,
   },
 }); 

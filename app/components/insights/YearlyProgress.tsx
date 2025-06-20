@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressBarSuccess: {
-    backgroundColor: '#34C759',
+    backgroundColor: Colors.light.success,
   },
   collapsedContent: {
     flexDirection: 'row',

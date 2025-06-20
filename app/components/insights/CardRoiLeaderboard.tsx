@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     color: Colors.light.tint,
   },
   roiPercentageSuccess: {
-    color: '#34C759',
+    color: Colors.light.success,
   },
   roiValues: {
     fontSize: 12,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   progressBarSuccess: {
-    backgroundColor: '#34C759', // Success green for 100%+ ROI
+    backgroundColor: Colors.light.success,
   },
   progressBarZero: {
     height: '100%',

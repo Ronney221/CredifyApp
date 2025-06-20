@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet, View, Modal, SafeAreaView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AIChat from './AIChat';
+import { Colors } from '../../../constants/Colors';
 
 interface AIChatButtonProps {
   hasRedeemedFirstPerk: boolean;
@@ -45,7 +46,7 @@ export default function AIChatButton({ hasRedeemedFirstPerk, showNotification, o
         accessibilityLabel="Open AI Chat"
       >
         <View style={styles.iconContainer}>
-          <Ionicons name={hasRedeemedFirstPerk ? "sparkles" : "lock-closed"} size={20} color={hasRedeemedFirstPerk ? "#007AFF" : "#8E8E93"} />
+          <Ionicons name={hasRedeemedFirstPerk ? "sparkles" : "lock-closed"} size={20} color={hasRedeemedFirstPerk ? Colors.light.tint : Colors.light.icon} />
         </View>
         {showNotification && hasRedeemedFirstPerk && <View style={styles.notificationDot} />}
       </TouchableOpacity>
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 8,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: Colors.light.softMint,
   },
   iconContainer: {
     width: 24,
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
   },
   notificationDot: {
     position: 'absolute',
@@ -89,6 +90,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'red',
     borderWidth: 1.5,
-    borderColor: '#F4F4F4',
+    borderColor: Colors.light.background,
   },
 }); 

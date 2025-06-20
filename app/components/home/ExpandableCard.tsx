@@ -27,6 +27,7 @@ import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
 import OnboardingSheet from './OnboardingSheet';
 import { useOnboardingContext } from '../../../app/(onboarding)/_context/OnboardingContext';
+import { Colors } from '../../../constants/Colors';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -75,8 +76,6 @@ const showToast = (message: string, onUndo?: () => void) => {
     },
   });
 };
-
-const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
 
 // Add sorting function
 const sortPerks = (perks: CardPerk[]): CardPerk[] => {
@@ -132,6 +131,7 @@ const ExpandableCardComponent = ({
   }, [isActive, isExpanded, card.id, onExpandChange, sortIndex]);
 
   const cardNetworkColor = useMemo(() => {
+    // Keeping these as brand colors, they don't need to conform to the app theme
     switch (card.network?.toLowerCase()) {
       case 'amex':
       case 'american express':
@@ -142,7 +142,7 @@ const ExpandableCardComponent = ({
         return '#124A8D'; // Chase Blue
       // Add other networks if needed
       default:
-        return '#F0F0F0'; // Neutral default
+        return Colors.light.slateGrey; // Neutral default
     }
   }, [card.network, card.name]);
 
@@ -730,7 +730,7 @@ const ExpandableCardComponent = ({
   return (
     <>
       <Reanimated.View 
-        style={[styles.cardContainer, isActive && styles.activeCard]} 
+        style={[styles.cardContainer, isActive && styles.activeCard, isFullyRedeemed && styles.fullyRedeemedCard]} 
         layout={Layout.springify().duration(300)}
         onLayout={(event) => {
           const { height } = event.nativeEvent.layout;
@@ -845,7 +845,7 @@ export default React.memo(ExpandableCardComponent, areEqual);
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBackground,
     borderRadius: 16,
     marginHorizontal: 16,
     marginVertical: 6,
@@ -862,10 +862,14 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  fullyRedeemedCard: {
+    // borderColor: Colors.light.tealHighlight,
+    // borderWidth: 1.5,
+  },
   sectionLabel: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#666',
+    color: Colors.light.textSecondary,
     marginVertical: 8,
     paddingHorizontal: 4,
   },
@@ -893,7 +897,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   perksGroupContainer: {
-    backgroundColor: '#F7F7F7',
+    backgroundColor: Colors.light.background,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.separator,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
     padding: 12,
@@ -911,7 +917,7 @@ const styles = StyleSheet.create({
     }),
   },
   leftAction: {
-    backgroundColor: systemGreen,
+    backgroundColor: Colors.light.success,
     flex: 1,
     borderRadius: 16,
     flexDirection: 'row',
@@ -920,7 +926,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   rightAction: {
-    backgroundColor: '#007aff',
+    backgroundColor: Colors.light.tint,
     flex: 1,
     borderRadius: 16,
     flexDirection: 'row',
@@ -929,7 +935,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   actionText: {
-    color: '#fff',
+    color: Colors.light.textOnAccent,
     fontWeight: '600',
     fontSize: 15,
     marginLeft: 8,
@@ -948,7 +954,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: Colors.light.systemGroupedBackground,
     alignSelf: 'flex-start',
   },
   progressDot: {
@@ -958,14 +964,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 1.5,
   },
   progressDotRedeemed: {
-    backgroundColor: '#34c759',
+    backgroundColor: Colors.light.success,
   },
   progressDotAvailable: {
-    backgroundColor: '#cccccc',
+    backgroundColor: '#cccccc', // Keeping a neutral grey for unavailable
   },
   progressChipText: {
     fontSize: 11,
-    color: '#555',
+    color: Colors.light.textSecondary,
     marginLeft: 5,
     fontWeight: '500',
   },
@@ -979,14 +985,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBackground,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: Colors.light.separator,
     position: 'relative',
     borderRadius: 16,
   },
   perkContainerRedeemed: {
-    backgroundColor: '#F7F7F7',
+    backgroundColor: Colors.light.systemGroupedBackground,
   },
   swipeHintContainer: {
     position: 'absolute',
@@ -1000,7 +1006,7 @@ const styles = StyleSheet.create({
   },
   swipeHintText: {
     fontSize: 12,
-    color: '#888888',
+    color: Colors.light.textSecondary,
     marginLeft: 2,
   },
   perkIconContainer: {
@@ -1010,11 +1016,12 @@ const styles = StyleSheet.create({
   },
   perkDescription: { 
     fontSize: 13,
-    color: '#6C6C70',
+    color: Colors.light.textSecondary,
     lineHeight: 18,
   },
   perkDescriptionRedeemed: { 
-    color: '#AEAEB2',
+    color: Colors.light.slateGrey,
+    opacity: 0.7,
   },
   perkValueContainer: {
     marginLeft: 'auto',
@@ -1022,36 +1029,37 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   perkValueRedeemed: { 
-    color: '#8E8E93',
+    color: Colors.light.textSecondary,
     textDecorationLine: 'line-through',
+    opacity: 0.7,
   },
   perkChevron: {
     marginLeft: 8,
   },
   perkContainerAutoRedeemed: {
-    backgroundColor: '#FFF8E1',
+    backgroundColor: Colors.light.softMint,
   },
   perkNameAutoRedeemed: { 
-    color: '#FF9500',
+    color: Colors.light.tealHighlight,
   },
   perkDescriptionAutoRedeemed: { 
-    color: '#FF9500',
+    color: Colors.light.tealHighlight,
   },
   perkValueAutoRedeemed: { 
-    color: '#FF9500',
+    color: Colors.light.tealHighlight,
   },
   ghostPerkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.04)', // Very subtle tint
+    backgroundColor: 'rgba(0, 122, 255, 0.04)', // Temp, should use theme
     borderRadius: 12,
     paddingVertical: 12, // Reduced padding for a ~48pt height
     paddingHorizontal: 16,
     marginVertical: 4,
   },
   ghostPerkText: {
-    color: '#007AFF',
+    color: Colors.light.tint,
     fontSize: 15, // Matches system .body text size
     fontWeight: '500',
     marginHorizontal: 8,
@@ -1059,7 +1067,7 @@ const styles = StyleSheet.create({
   inlineHintContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    backgroundColor: 'rgba(0, 122, 255, 0.05)', // Temp, should use theme
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -1067,7 +1075,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   inlineHintText: {
-    color: '#007AFF',
+    color: Colors.light.tint,
     fontSize: 13,
     fontWeight: '500',
     marginLeft: 6,

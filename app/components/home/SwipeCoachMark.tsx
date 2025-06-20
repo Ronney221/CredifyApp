@@ -65,7 +65,7 @@ export const SwipeCoachMark: React.FC<SwipeCoachMarkProps> = ({ visible, onDismi
         <Pressable>
           <View style={[styles.coachCard, { marginTop: topOffset }]}>
             <Animated.View style={{ transform: [{ translateX }] }}>
-              <Ionicons name="hand-left-outline" size={60} color="#8A8A8E" style={styles.fingerIcon} />
+              <Ionicons name="hand-left-outline" size={60} color={Colors.light.icon} style={styles.fingerIcon} />
             </Animated.View>
             <Text style={styles.coachText}>
               Swipe perks to mark them as redeemed or available
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   coachCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     borderRadius: 20,
     padding: 25,
     paddingTop: 30,
@@ -112,20 +112,20 @@ const styles = StyleSheet.create({
   coachText: {
     fontSize: 19,
     fontWeight: '600',
-    color: '#1c1c1e',
+    color: Colors.light.text,
     textAlign: 'center',
     marginBottom: 8,
     lineHeight: 26,
   },
   subText: {
     fontSize: 15,
-    color: '#8A8A8E',
+    color: Colors.light.icon,
     textAlign: 'center',
     marginBottom: 25,
     lineHeight: 22,
   },
   dismissButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: Colors.light.accentCoral,
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   dismissButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: Colors.light.textOnAccent,
   },
 });
 

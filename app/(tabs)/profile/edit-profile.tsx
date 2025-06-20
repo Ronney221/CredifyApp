@@ -267,13 +267,13 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.systemGroupedBackground,
+    backgroundColor: Colors.light.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.light.systemGroupedBackground,
+    backgroundColor: Colors.light.background,
   },
   scrollContent: {
     paddingVertical: 32,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    backgroundColor: Colors.light.systemGroupedBackground,
+    backgroundColor: Colors.light.background,
   },
   saveButton: {
     backgroundColor: Colors.light.accent,

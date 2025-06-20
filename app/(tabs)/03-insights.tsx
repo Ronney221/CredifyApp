@@ -35,24 +35,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// --- CONSTANTS FOR COLORS (to avoid magic strings and for consistency) ---
-const ACCENT_YELLOW_BACKGROUND = '#FFFBEA'; // For achievement pills
-const SUCCESS_GREEN = '#34C759';
-const SUCCESS_GREEN_BACKGROUND = 'rgba(52, 199, 89, 0.1)';
-const WARNING_YELLOW = '#FFCC00'; // Updated and new colors based on feedback
-const WARNING_YELLOW_BACKGROUND = 'rgba(255, 204, 0, 0.15)';
-const NEUTRAL_GRAY_COLOR = '#8A8A8E'; // Updated and new colors based on feedback
-const NEUTRAL_GRAY_BACKGROUND = 'rgba(142, 142, 147, 0.1)';
-const DIVIDER_COLOR_WITH_OPACITY = 'rgba(0,0,0,0.15)';
-const ERROR_RED = '#FF3B30';
-const ERROR_RED_BACKGROUND = 'rgba(255, 59, 48, 0.1)';
-const SUBTLE_GRAY_TEXT = Colors.light.icon; // For dimmed perk values
-const CARD_BACKGROUND_COLOR = '#F8F8F8';
-const SEPARATOR_COLOR = '#E0E0E0';
-const SECONDARY_COLOR = '#ff9500'; // Fallback color, assuming secondary/accent are not defined in Colors.ts
-
 // Add constant for tab bar offset
-const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
+const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80;
 
 // Add after imports
 const EXPANDED_HEADER_HEIGHT = 160;
@@ -705,7 +689,7 @@ export default function InsightsScreen() {
               style={styles.headerButton}
               onPress={() => setFilterModalVisible(true)}
             >
-              <Ionicons name="filter" size={20} color="#007AFF" />
+              <Ionicons name="filter" size={20} color={Colors.light.tint} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -839,7 +823,7 @@ export default function InsightsScreen() {
                     onPress={() => router.push("/home")}
                   >
                     <Text style={styles.ctaButtonText}>Start Tracking Perks</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaButtonIcon} />
+                    <Ionicons name="arrow-forward" size={20} color={Colors.light.textOnAccent} style={styles.ctaButtonIcon} />
                   </TouchableOpacity>
                 </>
               )}
@@ -856,12 +840,12 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: Colors.light.background,
   },
   headerContainer: {
     backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: Colors.light.separator,
     zIndex: 1,
   },
   loadingContainer: {
@@ -872,7 +856,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#8e8e93',
+    color: Colors.light.textSecondary,
   },
   historySection: { 
     paddingBottom: 80,
@@ -940,7 +924,7 @@ const styles = StyleSheet.create({
   ctaButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.light.textOnAccent,
     marginRight: 8,
   },
   ctaButtonIcon: {
@@ -952,7 +936,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FAFAFE',
+    backgroundColor: Colors.light.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -1017,7 +1001,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: Colors.light.separator,
     alignItems: 'center',
   },
   checkboxContainer: {
@@ -1031,7 +1015,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#BDBDBD',
+    borderColor: Colors.light.separator,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1061,7 +1045,7 @@ const styles = StyleSheet.create({
   chartSection: {
     marginTop: 12,
     marginHorizontal: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBackground,
     borderRadius: 12,
     padding: 15,
     shadowColor: "#000",
@@ -1095,7 +1079,7 @@ const styles = StyleSheet.create({
   headerButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: Colors.light.softMint,
   },
   headerBadge: {
     position: 'absolute',
@@ -1111,14 +1095,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.background,
   },
   headerBadgeText: {
-    color: '#FFFFFF',
+    color: Colors.light.textOnAccent,
     fontSize: 10,
     fontWeight: 'bold',
   },
   placeholderModuleContainer: {
     width: '100%',
     justifyContent: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
+    backgroundColor: Colors.light.cardBackground,
     borderRadius: 8,
     marginVertical: 10,
     shadowColor: "#000",
@@ -1132,7 +1116,7 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
+    backgroundColor: Colors.light.cardBackground,
     borderRadius: 8,
     marginVertical: 10,
     shadowColor: "#000",
@@ -1171,7 +1155,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   applyButtonText: {
-    color: '#FFFFFF',
+    color: Colors.light.textOnAccent,
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 0.5,
@@ -1184,7 +1168,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     overflow: 'hidden',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212,212,212,0.5)',
+    borderBottomColor: Colors.light.separator,
   },
   largeHeader: {
     position: 'absolute',
@@ -1206,7 +1190,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: Colors.light.text,
   },
   collapsedHeaderContent: {
     flexDirection: 'row',
@@ -1218,7 +1202,7 @@ const styles = StyleSheet.create({
   collapsedHeaderTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: Colors.light.text,
   },
   sectionHeaderContainer: {
   },

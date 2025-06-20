@@ -5,12 +5,7 @@ import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { CardPerk, calculatePerkExpiryDate } from '../../../../src/data/card-data';
-
-const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
-const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
-const AUTO_REDEEM_CHEVRON = '#C4B2DE';   // Lighter purple for chevron
-const PARTIAL_REDEEM_FOREGROUND = '#FF9500'; // Orange for partial redemption
-const PARTIAL_REDEEM_BACKGROUND = '#FFF7E6';
+import { Colors } from '../../../../constants/Colors';
 
 // Function to format the time until expiry
 const getTimeUntilExpiry = (perk: CardPerk): string => {
@@ -146,10 +141,10 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 size={26} 
                 color={
                   isRedeemed 
-                    ? (isAutoRedeemed ? AUTO_REDEEM_FOREGROUND : '#8E8E93')
+                    ? (isAutoRedeemed ? Colors.light.primaryNavy : Colors.light.slateGrey)
                     : isPartiallyRedeemed
-                    ? PARTIAL_REDEEM_FOREGROUND
-                    : '#007AFF'
+                    ? Colors.light.warning
+                    : Colors.light.tint
                 }
               />
             </View>
@@ -176,7 +171,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
                   style={[styles.inlineHintContainer, animatedNudgeStyle]}
                   accessibilityRole="text"
                 >
-                  <Ionicons name="hand-left-outline" size={16} color="#007AFF" />
+                  <Ionicons name="hand-left-outline" size={16} color={Colors.light.tint} />
                   <Text style={styles.inlineHintText}>Swipe → Mark Used</Text>
                 </Reanimated.View>
               )}
@@ -186,7 +181,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
                   accessibilityRole="text"
                 >
                   <Text style={styles.inlineHintText}>Swipe ← Undo</Text>
-                  <Ionicons name="hand-right-outline" size={16} color="#007AFF" style={{ marginLeft: 6, marginRight: 0 }}/>
+                  <Ionicons name="hand-right-outline" size={16} color={Colors.light.tint} style={{ marginLeft: 6, marginRight: 0 }}/>
                 </Reanimated.View>
               )}
             </View>
@@ -219,7 +214,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
             <Ionicons 
               name="chevron-forward" 
               size={20} 
-              color={isRedeemed ? (isAutoRedeemed ? AUTO_REDEEM_CHEVRON : '#C7C7CC') : '#B0B0B0'} 
+              color={isRedeemed ? (isAutoRedeemed ? Colors.light.primaryNavy : Colors.light.separator) : Colors.light.separator} 
               style={styles.perkChevron}
             />
         </TouchableOpacity>
@@ -244,9 +239,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   perkContainerAvailable: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: Colors.light.separator,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -260,15 +255,15 @@ const styles = StyleSheet.create({
     }),
   },
   perkContainerRedeemed: {
-    backgroundColor: '#F2F2F2',
+    backgroundColor: Colors.light.systemGroupedBackground,
   },
   perkContainerAutoRedeemed: {
-    backgroundColor: AUTO_REDEEM_BACKGROUND,
+    backgroundColor: Colors.light.softMint,
   },
   perkContainerPartiallyRedeemed: {
-    backgroundColor: PARTIAL_REDEEM_BACKGROUND,
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: Colors.light.separator,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -294,37 +289,37 @@ const styles = StyleSheet.create({
   perkName: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1c1c1e',
+    color: Colors.light.text,
     marginBottom: 2,
   },
   perkPeriodTag: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#8A8A8E',
+    color: Colors.light.slateGrey,
     marginBottom: 2,
   },
   perkPeriodTagRedeemed: {
-    color: '#AEAEB2',
+    color: Colors.light.slateGrey,
   },
   perkPeriodTagAutoRedeemed: {
-    color: AUTO_REDEEM_FOREGROUND,
+    color: Colors.light.primaryNavy,
   },
   perkPeriodTagExpired: {
-    color: '#FF3B30', // iOS red color for expired status
+    color: Colors.light.error, 
   },
   perkPeriodTagUrgent: {
-    color: '#FF9500', // iOS orange color for urgent (7 days or less)
+    color: Colors.light.warning, 
   },
   perkNameRedeemed: {
-    color: '#8E8E93',
+    color: Colors.light.slateGrey,
   },
   perkDescription: { 
     fontSize: 13,
-    color: '#6C6C70',
+    color: Colors.light.textSecondary,
     lineHeight: 18,
   },
   perkDescriptionRedeemed: { 
-    color: '#AEAEB2',
+    color: Colors.light.slateGrey,
   },
   perkValueContainer: {
     marginLeft: 'auto',
@@ -335,30 +330,30 @@ const styles = StyleSheet.create({
   perkValue: {
     fontSize: 22,
     fontWeight: '400',
-    color: '#1c1c1e',
+    color: Colors.light.text,
   },
   perkValueRedeemed: { 
-    color: '#8E8E93',
+    color: Colors.light.slateGrey,
   },
   perkChevron: {
     marginLeft: 8,
   },
   perkNameAutoRedeemed: { 
-    color: '#8E8E93',
+    color: Colors.light.slateGrey,
   },
   perkDescriptionAutoRedeemed: { 
-    color: '#AEAEB2',
+    color: Colors.light.slateGrey,
   },
   perkValueAutoRedeemed: { 
-    color: '#8E8E93',
+    color: Colors.light.slateGrey,
   },
   perkValuePartiallyRedeemed: {
-    color: PARTIAL_REDEEM_FOREGROUND,
+    color: Colors.light.warning,
   },
   inlineHintContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    backgroundColor: Colors.light.softMint,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -367,14 +362,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   inlineHintText: {
-    color: '#007AFF',
+    color: Colors.light.tint,
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 6,
   },
   remainingValueText: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: Colors.light.slateGrey,
   },
 });
 

@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../../src/data/card-data';
+import { Colors } from '../../../constants/Colors';
 
 interface PerkActionModalProps {
   visible: boolean;
@@ -46,13 +47,14 @@ const showToast = (message: string, onUndo?: () => void) => {
       paddingHorizontal: 16,
       paddingVertical: 12,
       marginBottom: 64,
-      backgroundColor: '#1c1c1e',
+      backgroundColor: Colors.dark.cardBackground,
     },
     textStyle: {
       fontSize: 14,
       fontWeight: '500',
       textAlign: 'center',
       lineHeight: 20,
+      color: Colors.dark.text,
     },
     onPress: () => {
       if (onUndo) {
@@ -600,7 +602,7 @@ export default function PerkActionModal({
                   onPress={toggleDescription}
                   hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
                 >
-                  <Ionicons name="information-circle-outline" size={24} color="#007AFF" />
+                  <Ionicons name="information-circle-outline" size={24} color={Colors.light.tint} />
                 </TouchableOpacity>
               </View>
               
@@ -656,9 +658,9 @@ export default function PerkActionModal({
                           maximumValue={perk?.value || 0}
                           animatedProps={animatedSliderProps}
                           onValueChange={handleSliderChange}
-                          minimumTrackTintColor="#007AFF"
-                          maximumTrackTintColor="#E5E5EA"
-                          thumbTintColor="#007AFF"
+                          minimumTrackTintColor={Colors.light.tint}
+                          maximumTrackTintColor={Colors.light.separator}
+                          thumbTintColor={Colors.light.tint}
                           step={0.10}
                         />
                       </View>
@@ -683,7 +685,7 @@ export default function PerkActionModal({
                     }}
                   >
                     <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                      Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                      Open {appName} <Ionicons name="open-outline" size={16} color={Colors.light.tint} />
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -709,7 +711,7 @@ export default function PerkActionModal({
                     }}
                   >
                     <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                      Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                      Open {appName} <Ionicons name="open-outline" size={16} color={Colors.light.tint} />
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -731,7 +733,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -741,7 +743,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.light.separator,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
@@ -759,7 +761,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: Colors.light.text,
     letterSpacing: -0.5,
     flex: 1,
   },
@@ -777,14 +779,14 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#666666',
+    color: Colors.light.textSecondary,
     lineHeight: 20,
     letterSpacing: -0.24,
   },
   redemptionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: Colors.light.text,
     marginTop: 16,
     marginBottom: 4,
     letterSpacing: -0.24,
@@ -795,7 +797,7 @@ const styles = StyleSheet.create({
   remainingValue: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#007AFF',
+    color: Colors.light.tint,
     marginBottom: 8,
     letterSpacing: -0.5,
     lineHeight: 38,
@@ -803,7 +805,7 @@ const styles = StyleSheet.create({
   maxValue: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#666666',
+    color: Colors.light.textSecondary,
     lineHeight: 20,
     letterSpacing: -0.24,
   },
@@ -813,11 +815,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: Colors.light.text,
     letterSpacing: -0.41,
   },
   amountSelectorContainer: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: Colors.light.systemGroupedBackground,
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
@@ -840,13 +842,13 @@ const styles = StyleSheet.create({
   sliderValue: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#8E8E93',
+    color: Colors.light.textSecondary,
     minWidth: 48,
     textAlign: 'center',
   },
   tooltip: {
     position: 'absolute',
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.light.tint,
     borderRadius: 8,
     padding: 4,
     paddingHorizontal: 8,
@@ -860,11 +862,11 @@ const styles = StyleSheet.create({
     marginLeft: -4,
     width: 8,
     height: 8,
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.light.tint,
     transform: [{ rotate: '45deg' }],
   },
   tooltipText: {
-    color: '#FFFFFF',
+    color: Colors.dark.text,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: -0.08,
@@ -883,27 +885,27 @@ const styles = StyleSheet.create({
     letterSpacing: -0.41,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.light.tint,
     marginBottom: 12,
   },
   secondaryButton: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: Colors.light.systemGroupedBackground,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: Colors.light.tint,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: Colors.dark.text,
   },
   secondaryButtonText: {
-    color: '#007AFF',
+    color: Colors.light.tint,
   },
   markAvailableButton: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: Colors.light.systemGroupedBackground,
     marginBottom: 16,
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: Colors.light.systemGroupedBackground,
     borderRadius: 8,
     padding: 2,
     marginBottom: 32,
@@ -921,7 +923,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   segmentSelected: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     borderRadius: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -940,20 +942,20 @@ const styles = StyleSheet.create({
   segmentText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666666',
+    color: Colors.light.textSecondary,
     letterSpacing: -0.08,
     textAlign: 'center',
   },
   segmentSubtext: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#666666',
+    color: Colors.light.textSecondary,
     letterSpacing: -0.08,
     marginTop: 2,
     textAlign: 'center',
   },
   segmentTextSelected: {
-    color: '#007AFF',
+    color: Colors.light.tint,
   },
   customAmountContainer: {
     gap: 16,
@@ -961,9 +963,9 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   inputAccessory: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: Colors.light.systemGroupedBackground,
     borderTopWidth: 1,
-    borderTopColor: '#C7C7CC',
+    borderTopColor: Colors.light.separator,
     paddingHorizontal: 16,
     paddingVertical: 8,
     flexDirection: 'row',
@@ -978,9 +980,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: '#C7C7CC',
+    borderColor: Colors.light.separator,
   },
   doneButton: {
     paddingHorizontal: 16,
@@ -989,7 +991,7 @@ const styles = StyleSheet.create({
   doneButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#007AFF',
+    color: Colors.light.tint,
     letterSpacing: -0.41,
   },
 }); 

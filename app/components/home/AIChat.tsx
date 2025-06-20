@@ -26,6 +26,7 @@ import { getBenefitAdvice } from '../../../lib/openai';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear, differenceInHours } from 'date-fns';
 import { CardPerk, openPerkTarget } from '../../../src/data/card-data';
 import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../../app/utils/perk-matcher';
+import { Colors } from '../../../constants/Colors';
 
 // --- Interfaces ---
 type BenefitRecommendationTuple = [string, string, string, number]; // [benefitName, cardName, displayText, remainingValue]
@@ -258,7 +259,7 @@ const ChatHeader = ({ onClose, onStartOver, hasMessages }: {
           <Ionicons 
             name="sparkles-outline" 
             size={22} 
-            color={hasMessages ? "#007AFF" : "#C7C7CC"} 
+            color={hasMessages ? Colors.light.tint : Colors.light.icon} 
           />
         </Pressable>
         <Pressable 
@@ -342,7 +343,7 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
             key={i} 
             style={[
               styles.boldText,
-              { color: isAI ? '#007AFF' : '#FFFFFF' }
+              { color: isAI ? Colors.light.tint : Colors.dark.text }
             ]}
           >
             {clean}
@@ -394,7 +395,7 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
                         onPress={() => openPerkTarget(rec.perk!)}
                       >
                         <Text style={styles.redeemButtonText}>{getButtonText(rec)}</Text>
-                        <Ionicons name="arrow-forward-circle" size={20} color="#FFFFFF" />
+                        <Ionicons name="arrow-forward-circle" size={20} color={Colors.dark.text} />
                       </Pressable>
                     )}
                   </View>
@@ -432,7 +433,7 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
                     ]}
                     onPress={onUpgrade}
                 >
-                    <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                    <Ionicons name="sparkles" size={18} color={Colors.dark.text} />
                     <Text style={styles.upgradeButtonText}>
                         {isLimitReached ? "Upgrade to Pro" : "Unlock Unlimited"}
                     </Text>
@@ -945,7 +946,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             <View style={styles.typingContainer}>
               <BlurView intensity={50} tint="light" style={styles.typingBlur}>
                 <View style={styles.typingContent}>
-                  <ActivityIndicator size="small" color="#007AFF" style={styles.typingIndicator} />
+                  <ActivityIndicator size="small" color={Colors.light.tint} style={styles.typingIndicator} />
                   <Text style={styles.typingText}>AI is thinking...</Text>
                 </View>
               </BlurView>
@@ -977,7 +978,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                   <Ionicons
                     name="arrow-up"
                     size={24}
-                    color="#FFFFFF"
+                    color={Colors.dark.text}
                   />
                 </Pressable>
               </Animated.View>
@@ -992,7 +993,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: Colors.light.background,
   },
   flex_1: {
     flex: 1,
@@ -1010,7 +1011,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000000',
+    color: Colors.light.text,
     letterSpacing: -0.5,
   },
   headerButtons: {
@@ -1023,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     fontSize: 17,
-    color: '#007AFF',
+    color: Colors.light.tint,
     fontWeight: '400',
   },
   messageList: {
@@ -1050,11 +1051,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   userBubble: {
-    backgroundColor: '#E5F3FF',
+    backgroundColor: Colors.light.softMint,
     borderBottomRightRadius: 4,
   },
   aiBubble: {
-    backgroundColor: '#F7F7F7',
+    backgroundColor: Colors.light.cardBackground,
     borderBottomLeftRadius: 4,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
@@ -1063,10 +1064,10 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   userText: {
-    color: '#000000',
+    color: Colors.light.text,
   },
   aiText: {
-    color: '#000000',
+    color: Colors.light.text,
   },
   boldText: {
     fontWeight: '600',
@@ -1092,7 +1093,7 @@ const styles = StyleSheet.create({
   },
   typingText: {
     fontSize: 15,
-    color: '#3C3C43',
+    color: Colors.light.textSecondary,
     opacity: 0.6,
   },
   inputBlur: {
@@ -1114,7 +1115,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     minHeight: 36,
     maxHeight: 100,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0, 0, 0, 0.1)',
@@ -1123,10 +1124,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.light.tint,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#007AFF',
+    shadowColor: Colors.light.tint,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -1137,24 +1138,24 @@ const styles = StyleSheet.create({
   },
   debugText: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: Colors.light.icon,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'monospace',
   },
   usageText: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: Colors.light.icon,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   recommendationsContainer: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: Colors.light.separator,
   },
   cardHeader: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6D6D72',
+    color: Colors.light.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     paddingBottom: 4,
@@ -1163,24 +1164,24 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: Colors.light.separator,
   },
   recommendationBox: {
     paddingTop: 8,
   },
   recommendationSeparator: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: Colors.light.separator,
     marginTop: 12,
   },
   recommendationText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#000000',
+    color: Colors.light.text,
     marginBottom: 10,
   },
   redeemButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.light.tint,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -1190,7 +1191,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   redeemButtonText: {
-    color: '#FFFFFF',
+    color: Colors.dark.text,
     fontSize: 15,
     fontWeight: '600',
     marginRight: 4,
@@ -1199,7 +1200,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   upgradeButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.light.tint,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -1209,7 +1210,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   upgradeButtonText: {
-    color: '#FFFFFF',
+    color: Colors.dark.text,
     fontSize: 15,
     fontWeight: '600',
     marginLeft: 6,
@@ -1219,14 +1220,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   promptButton: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: Colors.light.separator,
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 14,
     alignSelf: 'flex-start',
   },
   promptButtonText: {
-    color: '#000000',
+    color: Colors.light.text,
     fontSize: 15,
     fontWeight: '500',
     lineHeight: 20,

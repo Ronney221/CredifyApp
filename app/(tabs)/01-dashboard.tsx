@@ -72,13 +72,13 @@ const getDaysRemainingInMonth = (): number => {
 const getStatusColor = (daysRemaining: number) => {
   if (daysRemaining <= 3) {
     return {
-      bg: '#fff3e0',
-      text: '#f57c00'
+      bg: Colors.light.warning,
+      text: Colors.light.textOnAccent,
     };
   }
   return {
-    bg: '#e3f2fd',
-    text: '#1976d2'
+    bg: Colors.light.secondaryAccent,
+    text: Colors.light.textOnAccent,
   };
 };
 
@@ -95,8 +95,8 @@ const showToast = (message: string, onUndo?: () => void) => {
     duration: onUndo ? 4000 : 2000,
     position: Toast.positions.BOTTOM,
     shadow: true, animation: true, hideOnPress: true, delay: 0,
-    containerStyle: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 64, backgroundColor: '#1c1c1e' },
-    textStyle: { fontSize: 14, fontWeight: '500', textAlign: 'center', lineHeight: 20 },
+    containerStyle: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 64, backgroundColor: Colors.dark.cardBackground },
+    textStyle: { fontSize: 14, fontWeight: '500', textAlign: 'center', lineHeight: 20, color: Colors.dark.text },
     onPress: () => { 
       if (onUndo) { 
         Toast.hide(toast);
@@ -926,7 +926,7 @@ export default function Dashboard() {
             periodAggregates={periodAggregates}
             redeemedInCurrentCycle={redeemedInCurrentCycle}
             uniquePerkPeriods={uniquePerkPeriodsForToggle}
-            backgroundColor="#FAFAFE"
+            backgroundColor={Colors.light.background}
           />
         </View>
         <View style={styles.cardsSectionHeader}>
@@ -1085,7 +1085,7 @@ export default function Dashboard() {
             scrollEventThrottle={16}
           >
             <View style={styles.noCardsContainer}>
-              <Ionicons name="card-outline" size={48} color="#8e8e93" />
+              <Ionicons name="card-outline" size={48} color={Colors.light.icon} />
               <Text style={styles.noCardsText}>
                 No cards selected. Add your first card to start tracking rewards!
               </Text>
@@ -1140,11 +1140,11 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: Colors.light.background,
   },
   mainContainer: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: Colors.light.background,
   },
   animatedHeaderContainer: {
     position: 'absolute',
@@ -1154,7 +1154,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     overflow: 'hidden',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212,212,212,0.5)',
+    borderBottomColor: Colors.light.separator,
   },
   headerContent: {
     position: 'absolute',
@@ -1169,14 +1169,14 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 16,
-    color: '#3C3C43',
+    color: Colors.light.textSecondary,
     fontWeight: '400',
     opacity: 0.8,
   },
   userNameText: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: Colors.light.text,
     marginTop: 2,
   },
   collapsedHeaderContent: {
@@ -1186,7 +1186,7 @@ const styles = StyleSheet.create({
   collapsedHeaderText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: Colors.light.text,
   },
   scrollContent: {
     flexGrow: 1,
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
   },
   summarySection: {
     paddingTop: 0,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: Colors.light.background,
   },
   cardsSection: {
     flex: 1,
@@ -1212,7 +1212,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     paddingHorizontal: 16,
     fontWeight: '600',
-    color: '#1c1c1e',
+    color: Colors.light.text,
   },
   addCardButton: {
     flexDirection: 'row',
@@ -1220,32 +1220,32 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   addCardText: {
-    color: '#007aff',
+    color: Colors.light.tint,
     marginLeft: 4,
     fontSize: 15,
   },
   noCardsContainer: {
     alignItems: 'center',
     padding: 40,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: Colors.light.systemGroupedBackground,
     margin: 20,
     borderRadius: 16,
   },
   noCardsText: {
     fontSize: 16,
-    color: '#8e8e93',
+    color: Colors.light.textSecondary,
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 24,
   },
   addFirstCardButton: {
-    backgroundColor: '#007aff',
+    backgroundColor: Colors.light.tint,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
   },
   addFirstCardButtonText: {
-    color: '#ffffff',
+    color: Colors.light.textOnAccent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1254,13 +1254,13 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   devButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: Colors.light.systemGroupedBackground,
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
   },
   devButtonText: {
-    color: '#666666',
+    color: Colors.light.textSecondary,
     fontSize: 14,
   },
   loadingContainer: {
@@ -1272,11 +1272,11 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#8e8e93',
+    color: Colors.light.textSecondary,
   },
   errorText: {
     fontSize: 16,
-    color: '#ff3b30',
+    color: Colors.light.error,
     textAlign: 'center',
   },
   lottieCelebration: {
@@ -1289,7 +1289,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   monthIndicator: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.light.systemGroupedBackground,
     borderRadius: 12,
     padding: 12,
   },
@@ -1301,7 +1301,7 @@ const styles = StyleSheet.create({
   currentMonth: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1c1c1e',
+    color: Colors.light.text,
   },
   statusBadge: {
     paddingHorizontal: 12,

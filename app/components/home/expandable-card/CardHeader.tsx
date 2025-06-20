@@ -1,8 +1,9 @@
 //card-header.tsx
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Platform, PlatformColor } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../../../src/data/card-data';
+import { Colors } from '../../../../constants/Colors';
 
 interface CardHeaderProps {
   card: Card;
@@ -14,8 +15,6 @@ interface CardHeaderProps {
   otherPerksAvailableCount: number;
   onPress: () => void;
 }
-
-const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
 
 const CardHeader: React.FC<CardHeaderProps> = ({
   card,
@@ -168,7 +167,8 @@ const CardHeader: React.FC<CardHeaderProps> = ({
         <Ionicons
           name={isExpanded ? 'chevron-down' : 'chevron-forward'}
           size={24}
-          color="#20B2AA"
+          color={Colors.light.icon}
+          style={styles.chevron}
         />
       </View>
     </TouchableOpacity>
@@ -214,10 +214,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
+    color: Colors.light.text,
   },
   cardSubtitle: {
     flexDirection: 'row',
@@ -226,66 +225,65 @@ const styles = StyleSheet.create({
   },
   subtitleText: {
     fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-    flexShrink: 1,
-    marginRight: 4,
+    color: Colors.light.textSecondary,
   },
   subtitleDivider: {
-    color: '#6B7280',
+    color: Colors.light.textSecondary,
     fontWeight: '400',
+    opacity: 0.8,
   },
   savedValueText: {
-    color: systemGreen,
-    fontSize: 14,
+    color: Colors.light.success,
+    fontSize: 14, 
     fontWeight: '600',
     flexShrink: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 'auto',
-    paddingLeft: 8,
-    flexShrink: 0,
+  },
+  chevron: {
+    color: Colors.light.icon,
+    opacity: 0.6,
   },
   progressContainer: {
     marginTop: 8,
   },
   progressBarContainer: {
     height: 8,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: Colors.light.separator,
     borderRadius: 4,
     overflow: 'hidden',
     marginTop: 4,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#20B2AA',
+    backgroundColor: Colors.light.success,
     borderRadius: 4,
   },
   progressBarSuccess: {
-    backgroundColor: systemGreen,
+    backgroundColor: Colors.light.success,
   },
   progressText: {
     fontSize: 12,
-    color: '#6B7280',
     fontWeight: '500',
+    color: Colors.light.textSecondary,
   },
   progressTextSuccess: {
-    color: systemGreen,
+    color: Colors.light.success,
     fontWeight: '600',
   },
   otherPerksText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.light.textSecondary,
     fontWeight: '500',
     marginTop: 4,
   },
   placeholderLine: {
-    height: 8,
-    backgroundColor: '#E5E5EA',
-    borderRadius: 4,
-    marginBottom: 4,
+    height: 1,
+    backgroundColor: Colors.light.separator,
+    marginTop: 12,
+    marginHorizontal: -16, // Extend to edges of padding
   },
   progressInfo: {
     flexDirection: 'row',
