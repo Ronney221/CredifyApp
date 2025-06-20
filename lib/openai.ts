@@ -90,10 +90,12 @@ export async function getBenefitAdvice(query: string, availableCards: MinifiedCa
   ]
 }`;
 
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_SECRET_KEY;
-  
-  if (!apiKey || apiKey.trim() === '') {
-    console.error('[OpenAI] API Key is missing or empty. Check environment variables.');
+  // Fetch credentials for Supabase Edge Function
+  const supabaseApiKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+
+  if (!supabaseApiKey || !supabaseUrl) {
+    console.error('[OpenAI] Supabase URL or Anon Key is missing. Check environment variables.');
     return {
       response: {
         responseType: 'Conversational',
@@ -129,20 +131,15 @@ User Context (JSON):
   console.log('[OpenAI] Sending lean user prompt to AI:', user_prompt);
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`${supabaseUrl}/functions/v1/openai`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${supabaseApiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: system_prompt },
-          { role: 'user', content: user_prompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 500
+        system_prompt,
+        user_prompt,
       }),
     });
 
