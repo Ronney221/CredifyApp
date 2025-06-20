@@ -217,7 +217,7 @@ export default function Dashboard() {
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
 
   // State for unique perk periods, default to monthly and annual if not found
-  const [uniquePerkPeriodsForToggle, setUniquePerkPeriodsForToggle] = useState<number[]>([1, 12]); // Renamed for clarity
+  const [uniquePerkPeriodsForToggle, setUniquePerkPeriodsForToggle] = useState<number[]>([]); // Renamed for clarity
 
   // State for the ActionHintPill content, derived from nextActionablePerkToHighlight
   const [headerPillContent, setHeaderPillContent] = useState<(CardPerk & { cardId: string; cardName: string; cycleEndDate: Date; daysRemaining: number }) | null>(null);
@@ -430,18 +430,18 @@ export default function Dashboard() {
             console.log('[Dashboard] Setting unique periods to:', parsedPeriods);
             setUniquePerkPeriodsForToggle(parsedPeriods);
           } else {
-            console.log('[Dashboard] Invalid periods array, setting default [1, 12]');
-            setUniquePerkPeriodsForToggle([1, 12]); // Default if empty or invalid
+            console.log('[Dashboard] Invalid periods array, setting to empty array');
+            setUniquePerkPeriodsForToggle([]); // Default if empty or invalid
           }
         } else {
-          console.log('[Dashboard] No stored periods found, setting default [1, 12]');
-          setUniquePerkPeriodsForToggle([1, 12]); // Default if not found
+          console.log('[Dashboard] No stored periods found, setting to empty array');
+          setUniquePerkPeriodsForToggle([]); // Default if not found
         }
 
         await checkNotificationStatus();
       } catch (e) {
         console.error("[Dashboard] Failed to load data from AsyncStorage.", e);
-        setUniquePerkPeriodsForToggle([1, 12]); // Default on error
+        setUniquePerkPeriodsForToggle([]); // Default on error
       }
     };
     loadAsyncData();
@@ -482,6 +482,11 @@ export default function Dashboard() {
           }
         };
         savePeriods();
+        // Move the scheduling call here to ensure it uses the updated periods
+        setupNotifications(sortedPeriods);
+      } else {
+        // If there are no periods, still run setup to handle card renewal notifications
+        setupNotifications([]);
       }
     }
   }, [userCardsWithPerks]);
@@ -518,15 +523,17 @@ export default function Dashboard() {
       const refreshData = async () => {
         try {
           const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
+          let periodsToSchedule: number[] = [];
           if (storedPeriods !== null) {
             const parsedPeriods = JSON.parse(storedPeriods);
             if (Array.isArray(parsedPeriods) && parsedPeriods.length > 0) {
+              periodsToSchedule = parsedPeriods;
               setUniquePerkPeriodsForToggle(parsedPeriods);
             } else {
-              setUniquePerkPeriodsForToggle([1, 12]); 
+              setUniquePerkPeriodsForToggle([]); 
             }
           } else {
-            setUniquePerkPeriodsForToggle([1, 12]);
+            setUniquePerkPeriodsForToggle([]);
           }
 
           await checkNotificationStatus();
@@ -535,7 +542,6 @@ export default function Dashboard() {
           await refreshSavings();
           await refreshAutoRedemptions();
           donutDisplayRef.current?.refresh();
-          await setupNotifications();
         } catch (error) {
           console.warn('[Dashboard] Focus effect refresh failed:', error);
         }
@@ -555,7 +561,7 @@ export default function Dashboard() {
   const NOTIFICATION_PREFS_KEY = '@notification_preferences';
 
   // Function to set up notifications
-  const setupNotifications = async () => {
+  const setupNotifications = async (periodsToSchedule: number[]) => {
     const hasPermission = await requestPermissionsAsync();
     if (!hasPermission) {
       Alert.alert(
@@ -580,8 +586,8 @@ export default function Dashboard() {
     
     // Schedule notifications for each unique perk period the user has
     if (user?.id) {
-      console.log(`[Dashboard] Scheduling perk expiry notifications for periods: ${uniquePerkPeriodsForToggle.join(', ')}`);
-      for (const period of uniquePerkPeriodsForToggle) {
+      console.log(`[Dashboard] Scheduling perk expiry notifications for periods: ${periodsToSchedule.join(', ')}`);
+      for (const period of periodsToSchedule) {
         await schedulePerkExpiryNotifications(user.id, prefs, period);
       }
     }
