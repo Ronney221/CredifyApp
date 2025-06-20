@@ -657,7 +657,7 @@ export const allCards: Card[] = [
         period: 'semi_annual',
         periodMonths: 6,
         resetType: 'calendar',
-        definition_id: 'd538f219-3595-4a96-85da-508054a9b36d',
+        definition_id: '38f28a7f-49cf-4a5f-9bde-f3be87b33291',
         description: 'Up to $50 in statement credits twice per year (Jan-Jun and Jul-Dec) for dining purchases at Resy-booked restaurants in the U.S.',
         redemptionInstructions: 'Book and dine at Resy partner restaurants. No special code needed; credit posts automatically after dining.',
         appScheme: 'resy',
