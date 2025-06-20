@@ -208,8 +208,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 isRedeemed && isAutoRedeemed && styles.perkValueAutoRedeemed,
                 isPartiallyRedeemed && styles.perkValuePartiallyRedeemed
               ]}>
-                {isPartiallyRedeemed && perk.remaining_value
-                  ? (perk.value - perk.remaining_value).toLocaleString('en-US', {
+                {isPartiallyRedeemed && typeof perk.remaining_value === 'number'
+                  ? perk.remaining_value.toLocaleString('en-US', {
                       style: 'currency',
                       currency: 'USD',
                     })
