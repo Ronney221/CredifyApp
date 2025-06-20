@@ -316,7 +316,11 @@ export default function LoginScreen() {
           style={styles.contentContainer}
         >
           <View style={styles.headerContainer}>
-            <Text style={styles.brandText}>Credify</Text>
+            <Image 
+              source={require('../../assets/images/logo_text.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>
               Welcome Back!
             </Text>
@@ -499,13 +503,14 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     flexGrow: 1,
+    paddingTop: 0,
   },
   cardsContainer: {
     height: 180,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 12,
+    marginTop: 0,
   },
   cardWrapper: {
     width: SCREEN_WIDTH * 0.4,
@@ -532,18 +537,17 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 12,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 20,
   },
-  brandText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.light.tint,
-    marginBottom: 8,
-    letterSpacing: -0.5,
+  logoImage: {
+    width: 350,
+    height: 70,
+    marginBottom: 24,
+    alignSelf: 'center',
   },
   title: {
     fontSize: 32,

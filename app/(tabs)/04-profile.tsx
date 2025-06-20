@@ -35,6 +35,7 @@ interface ProfileRow {
   icon?: keyof typeof Ionicons.glyphMap;
   isDestructive?: boolean;
   onPress: () => void;
+  subtitle?: string;
 }
 
 interface ProfileSection {
@@ -237,19 +238,44 @@ const ProfileScreen = () => {
     {
       title: 'Wallet',
       data: [
-        { id: 'manage-cards', title: 'Manage Cards', icon: 'card-outline', onPress: () => router.push('/(tabs)/profile/manage_cards') },
+        { 
+          id: 'manage-cards', 
+          title: 'Manage Cards', 
+          icon: 'card-outline', 
+          subtitle: 'View and update your linked cards',
+          onPress: () => router.push('/(tabs)/profile/manage_cards') 
+        },
       ],
     },
     {
       title: 'Notifications',
       data: [
-        { id: 'preferences', title: 'Preferences', icon: 'notifications-outline', onPress: () => router.push('/(tabs)/profile/notifications') },
+        { 
+          id: 'preferences', 
+          title: 'Preferences', 
+          icon: 'notifications-outline', 
+          subtitle: 'Customize your notification settings',
+          onPress: () => router.push('/(tabs)/profile/notifications') 
+        },
       ],
     },
     {
       title: 'Support',
       data: [
-        { id: 'help-faq', title: 'Help & FAQ', icon: 'help-circle-outline', onPress: () => router.push('/(tabs)/profile/help-faq') },
+        { 
+          id: 'help-faq', 
+          title: 'Help & FAQ', 
+          icon: 'help-circle-outline', 
+          subtitle: 'Get answers to common questions',
+          onPress: () => router.push('/(tabs)/profile/help-faq') 
+        },
+        { 
+          id: 'sign-out', 
+          title: 'Sign Out', 
+          icon: 'log-out-outline', 
+          isDestructive: true,
+          onPress: handleSignOut 
+        },
       ],
       footer: 'Get help with your account, cards, and more.',
     },
@@ -322,22 +348,29 @@ const ProfileScreen = () => {
           <Ionicons 
             name={item.icon} 
             size={22} 
-            color={Colors.light.secondaryLabel}
+            color={item.isDestructive ? Colors.light.error : Colors.light.secondaryLabel}
             style={styles.icon}
           />
         )}
-        <Text style={[
-          styles.rowText,
-          item.isDestructive && styles.destructiveText
-        ]}>
-          {item.title}
-        </Text>
-        <Ionicons 
-          name="chevron-forward" 
-          size={20} 
-          color={Colors.light.secondaryLabel} 
-          style={styles.chevron} 
-        />
+        <View style={styles.textContainer}>
+          <Text style={[
+            styles.rowText,
+            item.isDestructive && styles.destructiveText
+          ]}>
+            {item.title}
+          </Text>
+          {item.subtitle && !item.isDestructive && (
+            <Text style={styles.subtitleText}>{item.subtitle}</Text>
+          )}
+        </View>
+        {!item.isDestructive && (
+          <Ionicons 
+            name="chevron-forward" 
+            size={20} 
+            color={Colors.light.secondaryLabel} 
+            style={styles.chevron} 
+          />
+        )}
       </Pressable>
     );
   };
@@ -379,17 +412,6 @@ const ProfileScreen = () => {
         bounces
         alwaysBounceVertical
         overScrollMode="never"
-        ListFooterComponent={() => (
-          <Pressable 
-            style={({ pressed }) => [
-              styles.signOutButton,
-              pressed && { opacity: 0.8 }
-            ]}
-            onPress={handleSignOut}
-          >
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </Pressable>
-        )}
       />
     </SafeAreaView>
   );
@@ -442,10 +464,18 @@ const styles = StyleSheet.create({
     marginRight: 16,
     width: 24,
   },
+  textContainer: {
+    flex: 1,
+    paddingVertical: 12,
+  },
   rowText: {
     fontSize: 17,
     color: Colors.light.text,
-    flex: 1,
+  },
+  subtitleText: {
+    fontSize: 13,
+    color: Colors.light.secondaryLabel,
+    marginTop: 2,
   },
   destructiveText: {
     color: Colors.light.error,
@@ -458,20 +488,6 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.light.separator,
     marginLeft: 56,
-  },
-  signOutButton: {
-    backgroundColor: Colors.light.background,
-    marginTop: 32,
-    marginHorizontal: 16,
-    minHeight: 52,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  signOutText: {
-    fontSize: 17,
-    color: Colors.light.error,
-    fontWeight: '600',
   },
 });
 
