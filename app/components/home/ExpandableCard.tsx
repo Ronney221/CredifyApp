@@ -143,27 +143,37 @@ const ExpandableCardComponent = ({
     }
   }, [card.network, card.name]);
 
-  // Calculate monthly perk progress for this card
-  const monthlyPerkStats = useMemo(() => {
-    const monthlyPerks = perks.filter(p => p.periodMonths === 1);
-    const total = monthlyPerks.length;
-    const redeemed = monthlyPerks.filter(p => p.status === 'redeemed').length; // Only count fully redeemed perks
-    return { total, redeemed };
+  // Calculate perk categories and stats
+  const { monthlyPerks, otherPerks } = useMemo<{ monthlyPerks: CardPerk[], otherPerks: CardPerk[] }>(() => {
+    const monthly: CardPerk[] = [];
+    const other: CardPerk[] = [];
+    perks.forEach((p: CardPerk) => {
+      if (p.periodMonths === 1) {
+        monthly.push(p);
+      } else {
+        other.push(p);
+      }
+    });
+    return { monthlyPerks: monthly, otherPerks: other };
   }, [perks]);
 
-  console.log(`========= ExpandableCard ${card.name} - Props & State =========`);
-  console.log('Props:', {
-    cardId: card.id,
-    cumulativeSavedValue,
-    numberOfPerks: perks.length,
-    isActive,
-    sortIndex
-  });
+  const monthlyPerkStats = useMemo(() => {
+    const total = monthlyPerks.length;
+    const redeemed = monthlyPerks.filter((p: CardPerk) => p.status === 'redeemed').length;
+    return { total, redeemed };
+  }, [monthlyPerks]);
+
+  const otherPerksAvailableCount = useMemo(() => {
+    return otherPerks.filter((p: CardPerk) => p.status !== 'redeemed').length;
+  }, [otherPerks]);
+
+  const isFullyRedeemed = useMemo(() => {
+    return perks.every((p: CardPerk) => p.status === 'redeemed');
+  }, [perks]);
   
-  // Count perks that still have value to redeem (available or partially redeemed)
-  const unredeemedPerks = perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed');
-  const hasUnredeemedPerks = unredeemedPerks.length > 0;
-  const isFullyRedeemed = !hasUnredeemedPerks;
+  const hasUnredeemedPerks = useMemo(() => {
+    return perks.some((p: CardPerk) => p.status !== 'redeemed');
+  }, [perks]);
 
   // Calculate total saved value including partial redemptions
   const totalSavedValue = useMemo(() => {
@@ -183,13 +193,6 @@ const ExpandableCardComponent = ({
     }
   }, [totalSavedValue, cumulativeSavedValue, onPerkStatusChange]);
 
-  console.log(`${card.name} status (LOG POINT EC-1):`, {
-    unredeemedPerksCount: unredeemedPerks.length,
-    totalPerksCount: perks.length,
-    perksDetails: perks.map(p => ({ id: p.id, name: p.name, status: p.status, periodMonths: p.periodMonths })),
-    cumulativeSavedValue
-  });
-  
   const nudgeAnimation = useSharedValue(0);
   const undoNudgeAnimation = useSharedValue(0);
   const redeemHintOpacity = useSharedValue(0);
@@ -312,7 +315,7 @@ const ExpandableCardComponent = ({
     Object.values(swipeableRefs.current).forEach(ref => ref?.close());
 
     // Show redeem hint if there are perks to swipe (remains visible for testing)
-    if (newExpandedState && hasUnredeemedPerks) {
+    if (newExpandedState && perks.some(p => p.status !== 'redeemed')) {
       setShowSwipeHint(true);
     } else if (!newExpandedState) {
       setShowSwipeHint(false); // Hide hint on collapse
@@ -735,9 +738,9 @@ const ExpandableCardComponent = ({
           isExpanded={isExpanded}
           isActive={!!isActive}
           isFullyRedeemed={isFullyRedeemed}
-          unredeemedPerksCount={unredeemedPerks.length}
           cumulativeSavedValue={cumulativeSavedValue}
           monthlyPerkStats={monthlyPerkStats}
+          otherPerksAvailableCount={otherPerksAvailableCount}
           onPress={handleExpand}
         />
 

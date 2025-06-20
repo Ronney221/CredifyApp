@@ -9,9 +9,9 @@ interface CardHeaderProps {
   isExpanded: boolean;
   isActive: boolean;
   isFullyRedeemed: boolean;
-  unredeemedPerksCount: number;
   cumulativeSavedValue: number;
   monthlyPerkStats: { total: number; redeemed: number };
+  otherPerksAvailableCount: number;
   onPress: () => void;
 }
 
@@ -20,9 +20,9 @@ const CardHeader: React.FC<CardHeaderProps> = ({
   isExpanded,
   isActive,
   isFullyRedeemed,
-  unredeemedPerksCount,
   cumulativeSavedValue,
   monthlyPerkStats,
+  otherPerksAvailableCount,
   onPress,
 }) => {
   const cardNetworkColor = React.useMemo(() => {
@@ -46,6 +46,104 @@ const CardHeader: React.FC<CardHeaderProps> = ({
   
   const allMonthlyPerksRedeemed = monthlyPerkStats.total > 0 && monthlyPerkStats.redeemed === monthlyPerkStats.total;
 
+  const renderSubtitle = () => {
+    if (isFullyRedeemed) {
+      let text = 'All redeemed';
+      if (cumulativeSavedValue > 0) {
+        text += ` • ${cumulativeSavedValue.toLocaleString('en-US', {
+          style: 'currency',
+          currency: 'USD',
+        })} saved`;
+      }
+      return (
+        <Text style={[styles.subtitleText, styles.savedValueText]} numberOfLines={1}>
+          {text}
+        </Text>
+      );
+    }
+
+    // Default state when not fully redeemed, but still want to show savings
+    if (cumulativeSavedValue > 0) {
+      return (
+        <Text style={[styles.subtitleText, styles.savedValueText]}>
+          {`${cumulativeSavedValue.toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+          })} saved`}
+        </Text>
+      );
+    }
+
+    return null;
+  };
+
+  const renderProgressSection = () => {
+    // Universal "All Redeemed" state
+    if (isFullyRedeemed) {
+      return (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: '100%' },
+                styles.progressBarSuccess,
+              ]}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    // State 1: Has monthly perks (and not fully redeemed)
+    if (monthlyPerkStats.total > 0) {
+      return (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressInfo}>
+             <Text style={styles.progressText}>
+              Monthly Perks: {monthlyPerkStats.redeemed} of {monthlyPerkStats.total}
+            </Text>
+          </View>
+          <View style={styles.progressBarContainer}>
+            <View 
+              style={[
+                styles.progressBarFill,
+                { width: `${progressPercentage}%` },
+                allMonthlyPerksRedeemed && styles.progressBarSuccess
+              ]} 
+            />
+          </View>
+          {otherPerksAvailableCount > 0 && (
+            <Text style={styles.otherPerksText}>
+              + {otherPerksAvailableCount} other {otherPerksAvailableCount === 1 ? 'perk' : 'perks'} available
+            </Text>
+          )}
+        </View>
+      );
+    }
+
+    // State 2: No monthly perks, but other perks available
+    if (otherPerksAvailableCount > 0) {
+      return (
+        <View style={styles.progressContainer}>
+          <View style={styles.placeholderLine} />
+          <Text style={styles.progressText}>
+            {otherPerksAvailableCount} {otherPerksAvailableCount === 1 ? 'annual perk' : 'annual perks'} available
+          </Text>
+        </View>
+      );
+    }
+
+    // Fallback for cards with no monthly perks and no other perks to maintain layout
+    return (
+      <View style={styles.progressContainer}>
+        <View style={styles.placeholderLine} />
+        <Text style={styles.progressText}>No monthly perks</Text>
+      </View>
+    );
+  };
+
+
   return (
     <TouchableOpacity
       style={[styles.cardHeader, isActive && styles.activeCardHeader]}
@@ -59,66 +157,9 @@ const CardHeader: React.FC<CardHeaderProps> = ({
         <View style={styles.cardTextContainer}>
           <Text style={styles.cardName}>{card.name}</Text>
           <View style={styles.cardSubtitle}>
-            {isFullyRedeemed ? (
-              <View style={styles.fullyRedeemedContainer}>
-                <Ionicons name="checkmark-circle" size={14} color="#34c759" />
-                <Text style={[styles.subtitleText, styles.redeemedText]}> All perks redeemed</Text>
-                {cumulativeSavedValue > 0 && <Text style={styles.subtitleDivider}> • </Text>}
-                {cumulativeSavedValue > 0 && (
-                  <Text style={[styles.subtitleText, styles.savedValueText]} numberOfLines={1}>
-                    {`${cumulativeSavedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} saved`}
-                  </Text>
-                )}
-              </View>
-            ) : (
-              <>
-                {unredeemedPerksCount > 0 && (
-                  <Text style={styles.subtitleText}>
-                    {unredeemedPerksCount} {unredeemedPerksCount === 1 ? 'perk' : 'perks'} left
-                  </Text>
-                )}
-                {cumulativeSavedValue > 0 && unredeemedPerksCount > 0 && <Text style={styles.subtitleDivider}> • </Text>}
-                {cumulativeSavedValue > 0 && (
-                  <Text style={[styles.subtitleText, styles.savedValueText]}>
-                    {cumulativeSavedValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} saved
-                  </Text>
-                )}
-              </>
-            )}
+             {renderSubtitle()}
           </View>
-          
-          {/* Case 1: Has monthly perks */}
-          {monthlyPerkStats.total > 0 && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarContainer}>
-                <View 
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${progressPercentage}%` },
-                    allMonthlyPerksRedeemed && styles.progressBarSuccess
-                  ]} 
-                />
-              </View>
-              {/* Text is hidden if all perks on the card are redeemed, to avoid redundancy with the subtitle */}
-              {!isFullyRedeemed && (
-                <Text style={[styles.progressText, allMonthlyPerksRedeemed && styles.progressTextSuccess]}>
-                  {allMonthlyPerksRedeemed
-                    ? 'All monthly perks redeemed!'
-                    : `${monthlyPerkStats.redeemed} of ${monthlyPerkStats.total} monthly perks redeemed`}
-                </Text>
-              )}
-            </View>
-          )}
-
-          {/* Case 2: No monthly perks, but IS fully redeemed */}
-          {monthlyPerkStats.total === 0 && isFullyRedeemed && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarContainer}>
-                <View style={[styles.progressBarFill, { width: '100%' }, styles.progressBarSuccess]} />
-              </View>
-              {/* Text is intentionally omitted here as per user feedback for less redundancy */}
-            </View>
-          )}
+          {renderProgressSection()}
         </View>
       </View>
       <View style={styles.headerRight}>
@@ -181,11 +222,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
   },
-  fullyRedeemedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'nowrap', 
-  },
   subtitleText: {
     fontSize: 14,
     color: '#6B7280',
@@ -193,20 +229,15 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     marginRight: 4,
   },
-  redeemedText: {
-    color: "#34c759",
-    marginLeft: 4,
-    marginRight: 2,
-  },
   subtitleDivider: {
     color: '#6B7280',
     fontWeight: '400',
   },
   savedValueText: {
     color: '#34c759',
-    fontSize: 14, 
-    fontWeight: '500',
-    flexShrink: 0,
+    fontSize: 14,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   headerRight: {
     flexDirection: 'row',
@@ -219,22 +250,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   progressBarContainer: {
-    height: 4,
+    height: 8,
     backgroundColor: '#E5E5EA',
-    borderRadius: 2,
+    borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 4,
+    marginTop: 4,
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#20B2AA',
-    borderRadius: 2,
+    borderRadius: 4,
   },
   progressBarSuccess: {
     backgroundColor: '#34C759',
   },
   progressText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6B7280',
     fontWeight: '500',
   },
@@ -242,6 +273,23 @@ const styles = StyleSheet.create({
     color: '#34C759',
     fontWeight: '600',
   },
+  otherPerksText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  placeholderLine: {
+    height: 8,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  }
 });
 
 export default React.memo(CardHeader); 
