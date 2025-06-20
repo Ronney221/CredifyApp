@@ -13,7 +13,6 @@
       "supportsTablet": true,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.credifyapp.credify",
-      "buildNumber": "10",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -39,7 +38,6 @@
       }
     },
     "android": {
-      "buildNumber": "10",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
