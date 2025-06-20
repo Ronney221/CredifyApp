@@ -1,6 +1,6 @@
 //card-header.tsx
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Platform, PlatformColor } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../../../src/data/card-data';
 
@@ -14,6 +14,8 @@ interface CardHeaderProps {
   otherPerksAvailableCount: number;
   onPress: () => void;
 }
+
+const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
 
 const CardHeader: React.FC<CardHeaderProps> = ({
   card,
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   savedValueText: {
-    color: '#34c759',
+    color: systemGreen,
     fontSize: 14,
     fontWeight: '600',
     flexShrink: 1,
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressBarSuccess: {
-    backgroundColor: '#34C759',
+    backgroundColor: systemGreen,
   },
   progressText: {
     fontSize: 12,
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   progressTextSuccess: {
-    color: '#34C759',
+    color: systemGreen,
     fontWeight: '600',
   },
   otherPerksText: {

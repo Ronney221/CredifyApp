@@ -11,6 +11,7 @@ import {
   ActionSheetIOS,
   AlertButton,
   LayoutAnimation,
+  PlatformColor,
 } from 'react-native';
 import Reanimated, { Layout, FadeIn, FadeOut, useAnimatedStyle, withTiming, SharedValue, useSharedValue, withRepeat, withSequence, withDelay, Easing, cancelAnimation, interpolate } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +75,8 @@ const showToast = (message: string, onUndo?: () => void) => {
     },
   });
 };
+
+const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
 
 // Add sorting function
 const sortPerks = (perks: CardPerk[]): CardPerk[] => {
@@ -908,7 +911,7 @@ const styles = StyleSheet.create({
     }),
   },
   leftAction: {
-    backgroundColor: '#34c759',
+    backgroundColor: systemGreen,
     flex: 1,
     borderRadius: 16,
     flexDirection: 'row',
