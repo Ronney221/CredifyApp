@@ -1,3 +1,4 @@
+//app/components/cards/hooks/useNotificationPreferences.ts
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';

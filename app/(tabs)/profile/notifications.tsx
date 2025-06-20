@@ -1,3 +1,4 @@
+//app/(tabs)/profile/notifications.tsx
 import React, { useState, useCallback } from 'react';
 import {
   View,
