@@ -295,10 +295,14 @@ export default function RegisterScreen() {
           style={styles.contentContainer}
         >
           <View style={styles.headerContainer}>
-            <Text style={styles.brandText}>Credify</Text>
+            <Image 
+              source={require('../../assets/images/logo_text.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>
               {netValue > 0 ? (
-                `Secure Your $${netValue} Dashboard`
+                `Secure Your $${netValue}`
               ) : (
                 `Maximize Your Card Benefits`
               )}
@@ -393,13 +397,14 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     flexGrow: 1,
+    paddingTop: 0,
   },
   cardsContainer: {
     height: 180,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 12,
+    marginTop: 24,
   },
   cardWrapper: {
     width: SCREEN_WIDTH * 0.4,
@@ -430,21 +435,20 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 20,
   },
-  brandText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.light.tint,
+  logoImage: {
+    width: 350,
+    height: 70,
     marginBottom: 8,
-    letterSpacing: -0.5,
+    alignSelf: 'center',
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 24,
     letterSpacing: -0.5,
   },
   subtitle: {
