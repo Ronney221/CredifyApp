@@ -144,6 +144,9 @@ const ProfileScreen = () => {
 
       await AsyncStorage.setItem(historyKey, JSON.stringify(history));
 
+      // Also set the notification key to true so the dot appears on the dashboard
+      await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
+
       Alert.alert(
         "Success",
         "The last message's timestamp has been set to 3 days ago. Re-open the AI Chat to see the inactivity message.",

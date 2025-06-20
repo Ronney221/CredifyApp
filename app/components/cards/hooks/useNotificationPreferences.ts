@@ -309,34 +309,34 @@ export const useNotificationPreferences = () => {
         iconColor: anyRenewalDateSet ? "#34C759" : "#8E8E93",
         dimmed: !anyRenewalDateSet,
       },
-      { 
-        key: 'perk_reset',
-        iconName: "refresh-circle-outline" as const, 
-        title: "Monthly Perk Reset Alerts", 
-        details: ["Get notified when your perks refresh"],
-        toggles: [
-          { 
-            label: "Enable reset alerts", 
-            value: perkResetConfirmationEnabled, 
-            onValueChange: handleResetConfirmationToggle,
-          }
-        ],
-        iconColor: "#007AFF" 
-      },
-      {
-        key: 'weekly_digest',
-        iconName: "stats-chart-outline" as const,
-        title: "Weekly Digest",
-        details: ["A summary of your perks and benefits"],
-        toggles: [
-          {
-            label: "Enable weekly digest",
-            value: weeklyDigestEnabled,
-            onValueChange: handleWeeklyDigestToggle,
-          },
-        ],
-        iconColor: "#5856D6",
-      }
+      // { 
+      //   key: 'perk_reset',
+      //   iconName: "refresh-circle-outline" as const, 
+      //   title: "Monthly Perk Reset Alerts", 
+      //   details: ["Get notified when your perks refresh"],
+      //   toggles: [
+      //     { 
+      //       label: "Enable reset alerts", 
+      //       value: perkResetConfirmationEnabled, 
+      //       onValueChange: handleResetConfirmationToggle,
+      //     }
+      //   ],
+      //   iconColor: "#007AFF" 
+      // },
+      // {
+      //   key: 'weekly_digest',
+      //   iconName: "stats-chart-outline" as const,
+      //   title: "Weekly Digest",
+      //   details: ["A summary of your perks and benefits"],
+      //   toggles: [
+      //     {
+      //       label: "Enable weekly digest",
+      //       value: weeklyDigestEnabled,
+      //       onValueChange: handleWeeklyDigestToggle,
+      //     },
+      //   ],
+      //   iconColor: "#5856D6",
+      // }
     );
     
     return notificationItems;
