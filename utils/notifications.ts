@@ -4,11 +4,8 @@ import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Card, allCards, Benefit } from '../src/data/card-data';
 import { getUserCards } from '../lib/database';
-import { NotificationPreferences } from '../types/notification-types';
-import { scheduleNotificationAsync as scheduleAsync } from '../services/notification-perk-expiry';
-
-// Renamed for clarity and to avoid conflict with the scheduler
-export { scheduleAsync as scheduleNotificationAsync };
+import { NotificationPreferences } from '../app/types/notification-types';
+import { scheduleNotificationAsync } from '../app/utils/notification-scheduler';
 
 interface UserCard {
   card_name: string;
@@ -72,7 +69,7 @@ export const scheduleCardRenewalNotifications = async (
       if (notificationDate > new Date() || isTest) {
         const title = `💳 Card Renewal Reminder`;
         const body = `${card.card_name} renews in 7 days on ${new Date(card.renewal_date).toLocaleDateString()}.`;
-        tasks.push(scheduleAsync(title, body, notificationDate));
+        tasks.push(scheduleNotificationAsync(title, body, notificationDate));
       }
     }
     return Promise.all(tasks);
@@ -116,7 +113,7 @@ export const scheduleCardRenewalReminder = async (
   reminderDate.setDate(renewalDate.getDate() - daysBefore);
   reminderDate.setHours(23, 59, 50, 0);
   if (reminderDate > new Date()) {
-    return scheduleAsync(
+    return scheduleNotificationAsync(
       `💳 Card Renewal Reminder`,
       `${cardName} renews in ${daysBefore} days on ${renewalDate.toLocaleDateString()}.`,
       reminderDate,
@@ -171,7 +168,7 @@ export const schedulePerkResetNotification = async (
       body += " Some quarterly/annual perks have also reset.";
     }
     if (monthlyPerkCount > 0) {
-      return scheduleAsync(title, body, notificationDate);
+      return scheduleNotificationAsync(title, body, notificationDate);
     }
     return null;
   } catch (error) {

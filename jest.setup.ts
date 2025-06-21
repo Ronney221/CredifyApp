@@ -1,4 +1,5 @@
 import '@testing-library/jest-native/extend-expect';
+import React from 'react';
 
 // Mock Alert
 jest.mock('react-native/Libraries/Alert/Alert', () => ({
@@ -27,12 +28,13 @@ jest.mock('react-native/Libraries/Components/Touchable/TouchableOpacity', () => 
   return TouchableOpacity;
 });
 
-// Add test IDs to components that need them
-jest.mock('../../app/components/home/PerkActionModal', () => {
-  const ActualComponent = jest.requireActual('../../app/components/home/PerkActionModal').default;
-  return function MockPerkActionModal(props: any) {
+// Mock PerkActionModal and add a testID for easier access in tests
+jest.mock('../../components/home/PerkActionModal', () => {
+  const ActualComponent = jest.requireActual('../../components/home/PerkActionModal').default;
+  const MockedComponent = (props: any) => {
     return <ActualComponent {...props} testID="perk-action-modal" />;
   };
+  return MockedComponent;
 });
 
 // Mock supabase client
@@ -47,4 +49,6 @@ jest.mock('../lib/supabase', () => ({
       single: jest.fn().mockReturnThis(),
     })),
   },
-})); 
+}));
+
+jest.mock('expo-router', () => require('expo-router/testing')); 

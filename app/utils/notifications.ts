@@ -7,6 +7,9 @@ import { getUserCards, getRedemptionsForPeriod } from '../../lib/database';
 import { NotificationPreferences } from '../types/notification-types';
 import { scheduleNotificationAsync } from './notification-scheduler';
 
+// Renamed for clarity and to avoid conflict with the scheduler
+// export { scheduleAsync as scheduleNotificationAsync };
+
 interface UserCard {
   card_name: string;
   renewal_date?: string;

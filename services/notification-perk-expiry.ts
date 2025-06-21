@@ -3,9 +3,9 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Card, allCards, Benefit } from '../src/data/card-data';
-import { getUserCards, getRedemptionsForPeriod, getPerkExpiryDate, getUpcomingPerks } from '../lib/database';
-import { scheduleNotificationAsync } from '../utils/notifications';
-import { NotificationPreferences } from '../types/notification-types';
+import { getUserCards, getRedemptionsForPeriod } from '../lib/database';
+import { scheduleNotificationAsync } from '../app/utils/notification-scheduler';
+import { NotificationPreferences } from '../app/types/notification-types';
 
 // For the new table perk_reminders
 interface PerkReminder {
@@ -248,7 +248,7 @@ export const schedulePerkExpiryNotifications = async (
       const userCardSet = new Set(dbUserCards.map((c: { card_name: string }) => c.card_name));
       const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
       const userPerkDefinitionIds = currentUserAppCards
-        .flatMap((card: Card) => card.benefits.map((benefit: Benefit) => benefit.id));
+        .flatMap((card: Card) => card.benefits.map((benefit: Benefit) => benefit.definition_id));
   
       if (userPerkDefinitionIds.length === 0) {
         console.log(`[Notifications] No perks found for user ${userId} in this period.`);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import { ImageSourcePropType } from 'react-native';
-import ExpandableCard from '../../app/components/home/ExpandableCard';
+import ExpandableCard from '../../components/home/ExpandableCard';
 import { Card, CardPerk } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption } from '../../lib/database';
 
@@ -29,6 +29,9 @@ jest.mock('expo-haptics', () => ({
 // Mock the image require
 jest.mock('../../assets/images/test-image.jpg', () => 'test-image-mock');
 
+// Mock child components to isolate testing on ExpandableCard
+jest.mock('../../components/home/expandable-card/CardHeader', () => 'CardHeader');
+
 describe('ExpandableCard Value Tracking', () => {
   // Sample test data
   const mockCard: Card = {
@@ -52,7 +55,8 @@ describe('ExpandableCard Value Tracking', () => {
       cardId: 'test-card-1',
       streakCount: 0,
       coldStreakCount: 0,
-      resetType: 'calendar'
+      resetType: 'calendar',
+      categories: ['testing']
     },
     {
       id: 'perk-2',
@@ -65,7 +69,8 @@ describe('ExpandableCard Value Tracking', () => {
       cardId: 'test-card-1',
       streakCount: 0,
       coldStreakCount: 0,
-      resetType: 'calendar'
+      resetType: 'calendar',
+      categories: ['testing']
     }
   ];
 

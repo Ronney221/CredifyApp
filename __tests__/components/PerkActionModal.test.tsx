@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import PerkActionModal from '../../app/components/home/PerkActionModal';
+import PerkActionModal from '../../components/home/PerkActionModal';
 import { Alert } from 'react-native';
+import { CardPerk } from '../../src/data/card-data';
 
 // Mock the native modules and components we're using
 jest.mock('expo-blur', () => ({
@@ -27,7 +28,7 @@ jest.mock('react-native-root-toast', () => ({
 
 describe('PerkActionModal', () => {
   // Mock props
-  const mockPerk = {
+  const mockPerk: CardPerk = {
     id: 'test-perk-1',
     definition_id: 'def-1',
     name: 'Test Perk',
@@ -35,6 +36,12 @@ describe('PerkActionModal', () => {
     status: 'partially_redeemed' as const,
     remaining_value: 40,
     period: 'monthly' as const,
+    cardId: 'card-1',
+    streakCount: 0,
+    coldStreakCount: 0,
+    periodMonths: 1,
+    resetType: 'calendar',
+    categories: ['Dining']
   };
 
   const defaultProps = {
