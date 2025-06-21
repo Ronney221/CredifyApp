@@ -28,7 +28,7 @@ import LottieView from 'lottie-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
-import { Colors } from '../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
