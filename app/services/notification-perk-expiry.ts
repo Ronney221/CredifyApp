@@ -319,7 +319,10 @@ export const schedulePerkExpiryNotifications = async (
                 notification_emoji: definition.notification_emoji,
                 notification_combo_start: definition.notification_combo_start,
                 notification_combo_end: definition.notification_combo_end,
-                reminders: definition.perk_reminders,
+                // FIX: Ensure perk_reminders is always an array to prevent native crashes.
+                reminders: Array.isArray(definition.perk_reminders)
+                  ? definition.perk_reminders
+                  : [definition.perk_reminders].filter(Boolean),
               });
             }
           }

@@ -34,7 +34,13 @@
         "UIStatusBarHidden": false,
         "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
         "UIViewControllerBasedStatusBarAppearance": false,
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can select a profile picture."
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can select a profile picture.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      },
+      "entitlements": {
+        "aps-environment": "production"
       }
     },
     "android": {
@@ -187,7 +193,14 @@
         }
       ],
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
