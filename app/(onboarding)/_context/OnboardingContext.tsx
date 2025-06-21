@@ -145,4 +145,6 @@ export function useOnboardingContext() {
   return context;
 }
 
-export default null; 
+export default function OnboardingContextScreen() {
+  return null;
+} 

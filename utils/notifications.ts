@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Card, allCards, Benefit } from '../src/data/card-data';
 import { getUserCards } from '../lib/database';
-import { NotificationPreferences } from '../app/types/notification-types';
+import { NotificationPreferences } from '../types/notification-types';
 import { scheduleNotificationAsync } from './notification-scheduler';
 
 interface UserCard {

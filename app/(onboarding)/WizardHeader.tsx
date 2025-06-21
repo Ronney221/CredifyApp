@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import Dots from 'react-native-dots-pagination';
 // import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Removed
-import { Colors } from '../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import { useOnboardingContext } from './_context/OnboardingContext';
 
 // Constants for dot styling and animation - can be shared or defined here

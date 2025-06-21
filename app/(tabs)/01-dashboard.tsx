@@ -56,10 +56,10 @@ import { schedulePerkExpiryNotifications } from '../../services/notification-per
 // Import notification functions
 import {
   getNotificationPermissions,
-  scheduleNotificationAsync,
+  scheduleCardRenewalReminder,
   cancelNotification,
-  NotificationPreferences,
 } from '../../utils/notifications';
+import { NotificationPreferences } from '../../types/notification-types';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -592,7 +592,7 @@ export default function Dashboard() {
     if (user?.id) {
       console.log(`[Dashboard] Scheduling perk expiry notifications for periods: ${periodsToSchedule.join(', ')}`);
       for (const period of periodsToSchedule) {
-        await scheduleNotificationAsync(user.id, prefs, period);
+        await schedulePerkExpiryNotifications(user.id, prefs, period);
       }
     }
 
@@ -605,7 +605,7 @@ export default function Dashboard() {
           if (renewalDatesMap[cardData.card.id]) {
             const renewalDate = new Date(renewalDatesMap[cardData.card.id]);
             if (!isNaN(renewalDate.getTime()) && renewalDate > new Date()) {
-              await scheduleNotificationAsync(cardData.card.name, renewalDate, 7, prefs);
+              await scheduleCardRenewalReminder(cardData.card.name, renewalDate, 7, prefs);
             }
           }
         }

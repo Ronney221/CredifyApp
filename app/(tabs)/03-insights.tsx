@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button, Pressable, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
@@ -837,7 +837,7 @@ export default function InsightsScreen() {
                   </View>
                   <TouchableOpacity 
                     style={styles.ctaButton}
-                    onPress={() => router.push("/home")}
+                    onPress={() => router.push("/(tabs)/01-dashboard")}
                   >
                     <Text style={styles.ctaButtonText}>Start Tracking Perks</Text>
                     <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaButtonIcon} />

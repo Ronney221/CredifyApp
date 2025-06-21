@@ -16,11 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
-import { Colors } from '../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import { ProfileHeader } from '../../components/profile/ProfileHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
-import { NotificationPreferences } from '../types/notification-types';
+import { NotificationPreferences } from '../../types/notification-types';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 
