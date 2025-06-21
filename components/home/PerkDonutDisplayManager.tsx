@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useCallback, useImperativeHandle, 
 import { View, StyleSheet, Platform, Text, ActivityIndicator } from 'react-native';
 import { PerksToggle, Segment } from './PerksToggle';
 import ProgressDonut from './ProgressDonut';
-import { Card, CardPerk } from '../../../src/data/card-data';
+import { Card, CardPerk } from '../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { Colors } from '../../constants/Colors';
 

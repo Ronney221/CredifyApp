@@ -16,14 +16,14 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useRoute } from '@react-navigation/native';
 import { Card, allCards } from '../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
-import { CardRow } from '../components/manage/CardRow';
+import { CardRow } from '../../components/manage/CardRow';
 
 const FREQUENTLY_OWNED_IDS = [
   'chase_sapphire_preferred',

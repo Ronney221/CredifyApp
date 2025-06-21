@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CardPerk } from '../../../src/data/card-data';
-import { Colors } from '../../../constants/Colors';
+import { CardPerk } from '../../src/data/card-data';
+import { Colors } from '../../constants/Colors';
 
 interface ActionHintPillProps {
   perk: CardPerk & { cardId: string; cardName: string };

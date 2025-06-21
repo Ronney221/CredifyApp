@@ -21,7 +21,7 @@ import Animated, {
   Layout,
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
-import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../../src/data/card-data';
+import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../src/data/card-data';
 
 interface PerkActionModalProps {
   visible: boolean;

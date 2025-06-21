@@ -1,5 +1,7 @@
 //openai.ts
-import { getRelevantPerks } from '../app/utils/perk-matcher';
+import { getRelevantPerks } from '../utils/perk-matcher';
+import { supabase } from './supabase';
+import { MinifiedCard, MinifiedPerk } from '../utils/perk-matcher';
 
 // --- Make sure you have your minified types defined or imported ---
 interface MinifiedPerk {

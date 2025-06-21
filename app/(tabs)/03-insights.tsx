@@ -1,17 +1,17 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, UIManager, SectionList, SectionListData, DefaultSectionT, Modal, Switch, Button, Pressable, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
 import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming, useAnimatedScrollHandler, interpolate } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
-import YearlyProgress from '../components/insights/YearlyProgress'; // Import the new component
-import FilterChipRow from '../components/insights/FilterChipRow'; // Import the new component
-import CardRoiLeaderboard from '../components/insights/CardRoiLeaderboard'; // Import the new component
-import MiniBarChart from '../components/insights/MiniBarChart';
+import YearlyProgress from '../../components/insights/YearlyProgress'; // Import the new component
+import FilterChipRow from '../../components/insights/FilterChipRow'; // Import the new component
+import CardRoiLeaderboard from '../../components/insights/CardRoiLeaderboard'; // Import the new component
+import MiniBarChart from '../../components/insights/MiniBarChart';
 import {
   generateDummyInsightsData,
   InsightsData,
@@ -20,11 +20,11 @@ import {
   Achievement,
   PerkStatusFilter,
 } from '../../src/data/dummy-insights';
-import { MonthSummaryCard } from '../components/insights/MonthSummaryCard';
-import { StreakBadge } from '../components/insights/StreakBadge';
-import { FeeCoverageMeterChip } from '../components/insights/FeeCoverageMeterChip';
+import { MonthSummaryCard } from '../../components/insights/MonthSummaryCard';
+import { StreakBadge } from '../../components/insights/StreakBadge';
+import { FeeCoverageMeterChip } from '../../components/insights/FeeCoverageMeterChip';
 import { useAuth } from '../../contexts/AuthContext';
-import { useUserCards } from '../hooks/useUserCards';
+import { useUserCards } from '../../hooks/useUserCards';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';

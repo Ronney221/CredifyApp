@@ -16,6 +16,7 @@ interface OnboardingContextType {
   // Step Management
   step: number;
   setStep: (step: number) => void;
+  totalSteps: number;
   
   // UI State
   isHeaderGloballyHidden: boolean;
@@ -102,6 +103,9 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     }
   }, []);
 
+  // --- This is an example, you should determine the total steps for your flow ---
+  const totalSteps = 4; // e.g., Welcome, Card Select, Renewal Dates, Potential Savings
+
   const value: OnboardingContextType = {
     // Card Management
     selectedCards,
@@ -114,6 +118,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     // Step Management
     step,
     setStep,
+    totalSteps,
     
     // UI State
     isHeaderGloballyHidden,

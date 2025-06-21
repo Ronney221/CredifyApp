@@ -18,15 +18,16 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-root-toast';
 import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { Card, CardPerk, openPerkTarget, calculatePerkExpiryDate } from '../../../src/data/card-data';
+import { Card, CardPerk, openPerkTarget, calculatePerkExpiryDate } from '../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
-import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase, setAutoRedemption, debugAutoRedemptions } from '../../../lib/database';
+import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase, setAutoRedemption, debugAutoRedemptions } from '../../lib/database';
 import { useRouter } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
 import OnboardingSheet from './OnboardingSheet';
-import { useOnboardingContext } from '../../../app/(onboarding)/_context/OnboardingContext';
+import { useOnboardingContext } from '../../app/(onboarding)/_context/OnboardingContext';
 
 export interface ExpandableCardProps {
   card: Card;
@@ -702,14 +703,14 @@ const ExpandableCardComponent = ({
       onTapPerk={() => onTapPerk(card.id, perk.id, perk)}
       onLongPressPerk={() => handleLongPressPerk(card.id, perk)}
       setSwipeableRef={(ref: Swipeable | null) => { swipeableRefs.current[perk.id] = ref; }}
-      onSwipeableWillOpen={(direction) => {
+      onSwipeableWillOpen={(direction: 'left' | 'right') => {
         if (direction === 'left') { // Right-swipe reveals the left-side action ("Redeem")
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         } else if (direction === 'right') { // Left-swipe reveals the right-side action ("Available")
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }}
-      onSwipeableOpen={(direction) => {
+      onSwipeableOpen={(direction: 'left' | 'right') => {
         Object.entries(swipeableRefs.current).forEach(([id, swipeableRef]) => {
           if (id !== perk.id && swipeableRef) {
             swipeableRef.close();

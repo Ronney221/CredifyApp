@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Colors } from '../../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import MiniBarChart from './MiniBarChart';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { 

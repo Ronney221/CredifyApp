@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Platform, PlatformColor } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Card } from '../../../../src/data/card-data';
+import { Card } from '../../../src/data/card-data';
 
 interface CardHeaderProps {
   card: Card;

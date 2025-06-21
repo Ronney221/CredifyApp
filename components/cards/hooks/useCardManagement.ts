@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Animated, Easing, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
-import { Card, allCards } from '../../../../src/data/card-data';
-import { getUserCards, saveUserCards } from '../../../../lib/database';
+import { Card, allCards } from '../../../src/data/card-data';
+import { getUserCards, saveUserCards } from '../../../lib/database';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

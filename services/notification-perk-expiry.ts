@@ -3,9 +3,9 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Card, allCards, Benefit } from '../src/data/card-data';
-import { getUserCards, getRedemptionsForPeriod } from '../lib/database';
+import { getUserCards, getRedemptionsForPeriod, getPerkExpiryDate, getUpcomingPerks } from '../lib/database';
 import { scheduleNotificationAsync } from '../utils/notifications';
-import { NotificationPreferences } from '../app/types/notification-types';
+import { NotificationPreferences } from '../types/notification-types';
 
 // For the new table perk_reminders
 interface PerkReminder {

@@ -8,9 +8,9 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { Card } from '../../../src/data/card-data';
+import { Card } from '../../src/data/card-data';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
 
 const getCardNetworkColor = (card: Card) => {
@@ -66,7 +66,7 @@ export const CardRow: React.FC<CardRowProps> = ({
         <View style={styles.checkboxContainer}>
           {isSelected ? (
             <LottieView
-              source={require('../../../assets/animations/checkmark.json')}
+              source={require('../../assets/animations/checkmark.json')}
               autoPlay={true}
               loop={false}
               style={styles.lottieCheckmark}

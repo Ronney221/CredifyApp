@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
 import { MotiView } from 'moti';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { allCards } from '../../src/data/card-data';
@@ -33,6 +33,8 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../../lib/supabase';
+import { onboardingScreenNames } from './_layout';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Dimensions, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { Colors } from '../../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import { BlurView } from 'expo-blur';
 
 interface SwipeCoachMarkProps {

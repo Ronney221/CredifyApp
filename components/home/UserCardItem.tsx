@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Card, CardPerk } from '../../../src/data/card-data';
+import { Card, CardPerk } from '../../src/data/card-data';
 import ExpandableCard from './ExpandableCard';
 import { Colors } from '../../constants/Colors';
 
@@ -10,6 +10,8 @@ interface UserCardItemProps {
   cumulativeSavedValue: number;
   onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
   cardDetailItemStyle?: object;
+  userHasSeenSwipeHint: boolean;
+  onHintDismissed: () => void;
 }
 
 const UserCardItem: React.FC<UserCardItemProps> = ({
@@ -18,6 +20,8 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
   cumulativeSavedValue,
   onTapPerk,
   cardDetailItemStyle,
+  userHasSeenSwipeHint,
+  onHintDismissed,
 }) => {
   return (
     <View style={[styles.cardDetailItem, cardDetailItemStyle]}>
@@ -27,6 +31,8 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
         cumulativeSavedValue={cumulativeSavedValue}
         onTapPerk={onTapPerk}
         sortIndex={0}
+        userHasSeenSwipeHint={userHasSeenSwipeHint}
+        onHintDismissed={onHintDismissed}
       />
     </View>
   );
@@ -34,7 +40,7 @@ const UserCardItem: React.FC<UserCardItemProps> = ({
 
 const styles = StyleSheet.create({
   cardDetailItem: {
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.background,
     borderRadius: 10,
     marginBottom: 15,
   },

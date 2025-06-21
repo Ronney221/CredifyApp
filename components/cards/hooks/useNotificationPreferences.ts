@@ -1,9 +1,10 @@
 //app/components/cards/hooks/useNotificationPreferences.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { sendTestNotification as sendTest, NotificationPreferences } from '../../../utils/notifications';
+import { supabase } from '../../../lib/database';
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences';
 const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
@@ -15,7 +16,7 @@ interface ToggleProps {
   disabled?: boolean;
 }
 
-export const useNotificationPreferences = () => {
+export const useNotificationPreferences = (userId?: string) => {
   const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(false);
   const [quarterlyPerkRemindersEnabled, setQuarterlyPerkRemindersEnabled] = useState(false);
   const [semiAnnualPerkRemindersEnabled, setSemiAnnualPerkRemindersEnabled] = useState(false);

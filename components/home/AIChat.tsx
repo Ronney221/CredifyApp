@@ -22,10 +22,12 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
-import { getBenefitAdvice } from '../../../lib/openai';
+import { getBenefitAdvice } from '../../lib/openai';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear, differenceInHours } from 'date-fns';
-import { CardPerk, openPerkTarget } from '../../../src/data/card-data';
-import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../../app/utils/perk-matcher';
+import { CardPerk, openPerkTarget, allCards } from '../../src/data/card-data';
+import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../utils/perk-matcher';
+import { useColorScheme } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 
 // --- Interfaces ---
 type BenefitRecommendationTuple = [string, string, string, number]; // [benefitName, cardName, displayText, remainingValue]

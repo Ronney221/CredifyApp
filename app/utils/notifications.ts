@@ -259,4 +259,9 @@ export const schedulePerkResetNotification = async (
     console.error('[Notifications] Error scheduling perk reset notification:', error);
     return null;
   }
-}; 
+};
+
+export async function getNotificationPermissions() {
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  // ... existing code ...
+} 

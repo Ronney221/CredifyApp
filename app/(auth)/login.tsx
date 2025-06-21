@@ -20,7 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
 import { MotiView } from 'moti';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +35,8 @@ import Animated, {
   Easing,
   useSharedValue,
 } from 'react-native-reanimated';
+import { FontAwesome } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

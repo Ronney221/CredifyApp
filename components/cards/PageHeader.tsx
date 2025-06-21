@@ -6,7 +6,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
-import { Colors } from '../../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 
 interface PageHeaderProps {
   title: string;

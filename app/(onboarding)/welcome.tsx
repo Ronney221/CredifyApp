@@ -16,11 +16,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useOnboardingContext } from './_context/OnboardingContext';
+import { onboardingScreenNames } from './_layout';
 
 // Design tokens
 const TOKENS = {

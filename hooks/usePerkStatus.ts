@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardPerk } from '../../src/data/card-data';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
+import { Card, CardPerk } from '../src/data/card-data';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './useAuth';
 
 interface PerkDefinition {
   id: string;

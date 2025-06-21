@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
-import { Colors } from '../../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 interface MiniBarChartProps {

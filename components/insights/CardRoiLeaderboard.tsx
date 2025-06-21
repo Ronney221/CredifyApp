@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../../constants/Colors';
-import { CardROI } from '../../../src/data/dummy-insights';
+import { Colors } from '../../constants/Colors';
+import { CardROI } from '../../src/data/dummy-insights';
 
 interface CardRoiLeaderboardProps {
   cardRois: CardROI[];

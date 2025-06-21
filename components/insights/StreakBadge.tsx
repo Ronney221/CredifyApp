@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Colors } from '../../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 
 interface StreakBadgeProps {
   streakCount?: number;

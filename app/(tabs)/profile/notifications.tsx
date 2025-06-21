@@ -15,8 +15,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
-import { useNotificationPreferences } from '../../components/cards/hooks/useNotificationPreferences';
-import { useCardManagement } from '../../components/cards/hooks/useCardManagement';
+import { useNotificationPreferences } from '../../../components/cards/hooks/useNotificationPreferences';
+import { useCardManagement } from '../../../components/cards/hooks/useCardManagement';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';

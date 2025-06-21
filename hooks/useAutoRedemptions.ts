@@ -1,6 +1,6 @@
+import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { getAutoRedemptions } from '../../lib/database';
+import { getAutoRedemptions } from '../lib/database';
 
 interface AutoRedemption {
   id: string;

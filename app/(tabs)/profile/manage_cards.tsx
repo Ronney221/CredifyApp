@@ -22,13 +22,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Colors } from '../../../constants/Colors';
 import * as Haptics from 'expo-haptics';
-import { CardRow } from '../../components/manage/CardRow';
+import { CardRow } from '../../../components/manage/CardRow';
 import { 
   AddCardModal, 
   EmptyState, 
   SaveFooter,
   useCardManagement,
-} from '../../components/cards';
+} from '../../../components/cards';
 import { MotiView } from 'moti';
 import DraggableFlatList, { 
   ScaleDecorator,

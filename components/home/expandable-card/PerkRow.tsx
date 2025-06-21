@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { CardPerk, calculatePerkExpiryDate } from '../../../../src/data/card-data';
+import { CardPerk, calculatePerkExpiryDate } from '../../../src/data/card-data';
 
 const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
 const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background

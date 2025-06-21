@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Card, allCards } from '../../../../src/data/card-data';
+import { Card, allCards } from '../../../src/data/card-data';
 
 const FREQUENTLY_OWNED_IDS = [
   'chase_sapphire_preferred',

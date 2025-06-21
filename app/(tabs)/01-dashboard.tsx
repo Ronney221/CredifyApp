@@ -28,34 +28,38 @@ import LottieView from 'lottie-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
-import { Colors } from '../../constants/Colors';
+import { Colors } from '../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import PerkDonutDisplayManager from '../components/home/PerkDonutDisplayManager';
+import PerkDonutDisplayManager from '../../components/home/PerkDonutDisplayManager';
 import ExpandableCard from '../components/home/ExpandableCard';
-import PerkActionModal from '../components/home/PerkActionModal';
-import { useUserCards } from '../hooks/useUserCards';
-import { usePerkStatus } from '../hooks/usePerkStatus';
-import { useAutoRedemptions } from '../hooks/useAutoRedemptions';
+import PerkActionModal from '../../components/home/PerkActionModal';
+import { useUserCards } from '../../hooks/useUserCards';
+import { usePerkStatus } from '../../hooks/usePerkStatus';
+import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
-import ActionHintPill from '../components/home/ActionHintPill';
+import ActionHintPill from '../../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext';
-import OnboardingSheet from '../components/home/OnboardingSheet';
-import AIChatButton from '../components/home/AIChatButton';
+import OnboardingSheet from '../../components/home/OnboardingSheet';
+import AIChatButton from '../../components/home/AIChatButton';
+import { useSharedValue, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
+import OnboardingSheetContent from '../(onboarding)/welcome';
+import UserCardItem from '../../components/home/UserCardItem';
+import SwipeCoachMark from '../../components/home/SwipeCoachMark';
+import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
 
 // Import notification functions
 import {
-  requestPermissionsAsync,
-  scheduleCardRenewalReminder,
-  cancelAllScheduledNotificationsAsync,
+  getNotificationPermissions,
+  scheduleNotificationAsync,
+  cancelNotification,
   NotificationPreferences,
-} from '../utils/notifications';
-import { schedulePerkExpiryNotifications } from '../services/notification-perk-expiry';
+} from '../../utils/notifications';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -562,7 +566,7 @@ export default function Dashboard() {
 
   // Function to set up notifications
   const setupNotifications = async (periodsToSchedule: number[]) => {
-    const hasPermission = await requestPermissionsAsync();
+    const hasPermission = await getNotificationPermissions();
     if (!hasPermission) {
       Alert.alert(
         "Permissions Required",
@@ -582,13 +586,13 @@ export default function Dashboard() {
       console.error("[Dashboard] Failed to load notification prefs for scheduling.", e);
     }
 
-    await cancelAllScheduledNotificationsAsync();
+    await cancelNotification();
     
     // Schedule notifications for each unique perk period the user has
     if (user?.id) {
       console.log(`[Dashboard] Scheduling perk expiry notifications for periods: ${periodsToSchedule.join(', ')}`);
       for (const period of periodsToSchedule) {
-        await schedulePerkExpiryNotifications(user.id, prefs, period);
+        await scheduleNotificationAsync(user.id, prefs, period);
       }
     }
 
@@ -601,7 +605,7 @@ export default function Dashboard() {
           if (renewalDatesMap[cardData.card.id]) {
             const renewalDate = new Date(renewalDatesMap[cardData.card.id]);
             if (!isNaN(renewalDate.getTime()) && renewalDate > new Date()) {
-              await scheduleCardRenewalReminder(cardData.card.name, renewalDate, 7, prefs);
+              await scheduleNotificationAsync(cardData.card.name, renewalDate, 7, prefs);
             }
           }
         }

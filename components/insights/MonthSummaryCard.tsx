@@ -11,8 +11,8 @@ import Animated, {
   withSpring,
   interpolateColor
 } from 'react-native-reanimated';
-import { Colors } from '../../../constants/Colors';
-import { MonthlyRedemptionSummary, PerkStatusFilter } from '../../../src/data/dummy-insights';
+import { Colors } from '../../constants/Colors';
+import { MonthlyRedemptionSummary, PerkStatusFilter } from '../../src/data/dummy-insights';
 import { FeeCoverageMeterChip } from './FeeCoverageMeterChip';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';

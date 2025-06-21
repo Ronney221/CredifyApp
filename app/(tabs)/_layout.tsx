@@ -5,10 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import { Tabs } from 'expo-router';
 import { Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '../../constants/Colors';
+import { useColorScheme } from '../../hooks/useColorScheme';
 import { BlurView } from 'expo-blur';
 import { useProtectedRoute } from '../../hooks/useProtectedRoute';
+import { HapticTab } from '../../components/HapticTab';
+import TabBarBackground from '../../components/ui/TabBarBackground';
 
 // Header Right Component for Insights Tab
 const InsightsHeaderRight = () => {

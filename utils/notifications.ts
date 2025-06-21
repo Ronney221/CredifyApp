@@ -1,26 +1,30 @@
 //app/utils/notifications.ts
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { supabase } from '../lib/supabase';
+import { Card, allCards, Benefit } from '../src/data/card-data';
+import { getUserCards } from '../lib/database';
+import { NotificationPreferences } from '../types/notification-types';
+import { scheduleNotificationAsync as scheduleAsync } from '../services/notification-perk-expiry';
 
-// --- Basic Notification Configuration ---
+// Renamed for clarity and to avoid conflict with the scheduler
+export { scheduleAsync as scheduleNotificationAsync };
 
-// Tell Expo exactly how to display notifications in the foreground.
+interface UserCard {
+  card_name: string;
+  renewal_date?: string;
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async (): Promise<Notifications.NotificationBehavior> => ({
     shouldPlaySound: true,
     shouldSetBadge: false,
-    shouldShowBanner: true,    // new in recent versions
-    shouldShowList: true,      // new in recent versions
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
-// --- Permission Handling ---
-
-/**
- * Requests permission from the user to send notifications.
- * @returns {Promise<boolean>} True if permission granted, false otherwise.
- */
-export const requestPermissionsAsync = async (): Promise<boolean> => {
+export async function getNotificationPermissions(): Promise<boolean> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -34,40 +38,144 @@ export const requestPermissionsAsync = async (): Promise<boolean> => {
   return status === 'granted';
 };
 
-// --- Scheduling and Canceling ---
-
-/**
- * Schedules a local notification.
- * @param title The title of the notification.
- * @param body The body/message of the notification.
- * @param date The Date object when the notification should trigger.
- * @returns {Promise<string>} The ID of the scheduled notification.
- */
-export const scheduleNotificationAsync = async (
-  title: string,
-  body: string,
-  date: Date,
-): Promise<string> => {
-  // Build a trigger that Expo expects exactly
-  const trigger: Notifications.NotificationTriggerInput = {
-    type: Notifications.SchedulableTriggerInputTypes.DATE,
-    date,                           // when to fire
-    ...(Platform.OS === 'android'
-      ? { channelId: 'default' }    // ensure Android channel
-      : {}),
-  };
-
-  console.log(`Scheduling notification: "${title}" for ${date.toLocaleString()}. Current time is ${new Date().toLocaleString()}`);
-  return Notifications.scheduleNotificationAsync({
-    content: { title, body },
-    trigger,
-  });
+export const scheduleCardRenewalNotifications = async (
+  userId: string,
+  preferences: NotificationPreferences,
+  isTest: boolean = false
+): Promise<(string | null)[]> => {
+  if (!preferences.renewalRemindersEnabled) {
+    return [];
+  }
+  try {
+    const { data: dbUserCards, error: userCardsError } = await getUserCards(userId);
+    if (userCardsError) throw userCardsError;
+    if (!dbUserCards || dbUserCards.length === 0) {
+      return [];
+    }
+    const cardsWithRenewalDates = (dbUserCards as UserCard[]).filter((card) => card.renewal_date);
+    if (cardsWithRenewalDates.length === 0) {
+      return [];
+    }
+    const tasks: Promise<string | null>[] = [];
+    for (const card of cardsWithRenewalDates) {
+      if (!card.renewal_date) continue;
+      let notificationDate: Date;
+      if (isTest) {
+        notificationDate = new Date();
+        notificationDate.setSeconds(notificationDate.getSeconds() + 10);
+      } else {
+        const renewalDate = new Date(card.renewal_date);
+        notificationDate = new Date(renewalDate);
+        notificationDate.setDate(renewalDate.getDate() - 7);
+        notificationDate.setHours(10, 0, 0, 0);
+      }
+      if (notificationDate > new Date() || isTest) {
+        const title = `💳 Card Renewal Reminder`;
+        const body = `${card.card_name} renews in 7 days on ${new Date(card.renewal_date).toLocaleDateString()}.`;
+        tasks.push(scheduleAsync(title, body, notificationDate));
+      }
+    }
+    return Promise.all(tasks);
+  } catch (error) {
+    console.error('[Notifications] Error scheduling renewal notifications:', error);
+    return [];
+  }
 };
 
-/**
- * Cancels all previously scheduled local notifications for the app.
- */
-export const cancelAllScheduledNotificationsAsync = async (): Promise<void> => {
-  console.log('Cancelling all scheduled notifications.');
+export const sendTestNotification = async (userId: string, preferences: NotificationPreferences): Promise<(string | null)[]> => {
+  const isGranted = await getNotificationPermissions();
+  if (!isGranted) {
+    return [];
+  }
+  const allPromises: Promise<(string | null)[]>[] = [];
+  if (preferences.renewalRemindersEnabled) {
+    allPromises.push(scheduleCardRenewalNotifications(userId, preferences, true));
+  }
+  if (preferences.perkResetConfirmationEnabled) {
+    allPromises.push(Promise.resolve([await schedulePerkResetNotification(userId, preferences)]));
+  }
+  const results = await Promise.all(allPromises);
+  return results.flat();
+};
+
+export const cancelNotification = async (): Promise<void> => {
   await Notifications.cancelAllScheduledNotificationsAsync();
+};
+
+export const scheduleCardRenewalReminder = async (
+  cardName: string,
+  renewalDate: Date,
+  daysBefore = 7,
+  preferences?: NotificationPreferences,
+): Promise<string | null> => {
+  const enabled = preferences?.renewalRemindersEnabled === undefined ? true : preferences.renewalRemindersEnabled;
+  if (!enabled) {
+    return null;
+  }
+  const reminderDate = new Date(renewalDate);
+  reminderDate.setDate(renewalDate.getDate() - daysBefore);
+  reminderDate.setHours(23, 59, 50, 0);
+  if (reminderDate > new Date()) {
+    return scheduleAsync(
+      `💳 Card Renewal Reminder`,
+      `${cardName} renews in ${daysBefore} days on ${renewalDate.toLocaleDateString()}.`,
+      reminderDate,
+    );
+  }
+  return null;
+};
+
+export const schedulePerkResetNotification = async (
+  userId: string,
+  preferences: NotificationPreferences
+): Promise<string | null> => {
+  if (!preferences.perkResetConfirmationEnabled) {
+    return null;
+  }
+  try {
+    const { data: dbUserCards, error: userCardsError } = await getUserCards(userId);
+    if (userCardsError) throw userCardsError;
+    if (!dbUserCards || dbUserCards.length === 0) {
+      return null;
+    }
+    const userCardSet = new Set(dbUserCards.map((c: UserCard) => c.card_name));
+    const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
+    let totalMonthlyValue = 0;
+    let monthlyPerkCount = 0;
+    let otherPeriodsResetting = false;
+    const now = new Date();
+    const isLastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() === now.getDate();
+    const isLastDayOfQuarter = isLastDayOfMonth && ((now.getMonth() + 1) % 3 === 0);
+    const isLastDayOfHalfYear = isLastDayOfMonth && ((now.getMonth() + 1) % 6 === 0);
+    const isLastDayOfYear = isLastDayOfMonth && now.getMonth() === 11;
+    currentUserAppCards.forEach((appCard: Card) => {
+      appCard.benefits.forEach((benefit: Benefit) => {
+        if (benefit.periodMonths === 1) {
+          totalMonthlyValue += benefit.value;
+          monthlyPerkCount++;
+        } else if (
+          (benefit.periodMonths === 3 && isLastDayOfQuarter) ||
+          (benefit.periodMonths === 6 && isLastDayOfHalfYear) ||
+          (benefit.periodMonths === 12 && isLastDayOfYear)
+        ) {
+          otherPeriodsResetting = true;
+        }
+      });
+    });
+    const notificationDate = new Date();
+    notificationDate.setDate(notificationDate.getDate() + 1);
+    notificationDate.setHours(9, 0, 0, 0);
+    let title = "🎉 Your Perks Have Reset!";
+    let body = `Your monthly perks, worth over $${totalMonthlyValue}, are now available.`;
+    if (otherPeriodsResetting) {
+      body += " Some quarterly/annual perks have also reset.";
+    }
+    if (monthlyPerkCount > 0) {
+      return scheduleAsync(title, body, notificationDate);
+    }
+    return null;
+  } catch (error) {
+    console.error('[Notifications] Error scheduling perk reset notification:', error);
+    return null;
+  }
 }; 
