@@ -33,7 +33,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import PerkDonutDisplayManager from '../../components/home/PerkDonutDisplayManager';
-import ExpandableCard from '../components/home/ExpandableCard';
+import ExpandableCard from '../../components/home/ExpandableCard';
 import PerkActionModal from '../../components/home/PerkActionModal';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';

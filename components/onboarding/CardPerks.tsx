@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { Card } from '../../../src/data/card-data';
-import { Colors } from '../../../constants/Colors';
+import { Card } from '../../src/data/card-data';
+import { Colors } from '../../constants/Colors';
 import { MotiView } from 'moti';
 
 interface CardPerksProps {

@@ -17,7 +17,7 @@ import { Colors } from '../constants/Colors';
 import { MotiView } from 'moti';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
-import { CardPerks } from '../components/onboarding/CardPerks';
+import { CardPerks } from '../../components/onboarding/CardPerks';
 import { allCards, Card, Benefit } from '../../src/data/card-data';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
