@@ -1,3 +1,16 @@
+// Add at the beginning of the file
+if (typeof global.gc === 'function') {
+  // Configure periodic garbage collection
+  const GC_INTERVAL = 30000; // 30 seconds
+  setInterval(() => {
+    try {
+      global.gc();
+    } catch (e) {
+      console.warn('Failed to run garbage collection:', e);
+    }
+  }, GC_INTERVAL);
+}
+
 // Initialize required globals
 if (typeof global === 'undefined') {
   global = {};

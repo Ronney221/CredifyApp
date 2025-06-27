@@ -13,7 +13,9 @@ import {
   Easing,
   Alert,
   Linking,
- useColorScheme } from 'react-native';
+  useColorScheme,
+  InteractionManager,
+} from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -81,6 +83,24 @@ interface TokenUsage {
 interface ChatUsage {
   remainingUses: number;
   lastResetDate: string;
+}
+
+interface CardData {
+  card: {
+    id: string;
+    name: string;
+  };
+  perks: CardPerk[];
+}
+
+interface ProcessedCard {
+  id: string;
+  name: string;
+  perks: CardPerk[];
+  card: {
+    id: string;
+    name: string;
+  };
 }
 
 // --- Constants ---
@@ -194,12 +214,12 @@ const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEn
 };
 
 // Helper function to minify card data for the AI prompt
-const minifyCardData = (cards: any[]): MinifiedCard[] => {
+const minifyCardData = (cards: ProcessedCard[]): MinifiedCard[] => {
   console.log('[AIChat][minifyCardData] Starting data minification for', cards.length, 'cards.');
   const currentDate = new Date();
   const minified = cards.map(card => {
-      const minifiedPerks = card.perks.map((perk: any) => {
-          let expiryDate: string | null = perk.expiry;
+      const minifiedPerks = card.perks.map((perk: CardPerk) => {
+          let expiryDate: string | null = perk.endDate || null;
           if (!expiryDate && perk.periodMonths) {
               const { cycleEndDate } = calculatePerkCycleDetails(perk, currentDate);
               expiryDate = format(cycleEndDate, 'yyyy-MM-dd');
@@ -230,7 +250,7 @@ const minifyCardData = (cards: any[]): MinifiedCard[] => {
           };
       });
       return {
-          cn: card.card.name,
+          cn: card.name,
           p: minifiedPerks
       };
   });
@@ -461,18 +481,53 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
   );
 };
 
+// Performance monitoring constants
+const PERFORMANCE_THRESHOLDS = {
+  messageProcessing: 500, // ms
+  renderTime: 16, // ms (targeting 60fps)
+  memoryCleanup: 30000, // 30 seconds
+} as const;
+
+type PerformanceOperation = keyof typeof PERFORMANCE_THRESHOLDS;
+
+const performanceMonitor = {
+  startTime: 0,
+  start() {
+    this.startTime = performance.now();
+  },
+  end(operation: PerformanceOperation) {
+    const duration = performance.now() - this.startTime;
+    if (duration > PERFORMANCE_THRESHOLDS[operation]) {
+      console.warn(`Performance warning: ${operation} took ${duration}ms`);
+    }
+  }
+};
+
 // --- Main Chat Component ---
 const AIChat = ({ onClose }: { onClose: () => void }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(getOnboardingMessages());
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [remainingUses, setRemainingUses] = useState<number>(MONTHLY_CHAT_LIMIT);
+  const [remainingUses, setRemainingUses] = useState(MONTHLY_CHAT_LIMIT);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const sendButtonScale = useRef(new Animated.Value(0)).current;
   const { userCardsWithPerks } = useUserCards();
-  const { userCardsWithPerks: processedCards } = usePerkStatus(userCardsWithPerks);
+  const { userCardsWithPerks: rawCardData } = usePerkStatus(userCardsWithPerks);
+  const [processedCards, setProcessedCards] = useState<ProcessedCard[]>([]);
+
+  // Update processedCards when rawCardData changes
+  useEffect(() => {
+    if (rawCardData) {
+      setProcessedCards(rawCardData.map((cardData: CardData) => ({
+        id: cardData.card.id,
+        name: cardData.card.name,
+        perks: cardData.perks,
+        card: cardData.card
+      })));
+    }
+  }, [rawCardData]);
 
   const handleUpgrade = () => {
     console.log('[AIChat][handleUpgrade] Upgrade button pressed.');
@@ -644,8 +699,52 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     }).start();
   }, [inputText]);
 
+  // Memory management
+  useEffect(() => {
+    let isSubscribed = true;
+    let cleanupTimer: ReturnType<typeof setInterval>;
+
+    const setupMemoryManagement = () => {
+      cleanupTimer = setInterval(() => {
+        if (!isSubscribed) return;
+
+        InteractionManager.runAfterInteractions(() => {
+          // Clear old messages beyond a certain limit
+          setMessages(prev => prev.slice(0, 50)); // Keep last 50 messages
+          
+          // Clear large data structures that are no longer needed
+          setProcessedCards(prev => prev.length > 20 ? prev.slice(0, 20) : prev);
+
+          // Force garbage collection if available
+          if (global.gc) {
+            try {
+              global.gc();
+            } catch (e) {
+              console.warn('Failed to run garbage collection:', e);
+            }
+          }
+        });
+      }, PERFORMANCE_THRESHOLDS.memoryCleanup);
+    };
+
+    setupMemoryManagement();
+
+    return () => {
+      isSubscribed = false;
+      if (cleanupTimer) {
+        clearInterval(cleanupTimer);
+      }
+      // Clear data on unmount
+      setMessages([]);
+      setProcessedCards([]);
+    };
+  }, []);
+
+  // Enhanced error handling for API calls
   const handleAIResponse = async (userMessageText: string) => {
+    performanceMonitor.start();
     console.log(`[AIChat][handleAIResponse] Starting AI response flow for query: "${userMessageText}"`);
+
     if (remainingUses <= 0) {
       console.log('[AIChat][handleAIResponse] User has reached their monthly limit.');
       const errorMessage: Message = {
@@ -664,40 +763,51 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
     setIsTyping(true);
     try {
-      // Validate processedCards
-      if (!processedCards || !Array.isArray(processedCards)) {
-        throw new Error('Invalid card data');
+      // Validate input data
+      if (!processedCards?.length) {
+        throw new Error('No card data available');
       }
 
-      console.log('[AIChat][handleAIResponse] Processing available perks from usePerkStatus hook.');
-      
-      // 1. Filter out unusable perks.
-      const usablePerksData = processedCards
-        .map(card => ({
-          ...card,
-          perks: card.perks.filter(perk => 
-            perk.status === 'available' || perk.status === 'partially_redeemed'
-          ),
-        }))
-        .filter(card => card.perks.length > 0);
+      // Memory-efficient processing
+      const currentDate = new Date();
+      const usablePerksData = processedCards.reduce<ProcessedCard[]>((acc, cardData) => {
+        const validPerks = cardData.perks.filter(perk => 
+          perk.status === 'available' || perk.status === 'partially_redeemed'
+        );
+        
+        if (validPerks.length) {
+          acc.push({
+            id: cardData.id,
+            name: cardData.name,
+            perks: validPerks,
+            card: cardData.card
+          });
+        }
+        return acc;
+      }, []);
 
       console.log(`[AIChat][handleAIResponse] Found ${usablePerksData.length} cards with usable perks.`);
 
-      // Tier 3: Pre-sort the data before sending it to the AI
-      const currentDate = new Date();
-      usablePerksData.forEach(card => {
-        card.perks.sort((a, b) => {
-          const aDetails = calculatePerkCycleDetails(a, currentDate);
-          const bDetails = calculatePerkCycleDetails(b, currentDate);
-          if (aDetails.daysRemaining !== bDetails.daysRemaining) {
-            return aDetails.daysRemaining - bDetails.daysRemaining;
-          }
-          return (b.remaining_value ?? b.value) - (a.remaining_value ?? a.value);
+      // Batch processing for better memory usage
+      const batchSize = 5;
+      const processedResults: ProcessedCard[] = [];
+      
+      for (let i = 0; i < usablePerksData.length; i += batchSize) {
+        const batch = usablePerksData.slice(i, i + batchSize);
+        const batchResults = batch.map(card => {
+          const perks = card.perks.sort((a: CardPerk, b: CardPerk) => {
+            const aDetails = calculatePerkCycleDetails(a, currentDate);
+            const bDetails = calculatePerkCycleDetails(b, currentDate);
+            return (aDetails.daysRemaining - bDetails.daysRemaining) || 
+                   ((b.remaining_value ?? b.value) - (a.remaining_value ?? a.value));
+          });
+          return { ...card, perks } as ProcessedCard;
         });
-      });
+        processedResults.push(...batchResults);
+      }
 
       // 2. Now transform the clean, sorted, usable data.
-      const minifiedCards = minifyCardData(usablePerksData);
+      const minifiedCards = minifyCardData(processedResults);
 
       if (minifiedCards.length === 0) {
         throw new Error('No available perks found after minification.');
@@ -760,11 +870,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           })
           .map((rec): UIBenefitRecommendation | null => {
             try {
-              const [benefitName, cardName, displayText, remainingValue] = rec;
-              
-              if (!benefitName || !cardName || !displayText || typeof remainingValue !== 'number') {
-                return null;
-              }
+            const [benefitName, cardName, displayText, remainingValue] = rec;
+            
+            if (!benefitName || !cardName || !displayText || typeof remainingValue !== 'number') {
+              return null;
+            }
 
               // Safer string manipulation
               let cleanedDisplayText = displayText;
@@ -845,14 +955,14 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                 console.warn('[AIChat] Error cleaning display text:', err);
                 cleanedDisplayText = displayText; // Fallback to original
               }
-              
-              let perk: CardPerk | undefined;
-              const card = processedCards?.find(c => c?.card?.name === cardName);
-              if (card) {
-                perk = card.perks?.find(p => p?.name === benefitName);
-              }
+            
+            let perk: CardPerk | undefined;
+            const matchedCard = processedCards?.find(c => c.name === cardName);
+            if (matchedCard) {
+              perk = matchedCard.perks?.find(p => p?.name === benefitName);
+            }
 
-              return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
+            return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
             } catch (err) {
               console.warn('[AIChat] Error mapping recommendation:', err);
               return null;
@@ -863,13 +973,13 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         uiRecommendations = validRecommendations;
 
         const grouped = validRecommendations.reduce<{ [key: string]: GroupedRecommendation }>((acc, rec) => {
-          const card = processedCards?.find(c => c?.card?.name === rec.cardName);
-          if (!card) return acc;
+          const matchedCard = processedCards?.find(c => c.name === rec.cardName);
+          if (!matchedCard) return acc;
       
           if (!acc[rec.cardName]) {
               acc[rec.cardName] = {
                   cardName: rec.cardName,
-                  cardId: card.card.id,
+                  cardId: matchedCard.id,
                   perks: []
               };
           }
@@ -935,14 +1045,17 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       }
 
     } catch (error) {
-      console.error('[AIChat][handleAIResponse] Error processing AI response:', error);
-      // Provide a fallback UI state
-      return {
-        adviceText: "Sorry, I encountered an error processing the response. Please try again.",
-        uiRecommendations: []
+      console.error('[AIChat][handleAIResponse] Error:', error);
+      const errorMessage = {
+        _id: Math.random().toString(),
+        text: "I encountered an error processing your request. Please try again.",
+        createdAt: new Date(),
+        user: AI,
       };
+      setMessages(prev => [errorMessage, ...prev.filter(m => !m.pending)]);
     } finally {
       setIsTyping(false);
+      performanceMonitor.end('messageProcessing');
     }
   };
 
