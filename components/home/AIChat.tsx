@@ -30,7 +30,7 @@ import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../utils/perk-m
 import { useAuth } from '../../contexts/AuthContext';
 
 // --- Interfaces ---
-type BenefitRecommendationTuple = [string, string, string, number]; // [benefitName, cardName, displayText, remainingValue]
+type BenefitRecommendationTuple = [string, string, string, number];
 
 // Reconstructed recommendation object for UI use
 interface UIBenefitRecommendation {
@@ -734,30 +734,40 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       let uiRecommendations: UIBenefitRecommendation[] = [];
       let groupedRecommendations: GroupedRecommendation[] = [];
 
-      if (result.response.responseType === 'BenefitRecommendation' && result.response.recommendations.length > 0) {
+      if (result.response.responseType === 'BenefitRecommendation' && Array.isArray(result.response.recommendations) && result.response.recommendations.length > 0) {
         console.log('[AIChat][handleAIResponse] Processing recommendations. Full object:', JSON.stringify(result.response, null, 2));
         
         adviceText = "Here are a few perks that could help:"; 
 
-        uiRecommendations = result.response.recommendations.map((rec) => {
-          const [benefitName, cardName, displayText, remainingValue] = rec;
+        const validRecommendations = result.response.recommendations
+          .filter(rec => Array.isArray(rec) && rec.length === 4)
+          .map((rec): UIBenefitRecommendation | null => {
+            const [benefitName, cardName, displayText, remainingValue] = rec;
+            
+            // Add null checks
+            if (!benefitName || !cardName || !displayText || typeof remainingValue !== 'number') {
+              return null;
+            }
 
-          // Create a regex to find and remove phrases like "on your [Card Name]"
-          const escapedCardName = cardName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-          const cardRemovalRegex = new RegExp(`\\s+(on|from)\\s+(your|the)\\s+(\\*\\*)?${escapedCardName}(\\*\\*)?`, 'gi');
-          const cleanedDisplayText = displayText.replace(cardRemovalRegex, '');
-          
-          let perk: CardPerk | undefined;
-          const card = processedCards.find(c => c.card.name === cardName);
-          if (card) {
-            perk = card.perks.find(p => p.name === benefitName);
-          }
+            // Create a regex to find and remove phrases like "on your [Card Name]"
+            const escapedCardName = cardName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const cardRemovalRegex = new RegExp(`\\s+(on|from)\\s+(your|the)\\s+(\\*\\*)?${escapedCardName}(\\*\\*)?`, 'gi');
+            const cleanedDisplayText = displayText.replace(cardRemovalRegex, '');
+            
+            let perk: CardPerk | undefined;
+            const card = processedCards?.find(c => c?.card?.name === cardName);
+            if (card) {
+              perk = card.perks?.find(p => p?.name === benefitName);
+            }
 
-          return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
-        });
+            return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
+          })
+          .filter((rec): rec is UIBenefitRecommendation => rec !== null);
 
-        const grouped = uiRecommendations.reduce((acc, rec) => {
-          const card = processedCards.find(c => c.card.name === rec.cardName);
+        uiRecommendations = validRecommendations;
+
+        const grouped = validRecommendations.reduce<{ [key: string]: GroupedRecommendation }>((acc, rec) => {
+          const card = processedCards?.find(c => c?.card?.name === rec.cardName);
           if (!card) return acc;
       
           if (!acc[rec.cardName]) {
@@ -769,7 +779,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           }
           acc[rec.cardName].perks.push(rec);
           return acc;
-        }, {} as { [key: string]: GroupedRecommendation });
+        }, {});
       
         groupedRecommendations = Object.values(grouped);
         console.log(`[AIChat][handleAIResponse] Created ${groupedRecommendations.length} UI groups for recommendations.`);

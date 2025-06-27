@@ -9,7 +9,12 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m1-medium",
+        "scheme": "Release",
+        "buildConfiguration": "ReleaseWithSymbols"
+      }
     },
     "production": {
       "env": {
