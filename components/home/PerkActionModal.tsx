@@ -19,6 +19,7 @@ import Animated, {
   FadeIn,
   FadeOut,
   Layout,
+  SharedValue,
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../src/data/card-data';
@@ -67,8 +68,9 @@ const AnimatedSlider = Animated.createAnimatedComponent(Slider);
 
 // Add a new Tooltip component with smooth animation
 const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number }) => {
+  const safeValue = value || 0;
   const animatedStyle = useAnimatedStyle(() => {
-    const percentage = (value / maxValue) * 100;
+    const percentage = (safeValue / maxValue) * 100;
     return {
       left: `${percentage}%`,
       transform: [
@@ -83,7 +85,7 @@ const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number })
   return (
     <Animated.View style={[styles.tooltip, animatedStyle]}>
       <View style={styles.tooltipArrow} />
-      <Text style={styles.tooltipText}>${value.toFixed(2)}</Text>
+      <Text style={styles.tooltipText}>${safeValue.toFixed(2)}</Text>
     </Animated.View>
   );
 };
@@ -232,22 +234,38 @@ export default function PerkActionModal({
   onMarkRedeemed,
   onMarkAvailable,
 }: PerkActionModalProps) {
+  // All hooks at the top
   const insets = useSafeAreaInsets();
+  const translateY = useSharedValue(1000);
+  const [sliderValue, setSliderValue] = useState(0);
+  const [selectedAmount, setSelectedAmount] = useState<AmountOption>('full');
+  const [customAmount, setCustomAmount] = useState('');
+  const [showDescription, setShowDescription] = useState(false);
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<'full' | 'half' | 'custom' | null>('full');
   const [partialAmount, setPartialAmount] = useState('');
-  const [sliderValue, setSliderValue] = useState<number>(0);
   const [isEditingNumber, setIsEditingNumber] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const translateY = useSharedValue(1000);
-  const opacity = useSharedValue(0);
   const sliderPosition = useSharedValue(0);
   const sliderAnimation = useSharedValue<number>(0);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const descriptionMeasuredHeight = useSharedValue(0);
-  const modalHeight = useSharedValue('auto');
   
+  // Animated props and styles
+  const animatedSliderProps = useAnimatedProps(() => ({
+    value: sliderAnimation.value,
+  }));
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  // Early returns after all hooks are declared
+  if (!visible || !perk) {
+    return null;
+  }
+
   // Get the currently redeemed amount if partially redeemed
   const getCurrentRedeemedAmount = useCallback(() => {
     if (perk?.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
@@ -283,36 +301,37 @@ export default function PerkActionModal({
   // Reset state when modal becomes visible or perk changes
   useEffect(() => {
     if (visible && perk) {
-      // Immediately set the initial slider value
-      const maxValue = perk.value || 0;
-      sliderAnimation.value = maxValue;
-      sliderPosition.value = maxValue;
-      setSliderValue(maxValue);
-      setPartialAmount(formatExactCurrency(maxValue).replace(/[^0-9.]/g, ''));
-
-      // Then animate the modal
-      translateY.value = withTiming(0, { duration: 300 });
-      opacity.value = withTiming(1, { duration: 300 });
-      
-      // Set remaining values based on perk status
-      const currentRedeemedAmount = getCurrentRedeemedAmount();
-      
+      // First check if it's partially redeemed and set the correct initial value
       if (perk.status === 'partially_redeemed') {
-        setSelectedPreset('custom');
-        setShowCustomAmount(true);
+        const currentRedeemedAmount = getCurrentRedeemedAmount();
         const roundedAmount = roundToNearestDime(currentRedeemedAmount);
+        
+        // Set all slider-related values to the current redeemed amount
+        sliderAnimation.value = roundedAmount;
+        sliderPosition.value = roundedAmount;
         setSliderValue(roundedAmount);
         setPartialAmount(formatExactCurrency(roundedAmount).replace(/[^0-9.]/g, ''));
-        sliderPosition.value = roundedAmount;
-        sliderAnimation.value = roundedAmount;
+        
+        // Set UI state
+        setSelectedPreset('custom');
+        setShowCustomAmount(true);
       } else {
+        // For non-partially redeemed perks, set to max value
+        const maxValue = perk.value || 0;
+        sliderAnimation.value = maxValue;
+        sliderPosition.value = maxValue;
+        setSliderValue(maxValue);
+        setPartialAmount(formatExactCurrency(maxValue).replace(/[^0-9.]/g, ''));
+        
         setSelectedPreset('full');
         setShowCustomAmount(false);
       }
+
+      // Animate modal
+      translateY.value = withTiming(0, { duration: 300 });
       setIsEditingNumber(false);
     } else {
-      translateY.value = withTiming(1000, { duration: 300 });
-      opacity.value = withTiming(0, { duration: 300 });
+      translateY.value = withTiming(0, { duration: 300 });
     }
   }, [visible, perk, getCurrentRedeemedAmount]);
 
@@ -338,7 +357,7 @@ export default function PerkActionModal({
   }, [perk?.status, perk?.value]);
 
   // Handle text input changes
-  const handlePartialAmountChange = useCallback((text: string) => {
+  const handleAmountChange = useCallback((text: string) => {
     setPartialAmount(text);
     const value = parseDecimalInput(text);
     
@@ -356,31 +375,21 @@ export default function PerkActionModal({
     setIsEditingNumber(true);
   }, [perk?.status, perk?.value]);
 
-  // Handle done editing
-  const handleDoneEditing = useCallback(() => {
-    Keyboard.dismiss();
-    setIsEditingNumber(false);
-    
-    const value = parseDecimalInput(partialAmount);
-    const roundedValue = roundToNearestDime(value);
+  // Handle blur event for text input
+  const handleAmountBlur = useCallback(() => {
+    const roundedValue = roundToNearestDime(parseFloat(partialAmount));
     
     setPartialAmount(roundedValue.toFixed(2));
     setSliderValue(roundedValue);
     sliderAnimation.value = withSpring(roundedValue);
   }, [partialAmount]);
 
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
-
   const overlayStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+    opacity: 1,
   }));
 
   const handleDismiss = () => {
-    translateY.value = withTiming(1000, { duration: 300 });
-    opacity.value = withTiming(0, { duration: 300 });
+    translateY.value = withTiming(0, { duration: 300 });
     setTimeout(() => {
       onDismiss();
       setShowCustomAmount(false);
@@ -389,7 +398,7 @@ export default function PerkActionModal({
       setSliderValue(0);
       setIsEditingNumber(false);
       setIsDescriptionExpanded(false);
-    }, 300);
+    }, 200);
   };
 
   const handleOpenApp = () => {
@@ -434,7 +443,6 @@ export default function PerkActionModal({
       }
     );
   };
-
 
   const handleConfirmAction = () => {
     Keyboard.dismiss();
@@ -541,15 +549,6 @@ export default function PerkActionModal({
     };
   });
 
-  // Add animatedSliderProps before the return statement
-  const animatedSliderProps = useAnimatedProps(() => {
-    return {
-      value: sliderAnimation.value,
-    };
-  });
-
-  if (!perk) return null;
-
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
   const formattedValue = perk.value.toLocaleString('en-US', {
@@ -651,15 +650,15 @@ export default function PerkActionModal({
                       <View style={styles.sliderWrapper}>
                         <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
                         <AnimatedSlider
-                          style={styles.slider}
                           minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.10}
                           maximumValue={perk?.value || 0}
-                          animatedProps={animatedSliderProps}
-                          onValueChange={handleSliderChange}
                           minimumTrackTintColor="#007AFF"
                           maximumTrackTintColor="#E5E5EA"
                           thumbTintColor="#007AFF"
+                          onValueChange={handleSliderChange}
+                          animatedProps={animatedSliderProps}
                           step={0.10}
+                          style={styles.slider}
                         />
                       </View>
                       <Text style={styles.sliderValue}>{formatExactCurrency(perk?.value || 0)}</Text>
