@@ -1,6 +1,5 @@
 {
   "expo": {
-    "owner": "credifyapp",
     "name": "Credify",
     "slug": "ronney",
     "version": "1.1.0",
@@ -8,11 +7,18 @@
     "icon": "./assets/images/icon.png",
     "scheme": "credify",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "usesAppleSignIn": true,
       "bundleIdentifier": "com.credifyapp.credify",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -48,8 +54,14 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.credifyronney.credify",
+      "allowBackup": true,
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -66,115 +78,11 @@
           ]
         }
       ],
-      "queries": [
-        {
-          "package": "com.dunkinbrands.otgo"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "dunkindonuts"
-              }
-            }
-          ]
-        },
-        {
-          "package": "com.ubercab"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "uber"
-              }
-            }
-          ]
-        },
-        {
-          "package": "com.ubercab.eats"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "ubereats"
-              }
-            }
-          ]
-        },
-        {
-          "package": "com.dd.doordash"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "doordash"
-              }
-            }
-          ]
-        },
-        {
-          "package": "com.grubhub.android"
-        },
-        {
-          "package": "com.walmart.android"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "walmart"
-              }
-            }
-          ]
-        },
-        {
-          "package": "com.saks.android"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "saksfifthavenue"
-              }
-            }
-          ]
-        },
-        {
-          "package": "com.equinox.mobile"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "equinox"
-              }
-            }
-          ]
-        },
-        {
-          "package": "me.lyft.android"
-        },
-        {
-          "intent": [
-            {
-              "action": "android.intent.action.VIEW",
-              "data": {
-                "scheme": "lyft"
-              }
-            }
-          ]
+      "config": {
+        "googleMaps": {
+          "apiKey": "your-google-maps-api-key"
         }
-      ]
+      }
     },
     "web": {
       "bundler": "metro",
@@ -200,9 +108,24 @@
           "icon": "./assets/images/icon.png",
           "color": "#ffffff"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.4"
+          },
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "extraProguardRules": "-keep class com.credifyapp.credify.BuildConfig { *; }"
+          }
+        }
       ]
     ],
     "experiments": {
+      "tsconfigPaths": true,
       "typedRoutes": true
     },
     "extra": {

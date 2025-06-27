@@ -1,3 +1,5 @@
+'use worklet';
+
 import React, { useEffect } from 'react';
 import {
   View,
@@ -22,6 +24,7 @@ import Animated, {
   withTiming,
   withDelay,
   Easing,
+  cancelAnimation,
 } from 'react-native-reanimated';
 
 // Define colors
@@ -51,12 +54,14 @@ interface OnboardingSheetProps {
 }
 
 // Animated components for each tip
-const TapAnimation = () => {
+const TapAnimation = ({ visible }: { visible: boolean }) => {
   const scale = useSharedValue(1);
   const rippleScale = useSharedValue(0);
   const rippleOpacity = useSharedValue(0);
 
   useEffect(() => {
+    if (!visible) return;
+    
     scale.value = withRepeat(
       withSequence(
         withTiming(0.9, { duration: 400, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }),
@@ -83,16 +88,28 @@ const TapAnimation = () => {
       -1,
       false
     );
-  }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+    return () => {
+      scale.value = 1;
+      rippleScale.value = 0;
+      rippleOpacity.value = 0;
+    };
+  }, [visible]);
 
-  const rippleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: rippleScale.value }],
-    opacity: rippleOpacity.value,
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  const rippleStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ scale: rippleScale.value }],
+      opacity: rippleOpacity.value,
+    };
+  });
 
   return (
     <View style={styles.iconWrapper}>
@@ -106,11 +123,13 @@ const TapAnimation = () => {
   );
 };
 
-const OpenAppAnimation = () => {
+const OpenAppAnimation = ({ visible }: { visible: boolean }) => {
   const arrowTranslate = useSharedValue(0);
   const arrowOpacity = useSharedValue(1);
 
   useEffect(() => {
+    if (!visible) return;
+
     const sequence = withSequence(
       withTiming(0, { duration: 0 }),
       withDelay(500,
@@ -131,12 +150,20 @@ const OpenAppAnimation = () => {
       -1,
       false
     );
-  }, []);
 
-  const arrowStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: arrowTranslate.value }],
-    opacity: arrowOpacity.value,
-  }));
+    return () => {
+      arrowTranslate.value = 0;
+      arrowOpacity.value = 1;
+    };
+  }, [visible]);
+
+  const arrowStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ translateX: arrowTranslate.value }],
+      opacity: arrowOpacity.value,
+    };
+  });
 
   return (
     <View style={styles.iconWrapper}>
@@ -150,14 +177,15 @@ const OpenAppAnimation = () => {
   );
 };
 
-const LongPressAnimation = () => {
+const LongPressAnimation = ({ visible }: { visible: boolean }) => {
   const scale = useSharedValue(1);
   const progress = useSharedValue(0);
   const pulseScale = useSharedValue(1);
   const fingerScale = useSharedValue(1);
 
   useEffect(() => {
-    // Finger press animation
+    if (!visible) return;
+
     fingerScale.value = withRepeat(
       withSequence(
         withTiming(0.9, { duration: 1000 }),
@@ -167,7 +195,6 @@ const LongPressAnimation = () => {
       true
     );
 
-    // Clock pulse animation
     pulseScale.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 1000 }),
@@ -177,7 +204,6 @@ const LongPressAnimation = () => {
       true
     );
 
-    // Progress bar animation
     progress.value = withRepeat(
       withSequence(
         withTiming(0, { duration: 0 }),
@@ -187,19 +213,34 @@ const LongPressAnimation = () => {
       -1,
       false
     );
-  }, []);
 
-  const fingerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: fingerScale.value }],
-  }));
+    return () => {
+      fingerScale.value = 1;
+      pulseScale.value = 1;
+      progress.value = 0;
+    };
+  }, [visible]);
 
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
+  const fingerStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ scale: fingerScale.value }],
+    };
+  });
 
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-  }));
+  const progressStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      width: `${progress.value * 100}%`,
+    };
+  });
+
+  const pulseStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ scale: pulseScale.value }],
+    };
+  });
 
   return (
     <View style={styles.iconWrapper}>
@@ -222,6 +263,13 @@ export default function OnboardingSheet({
 }: OnboardingSheetProps) {
   const translateY = useSharedValue(0);
   
+  // Reset translateY when modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      translateY.value = 0;
+    }
+  }, [visible]);
+  
   const handlePanGesture = useAnimatedGestureHandler({
     onStart: (_, context: { startY: number }) => {
       context.startY = translateY.value;
@@ -235,7 +283,6 @@ export default function OnboardingSheet({
       if (shouldDismiss) {
         translateY.value = withSpring(500, {}, () => {
           runOnJS(onDismiss)();
-          translateY.value = 0;
         });
       } else {
         translateY.value = withSpring(0);
@@ -244,16 +291,22 @@ export default function OnboardingSheet({
   });
 
   const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
     return {
       transform: [{ translateY: translateY.value }],
     };
   });
 
+  // Don't render anything if not visible
+  if (!visible) {
+    return null;
+  }
+
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onDismiss}
       presentationStyle="overFullScreen"
     >
@@ -270,7 +323,7 @@ export default function OnboardingSheet({
             
             <View style={styles.tipContainer}>
               <View style={styles.tipItem}>
-                <TapAnimation />
+                <TapAnimation visible={visible} />
                 <View style={styles.tipTextContainer}>
                   <Text style={styles.tipTitle}>Tap for Details</Text>
                   <Text style={styles.tipDescription}>Peek at all the perks and quick actions available</Text>
@@ -278,7 +331,7 @@ export default function OnboardingSheet({
               </View>
 
               <View style={styles.tipItem}>
-                <OpenAppAnimation />
+                <OpenAppAnimation visible={visible} />
                 <View style={styles.tipTextContainer}>
                   <Text style={styles.tipTitle}>Open Apps Directly</Text>
                   <Text style={styles.tipDescription}>Jump straight to your apps and we&apos;ll handle the rest</Text>
@@ -286,7 +339,7 @@ export default function OnboardingSheet({
               </View>
 
               <View style={styles.tipItem}>
-                <LongPressAnimation />
+                <LongPressAnimation visible={visible} />
                 <View style={styles.tipTextContainer}>
                   <Text style={styles.tipTitle}>Auto-Redeem Monthly</Text>
                   <Text style={styles.tipDescription}>Set it and forget it for your favorite subscriptions</Text>

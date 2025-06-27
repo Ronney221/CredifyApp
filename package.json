@@ -2,6 +2,13 @@
   "name": "credify",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "listUnknownPackages": false
+      }
+    }
+  },
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -17,18 +24,16 @@
     "@craftzdog/react-native-buffer": "^6.0.5",
     "@expo/vector-icons": "^14.1.0",
     "@gorhom/bottom-sheet": "^5.1.6",
-    "@lottiefiles/dotlottie-react": "^0.13.5",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/blur": "^4.4.1",
-    "@react-native-community/datetimepicker": "8.3.0",
+    "@react-native-community/datetimepicker": "8.4.1",
     "@react-native-community/slider": "4.5.6",
     "@react-native-segmented-control/segmented-control": "2.5.7",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/core": "^7.10.1",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
-    "@supabase/supabase-js": "^2.39.3",
-    "@tradle/react-native-http": "^2.0.1",
+    "@supabase/supabase-js": "^2.50.2",
     "base64-arraybuffer": "^1.0.2",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
@@ -39,15 +44,16 @@
     "expo-application": "~6.1.4",
     "expo-auth-session": "~6.2.0",
     "expo-blur": "~14.1.5",
+    "expo-build-properties": "~0.14.6",
     "expo-constants": "~17.1.6",
-    "expo-crypto": "^14.1.4",
+    "expo-crypto": "~14.1.5",
+    "expo-dev-client": "~5.2.1",
     "expo-font": "~13.3.1",
     "expo-haptics": "~14.1.4",
     "expo-image": "~2.3.0",
     "expo-image-picker": "~16.1.4",
     "expo-linear-gradient": "~14.1.5",
     "expo-linking": "~7.1.5",
-    "expo-modules-core": "~2.4.0",
     "expo-notifications": "~0.31.2",
     "expo-router": "^5.0.7",
     "expo-splash-screen": "~0.30.8",
@@ -57,10 +63,9 @@
     "expo-web-browser": "~14.2.0",
     "fuse.js": "^7.1.0",
     "https-browserify": "^1.0.0",
-    "lottie-react-native": "^7.2.2",
+    "lottie-react-native": "7.2.2",
     "moti": "^0.30.0",
     "node-libs-react-native": "^1.2.1",
-    "openai": "^5.3.0",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "process": "^0.11.10",
@@ -68,11 +73,11 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.4",
     "react-native-context-menu-view": "^1.19.0",
-    "react-native-crypto": "^2.2.0",
     "react-native-dots-pagination": "^0.3.1",
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-gesture-handler": "~2.24.0",
-    "react-native-modal-datetime-picker": "^18.0.0",
+    "react-native-get-random-values": "^1.11.0",
+    "react-native-modal-datetime-picker": "17.1.0",
     "react-native-reanimated": "~3.17.4",
     "react-native-root-siblings": "^5.0.1",
     "react-native-root-toast": "^4.0.1",
@@ -87,7 +92,6 @@
     "readable-stream": "^4.7.0",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
-    "supabase": "^2.26.9",
     "tslib": "^2.8.1",
     "util": "^0.12.5",
     "vm-browserify": "^1.1.2"
@@ -101,6 +105,7 @@
     "@testing-library/react-native": "^12.9.0",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.0.10",
+    "@types/react-native": "^0.72.8",
     "babel-jest": "^29.7.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
@@ -111,8 +116,5 @@
     "ts-jest": "^29.3.4",
     "typescript": "~5.8.3"
   },
-  "private": true,
-  "overrides": {
-    "@lottiefiles/dotlottie-react": "^0.13.5"
-  }
+  "private": true
 }

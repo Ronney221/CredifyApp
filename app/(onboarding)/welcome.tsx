@@ -105,24 +105,14 @@ export default function WelcomeScreen() {
       'reduceMotionChanged',
       setIsReducedMotion
     );
-    return () => subscription.remove();
-  }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (lottieRef.current) {
-        lottieRef.current.reset();
-        lottieRef.current.play();
-      }
-    }, 100);
-
-    // Show CTA after one animation loop (approximately 3 seconds)
+    // Show CTA after animation starts
     const ctaTimer = setTimeout(() => {
       setShowCTA(true);
     }, 1500);
 
     return () => {
-      clearTimeout(timer);
+      subscription.remove();
       clearTimeout(ctaTimer);
     };
   }, []);
@@ -153,7 +143,7 @@ export default function WelcomeScreen() {
       // Start navigation slightly before animation completes
       setTimeout(() => {
         router.push('/(onboarding)/card-select');
-      }, 400); // Reduced from waiting for full animation completion
+      }, 400);
     } else {
       router.push('/(onboarding)/card-select');
     }
@@ -200,10 +190,12 @@ export default function WelcomeScreen() {
             <LottieView
               ref={lottieRef}
               source={require('../../assets/animations/credit_card_animation.json')}
-              autoPlay
-              loop
+              autoPlay={true}
+              loop={true}
               style={styles.animation}
               speed={isReducedMotion ? 0.5 : 1}
+              renderMode="HARDWARE"
+              cacheComposition={true}
             />
           </Animated.View>
 

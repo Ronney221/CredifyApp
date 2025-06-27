@@ -157,10 +157,16 @@ export default function PotentialSavingsScreen() {
       {showCelebration && (
         <View style={styles.celebrationContainer}>
           <LottieView
-            source={require('@/assets/animations/celebration.json')}
-            autoPlay
+            source={require('../../assets/animations/celebration.json')}
+            autoPlay={true}
             loop={false}
             style={styles.celebrationAnimation}
+            renderMode="HARDWARE"
+            cacheComposition={true}
+            speed={1.2}
+            onAnimationFinish={() => {
+              setShowCelebration(false);
+            }}
           />
         </View>
       )}
