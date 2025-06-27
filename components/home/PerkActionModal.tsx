@@ -405,6 +405,45 @@ export default function PerkActionModal({
     sliderAnimation.value = withSpring(roundedValue);
   }, [partialAmount]);
 
+  const toggleDescription = () => {
+    if (!isDescriptionExpanded) {
+      Haptics.selectionAsync();
+      setIsDescriptionExpanded(true);
+    }
+  };
+
+  // Move the hook to the top level
+  const animatedDescriptionStyle = useAnimatedStyle(() => {
+    let targetHeight = 0;
+
+    if (isDescriptionExpanded) {
+      if (descriptionMeasuredHeight.value > 0) {
+        targetHeight = descriptionMeasuredHeight.value;
+      } else {
+        return {
+          height: 'auto',
+          opacity: 1,
+          marginBottom: 24,
+        };
+      }
+    }
+
+    return {
+      height: withSpring(targetHeight, {
+        damping: 20,
+        stiffness: 90,
+      }),
+      opacity: withSpring(isDescriptionExpanded ? 1 : 0, {
+        damping: 20,
+        stiffness: 90,
+      }),
+      marginBottom: withSpring(isDescriptionExpanded ? 24 : 0, {
+        damping: 20,
+        stiffness: 90,
+      }),
+    };
+  });
+
   if (!visible || !perk) {
     return null;
   }
@@ -486,44 +525,6 @@ export default function PerkActionModal({
       );
     }
   };
-
-  const toggleDescription = () => {
-    if (!isDescriptionExpanded) {
-      Haptics.selectionAsync();
-      setIsDescriptionExpanded(true);
-    }
-  };
-
-  const animatedDescriptionStyle = useAnimatedStyle(() => {
-    let targetHeight = 0;
-
-    if (isDescriptionExpanded) {
-      if (descriptionMeasuredHeight.value > 0) {
-        targetHeight = descriptionMeasuredHeight.value;
-      } else {
-        return {
-          height: 'auto',
-          opacity: 1,
-          marginBottom: 24,
-        };
-      }
-    }
-
-    return {
-      height: withSpring(targetHeight, {
-        damping: 20,
-        stiffness: 90,
-      }),
-      opacity: withSpring(isDescriptionExpanded ? 1 : 0, {
-        damping: 20,
-        stiffness: 90,
-      }),
-      marginBottom: withSpring(isDescriptionExpanded ? 24 : 0, {
-        damping: 20,
-        stiffness: 90,
-      }),
-    };
-  });
 
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
