@@ -194,11 +194,39 @@ export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams<{ selectedCardIds?: string; renewalDates?: string; refresh?: string }>();
   const { user } = useAuth();
+  const { userCardsWithPerks, isLoading: isUserCardsInitialLoading, refreshUserCards } = useUserCards();
   const donutDisplayRef = useRef<{ refresh: () => void }>(null);
   const flatListRef = useRef<FlatList<CardListItem>>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
-  const nextPerkRef = useRef<CardPerkWithMeta | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showDevDatePicker, setShowDevDatePicker] = useState(false);
+  const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [showPerkActionModal, setShowPerkActionModal] = useState(false);
+
+  // Move all useEffects to the top level, right after state declarations
+  useEffect(() => {
+    // Load async data on mount
+    const loadInitialData = async () => {
+      try {
+        const hintSeen = await AsyncStorage.getItem(SWIPE_HINT_STORAGE_KEY);
+        setUserHasSeenSwipeHint(hintSeen === 'true');
+      } catch (error) {
+        console.error('Error loading swipe hint status:', error);
+      }
+    };
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (refreshUserCards) {
+      refreshUserCards();
+    }
+  }, [refreshUserCards]);
 
   // State for pending toast notification after returning from another app
   const [pendingToast, setPendingToast] = useState<{ message: string; onUndo: () => void; } | null>(null);
@@ -207,18 +235,12 @@ export default function Dashboard() {
   // State for DEV date picker
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
   const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
-  const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
   // Modal state for perk action
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
-  const [selectedCardIdForModal, setSelectedCardIdForModal] = useState<string | null>(null);
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
   const [showAiChatNotification, setShowAiChatNotification] = useState(false);
   const [isUpdatingPerk, setIsUpdatingPerk] = useState(false);
-
-  // Coach Mark State - This will be handled inside ExpandableCard now
-  const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
 
   // State for unique perk periods, default to monthly and annual if not found
   const [uniquePerkPeriodsForToggle, setUniquePerkPeriodsForToggle] = useState<number[]>([]); // Renamed for clarity
@@ -227,13 +249,6 @@ export default function Dashboard() {
   const [headerPillContent, setHeaderPillContent] = useState<(CardPerk & { cardId: string; cardName: string; cycleEndDate: Date; daysRemaining: number }) | null>(null);
 
   // Use custom hooks
-  const { 
-    userCardsWithPerks, 
-    isLoading: isUserCardsInitialLoading, // Renamed for clarity
-    isRefreshing: isUserCardsRefreshing, // Renamed for clarity
-    error: userCardsError, 
-    refreshUserCards 
-  } = useUserCards();
   const {
     periodAggregates,
     cumulativeValueSavedPerCard,
@@ -263,7 +278,7 @@ export default function Dashboard() {
   }, [showAiChatNotification]);
 
   // Initial log after hooks have run
-  console.log("DEBUG: Dashboard component - AFTER hooks. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isUserCardsRefreshing, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
+  console.log("DEBUG: Dashboard component - AFTER hooks. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isRefreshing, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
 
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
@@ -420,11 +435,6 @@ export default function Dashboard() {
   useEffect(() => {
     const loadAsyncData = async () => {
       try {
-        const seenHint = await AsyncStorage.getItem(SWIPE_HINT_STORAGE_KEY);
-        if (seenHint !== null) {
-          setUserHasSeenSwipeHint(JSON.parse(seenHint));
-        }
-
         const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
         console.log('[Dashboard] Loading unique perk periods from AsyncStorage:', storedPeriods);
         if (storedPeriods !== null) {
@@ -510,10 +520,10 @@ export default function Dashboard() {
   const handleActionHintPress = useCallback((perkToActivate: (CardPerk & { cardId: string; cardName: string; cycleEndDate: Date; daysRemaining: number }) | null) => {
     if (perkToActivate) {
       setSelectedPerk(perkToActivate);
-      setSelectedCardIdForModal(perkToActivate.cardId);
+      setSelectedCardId(perkToActivate.cardId);
       setModalVisible(true);
     }
-  }, [setSelectedPerk, setSelectedCardIdForModal, setModalVisible]);
+  }, [setSelectedPerk, setSelectedCardId, setModalVisible]);
 
   // Refresh data when navigating back to dashboard
   useFocusEffect(
@@ -630,18 +640,18 @@ export default function Dashboard() {
 
     // Show the modal instead of immediately opening the app
     setSelectedPerk(perk);
-    setSelectedCardIdForModal(cardId);
+    setSelectedCardId(cardId);
     setModalVisible(true);
   }, [user, router]);
 
   const handleModalDismiss = () => {
     setModalVisible(false);
     setSelectedPerk(null);
-    setSelectedCardIdForModal(null);
+    setSelectedCardId(null);
   };
 
   const handleOpenApp = async (targetPerkName?: string) => {
-    if (!selectedPerk || !selectedCardIdForModal || !user) return;
+    if (!selectedPerk || !selectedCardId || !user) return;
 
     const perkToOpenAppFor = targetPerkName
       ? { ...selectedPerk, name: targetPerkName }
@@ -662,15 +672,15 @@ export default function Dashboard() {
         const originalStatus = selectedPerk.status; 
 
         // Optimistic update for redemption
-        setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed');
+        setPerkStatus(selectedCardId, selectedPerk.id, 'redeemed');
           
         // Background database operation
-        const { error } = await trackPerkRedemption(user.id, selectedCardIdForModal, selectedPerk, selectedPerk.value);
+        const { error } = await trackPerkRedemption(user.id, selectedCardId, selectedPerk, selectedPerk.value);
           
         if (error) {
           console.error('Error tracking redemption in DB:', error);
           // Revert optimistic update on error
-          setPerkStatus(selectedCardIdForModal, selectedPerk.id, originalStatus);
+          setPerkStatus(selectedCardId, selectedPerk.id, originalStatus);
           handlePerkStatusChange();
             
           if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
@@ -688,12 +698,12 @@ export default function Dashboard() {
         setPendingToast({
           message: `${selectedPerk.name} marked as redeemed`,
           onUndo: async () => {
-            setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'available');
+            setPerkStatus(selectedCardId, selectedPerk.id, 'available');
             try {
               const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
               if (undoError) {
                 console.error('Error undoing redemption in DB:', undoError);
-                setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
+                setPerkStatus(selectedCardId, selectedPerk.id, 'redeemed'); 
                 handlePerkStatusChange(); 
                 showToast('Error undoing redemption');
               } else {
@@ -702,7 +712,7 @@ export default function Dashboard() {
               }
             } catch (undoCatchError) {
               console.error('Unexpected error during undo redemption:', undoCatchError);
-              setPerkStatus(selectedCardIdForModal, selectedPerk.id, 'redeemed'); 
+              setPerkStatus(selectedCardId, selectedPerk.id, 'redeemed'); 
               handlePerkStatusChange(); 
               showToast('Error undoing redemption');
             }
@@ -735,7 +745,7 @@ export default function Dashboard() {
   };
 
   const handleMarkRedeemed = async (partialAmount?: number) => {
-    if (!selectedPerk || !selectedCardIdForModal || !user) return;
+    if (!selectedPerk || !selectedCardId || !user) return;
 
     // --- Start loading state ---
     setIsUpdatingPerk(true);
@@ -759,7 +769,7 @@ export default function Dashboard() {
         // --- Await the database operation ---
         const { error } = await trackPerkRedemption(
             user.id,
-            selectedCardIdForModal,
+            selectedCardId,
             selectedPerk,
             valueToRedeem,
             selectedPerk.parent_redemption_id
@@ -798,7 +808,7 @@ export default function Dashboard() {
 
   // New function to handle marking a perk as available
   const handleMarkAvailable = async () => {
-    if (!selectedPerk || !selectedCardIdForModal || !user) return;
+    if (!selectedPerk || !selectedCardId || !user) return;
 
     // --- Start loading state ---
     setIsUpdatingPerk(true);
@@ -974,7 +984,7 @@ export default function Dashboard() {
     );
   }
 
-  if (userCardsError) {
+  if (userCardsWithPerks.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
@@ -985,7 +995,7 @@ export default function Dashboard() {
   }
 
   // Log before returning the main JSX tree
-  console.log("DEBUG: Dashboard component - BEFORE MAIN RETURN. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isUserCardsRefreshing, "isCalculatingSavings:", isCalculatingSavings, "sortedCards count:", sortedCards?.length);
+  console.log("DEBUG: Dashboard component - BEFORE MAIN RETURN. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isRefreshing, "isCalculatingSavings:", isCalculatingSavings, "sortedCards count:", sortedCards?.length);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
