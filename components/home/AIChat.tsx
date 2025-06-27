@@ -749,27 +749,114 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         adviceText = "Here are a few perks that could help:"; 
 
         const validRecommendations = result.response.recommendations
-          .filter(rec => Array.isArray(rec) && rec.length === 4)
+          .filter(rec => {
+            try {
+              return Array.isArray(rec) && rec.length === 4 && 
+                     rec.every(item => item !== null && item !== undefined);
+            } catch (err) {
+              console.warn('[AIChat] Error filtering recommendation:', err);
+              return false;
+            }
+          })
           .map((rec): UIBenefitRecommendation | null => {
-            const [benefitName, cardName, displayText, remainingValue] = rec;
-            
-            // Add null checks
-            if (!benefitName || !cardName || !displayText || typeof remainingValue !== 'number') {
+            try {
+              const [benefitName, cardName, displayText, remainingValue] = rec;
+              
+              if (!benefitName || !cardName || !displayText || typeof remainingValue !== 'number') {
+                return null;
+              }
+
+              // Safer string manipulation
+              let cleanedDisplayText = displayText;
+              try {
+                if (typeof cardName === 'string' && cardName.length > 0) {
+                  // Expanded list of phrases to handle more variations
+                  const phrases = [
+                    // Basic card references
+                    ` on your ${cardName}`,
+                    ` from your ${cardName}`,
+                    ` on the ${cardName}`,
+                    ` from the ${cardName}`,
+                    ` with your ${cardName}`,
+                    ` with the ${cardName}`,
+                    ` using your ${cardName}`,
+                    ` using the ${cardName}`,
+                    ` through your ${cardName}`,
+                    ` through the ${cardName}`,
+                    
+                    // Markdown variations
+                    ` on your **${cardName}**`,
+                    ` from your **${cardName}**`,
+                    ` on the **${cardName}**`,
+                    ` from the **${cardName}**`,
+                    ` with your **${cardName}**`,
+                    ` with the **${cardName}**`,
+                    ` using your **${cardName}**`,
+                    ` using the **${cardName}**`,
+                    ` through your **${cardName}**`,
+                    ` through the **${cardName}**`,
+
+                    // Card-specific variations
+                    ` on ${cardName}`,
+                    ` from ${cardName}`,
+                    ` with ${cardName}`,
+                    ` using ${cardName}`,
+                    ` through ${cardName}`,
+                    
+                    // Possessive variations
+                    ` on ${cardName}'s`,
+                    ` from ${cardName}'s`,
+                    ` with ${cardName}'s`,
+                    ` using ${cardName}'s`,
+                    ` through ${cardName}'s`,
+
+                    // Handle variations with no space prefix
+                    `on your ${cardName}`,
+                    `from your ${cardName}`,
+                    `with your ${cardName}`,
+                    `using your ${cardName}`,
+                    `through your ${cardName}`
+                  ];
+
+                  // First try exact matches
+                  phrases.forEach(phrase => {
+                    cleanedDisplayText = cleanedDisplayText.replace(phrase, '');
+                  });
+
+                  // Then try case-insensitive matches for any remaining instances
+                  phrases.forEach(phrase => {
+                    const lowerPhrase = phrase.toLowerCase();
+                    const lowerText = cleanedDisplayText.toLowerCase();
+                    if (lowerText.includes(lowerPhrase)) {
+                      // Find the actual case in the original text
+                      const startIndex = lowerText.indexOf(lowerPhrase);
+                      if (startIndex !== -1) {
+                        const before = cleanedDisplayText.slice(0, startIndex);
+                        const after = cleanedDisplayText.slice(startIndex + phrase.length);
+                        cleanedDisplayText = before + after;
+                      }
+                    }
+                  });
+
+                  // Clean up any double spaces that might have been created
+                  cleanedDisplayText = cleanedDisplayText.replace(/\s+/g, ' ').trim();
+                }
+              } catch (err) {
+                console.warn('[AIChat] Error cleaning display text:', err);
+                cleanedDisplayText = displayText; // Fallback to original
+              }
+              
+              let perk: CardPerk | undefined;
+              const card = processedCards?.find(c => c?.card?.name === cardName);
+              if (card) {
+                perk = card.perks?.find(p => p?.name === benefitName);
+              }
+
+              return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
+            } catch (err) {
+              console.warn('[AIChat] Error mapping recommendation:', err);
               return null;
             }
-
-            // Create a regex to find and remove phrases like "on your [Card Name]"
-            const escapedCardName = cardName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-            const cardRemovalRegex = new RegExp(`\\s+(on|from)\\s+(your|the)\\s+(\\*\\*)?${escapedCardName}(\\*\\*)?`, 'gi');
-            const cleanedDisplayText = displayText.replace(cardRemovalRegex, '');
-            
-            let perk: CardPerk | undefined;
-            const card = processedCards?.find(c => c?.card?.name === cardName);
-            if (card) {
-              perk = card.perks?.find(p => p?.name === benefitName);
-            }
-
-            return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
           })
           .filter((rec): rec is UIBenefitRecommendation => rec !== null);
 
@@ -848,16 +935,12 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       }
 
     } catch (error) {
-      console.error('[AIChat] Error in handleAIResponse:', error);
-      const errorMessage: Message = {
-        _id: Math.random().toString(),
-        text: error instanceof Error 
-          ? `Sorry, ${error.message}. Please try again.`
-          : 'Sorry, I encountered an error. Please try again.',
-        createdAt: new Date(),
-        user: AI,
+      console.error('[AIChat][handleAIResponse] Error processing AI response:', error);
+      // Provide a fallback UI state
+      return {
+        adviceText: "Sorry, I encountered an error processing the response. Please try again.",
+        uiRecommendations: []
       };
-      setMessages(previousMessages => [errorMessage, ...previousMessages]);
     } finally {
       setIsTyping(false);
     }

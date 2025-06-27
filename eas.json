@@ -13,7 +13,10 @@
       "ios": {
         "resourceClass": "m1-medium",
         "scheme": "Release",
-        "buildConfiguration": "ReleaseWithSymbols"
+        "buildArtifactPaths": [
+        "ios/build/Build/Products/Release-iphoneos/*.dSYM",
+        "ios/build/Build/Products/Release-iphoneos/*.app.dSYM.zip"
+        ]
       }
     },
     "production": {
