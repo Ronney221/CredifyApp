@@ -371,11 +371,11 @@ export default function RegisterScreen() {
             <View style={styles.termsContainer}>
               <Text style={styles.termsText}>
                 By continuing, you agree to our{' '}
-                <Link href="/(legal)/terms" replace asChild>
+                <Link href="/(legal)/terms" asChild>
                   <Text style={styles.termsLink}>Terms of Service</Text>
                 </Link>
                 {' '}and{' '}
-                <Link href="/(legal)/terms" replace asChild>
+                <Link href="/(legal)/terms" asChild>
                   <Text style={styles.termsLink}>Privacy Policy</Text>
                 </Link>
               </Text>

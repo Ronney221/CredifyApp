@@ -24,7 +24,7 @@ export default function AuthCallback() {
         if (access_token) {
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: access_token as string,
-            refresh_token: refresh_token as string || '',
+            refresh_token: (refresh_token as string) ?? undefined,
           });
 
           if (sessionError) {

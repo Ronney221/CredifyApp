@@ -15,7 +15,13 @@ export const signInWithGoogle = async () => {
     // Kick off OAuth; supabase-js will open the browser for you
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: redirectUrl },
+      options: { 
+        redirectTo: redirectUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
+      },
     });
     
     if (error) {
@@ -45,7 +51,7 @@ export const signInWithGoogle = async () => {
         console.log('Setting session with tokens');
         const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
           access_token,
-          refresh_token: refresh_token || '',
+          refresh_token: refresh_token ?? undefined,
         });
 
         if (sessionError) {

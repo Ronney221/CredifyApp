@@ -398,7 +398,6 @@ export default function LoginScreen() {
                   <Text style={styles.termsLink}>Terms & Privacy</Text>
                 </Link>
               </Text>
-              
             </View>
           </View>
         </MotiView>
