@@ -40,7 +40,7 @@ export default function HelpFAQScreen() {
   const faqs = [
     {
       question: 'How do I add my first credit card?',
-      answer: 'Go to the "Cards" tab and tap the "+" icon in the top right. Search for your card provider and select your specific card. You\'ll be prompted to set up your card\'s renewal date and any auto-redemption preferences for recurring perks.',
+      answer: 'Go to the "Cards" tab and tap the "+" icon in the top right. Search for your card provider and select your specific card. You&apos;ll be prompted to set up your card&apos;s renewal date and any auto-redemption preferences for recurring perks.',
     },
     {
       question: 'How does the Dashboard work?',
@@ -52,11 +52,11 @@ export default function HelpFAQScreen() {
     },
     {
       question: 'What are auto-redemptions?',
-      answer: 'Auto-redemption is a feature that automatically marks certain perks as redeemed at the start of each cycle. This is perfect for recurring credits like monthly streaming credits or dining credits. You can set up auto-redemption when adding a card or by editing an existing card\'s perks.',
+      answer: 'Auto-redemption is a feature that automatically marks certain perks as redeemed at the start of each cycle. This is perfect for recurring credits like monthly streaming credits or dining credits. You can set up auto-redemption when adding a card or by editing an existing card&apos;s perks.',
     },
     {
       question: 'How do I manage my card renewal dates?',
-      answer: 'When adding a card, you\'ll be prompted to set its renewal date. You can update this later by going to the "Cards" tab, tapping on the card, and selecting "Edit". Setting renewal dates helps us track your annual fee and send timely reminders.',
+      answer: 'When adding a card, you&apos;ll be prompted to set its renewal date. You can update this later by going to the "Cards" tab, tapping on the card, and selecting "Edit". Setting renewal dates helps us track your annual fee and send timely reminders.',
     },
     {
       question: 'What notifications will I receive?',
@@ -68,11 +68,19 @@ export default function HelpFAQScreen() {
     },
     {
       question: 'How is my savings calculated?',
-      answer: 'The app tracks the value of perks you\'ve redeemed and displays your total savings in the Dashboard. This includes:\n\n- Redeemed perks (manually or auto-redeemed)\n- Partially redeemed perks\n- Perks with pending redemption\n\nThe savings are calculated per card and shown in the expanded card view.',
+      answer: 'The app tracks the value of perks you&apos;ve redeemed and displays your total savings in the Dashboard. This includes:\n\n- Redeemed perks (manually or auto-redeemed)\n- Partially redeemed perks\n- Perks with pending redemption\n\nThe savings are calculated per card and shown in the expanded card view.',
     },
     {
       question: 'What if I need to undo a redemption?',
       answer: 'If you accidentally mark a perk as redeemed, you can:\n\n1. Tap the perk to open the action modal\n2. Select "Mark as Available"\n\nOr, if you just redeemed it, you can tap the toast notification that appears to undo the action.',
+    },
+    {
+      question: 'How do I add a card if I don&apos;t see it?',
+      answer: 'If you don&apos;t see your card, you can add it by tapping the &apos;Add Card&apos; button in the manage cards section.',
+    },
+    {
+      question: 'How do I manage my card&apos;s notifications?',
+      answer: 'You can manage your card&apos;s notifications in the &apos;Notifications&apos; section of your profile.',
     },
   ];
 
@@ -84,7 +92,7 @@ export default function HelpFAQScreen() {
           <Ionicons name="help-buoy-outline" size={48} color={Colors.light.tint} />
           <Text style={styles.title}>Help & FAQ</Text>
           <Text style={styles.subtitle}>
-            Find answers to common questions about using Credify. If you can't find what you're looking for, feel free to reach out to our support team.
+            Find answers to common questions about using Credify. If you can&apos;t find what you&apos;re looking for, feel free to reach out to our support team.
           </Text>
         </View>
 
@@ -95,7 +103,7 @@ export default function HelpFAQScreen() {
         <View style={styles.supportSection}>
           <Text style={styles.supportTitle}>Still Need Help?</Text>
           <Text style={styles.supportText}>
-            If your question isn't answered here, please don't hesitate to contact our support team.
+            If your question isn&apos;t answered here, please don&apos;t hesitate to contact our support team.
           </Text>
           <TouchableOpacity 
             style={styles.contactButton} 

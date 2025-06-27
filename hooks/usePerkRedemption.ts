@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import Toast from 'react-native-root-toast';
-import { CardPerk } from '../../src/data/card-data';
-import { trackPerkRedemption, deletePerkRedemption } from '../../lib/database';
+import { CardPerk } from '../src/data/card-data';
+import { supabase } from '../lib/database';
 
 // Helper to show toast with undo functionality
 const showToast = (message: string, onUndo?: () => void) => {
@@ -65,7 +65,7 @@ export function usePerkRedemption({
     try {
       // For partially redeemed perks, delete the existing partial redemption first
       if (isPartiallyRedeemed) {
-        const { error: deleteError } = await deletePerkRedemption(userId, perk.definition_id);
+        const { error: deleteError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
         if (deleteError) {
           console.error('Error deleting partial redemption:', deleteError);
           Alert.alert('Error', 'Failed to update perk redemption.');
@@ -86,25 +86,34 @@ export function usePerkRedemption({
       setPerkStatus(cardId, perk.id, newStatus, remainingValue);
 
       // Track the redemption in the database
-      const result = await trackPerkRedemption(
-        userId,
-        cardId,
-        perk,
-        amountToRedeem,
-        perk.parent_redemption_id
-      );
+      const result = await supabase.from('perk_redemptions').insert([
+        {
+          user_id: userId,
+          card_id: cardId,
+          perk_id: perk.id,
+          amount: amountToRedeem,
+          status: newStatus,
+          remaining_value: remainingValue,
+          parent_redemption_id: perk.parent_redemption_id,
+        },
+      ]).select().single();
 
       if (result.error) {
         console.error('Error tracking redemption:', result.error);
         setPerkStatus(cardId, perk.id, originalStatus, previousValue);
         if (isPartiallyRedeemed) {
           // Re-track the partial redemption if we failed
-          await trackPerkRedemption(
-            userId,
-            cardId,
-            { ...perk, status: originalStatus },
-            partiallyRedeemedAmount
-          );
+          await supabase.from('perk_redemptions').insert([
+            {
+              user_id: userId,
+              card_id: cardId,
+              perk_id: perk.id,
+              amount: partiallyRedeemedAmount,
+              status: originalStatus,
+              remaining_value: remainingValue,
+              parent_redemption_id: perk.parent_redemption_id,
+            },
+          ]).select().single();
         }
         onPerkStatusChange?.();
         Alert.alert('Error', 'Failed to track perk redemption.');
@@ -128,7 +137,7 @@ export function usePerkRedemption({
           setPerkStatus(cardId, perk.id, originalStatus, previousValue);
           
           // First delete the new redemption
-          const { error: undoError } = await deletePerkRedemption(userId, perk.definition_id);
+          const { error: undoError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
           if (undoError) {
             setPerkStatus(cardId, perk.id, newStatus, remainingValue);
             onPerkStatusChange?.();
@@ -139,18 +148,17 @@ export function usePerkRedemption({
 
           // If it was partially redeemed before, restore that state
           if (originalStatus === 'partially_redeemed' && previousValue !== undefined) {
-            const partialResult = await trackPerkRedemption(
-              userId,
-              cardId,
-              { ...perk, status: originalStatus },
-              partiallyRedeemedAmount
-            );
-            if (partialResult.error) {
-              setPerkStatus(cardId, perk.id, newStatus, remainingValue);
-              onPerkStatusChange?.();
-              showToast('Error restoring partial redemption');
-              return;
-            }
+            await supabase.from('perk_redemptions').insert([
+              {
+                user_id: userId,
+                card_id: cardId,
+                perk_id: perk.id,
+                amount: partiallyRedeemedAmount,
+                status: originalStatus,
+                remaining_value: remainingValue,
+                parent_redemption_id: perk.parent_redemption_id,
+              },
+            ]).select().single();
           }
           
           onPerkStatusChange?.();
@@ -184,7 +192,7 @@ export function usePerkRedemption({
       setPerkStatus(cardId, perk.id, 'available');
 
       // Delete the redemption record
-      const { error: deleteError } = await deletePerkRedemption(userId, perk.definition_id);
+      const { error: deleteError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
       if (deleteError) {
         console.error('Error deleting redemption:', deleteError);
         setPerkStatus(cardId, perk.id, originalStatus, previousValue);
@@ -206,19 +214,17 @@ export function usePerkRedemption({
           setPerkStatus(cardId, perk.id, originalStatus, previousValue);
           
           // Track the redemption again
-          const result = await trackPerkRedemption(
-            userId,
-            cardId,
-            { ...perk, status: originalStatus },
-            previousRedeemedAmount
-          );
-
-          if (result.error) {
-            setPerkStatus(cardId, perk.id, 'available');
-            onPerkStatusChange?.();
-            showToast('Error restoring redemption');
-            return;
-          }
+          await supabase.from('perk_redemptions').insert([
+            {
+              user_id: userId,
+              card_id: cardId,
+              perk_id: perk.id,
+              amount: previousRedeemedAmount,
+              status: originalStatus,
+              remaining_value: previousValue,
+              parent_redemption_id: perk.parent_redemption_id,
+            },
+          ]).select().single();
 
           onPerkStatusChange?.();
         } catch (error) {

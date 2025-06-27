@@ -42,9 +42,9 @@ export default function TermsScreen() {
         <Text style={styles.lastUpdated}>Last updated: May 30, 2025</Text>
 
         <Text style={styles.paragraph}>
-          Welcome to Credify ("the App," "we," "our," or "us"). By installing,
+          Welcome to Credify (&quot;the App,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;). By installing,
           accessing, or using Credify, you agree to be bound by these Terms of
-          Service ("Terms"). If you do not agree to these Terms, you may not use
+          Service (&quot;Terms&quot;). If you do not agree to these Terms, you may not use
           the App.
         </Text>
 
@@ -58,7 +58,7 @@ export default function TermsScreen() {
         </Text>
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>1.2 Account Creation.</Text> To use Credify,
-          you must create an account ("Account") by providing a valid email
+          you must create an account (&quot;Account&quot;) by providing a valid email
           address and password. You are responsible for maintaining the
           confidentiality of your login credentials and for all activities that
           occur under your Account. You agree to notify us immediately of any
@@ -141,14 +141,14 @@ export default function TermsScreen() {
         </Text>
         <Text style={styles.paragraph}>
           If you subscribe to a paid plan, payment is processed through your
-          device's App Store (iOS) or Google Play (Android). All billing
+          device&apos;s App Store (iOS) or Google Play (Android). All billing
           inquiries, refunds, and disputes must be directed to the respective
           platform provider in accordance with their terms.
         </Text>
         <Text style={styles.paragraph}>
           Paid subscriptions (monthly or annual) automatically renew unless
           canceled at least 24 hours before the end of the current period. To
-          cancel, follow instructions in your device's App Store or Google Play
+          cancel, follow instructions in your device&apos;s App Store or Google Play
           account settings.
         </Text>
 
@@ -156,7 +156,7 @@ export default function TermsScreen() {
           5. Disclaimer of Warranties
         </Text>
         <Text style={styles.paragraph}>
-          THE APP IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF
+          THE APP IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF
           ANY KIND, EXPRESS OR IMPLIED. WE DISCLAIM ALL WARRANTIES, INCLUDING,
           BUT NOT LIMITED TO, MERCHANTABILITY, FITNESS FOR A PARTICULAR
           PURPOSE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE APP WILL BE
@@ -178,7 +178,7 @@ export default function TermsScreen() {
           You agree to indemnify, defend, and hold harmless Credify and its
           affiliates, officers, directors, employees, and agents from any
           claims, liabilities, losses, damages, and expenses (including
-          reasonable attorneys' fees) arising from or related to your use of
+          reasonable attorneys&apos; fees) arising from or related to your use of
           the App, your violation of these Terms, or your infringement of any
           third-party rights.
         </Text>
@@ -206,7 +206,7 @@ export default function TermsScreen() {
         <Text style={styles.sectionTitle}>10. Changes to These Terms</Text>
         <Text style={styles.paragraph}>
           We may update these Terms from time to time. When we do, we will
-          revise the "Last updated" date above and post the new Terms within the
+          revise the &quot;Last updated&quot; date above and post the new Terms within the
           App. If you continue using the App after we post changes, you accept
           the revised Terms.
         </Text>
@@ -229,9 +229,9 @@ export default function TermsScreen() {
         <Text style={styles.lastUpdated}>Last updated: May 30, 2025</Text>
 
         <Text style={styles.paragraph}>
-          Credify ("we," "our," or "us") values your privacy. This Privacy Policy
+          Credify (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) values your privacy. This Privacy Policy
           explains what information we collect, how we use it, and what choices
-          you have regarding your information when you use Credify (the "App").
+          you have regarding your information when you use Credify (the &quot;App&quot;).
           By downloading or using the App, you agree to the terms of this
           Privacy Policy.
         </Text>
@@ -242,12 +242,12 @@ export default function TermsScreen() {
           {'\n'}• <Text style={styles.bold}>Account Registration Data:</Text> When
           you sign up, you provide a valid email address and create a password.
           {'\n'}• <Text style={styles.bold}>Credit-Card Metadata:</Text> You
-          manually input card nicknames, issuer names (e.g., "Chase Sapphire
-          Reserve"), annual-fee amounts, and perk categories (e.g., "Airline
-          Credits," "Dining Credits," "Lounge Passes").
+          manually input card nicknames, issuer names (e.g., &quot;Chase Sapphire
+          Reserve&quot;), annual-fee amounts, and perk categories (e.g., &quot;Airline
+          Credits,&quot; &quot;Dining Credits,&quot; &quot;Lounge Passes&quot;).
           {'\n'}• <Text style={styles.bold}>Perk Usage and Settings:</Text> Which
           perks you track, your custom expiration periods (monthly, quarterly,
-          etc.), reminder preferences (e.g., "Notify me 3 days before"), and
+          etc.), reminder preferences (e.g., &quot;Notify me 3 days before&quot;), and
           notes you add.
           {'\n'}• <Text style={styles.bold}>Device Information:</Text> Device
           type, operating system version, and unique device identifiers (for
@@ -260,7 +260,7 @@ export default function TermsScreen() {
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>Usage Analytics:</Text> We automatically
           record how you interact with the App—screens viewed, features used
-          (e.g., tapping "Uber Credit" to open the Uber app), session length,
+          (e.g., tapping &quot;Uber Credit&quot; to open the Uber app), session length,
           crash reports, and performance metrics.{' '}
           {'\n'}<Text style={styles.bold}>Log Data:</Text> We collect log files
           including your IP address, device event information (e.g., crashes,
@@ -273,7 +273,7 @@ export default function TermsScreen() {
         <Text style={styles.paragraph}>
           When you use one-tap redemption (opening a third-party app or
           website), Credify does not collect additional personal data from that
-          third-party. However, your device's operating system may share
+          third-party. However, your device&apos;s operating system may share
           minimal context (e.g., app open event) to enable deep linking
           functionality.
         </Text>
@@ -300,15 +300,15 @@ export default function TermsScreen() {
         <Text style={styles.bulletPoint}>
           • <Text style={styles.bold}>Personalize Your Experience:</Text> Remember
           your settings (cards added, reminder preferences, custom notes), and
-          suggest optimizations (e.g., "You're 75% toward recouping your annual
-          fee on Card X this quarter").
+          suggest optimizations (e.g., &quot;You&apos;re 75% toward recouping your annual
+          fee on Card X this quarter&quot;).
         </Text>
 
         <Text style={styles.sectionTitle}>3. Data Retention</Text>
         <Text style={styles.paragraph}>
           We will retain your Account information, card metadata, perk usage,
           and device identifiers as long as your Account is active. If you
-          delete your Account (via the "Delete Account" option in Settings or
+          delete your Account (via the &quot;Delete Account&quot; option in Settings or
           by contacting support@credifyapp.com), we will permanently delete your
           data within 30 days, except where retention is required by law or for
           legitimate business purposes (e.g., fraud prevention).
@@ -350,7 +350,7 @@ export default function TermsScreen() {
         </Text>
         <Text style={styles.bulletPoint}>
           • <Text style={styles.bold}>Device Identifiers</Text> (IDFA on iOS,
-          Advertising ID on Android) strictly for analytics and push‐notification
+          Advertising ID on Android) strictly for analytics and push-notification
           attribution, unless you opt out via your device settings.
         </Text>
         <Text style={styles.bulletPoint}>
@@ -359,26 +359,26 @@ export default function TermsScreen() {
         </Text>
 
         <Text style={styles.sectionTitle}>
-          6. Third‐Party Analytics and SDKs
+          6. Third-Party Analytics and SDKs
         </Text>
         <Text style={styles.paragraph}>
-          We may embed third‐party analytics SDKs (e.g., Firebase, Google
+          We may embed third-party analytics SDKs (e.g., Firebase, Google
           Analytics for Firebase) to measure app performance and user
           engagement. These providers may collect usage data (e.g., screens
           viewed, session duration) and device properties. You can opt out of
-          certain analytics tracking through your device's privacy controls.
+          certain analytics tracking through your device&apos;s privacy controls.
         </Text>
 
         <Text style={styles.sectionTitle}>7. Data Security</Text>
         <Text style={styles.paragraph}>
           We take reasonable technical and organizational measures to protect
           your data from unauthorized access, alteration, or destruction. These
-          measures include industry‐standard encryption (in transit) and secure
-          data‐storage practices. However, no method of transmission or storage
+          measures include industry-standard encryption (in transit) and secure
+          data-storage practices. However, no method of transmission or storage
           is 100% secure. We cannot guarantee absolute security.
         </Text>
 
-        <Text style={styles.sectionTitle}>8. Children's Privacy</Text>
+        <Text style={styles.sectionTitle}>8. Children&apos;s Privacy</Text>
         <Text style={styles.paragraph}>
           Credify is not intended for children under 13. We do not knowingly
           collect or maintain personal information from users under 13. If we
@@ -391,14 +391,14 @@ export default function TermsScreen() {
         </Text>
         <Text style={styles.paragraph}>
           • <Text style={styles.bold}>Access and Update: </Text>You can review
-          or update some of your Account information through the App's Settings.
+          or update some of your Account information through the App&apos;s Settings.
           To delete your Account and data, contact us at
           support@credifyapp.com.{'\n'}
           • <Text style={styles.bold}>Push Notifications:</Text> You may opt
-          out of push notifications by adjusting your device's notification
+          out of push notifications by adjusting your device&apos;s notification
           settings.{'\n'}
-          • <Text style={styles.bold}>Analytics Opt‐Out:</Text> To opt out of
-          personalized analytics, disable analytics permissions in your device's
+          • <Text style={styles.bold}>Analytics Opt-Out:</Text> To opt out of
+          personalized analytics, disable analytics permissions in your device&apos;s
           privacy settings or uninstall the App.{'\n'}
           • <Text style={styles.bold}>GDPR/CCPA Rights (If Applicable):</Text>{' '}
           You may request a copy of your personal data, request deletion of your
@@ -410,10 +410,10 @@ export default function TermsScreen() {
         </Text>
 
         <Text style={styles.sectionTitle}>
-          10. Third‐Party Links and Services
+          10. Third-Party Links and Services
         </Text>
         <Text style={styles.paragraph}>
-          Credify may provide links to third‐party websites or apps (e.g., to
+          Credify may provide links to third-party websites or apps (e.g., to
           redeem perks). We do not control those services and are not responsible
           for their privacy practices or content. Please review the privacy
           policies of those third parties before sharing any personal
@@ -434,7 +434,7 @@ export default function TermsScreen() {
         </Text>
         <Text style={styles.paragraph}>
           We may update this Privacy Policy from time to time. When we do, we
-          will revise the "Last updated" date above and post the revised policy
+          will revise the &quot;Last updated&quot; date above and post the revised policy
           within the App and on our website. If you continue using the App after
           we post changes, you accept the updated Privacy Policy.
         </Text>

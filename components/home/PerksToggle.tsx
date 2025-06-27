@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import SegmentedControl from '@react-native-segmented-control/segmented-control'; // Import the library
-import { Colors } from '../../../constants/Colors'; // Assuming you might want to use your app's tint color
+import { Colors } from '../../constants/Colors'; // Assuming you might want to use your app's tint color
 
 export interface Segment {
   key: string;

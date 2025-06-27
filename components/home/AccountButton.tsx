@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet, View, Text, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AccountMenu from './AccountMenu';
 
 export default function AccountButton() {

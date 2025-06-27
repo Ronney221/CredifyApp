@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '../../../constants/Colors';
+import { Colors } from '../../constants/Colors';
 import { MotiView } from 'moti';
 
 interface ManageCardsContainerProps {

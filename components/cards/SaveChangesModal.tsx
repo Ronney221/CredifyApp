@@ -13,14 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MotiView } from 'moti';
-import { Card } from '../../../src/data/card-data';
+import { CardPerk } from '../../src/data/card-data';
 
 interface SaveChangesModalProps {
   visible: boolean;
   onSave: () => void;
   onDiscard: () => void;
   isSaving: boolean;
-  deletedCard?: { card: Card; renewalDate?: Date } | null;
+  deletedCard?: { card: CardPerk; renewalDate?: Date } | null;
   hasOtherChanges: boolean;
 }
 

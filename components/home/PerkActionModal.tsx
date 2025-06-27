@@ -75,8 +75,8 @@ const AnimatedSlider = Animated.createAnimatedComponent(Slider);
 
 // Add a new Tooltip component with smooth animation
 const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number }) => {
-  const safeValue = value || 0;
   const animatedStyle = useAnimatedStyle(() => {
+    const safeValue = value || 0;
     const percentage = (safeValue / maxValue) * 100;
     return {
       left: `${percentage}%`,
@@ -92,7 +92,7 @@ const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number })
   return (
     <Animated.View style={[styles.tooltip, animatedStyle]}>
       <View style={styles.tooltipArrow} />
-      <Text style={styles.tooltipText}>${safeValue.toFixed(2)}</Text>
+      <Text style={styles.tooltipText}>${(value || 0).toFixed(2)}</Text>
     </Animated.View>
   );
 };

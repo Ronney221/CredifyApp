@@ -7,7 +7,7 @@ import {
   Platform,
 } from 'react-native';
 import { MotiView } from 'moti';
-import { Card } from '../../../src/data/card-data';
+import { CardPerk } from '../../src/data/card-data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface UndoSnackbarProps {
