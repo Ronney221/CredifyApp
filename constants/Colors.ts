@@ -22,6 +22,8 @@ export const Colors = {
     tertiaryLabel: '#C7C7CC',
     quaternaryLabel: '#C7C7CC',
     warning: '#FF3B30',
+    error: '#FF3B30',
+    separator: '#E5E5E5',
   },
   dark: {
     text: '#fff',
@@ -38,5 +40,7 @@ export const Colors = {
     tertiaryLabel: '#C7C7CC',
     quaternaryLabel: '#C7C7CC',
     warning: '#FF453A',
+    error: '#FF453A',
+    separator: '#2C2C2E',
   },
 };
