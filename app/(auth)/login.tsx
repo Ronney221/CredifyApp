@@ -394,10 +394,11 @@ export default function LoginScreen() {
             <View style={styles.termsContainer}>
               <Text style={styles.termsText}>
                 By continuing, you agree to our{' '}
-                <Link href="/legal/terms" asChild>
+                <Link href="/(legal)/terms" asChild>
                   <Text style={styles.termsLink}>Terms & Privacy</Text>
                 </Link>
               </Text>
+              
             </View>
           </View>
         </MotiView>

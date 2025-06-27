@@ -20,6 +20,13 @@ function RootStack() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(onboarding)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen 
+        name="(legal)" 
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
     </Stack>
   );
 }
@@ -36,6 +43,7 @@ function AuthStateHandler() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
+    const inLegalGroup = segments[0] === '(legal)';
 
     const checkOnboardingStatus = async () => {
       try {
@@ -69,20 +77,20 @@ function AuthStateHandler() {
           if (hasCompletedOnboarding === null) {
             // New user, hasn't completed onboarding
             console.log('➡️ [Layout] New user, routing to welcome');
-            if (!inOnboardingGroup) {
+            if (!inOnboardingGroup && !inLegalGroup) {
               router.replace('/(onboarding)/welcome');
             }
           } else {
             // Returning user, has completed onboarding
             console.log('➡️ [Layout] Returning user, routing to login');
-            if (!inAuthGroup) {
+            if (!inAuthGroup && !inLegalGroup) {
               router.replace('/(auth)/login');
             }
           }
         } else {
           // Signed in
           console.log('➡️ [Layout] User is logged in, routing to dashboard');
-          if (inAuthGroup || inOnboardingGroup) {
+          if ((inAuthGroup || inOnboardingGroup) && !inLegalGroup) {
             router.replace('/(tabs)/01-dashboard');
           }
         }
