@@ -146,6 +146,10 @@ export default function RegisterScreen() {
         );
         return false;
       }
+      
+      // Add a small delay to ensure database operations complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       return true;
     } catch (error) {
       console.error('Unexpected error saving cards:', error);

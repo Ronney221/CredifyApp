@@ -284,7 +284,7 @@ export async function trackPerkRedemption(
 
     if (cardError || !userCardsResult || userCardsResult.length === 0) {
       console.error('Error finding user card:', cardError);
-      return { error: new Error('User card not found') };
+      return { error: new Error('This card is no longer in your wallet. Please refresh the page to see your current cards.') };
     }
 
     const userCardToUse = userCardsResult[0];
