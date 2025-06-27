@@ -8,39 +8,35 @@ const tintColorDark = '#0A84FF';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    textOnPrimary: '#FFFFFF',
-    textOnAccent: '#FFFFFF',
-    background: '#FFFFFF',
+    text: '#000',
+    textOnPrimary: '#fff',
+    textOnAccent: '#fff',
+    textSecondary: '#8E8E93',
+    background: '#fff',
     systemGroupedBackground: '#F2F2F7',
     tint: tintColorLight,
-    icon: '#8E8E93',
-    tabIconDefault: '#8E8E93',
+    icon: '#1C1C1E',
+    tabIconDefault: '#C7C7CC',
     tabIconSelected: tintColorLight,
-    separator: '#C6C6C8',
-    secondaryLabel: '#3C3C4399', // 60% opacity of black
-    accent: tintColorLight, // Using tint as the main accent
-    secondaryAccent: '#F2F2F7', // A subtle accent for placeholders, etc.
-    error: '#FF3B30', // iOS Red for errors/destructive actions
-    success: '#34C759', // iOS Green for success
-    warning: '#FF9500', // iOS Orange for warnings
+    secondaryLabel: '#8E8E93',
+    tertiaryLabel: '#C7C7CC',
+    quaternaryLabel: '#C7C7CC',
+    warning: '#FF3B30',
   },
   dark: {
-    text: '#FFFFFF',
-    textOnPrimary: '#FFFFFF',
-    textOnAccent: '#000000',
-    background: '#000000',
+    text: '#fff',
+    textOnPrimary: '#fff',
+    textOnAccent: '#fff',
+    textSecondary: '#8E8E93',
+    background: '#000',
     systemGroupedBackground: '#1C1C1E',
     tint: tintColorDark,
-    icon: '#8E8E93',
-    tabIconDefault: '#8E8E93',
+    icon: '#fff',
+    tabIconDefault: '#C7C7CC',
     tabIconSelected: tintColorDark,
-    separator: '#38383A',
-    secondaryLabel: '#EBEBF599', // 60% opacity of white
-    accent: tintColorDark,
-    secondaryAccent: '#2C2C2E',
-    error: '#FF453A',
-    success: '#32D74B',
-    warning: '#FF9F0A',
+    secondaryLabel: '#8E8E93',
+    tertiaryLabel: '#C7C7CC',
+    quaternaryLabel: '#C7C7CC',
+    warning: '#FF453A',
   },
 };

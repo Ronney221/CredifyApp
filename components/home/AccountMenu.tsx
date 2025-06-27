@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Platform, Dimensions, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Platform, Dimensions, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -28,7 +28,7 @@ type AnimatedGHContext = {
 
 export default function AccountMenu({ isVisible, onClose }: AccountMenuProps) {
   const router = useRouter();
-  const { user, logOut } = useAuth();
+  const { user, signOut } = useAuth();
   const translateY = useSharedValue(SCREEN_HEIGHT); // Start off-screen (bottom)
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -85,13 +85,13 @@ export default function AccountMenu({ isVisible, onClose }: AccountMenuProps) {
     router.push('/(tabs)/04-more/edit-profile' as any);
   };
 
-  const handleSignOut = async () => {
-    runOnJS(onClose)();
-    const { error } = await logOut();
-    if (error) {
-      console.error('Error signing out:', error);
-    } else {
-      router.replace('/');
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      onClose();
+    } catch (error) {
+      console.error('Error logging out:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
     }
   };
   
@@ -101,89 +101,105 @@ export default function AccountMenu({ isVisible, onClose }: AccountMenuProps) {
   return (
     <Modal
       visible={isVisible}
-      transparent={true}
-      animationType="none" // We handle animation with Reanimated
+      transparent
+      animationType="none"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        {Platform.OS === 'ios' && <BlurView intensity={10} tint="light" style={StyleSheet.absoluteFill} />}
-      </Pressable>
-
-      <PanGestureHandler onGestureEvent={gestureHandler}>
+      <View style={styles.overlay}>
         <Animated.View style={[styles.menuContainer, animatedStyle]}>
-          <View style={styles.grabber} />
-          {/* TouchableOpacity to prevent PanGestureHandler from capturing taps meant for content */}
-          <TouchableOpacity activeOpacity={1} style={styles.contentWrapper}>
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Account</Text>
-              <View style={styles.userInfo}>
-                {user?.user_metadata?.avatar_url ? (
-                  <Image 
-                    source={{ uri: user.user_metadata.avatar_url }} 
-                    style={styles.avatarContainer} 
-                  />
-                ) : (
-                  <View style={styles.avatarContainer}>
-                    <Text style={styles.avatarText}>
-                      {user?.user_metadata?.full_name?.[0]?.toUpperCase() || 
-                       user?.email?.[0].toUpperCase() || 
-                       '?'}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.userTextContainer}>
-                  <Text style={styles.userName}>
-                    {user?.user_metadata?.full_name || 
-                     user?.email?.split('@')[0] || 
-                     'User'}
-                  </Text>
-                  <Text style={styles.userEmail} numberOfLines={1}>
-                    {user?.email}
+          <View style={styles.handle} />
+          
+          <View style={styles.header}>
+            <View style={styles.avatarContainer}>
+              {user?.user_metadata?.avatar_url ? (
+                <Image 
+                  source={{ uri: user.user_metadata.avatar_url }} 
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={styles.initialsContainer}>
+                  <Text style={styles.initials}>
+                    {user?.user_metadata?.full_name?.[0]?.toUpperCase() || 
+                     user?.email?.[0].toUpperCase() || 
+                     '?'}
                   </Text>
                 </View>
-              </View>
+              )}
             </View>
+            
+            <Text style={styles.name}>
+              {user?.user_metadata?.full_name || 'User'}
+            </Text>
+            <Text style={styles.email}>{user?.email}</Text>
+          </View>
 
-            <View style={styles.divider} />
+          <View style={styles.menuItems}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                onClose();
+                router.push('/(tabs)/profile/edit-profile');
+              }}
+            >
+              <Ionicons name="person-outline" size={24} color={Colors.light.text} />
+              <Text style={styles.menuItemText}>Edit Profile</Text>
+              <Ionicons name="chevron-forward" size={24} color={Colors.light.secondaryLabel} />
+            </TouchableOpacity>
 
-            <View style={styles.menuItems}>
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={handleEditProfile}
-              >
-                <Ionicons name="person-circle-outline" size={24} color={Colors.light.text} />
-                <Text style={styles.menuItemText}>Edit Profile</Text>
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                onClose();
+                router.push('/(tabs)/profile/manage_cards');
+              }}
+            >
+              <Ionicons name="card-outline" size={24} color={Colors.light.text} />
+              <Text style={styles.menuItemText}>Manage Cards</Text>
+              <Ionicons name="chevron-forward" size={24} color={Colors.light.secondaryLabel} />
+            </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={handleHelp}
-              >
-                <Ionicons name="help-circle-outline" size={24} color={Colors.light.text} />
-                <Text style={styles.menuItemText}>Help & FAQ</Text>
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                onClose();
+                router.push('/(tabs)/profile/notifications');
+              }}
+            >
+              <Ionicons name="notifications-outline" size={24} color={Colors.light.text} />
+              <Text style={styles.menuItemText}>Notifications</Text>
+              <Ionicons name="chevron-forward" size={24} color={Colors.light.secondaryLabel} />
+            </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={handleSignOut}
-              >
-                <Ionicons name="log-out-outline" size={24} color={Colors.light.error} />
-                <Text style={[styles.menuItemText, styles.signOutText]}>
-                  Sign Out
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                onClose();
+                router.push('/(tabs)/profile/help-faq');
+              }}
+            >
+              <Ionicons name="help-circle-outline" size={24} color={Colors.light.text} />
+              <Text style={styles.menuItemText}>Help & FAQ</Text>
+              <Ionicons name="chevron-forward" size={24} color={Colors.light.secondaryLabel} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.menuItem, styles.logoutButton]} 
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={24} color={Colors.light.warning} />
+              <Text style={[styles.menuItemText, styles.logoutText]}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
-      </PanGestureHandler>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(0, 0, 0, 0.4)', // Dimmed background for Android
+    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(0, 0, 0, 0.4)',
   },
   menuContainer: {
     position: 'absolute',
@@ -193,95 +209,81 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 12, // Space for grabber
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20, // Home indicator/nav bar
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2, // Shadow upwards
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 10,
-    minHeight: SCREEN_HEIGHT * 0.4, // Example: At least 40% of screen height
-    maxHeight: SCREEN_HEIGHT * 0.8, // Example: At most 80% of screen height
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: SCREEN_HEIGHT * 0.8,
   },
-  grabber: {
+  handle: {
     width: 36,
     height: 5,
-    backgroundColor: Colors.light.textSecondary,
-    borderRadius: 2.5,
+    backgroundColor: Colors.light.secondaryLabel,
+    borderRadius: 3,
     alignSelf: 'center',
     marginBottom: 10,
   },
-  contentWrapper: {
-    // This wrapper ensures that taps on the content don't get mistaken by the overlay Pressable
-  },
   header: {
-    paddingHorizontal: 20, // Added padding for sheet content
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 16,
-    textAlign: 'center', // Center title in a sheet
-  },
-  userInfo: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10, // Added margin
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
   avatarContainer: {
-    width: 44, // Slightly larger avatar for sheet
+    width: 44,
     height: 44,
     borderRadius: 22,
     backgroundColor: Colors.light.tint,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginBottom: 10,
   },
-  avatarText: {
-    color: '#fff',
-    fontSize: 20, // Adjusted for new avatar size
+  avatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
+  },
+  initialsContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.light.tint,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initials: {
+    color: Colors.light.textOnPrimary,
+    fontSize: 20,
     fontWeight: '600',
   },
-  userTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  userName: {
-    fontSize: 17, // Slightly larger
+  name: {
+    fontSize: 17,
     fontWeight: '600',
     color: Colors.light.text,
+    marginBottom: 4,
   },
-  userEmail: {
+  email: {
     fontSize: 14,
     color: Colors.light.textSecondary,
-    marginTop: 2,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.light.textSecondary, // Use StyleSheet.hairlineWidth for thin lines
-    marginVertical: 16,
-    marginHorizontal: 20, // Apply horizontal margin
   },
   menuItems: {
-    paddingHorizontal: 12, // Adjust padding for items within the sheet
+    paddingHorizontal: 12,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14, // Slightly more padding
-    paddingHorizontal: 8,
-    borderRadius: 10, // Consistent rounding
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
   },
   menuItemText: {
-    marginLeft: 16, // More space between icon and text
-    fontSize: 16,
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 17,
     color: Colors.light.text,
   },
-  signOutText: {
-    color: Colors.light.error,
+  logoutButton: {
+    marginTop: 8,
+  },
+  logoutText: {
+    color: Colors.light.warning,
   },
 }); 

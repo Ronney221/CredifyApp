@@ -1,11 +1,10 @@
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import Dashboard from '../../app/(tabs)/01-dashboard';
 import { Alert } from 'react-native';
-import { trackPerkRedemption, deletePerkRedemption } from '../../src/data/perk-operations';
+import { trackPerkRedemption, deletePerkRedemption } from '../../lib/database';
 
 // Mock the database operations
-jest.mock('../../src/data/perk-operations', () => ({
+jest.mock('../../lib/database', () => ({
   trackPerkRedemption: jest.fn(),
   deletePerkRedemption: jest.fn(),
 }));
@@ -47,15 +46,13 @@ describe('Dashboard - Perk Redemption Flow', () => {
     );
     
     // Verify that trackPerkRedemption was called with full value
-    await waitFor(() => {
-      expect(trackPerkRedemption).toHaveBeenCalledWith(
-        'test-user-1',
-        expect.any(String), // cardId
-        mockPerk,
-        100, // full value
-        undefined // no parent redemption for full redemption
-      );
-    });
+    expect(trackPerkRedemption).toHaveBeenCalledWith(
+      'test-user-1',
+      expect.any(String), // cardId
+      mockPerk,
+      100, // full value
+      undefined // no parent redemption for full redemption
+    );
   });
 
   it('should handle errors when deleting partial redemption', async () => {
@@ -70,12 +67,10 @@ describe('Dashboard - Perk Redemption Flow', () => {
     fireEvent.press(getByTestId('perk-test-perk-1'));
     
     // Verify error alert was shown
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Failed to update perk redemption.'
-      );
-    });
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Error',
+      'Failed to update perk redemption.'
+    );
     
     // Verify trackPerkRedemption was not called
     expect(trackPerkRedemption).not.toHaveBeenCalled();
@@ -94,12 +89,10 @@ describe('Dashboard - Perk Redemption Flow', () => {
     fireEvent.press(getByTestId('perk-test-perk-1'));
     
     // Verify error alert was shown
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Failed to mark perk as redeemed in the database.'
-      );
-    });
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Error',
+      'Failed to mark perk as redeemed in the database.'
+    );
   });
 
   it('should handle the case where perk is already redeemed', async () => {
@@ -114,11 +107,9 @@ describe('Dashboard - Perk Redemption Flow', () => {
     fireEvent.press(getByTestId('perk-test-perk-1'));
     
     // Verify appropriate alert was shown
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Already Redeemed',
-        'This perk has already been redeemed this month.'
-      );
-    });
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Already Redeemed',
+      'This perk has already been redeemed this month.'
+    );
   });
 }); 

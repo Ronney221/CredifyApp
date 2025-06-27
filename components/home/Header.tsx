@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AccountButton from './AccountButton';
 import { endOfMonth, differenceInDays } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';

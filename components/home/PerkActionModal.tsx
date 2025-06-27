@@ -498,13 +498,9 @@ export default function PerkActionModal({
     let targetHeight = 0;
 
     if (isDescriptionExpanded) {
-      // If we are expanding:
       if (descriptionMeasuredHeight.value > 0) {
-        // And we HAVE a measurement, use it.
         targetHeight = descriptionMeasuredHeight.value;
       } else {
-        // And we DON'T have a measurement, render naturally to trigger onLayout.
-        // This will make it appear instantly instead of animating, which is fine for the first open.
         return {
           height: 'auto',
           opacity: 1,
@@ -513,7 +509,6 @@ export default function PerkActionModal({
       }
     }
 
-    // For all other cases (collapsing, or expanding when we have a measurement), animate smoothly.
     return {
       height: withSpring(targetHeight, {
         damping: 20,
