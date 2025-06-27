@@ -19,6 +19,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.credifyapp.credify",
       "usesAppleSignIn": true,
+      "requireFullScreen": true,
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -43,10 +44,15 @@
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can select a profile picture.",
         "UIBackgroundModes": [
           "remote-notification"
-        ]
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSExceptionDomains": {}
+        }
       },
       "entitlements": {
-        "aps-environment": "production"
+        "aps-environment": "production",
+        "com.apple.developer.applesignin": ["Default"]
       }
     },
     "android": {
@@ -77,12 +83,7 @@
             "DEFAULT"
           ]
         }
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "your-google-maps-api-key"
-        }
-      }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -106,34 +107,55 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#ffffff"
+          "color": "#ffffff",
+          "sounds": ["default"]
         }
       ],
       [
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.4"
+            "deploymentTarget": "15.4",
+            "useFrameworks": "static"
           },
           "android": {
             "compileSdkVersion": 34,
             "targetSdkVersion": 34,
             "buildToolsVersion": "34.0.0",
-            "extraProguardRules": "-keep class com.credifyapp.credify.BuildConfig { *; }"
+            "extraProguardRules": "-keep class com.credifyapp.credify.BuildConfig { *; }",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResources": true
           }
         }
       ],
-      "sentry-expo"
+      [
+        "sentry-expo",
+        {
+          "enableInExpoDevelopment": true,
+          "enableAutoPerformanceTracking": true
+        }
+      ]
     ],
     "experiments": {
       "tsconfigPaths": true,
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "75e33702-056a-43e1-a206-50e6b8d63b05"
       }
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 30000
+    },
+    "jsEngine": "hermes",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
     }
   }
 }
