@@ -507,11 +507,14 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   // Load chat history when the chat ID changes
   useEffect(() => {
     if (!currentChatId) return;
+    let isMounted = true;
 
     const loadChatHistory = async () => {
       console.log('[AIChat][useEffect] Attempting to load chat history for chat ID:', currentChatId);
       try {
         const savedHistory = await AsyncStorage.getItem(`@ai_chat_history_${currentChatId}`);
+        if (!isMounted) return;
+        
         if (savedHistory) {
           const parsedHistory = JSON.parse(savedHistory);
           // Convert string dates back to Date objects
@@ -531,14 +534,16 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
               user: AI,
               suggestedPrompts: getRandomExamples(3),
             };
-            setMessages([inactivityMessage, ...historyWithDates]);
-            // Set the notification flag
-            await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
-          } else {
+            if (isMounted) {
+              setMessages([inactivityMessage, ...historyWithDates]);
+              // Set the notification flag
+              await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
+            }
+          } else if (isMounted) {
             setMessages(historyWithDates);
           }
           console.log('[AIChat][useEffect] Successfully loaded', historyWithDates.length, 'messages from history.');
-        } else {
+        } else if (isMounted) {
           // Set initial greeting message for a new chat
           setMessages(getOnboardingMessages());
           console.log('[AIChat][useEffect] No chat history found, setting onboarding messages.');
@@ -548,6 +553,10 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       }
     };
     loadChatHistory();
+
+    return () => {
+      isMounted = false;
+    };
   }, [currentChatId]);
 
   // Save chat history to AsyncStorage when messages or chat ID change

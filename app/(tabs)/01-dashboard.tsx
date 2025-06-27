@@ -410,7 +410,10 @@ export default function Dashboard() {
 
   // Effect for handling app state changes to show deferred toasts
   useEffect(() => {
+    let isSubscribed = true;
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (!isSubscribed) return;
+      
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
@@ -427,15 +430,19 @@ export default function Dashboard() {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
+      isSubscribed = false;
       subscription.remove();
     };
-  }, [pendingToast]); // Re-subscribe if pendingToast changes to capture its value correctly
+  }, [pendingToast]);
 
   // Load unique perk periods from AsyncStorage
   useEffect(() => {
+    let isSubscribed = true;
     const loadAsyncData = async () => {
       try {
         const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
+        if (!isSubscribed) return;
+        
         console.log('[Dashboard] Loading unique perk periods from AsyncStorage:', storedPeriods);
         if (storedPeriods !== null) {
           const parsedPeriods = JSON.parse(storedPeriods);
@@ -455,10 +462,16 @@ export default function Dashboard() {
         await checkNotificationStatus();
       } catch (e) {
         console.error("[Dashboard] Failed to load data from AsyncStorage.", e);
-        setUniquePerkPeriodsForToggle([]); // Default on error
+        if (isSubscribed) {
+          setUniquePerkPeriodsForToggle([]); // Default on error
+        }
       }
     };
     loadAsyncData();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
   // Add effect to log when uniquePerkPeriodsForToggle changes

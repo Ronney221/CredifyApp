@@ -14,7 +14,7 @@ import {
   Keyboard,
   InputAccessoryView,
 } from 'react-native';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler } from 'react-native-gesture-handler';
@@ -407,7 +407,7 @@ export default function PerkActionModal({
 
   const toggleDescription = () => {
     if (!isDescriptionExpanded) {
-      Haptics.selectionAsync();
+      Haptics.selectionAsync().catch(console.error);
       setIsDescriptionExpanded(true);
     }
   };
@@ -444,9 +444,36 @@ export default function PerkActionModal({
     };
   });
 
+  // Early return if no perk or not visible
   if (!visible || !perk) {
     return null;
   }
+
+  // Safely access perk properties with defaults
+  const {
+    name = '',
+    description = '',
+    value = 0,
+    remaining_value = value,
+    status = 'available',
+    periodMonths = 1,
+  } = perk;
+
+  // Safe access to redemption data
+  const redemptionData = useMemo(() => {
+    if (!perk || !perk.redemptions || !Array.isArray(perk.redemptions)) {
+      return [];
+    }
+    return perk.redemptions;
+  }, [perk?.redemptions]);
+
+  // Safe calculation of remaining value
+  const remainingValueDisplay = useMemo(() => {
+    if (typeof remaining_value !== 'number' || remaining_value < 0) {
+      return value;
+    }
+    return remaining_value;
+  }, [remaining_value, value]);
 
   const handleDismiss = () => {
     translateY.value = withTiming(0, { duration: 300 });
