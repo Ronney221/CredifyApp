@@ -16,21 +16,6 @@ if (!fs.existsSync(emptyShimPath)) {
 
 const config = getDefaultConfig(__dirname);
 
-// Add error handling for resolver
-const originalResolver = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  try {
-    return originalResolver(context, moduleName, platform);
-  } catch (error) {
-    console.warn(`Failed to resolve ${moduleName}:`, error);
-    // Return empty module for unresolvable requests
-    return {
-      type: 'empty',
-      filePath: emptyShimPath,
-    };
-  }
-};
-
 // Safe polyfills configuration
 const polyfills = {
   stream: 'readable-stream',
@@ -56,7 +41,7 @@ const nodeShims = [
   'constants',
 ];
 
-// Safely resolve polyfills
+// Initialize extraNodeModules
 config.resolver.extraNodeModules = {};
 
 // Add polyfills with error handling
