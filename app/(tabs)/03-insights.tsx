@@ -25,9 +25,9 @@ import { StreakBadge } from '../../components/insights/StreakBadge';
 import { FeeCoverageMeterChip } from '../../components/insights/FeeCoverageMeterChip';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUserCards } from '../../hooks/useUserCards';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect , useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
+
 import { BlurView } from 'expo-blur';
 
 // Enable LayoutAnimation for Android

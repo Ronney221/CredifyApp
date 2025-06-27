@@ -22,8 +22,8 @@ import { Card, CardPerk, openPerkTarget, calculatePerkExpiryDate } from '../../s
 import { useAuth } from '../../hooks/useAuth';
 import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
 import { trackPerkRedemption, getCurrentMonthRedemptions, deletePerkRedemption, supabase, setAutoRedemption, debugAutoRedemptions } from '../../lib/database';
-import { useRouter } from 'expo-router';
-import { useNavigation } from 'expo-router';
+import { useRouter , useNavigation } from 'expo-router';
+
 import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
 import OnboardingSheet from './OnboardingSheet';

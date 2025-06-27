@@ -23,7 +23,7 @@ import { MotiView } from 'moti';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons , FontAwesome } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { 
@@ -35,7 +35,7 @@ import Animated, {
   Easing,
   useSharedValue,
 } from 'react-native-reanimated';
-import { FontAwesome } from '@expo/vector-icons';
+
 import { supabase } from '../../lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

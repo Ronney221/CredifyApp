@@ -1,10 +1,10 @@
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Platform } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Platform , Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, allCards } from '../../src/data/card-data';
 import { CardRow } from '../manage/CardRow';
 import { Colors } from '../../constants/Colors';
-import { Animated } from 'react-native';
+
 
 interface AddCardModalProps {
   visible: boolean;

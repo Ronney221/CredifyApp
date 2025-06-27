@@ -1,9 +1,9 @@
 // app/_layout.tsx
 import React from 'react';
-import { ActivityIndicator, Alert, View, StyleSheet, Animated } from 'react-native';
+import { ActivityIndicator, Alert, View, StyleSheet, Animated , Platform, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Tabs } from 'expo-router';
-import { Platform, TouchableOpacity } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';

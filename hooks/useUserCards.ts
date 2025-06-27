@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Card, allCards } from '../src/data/card-data';
+import { Card, allCards , CardPerk } from '../src/data/card-data';
 import { getUserCards } from '../lib/database';
-import { CardPerk } from '../src/data/card-data';
+
 
 interface UserCard {
   id: string;

@@ -13,7 +13,7 @@ import {
   Easing,
   Alert,
   Linking,
-} from 'react-native';
+ useColorScheme } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -26,7 +26,7 @@ import { getBenefitAdvice } from '../../lib/openai';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear, differenceInHours } from 'date-fns';
 import { CardPerk, openPerkTarget, allCards } from '../../src/data/card-data';
 import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../utils/perk-matcher';
-import { useColorScheme } from 'react-native';
+
 import { useAuth } from '../../contexts/AuthContext';
 
 // --- Interfaces ---

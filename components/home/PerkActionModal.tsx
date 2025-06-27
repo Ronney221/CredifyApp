@@ -1,5 +1,19 @@
 //perk-action-modal.tsx
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Platform, TextInput, Alert, KeyboardAvoidingView, ScrollView, Keyboard, InputAccessoryView, KeyboardAvoidingViewProps } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+  Platform,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Keyboard,
+  InputAccessoryView,
+} from 'react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -8,18 +22,11 @@ import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  runOnJS,
   withTiming,
-  interpolate,
   useAnimatedProps,
-  FadeIn,
-  FadeOut,
-  Layout,
-  SharedValue,
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../src/data/card-data';
@@ -92,12 +99,12 @@ const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number })
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
-  return amount.toLocaleString('en-US', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
+  }).format(amount);
 };
 
 // Helper to calculate yearly total based on frequency
@@ -138,7 +145,7 @@ const SegmentedControl = ({
   onChange: (value: AmountOption) => void;
   perk: CardPerk | null;
 }) => {
-  const segments: Array<{ value: AmountOption; topLabel: string; bottomLabel?: string }> = [
+  const segments: { value: AmountOption; topLabel: string; bottomLabel?: string }[] = [
     { 
       value: 'full', 
       topLabel: formatCurrency(perk?.value || 0),
@@ -226,6 +233,16 @@ const parseDecimalInput = (text: string): number => {
   return isNaN(value) ? 0 : value;
 };
 
+// Get the app name for the CTA button
+const getAppName = (perk: CardPerk): string => {
+  if (perk.appScheme && typeof perk.appScheme === 'string' && APP_SCHEMES[perk.appScheme as keyof typeof APP_SCHEMES]) {
+    // Map app schemes to friendly names
+    const appName = perk.appScheme.charAt(0).toUpperCase() + perk.appScheme.slice(1);
+    return appName.replace(/([A-Z])/g, ' $1').trim(); // Add spaces before capital letters
+  }
+  return 'App';
+};
+
 export default function PerkActionModal({
   visible,
   perk,
@@ -234,41 +251,44 @@ export default function PerkActionModal({
   onMarkRedeemed,
   onMarkAvailable,
 }: PerkActionModalProps) {
-  // All hooks at the top
-  const insets = useSafeAreaInsets();
-  const translateY = useSharedValue(1000);
+  // State hooks
   const [sliderValue, setSliderValue] = useState(0);
-  const [selectedAmount, setSelectedAmount] = useState<AmountOption>('full');
-  const [customAmount, setCustomAmount] = useState('');
-  const [showDescription, setShowDescription] = useState(false);
-  const [showCustomAmount, setShowCustomAmount] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<'full' | 'half' | 'custom' | null>('full');
   const [partialAmount, setPartialAmount] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<AmountOption | null>(null);
+  const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [isEditingNumber, setIsEditingNumber] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Animated values
+  const translateY = useSharedValue(0);
+  const sliderAnimation = useSharedValue(0);
   const sliderPosition = useSharedValue(0);
-  const sliderAnimation = useSharedValue<number>(0);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const descriptionMeasuredHeight = useSharedValue(0);
-  
-  // Animated props and styles
+
+  // Animated props
   const animatedSliderProps = useAnimatedProps(() => ({
     value: sliderAnimation.value,
   }));
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  // Animated styles
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: translateY.value }]
+    };
+  });
 
-  // Early returns after all hooks are declared
-  if (!visible || !perk) {
-    return null;
-  }
+  const overlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: 1
+    };
+  });
 
   // Get the currently redeemed amount if partially redeemed
   const getCurrentRedeemedAmount = useCallback(() => {
-    if (perk?.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
+    if (!perk) return 0;
+    if (perk.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
       return roundToNearestDime(perk.value - perk.remaining_value);
     }
     return 0;
@@ -300,51 +320,51 @@ export default function PerkActionModal({
 
   // Reset state when modal becomes visible or perk changes
   useEffect(() => {
-    if (visible && perk) {
-      // First check if it's partially redeemed and set the correct initial value
-      if (perk.status === 'partially_redeemed') {
-        const currentRedeemedAmount = getCurrentRedeemedAmount();
-        const roundedAmount = roundToNearestDime(currentRedeemedAmount);
-        
-        // Set all slider-related values to the current redeemed amount
-        sliderAnimation.value = roundedAmount;
-        sliderPosition.value = roundedAmount;
-        setSliderValue(roundedAmount);
-        setPartialAmount(formatExactCurrency(roundedAmount).replace(/[^0-9.]/g, ''));
-        
-        // Set UI state
-        setSelectedPreset('custom');
-        setShowCustomAmount(true);
-      } else {
-        // For non-partially redeemed perks, set to max value
-        const maxValue = perk.value || 0;
-        sliderAnimation.value = maxValue;
-        sliderPosition.value = maxValue;
-        setSliderValue(maxValue);
-        setPartialAmount(formatExactCurrency(maxValue).replace(/[^0-9.]/g, ''));
-        
-        setSelectedPreset('full');
-        setShowCustomAmount(false);
-      }
+    if (!visible || !perk) return;
 
-      // Animate modal
-      translateY.value = withTiming(0, { duration: 300 });
-      setIsEditingNumber(false);
+    // First check if it's partially redeemed and set the correct initial value
+    if (perk.status === 'partially_redeemed') {
+      const currentRedeemedAmount = getCurrentRedeemedAmount();
+      const roundedAmount = roundToNearestDime(currentRedeemedAmount);
+      
+      // Set all slider-related values to the current redeemed amount
+      sliderAnimation.value = roundedAmount;
+      sliderPosition.value = roundedAmount;
+      setSliderValue(roundedAmount);
+      setPartialAmount(formatExactCurrency(roundedAmount).replace(/[^0-9.]/g, ''));
+      
+      // Set UI state
+      setSelectedPreset('custom');
+      setShowCustomAmount(true);
     } else {
-      translateY.value = withTiming(0, { duration: 300 });
+      // For non-partially redeemed perks, set to max value
+      const maxValue = perk.value || 0;
+      sliderAnimation.value = maxValue;
+      sliderPosition.value = maxValue;
+      setSliderValue(maxValue);
+      setPartialAmount(formatExactCurrency(maxValue).replace(/[^0-9.]/g, ''));
+      
+      setSelectedPreset('full');
+      setShowCustomAmount(false);
     }
+
+    // Animate modal
+    translateY.value = withTiming(0, { duration: 300 });
+    setIsEditingNumber(false);
   }, [visible, perk, getCurrentRedeemedAmount]);
 
   // Handle slider value change with animation
   const handleSliderChange = useCallback((value: number) => {
+    if (!perk) return;
+    
     const roundedValue = roundToNearestDime(value);
     
     // Only allow 0 if already partially redeemed
-    if (roundedValue === 0 && perk?.status !== 'partially_redeemed') {
+    if (roundedValue === 0 && perk.status !== 'partially_redeemed') {
       setSliderValue(0.10);
       setPartialAmount('0.10');
       sliderAnimation.value = 0.10;
-    } else if (perk && roundedValue > perk.value) {
+    } else if (roundedValue > perk.value) {
       setSliderValue(perk.value);
       setPartialAmount(perk.value.toFixed(2));
       sliderAnimation.value = perk.value;
@@ -354,17 +374,19 @@ export default function PerkActionModal({
       sliderAnimation.value = roundedValue;
     }
     setIsEditingNumber(false);
-  }, [perk?.status, perk?.value]);
+  }, [perk]);
 
   // Handle text input changes
   const handleAmountChange = useCallback((text: string) => {
+    if (!perk) return;
+    
     setPartialAmount(text);
     const value = parseDecimalInput(text);
     
-    if (value === 0 && perk?.status !== 'partially_redeemed') {
+    if (value === 0 && perk.status !== 'partially_redeemed') {
       setSliderValue(0.10);
       sliderAnimation.value = withSpring(0.10);
-    } else if (perk && value > perk.value) {
+    } else if (value > perk.value) {
       setSliderValue(perk.value);
       sliderAnimation.value = withSpring(perk.value);
       setPartialAmount(perk.value.toFixed(2));
@@ -373,20 +395,19 @@ export default function PerkActionModal({
       sliderAnimation.value = withSpring(value);
     }
     setIsEditingNumber(true);
-  }, [perk?.status, perk?.value]);
+  }, [perk]);
 
   // Handle blur event for text input
   const handleAmountBlur = useCallback(() => {
     const roundedValue = roundToNearestDime(parseFloat(partialAmount));
-    
     setPartialAmount(roundedValue.toFixed(2));
     setSliderValue(roundedValue);
     sliderAnimation.value = withSpring(roundedValue);
   }, [partialAmount]);
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: 1,
-  }));
+  if (!visible || !perk) {
+    return null;
+  }
 
   const handleDismiss = () => {
     translateY.value = withTiming(0, { duration: 300 });
@@ -464,46 +485,6 @@ export default function PerkActionModal({
           : `${perk?.name} partially logged: ${formatCurrency(amount)}`
       );
     }
-  };
-
-  // Get the app name for the CTA button
-  const getAppName = (perk: CardPerk): string => {
-    if (perk.appScheme && APP_SCHEMES[perk.appScheme]) {
-      // Map app schemes to friendly names
-      const appSchemeMap: Record<string, string> = {
-        uber: 'Uber',
-        uberEats: 'Uber Eats',
-        grubhub: 'Grubhub',
-        doordash: 'DoorDash',
-        disneyPlus: 'Disney+',
-        hulu: 'Hulu',
-        espn: 'ESPN',
-        peacock: 'Peacock',
-        nytimes: 'NY Times',
-        dunkin: 'Dunkin',
-        instacart: 'Instacart',
-        resy: 'Resy',
-        walmart: 'Walmart',
-        capitalOne: 'Capital One Travel',
-        lyft: 'Lyft',
-        saks: 'Saks',
-        equinox: 'Equinox',
-      };
-      return appSchemeMap[perk.appScheme] || 'App';
-    }
-
-    // Fallback: try to extract from perk name
-    const name = perk.name.toLowerCase();
-    if (name.includes('uber eats')) return 'Uber Eats';
-    if (name.includes('uber')) return 'Uber';
-    if (name.includes('doordash')) return 'DoorDash';
-    if (name.includes('grubhub')) return 'Grubhub';
-    if (name.includes('disney')) return 'Disney+';
-    if (name.includes('dunkin')) return 'Dunkin';
-    if (name.includes('resy')) return 'Resy';
-    if (name.includes('capital one')) return 'Capital One Travel';
-    
-    return 'App'; // Generic fallback
   };
 
   const toggleDescription = () => {

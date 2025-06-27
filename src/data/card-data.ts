@@ -1,5 +1,5 @@
-import { Platform, Linking, Alert } from 'react-native';
-import { ImageSourcePropType } from 'react-native';
+import { Platform, Linking, Alert , ImageSourcePropType } from 'react-native';
+
 import * as WebBrowser from 'expo-web-browser';
 
 export interface Benefit {
