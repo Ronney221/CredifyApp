@@ -122,7 +122,8 @@
             "extraProguardRules": "-keep class com.credifyapp.credify.BuildConfig { *; }"
           }
         }
-      ]
+      ],
+      "sentry-expo"
     ],
     "experiments": {
       "tsconfigPaths": true,
