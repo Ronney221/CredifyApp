@@ -1,28 +1,58 @@
 import 'react-native-url-polyfill/auto';
-import { createClient, SupabaseClientOptions } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { decode } from 'base64-arraybuffer';
+import Constants from 'expo-constants';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+// Get configuration from environment variables
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+// Debug environment variables
+console.log('[Supabase] Environment check:', {
+  hasUrl: !!supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  isDev: __DEV__,
+  platform: Platform.OS,
+});
+
+// Validate configuration
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('[Supabase] Missing configuration:', { 
+    url: supabaseUrl ? 'present' : 'missing',
+    key: supabaseAnonKey ? 'present' : 'missing'
+  });
+  throw new Error('Supabase configuration missing. Check environment variables.');
+}
 
 const isWeb = Platform.OS === 'web';
 
-const supabaseOptions: SupabaseClientOptions<'public'> = {
+const supabaseOptions = {
   auth: {
-    storage: isWeb && typeof window !== 'undefined' ? localStorage : AsyncStorage,
+    storage: isWeb ? localStorage : AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: isWeb, // Only true for web
+    detectSessionInUrl: isWeb,
   },
-  // Explicitly configure realtime. For mobile, we can pass minimal or no options
-  // if we don't intend to use realtime, or provide React Native specific ones if needed.
-  // To fully prevent 'ws' issues, ensure no realtime connection is attempted on mobile.
-  realtime: isWeb ? undefined : { params: {} }, // Pass undefined for web to use defaults, or empty for mobile to potentially avoid 'ws'
+  realtime: isWeb ? undefined : { params: {} },
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseOptions);
+// Create client with error handling
+const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseOptions);
+
+// Test the client
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('[Supabase] Failed to get session:', error);
+  } else {
+    console.log('[Supabase] Client initialized successfully');
+  }
+}).catch(error => {
+  console.error('[Supabase] Unexpected error:', error);
+});
+
+export { supabase };
 
 // Auth helper functions
 export const signOut = async () => {

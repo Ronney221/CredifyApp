@@ -30,6 +30,7 @@ import { CardPerk, openPerkTarget, allCards } from '../../src/data/card-data';
 import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../utils/perk-matcher';
 
 import { useAuth } from '../../contexts/AuthContext';
+import type { ErrorBoundaryProps } from 'expo-router';
 
 // --- Interfaces ---
 type BenefitRecommendationTuple = [string, string, string, number];
@@ -1206,6 +1207,18 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return (
+    <View style={styles.errorContainer}>
+      <Text style={styles.errorTitle}>AI Chat Error</Text>
+      <Text style={styles.errorMessage}>{props.error.message}</Text>
+      <Pressable style={styles.retryButton} onPress={props.retry}>
+        <Text style={styles.retryText}>Try Again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1447,6 +1460,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     lineHeight: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#ffffff',
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#ff0000',
+  },
+  errorMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#000000',
+  },
+  retryButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
