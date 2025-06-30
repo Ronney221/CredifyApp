@@ -1,3 +1,4 @@
+// lib/auth-oauth.ts
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from './supabase';
@@ -7,8 +8,12 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const redirectUrl = makeRedirectUri({
+  scheme: 'credify',
+  path: 'auth/callback',   // gives credify://auth/callback in prod
+});
+
 export const signInWithGoogle = async () => {
-  const redirectUrl = 'credify://auth/callback';
   console.log('Using redirect URL:', redirectUrl);
 
   try {
@@ -49,10 +54,12 @@ export const signInWithGoogle = async () => {
 
       if (access_token) {
         console.log('Setting session with tokens');
-        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        const sessionData = {
           access_token,
-          refresh_token: refresh_token ?? undefined,
-        });
+          ...(refresh_token && { refresh_token }),
+        };
+        
+        const { data: sessionResponse, error: sessionError } = await supabase.auth.setSession(sessionData as any);
 
         if (sessionError) {
           console.error('Session error:', sessionError);
@@ -60,7 +67,7 @@ export const signInWithGoogle = async () => {
         }
 
         console.log('Session set successfully');
-        return { data: sessionData, error: null };
+        return { data: sessionResponse, error: null };
       }
       
       return { data: null, error: { message: 'No access token received' } };
@@ -132,6 +139,4 @@ export const signInWithEmail = async (email: string, password: string) => {
 };
 
 // OAuth configuration helpers
-export const getOAuthRedirectUrl = () => {
-  return makeRedirectUri();
-}; 
+// No longer needed 

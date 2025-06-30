@@ -33,55 +33,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const router = useRouter();
 
   useEffect(() => {
-    // First ensure storage is loaded
-    AsyncStorage.getItem('supabase.auth.token')
-      .finally(() => {
-        setStorageLoaded(true);
-        // Only initialize Supabase auth after storage is confirmed loaded
-        initializeAuth();
-      });
-  }, []);
-
-  const initializeAuth = async () => {
-    setLoading(true);
-    try {
+    const fetchSession = async () => {
+      setLoading(true);
+      // Ensure we only try to get the session after storage has been loaded.
+      // This is a common pattern to avoid race conditions on mobile.
+      await AsyncStorage.getItem('supabase.auth.token');
+      setStorageLoaded(true);
+      
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
-    } catch (error) {
-      console.error('Error getting session:', error);
-    } finally {
       setLoading(false);
-    }
-  };
+    };
 
-  useEffect(() => {
-    if (!storageLoaded) return;
+    fetchSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth event:', event);
         setSession(session);
         setUser(session?.user ?? null);
-
-        if (event === 'TOKEN_REFRESH_FAILED') {
-          console.warn('[Auth] Token refresh failed, retrying...');
-          try {
-            const { error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError) {
-              console.warn('[Auth] First refresh failed, retrying once...');
-              await new Promise(r => setTimeout(r, 1000));
-              await supabase.auth.refreshSession();
-            }
-          } catch (error) {
-            console.error('[Auth] All refresh attempts failed:', error);
-            Alert.alert(
-              'Session expired',
-              'Please sign in again.',
-              [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }],
-            );
-          }
-        }
 
         if (event === 'SIGNED_OUT') {
           router.replace('/(auth)/login');
@@ -89,8 +60,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [storageLoaded, router]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (loading) return; // Wait for initial session load
+
+    if (!session?.user) {
+      // If no user and not loading, we can consider them logged out.
+      // You might want to navigate them to a login screen here if appropriate.
+    }
+
+  }, [session, loading, router]);
 
   // --- THIS IS THE FIX ---
   // We now correctly assign the imported functions to the context value.
@@ -107,8 +90,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --------------------
 
   // Don't render children until storage is loaded
-  if (!storageLoaded) {
-    return null;
+  if (loading) {
+    return null; // Or a loading spinner
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

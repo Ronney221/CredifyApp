@@ -232,14 +232,14 @@ export const schedulePerkExpiryNotifications = async (
     }
   
     if (!isEnabled && !isTest) {
-      console.log(`[Notifications] ${periodMonths}-month reminders are disabled.`);
+      // console.log(`[Notifications] ${periodMonths}-month reminders are disabled.`);
       return [];
     }
     
     let availablePerks: AvailablePerk[] = []; // CHANGE: Made this a let instead of const
     
     try {
-      console.log(`[Notifications] Fetching data for user ${userId} for ${periodMonths}-month perk reminders.`);
+      // console.log(`[Notifications] Fetching data for user ${userId} for ${periodMonths}-month perk reminders.`);
       
       const { data: dbUserCards, error: userCardsError } = await getUserCards(userId);
       if (userCardsError) throw userCardsError;
@@ -251,12 +251,12 @@ export const schedulePerkExpiryNotifications = async (
         .flatMap((card: Card) => card.benefits.map((benefit: Benefit) => benefit.definition_id));
   
       if (userPerkDefinitionIds.length === 0) {
-        console.log(`[Notifications] No perks found for user ${userId} in this period.`);
+        // console.log(`[Notifications] No perks found for user ${userId} in this period.`);
         return [];
       }
   
       // ADD THIS LOG to see the IDs being sent to the database
-      console.log(`[DEBUG] Querying Supabase with perk definition IDs:`, userPerkDefinitionIds);
+      // console.log(`[DEBUG] Querying Supabase with perk definition IDs:`, userPerkDefinitionIds);
 
       // CHANGE: Updated the Supabase query to fetch new fields and join with the new table
       const { data: perkDefinitions, error: perkDefError } = await supabase
@@ -281,7 +281,7 @@ export const schedulePerkExpiryNotifications = async (
       if (!perkDefinitions) return [];
       
       // ADD THIS LOG: See what the DB returns
-      console.log('[DEBUG] Raw perk definitions from Supabase:', JSON.stringify(perkDefinitions, null, 2));
+      // console.log('[DEBUG] Raw perk definitions from Supabase:', JSON.stringify(perkDefinitions, null, 2));
       
       // CHANGE: Fetch all redemptions for the user, including remaining value.
       const { data: allRedemptions, error: redemptionError } = await supabase
@@ -334,7 +334,7 @@ export const schedulePerkExpiryNotifications = async (
   
       if (allAvailablePerks.length > 0) {
         let logMessage = `[Notifications] User ${userId} (${periodMonths}-month): ${allAvailablePerks.length} total perks available.`;
-        console.log(logMessage);
+        // console.log(logMessage);
         availablePerks = allAvailablePerks; // Assign to the outer scope variable
       }
   
@@ -344,7 +344,7 @@ export const schedulePerkExpiryNotifications = async (
     }
     
     if (availablePerks.length === 0) {
-      console.log(`[Notifications] All perks for period ${periodMonths} already redeemed or none exist.`);
+      // console.log(`[Notifications] All perks for period ${periodMonths} already redeemed or none exist.`);
       return [];
     }
   
@@ -352,7 +352,7 @@ export const schedulePerkExpiryNotifications = async (
     const tasks: Promise<string | null>[] = [];
     const groupedPerks = groupPerksByReminderDate(availablePerks, endOfPeriod, now);
 
-    console.log(`[Notifications] Found ${Object.keys(groupedPerks).length} upcoming notification groups.`);
+    // console.log(`[Notifications] Found ${Object.keys(groupedPerks).length} upcoming notification groups.`);
 
     for (const [reminderDateStr, perksForThisDate] of Object.entries(groupedPerks)) {
         const reminderDate = new Date(reminderDateStr);
@@ -363,7 +363,7 @@ export const schedulePerkExpiryNotifications = async (
         if (finalReminderDate > now) {
             const message = generateDynamicMessage(perksForThisDate);
             if (message) {
-                console.log(`[Notifications] Scheduling notification for ${perksForThisDate.length} perk(s) on ${finalReminderDate.toISOString()}`);
+                // console.log(`[Notifications] Scheduling notification for ${perksForThisDate.length} perk(s) on ${finalReminderDate.toISOString()}`);
                 tasks.push(
                     scheduleNotificationAsync(message.title, message.body, finalReminderDate)
                 );

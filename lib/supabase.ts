@@ -1,11 +1,17 @@
+// lib/supabase.ts
 import 'react-native-url-polyfill/auto';
 import { createClient, SupabaseClientOptions } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { decode } from 'base64-arraybuffer';
+import Constants from 'expo-constants';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const { SUPABASE_URL, SUPABASE_KEY } = Constants.expoConfig!.extra as any;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  // Fail loud in both dev & prod
+  throw new Error('Supabase env missing – check app.config.js / eas.json');
+}
 
 const isWeb = Platform.OS === 'web';
 
@@ -22,7 +28,7 @@ const supabaseOptions: SupabaseClientOptions<'public'> = {
   realtime: isWeb ? undefined : { params: {} }, // Pass undefined for web to use defaults, or empty for mobile to potentially avoid 'ws'
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseOptions);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, supabaseOptions);
 
 // Auth helper functions
 export const signOut = async () => {

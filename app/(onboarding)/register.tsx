@@ -1,3 +1,4 @@
+// app/(onboarding)/register.tsx
 import React, { useMemo, useEffect, useRef } from 'react';
 import {
   View,

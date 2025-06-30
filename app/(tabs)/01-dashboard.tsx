@@ -278,7 +278,7 @@ export default function Dashboard() {
   }, [showAiChatNotification]);
 
   // Initial log after hooks have run
-  console.log("DEBUG: Dashboard component - AFTER hooks. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isRefreshing, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
+  // console.log("DEBUG: Dashboard component - AFTER hooks. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isRefreshing, "isCalculatingSavings:", isCalculatingSavings, "userCardsWithPerks count:", userCardsWithPerks?.length);
 
   const daysRemaining = useMemo(() => getDaysRemainingInMonth(), []);
   const statusColors = useMemo(() => getStatusColor(daysRemaining), [daysRemaining]);
@@ -443,19 +443,19 @@ export default function Dashboard() {
         const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
         if (!isSubscribed) return;
         
-        console.log('[Dashboard] Loading unique perk periods from AsyncStorage:', storedPeriods);
+        // console.log('[Dashboard] Loading unique perk periods from AsyncStorage:', storedPeriods);
         if (storedPeriods !== null) {
           const parsedPeriods = JSON.parse(storedPeriods);
-          console.log('[Dashboard] Parsed unique perk periods:', parsedPeriods);
+          // console.log('[Dashboard] Parsed unique perk periods:', parsedPeriods);
           if (Array.isArray(parsedPeriods) && parsedPeriods.length > 0) {
-            console.log('[Dashboard] Setting unique periods to:', parsedPeriods);
+            // console.log('[Dashboard] Setting unique periods to:', parsedPeriods);
             setUniquePerkPeriodsForToggle(parsedPeriods);
           } else {
-            console.log('[Dashboard] Invalid periods array, setting to empty array');
+            // console.log('[Dashboard] Invalid periods array, setting to empty array');
             setUniquePerkPeriodsForToggle([]); // Default if empty or invalid
           }
         } else {
-          console.log('[Dashboard] No stored periods found, setting to empty array');
+          // console.log('[Dashboard] No stored periods found, setting to empty array');
           setUniquePerkPeriodsForToggle([]); // Default if not found
         }
 
@@ -476,7 +476,7 @@ export default function Dashboard() {
 
   // Add effect to log when uniquePerkPeriodsForToggle changes
   useEffect(() => {
-    console.log('[Dashboard] uniquePerkPeriodsForToggle updated:', uniquePerkPeriodsForToggle);
+    // console.log('[Dashboard] uniquePerkPeriodsForToggle updated:', uniquePerkPeriodsForToggle);
   }, [uniquePerkPeriodsForToggle]);
 
   // Update unique perk periods when userCardsWithPerks changes
@@ -487,13 +487,13 @@ export default function Dashboard() {
         cardData.perks.forEach(perk => {
           if (perk.periodMonths) {
             periods.add(perk.periodMonths);
-            console.log(`[Dashboard] Found period ${perk.periodMonths} from perk ${perk.name} in card ${cardData.card.name}`);
+            // console.log(`[Dashboard] Found period ${perk.periodMonths} from perk ${perk.name} in card ${cardData.card.name}`);
           }
         });
       });
 
       const sortedPeriods = Array.from(periods).sort((a, b) => a - b);
-      console.log('[Dashboard] Current periods from userCardsWithPerks:', sortedPeriods);
+      // console.log('[Dashboard] Current periods from userCardsWithPerks:', sortedPeriods);
       
       if (sortedPeriods.length > 0) {
         // Update the state to re-render the component with the correct periods
@@ -503,7 +503,7 @@ export default function Dashboard() {
         const savePeriods = async () => {
           try {
             await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(sortedPeriods));
-            console.log('[Dashboard] Saved unique perk periods to AsyncStorage:', sortedPeriods);
+            // console.log('[Dashboard] Saved unique perk periods to AsyncStorage:', sortedPeriods);
           } catch (e) {
             console.error("[Dashboard] Failed to save unique perk periods to AsyncStorage:", e);
           }
@@ -613,7 +613,7 @@ export default function Dashboard() {
     
     // Schedule notifications for each unique perk period the user has
     if (user?.id) {
-      console.log(`[Dashboard] Scheduling perk expiry notifications for periods: ${periodsToSchedule.join(', ')}`);
+      // console.log(`[Dashboard] Scheduling perk expiry notifications for periods: ${periodsToSchedule.join(', ')}`);
       for (const period of periodsToSchedule) {
         await schedulePerkExpiryNotifications(user.id, prefs, period);
       }
@@ -877,7 +877,7 @@ export default function Dashboard() {
   };
 
   const handleCardExpandChange = useCallback((cardId: string, isExpanded: boolean, index: number) => {
-    console.log(`[Dashboard] handleCardExpandChange: cardId=${cardId}, isExpanded=${isExpanded}, index=${index}`);
+    // console.log(`[Dashboard] handleCardExpandChange: cardId=${cardId}, isExpanded=${isExpanded}, index=${index}`);
     setActiveCardId(isExpanded ? cardId : null);
 
     if (isExpanded) {
@@ -930,7 +930,7 @@ export default function Dashboard() {
 
   // Create the ListHeaderElement using useMemo for stability
   const listHeaderElement = useMemo(() => {
-    console.log("DEBUG: Dashboard listHeaderElement useMemo. Pill content:", headerPillContent ? 'Exists' : 'null');
+    // console.log("DEBUG: Dashboard listHeaderElement useMemo. Pill content:", headerPillContent ? 'Exists' : 'null');
     return (
       <View onLayout={(event) => {
         const { height } = event.nativeEvent.layout;
@@ -1008,7 +1008,7 @@ export default function Dashboard() {
   }
 
   // Log before returning the main JSX tree
-  console.log("DEBUG: Dashboard component - BEFORE MAIN RETURN. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isRefreshing, "isCalculatingSavings:", isCalculatingSavings, "sortedCards count:", sortedCards?.length);
+  // console.log("DEBUG: Dashboard component - BEFORE MAIN RETURN. isUserCardsInitialLoading:", isUserCardsInitialLoading, "isUserCardsRefreshing:", isRefreshing, "isCalculatingSavings:", isCalculatingSavings, "sortedCards count:", sortedCards?.length);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
