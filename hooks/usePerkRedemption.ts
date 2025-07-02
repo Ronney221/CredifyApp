@@ -189,23 +189,27 @@ export function usePerkRedemption({
 
     try {
       // Set status to available first (optimistic update)
-      setPerkStatus(cardId, perk.id, 'available');
+      setPerkStatus(cardId, perk.id, 'available', perk.value);
 
-      // Delete the redemption record
-      const { error: deleteError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
+      // Delete all redemption records for this perk and user
+      const { error: deleteError } = await supabase
+        .from('perk_redemptions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('perk_id', perk.id);
+
       if (deleteError) {
-        console.error('Error deleting redemption:', deleteError);
-        setPerkStatus(cardId, perk.id, originalStatus, previousValue);
+        console.error('Error deleting redemption records:', deleteError);
+        setPerkStatus(cardId, perk.id, originalStatus, previousValue); // Revert optimistic update
         onPerkStatusChange?.();
         Alert.alert('Error', 'Failed to mark perk as available.');
         return;
       }
 
       // After successful operation, refresh all data
-      await Promise.all([
-        onPerkStatusChange?.(),
-        refreshAutoRedemptions?.()
-      ]);
+      await onPerkStatusChange?.();
+      await refreshAutoRedemptions?.();
+
 
       // Show toast with undo functionality
       showToast(`${perk.name} marked as available`, async () => {
@@ -228,7 +232,7 @@ export function usePerkRedemption({
 
           onPerkStatusChange?.();
         } catch (error) {
-          setPerkStatus(cardId, perk.id, 'available');
+          setPerkStatus(cardId, perk.id, 'available', perk.value);
           onPerkStatusChange?.();
           console.error('Error undoing mark as available:', error);
           showToast('Error undoing mark as available');
