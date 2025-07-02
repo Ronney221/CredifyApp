@@ -24,7 +24,7 @@ const supabaseOptions: SupabaseClientOptions<'public'> = {
   // Explicitly configure realtime. For mobile, we can pass minimal or no options
   // if we don't intend to use realtime, or provide React Native specific ones if needed.
   // To fully prevent 'ws' issues, ensure no realtime connection is attempted on mobile.
-  realtime: isWeb ? undefined : { params: {} }, // Pass undefined for web to use defaults, or empty for mobile to potentially avoid 'ws'
+  //realtime: isWeb ? undefined : { params: {} }, // Pass undefined for web to use defaults, or empty for mobile to potentially avoid 'ws'
 };
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, supabaseOptions);

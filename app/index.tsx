@@ -2,9 +2,12 @@
 import '../polyfills'; 
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext'; // Adjust path
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+console.log("🔍 Runtime extras:", Constants.expoConfig!.extra);
 
 export default function AppGateway() {
   const { session, loading: authLoading } = useAuth();

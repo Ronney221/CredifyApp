@@ -32,6 +32,7 @@
         "GOTRUE_JWT_VALID_ISSUERS": "${GOTRUE_JWT_VALID_ISSUERS}",
         "SENTRY_AUTH_TOKEN": "YOUR_SENTRY_AUTH_TOKEN_SECRET"
       },
+      "ios": {},
       "autoIncrement": true
     }
   },
