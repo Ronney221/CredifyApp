@@ -13,9 +13,19 @@ const redirectUrl = makeRedirectUri({
   path: 'auth/callback',   // gives credify://auth/callback in prod
 });
 
-export const signInWithGoogle = async () => {
-  console.log('Using redirect URL:', redirectUrl);
+// Log Supabase connection details for debugging
+const supabaseUrl = Constants.expoConfig?.extra?.SUPABASE_URL;
+const supabaseAnonKey = Constants.expoConfig?.extra?.SUPABASE_KEY;
 
+console.log('--- Supabase Auth ---');
+console.log('Redirect URL:', redirectUrl);
+console.log('Supabase URL:', supabaseUrl ? 'Loaded' : 'MISSING');
+console.log('Supabase Anon Key:', supabaseAnonKey ? 'Loaded' : 'MISSING');
+console.log('---------------------');
+
+export const signInWithGoogle = async () => {
+  console.log('[Auth] Attempting Google Sign-In...');
+  
   try {
     // Kick off OAuth; supabase-js will open the browser for you
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -30,22 +40,34 @@ export const signInWithGoogle = async () => {
     });
     
     if (error) {
-      console.error('Supabase OAuth error:', error);
+      console.error('[Auth] Supabase OAuth Error:', error.message);
       return { data: null, error };
+    }
+    
+    if (!data.url) {
+      console.error('[Auth] No URL returned from Supabase OAuth.');
+      return { data: null, error: { message: 'No URL returned from Supabase' } };
     }
 
     // Manually handle the browser flow so we can close it on redirect
+    console.log('[Auth] Opening WebBrowser for URL:', data.url);
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
       redirectUrl
     );
+    console.log('[Auth] WebBrowser Result:', result);
 
     if (result.type === 'success' && result.url) {
       // The URL contains the callback with tokens in the hash
-      console.log('OAuth success, callback URL:', result.url);
+      console.log('[Auth] OAuth success, callback URL:', result.url);
       
       // Get the hash fragment (remove the leading #)
       const hash = result.url.split('#')[1];
+      if (!hash) {
+        console.error('[Auth] No hash found in callback URL.');
+        return { data: null, error: { message: 'Invalid callback URL' } };
+      }
+      
       // Parse the hash string into an object
       const hashParams = new URLSearchParams(hash);
       
@@ -53,7 +75,7 @@ export const signInWithGoogle = async () => {
       const refresh_token = hashParams.get('refresh_token');
 
       if (access_token) {
-        console.log('Setting session with tokens');
+        console.log('[Auth] Found access token. Setting session...');
         const sessionData = {
           access_token,
           ...(refresh_token && { refresh_token }),
@@ -62,28 +84,31 @@ export const signInWithGoogle = async () => {
         const { data: sessionResponse, error: sessionError } = await supabase.auth.setSession(sessionData as any);
 
         if (sessionError) {
-          console.error('Session error:', sessionError);
+          console.error('[Auth] Supabase setSession Error:', sessionError.message);
           return { data: null, error: sessionError };
         }
 
-        console.log('Session set successfully');
+        console.log('[Auth] Session set successfully. User:', sessionResponse.user?.id);
         return { data: sessionResponse, error: null };
       }
       
+      console.error('[Auth] No access token found in callback URL.');
       return { data: null, error: { message: 'No access token received' } };
-    } else if (result.type === 'cancel') {
-      console.log('OAuth cancelled by user');
+    } else if (result.type === 'cancel' || result.type === 'dismiss') {
+      console.log('[Auth] OAuth flow cancelled or dismissed by user.');
       return { data: null, error: { message: 'User cancelled' } };
     }
     
+    console.error('[Auth] Unknown error during WebBrowser flow.');
     return { data: null, error: { message: 'Unknown error occurred' } };
   } catch (error) {
-    console.error('Unexpected error during Google Sign In:', error);
+    console.error('[Auth] Unexpected error during Google Sign In:', error);
     return { data: null, error };
   }
 };
 
 export const signInWithApple = async () => {
+  console.log('[Auth] Attempting Apple Sign-In...');
   try {
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
@@ -91,29 +116,32 @@ export const signInWithApple = async () => {
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
     });
+    console.log('[Auth] Apple credential received.');
 
     if (credential.identityToken) {
+      console.log('[Auth] Identity token found, signing in with Supabase...');
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
       });
 
       if (error) {
-        console.error('Supabase Apple Sign In error:', error);
+        console.error('[Auth] Supabase Apple Sign In Error:', error.message);
         return { data: null, error };
       }
 
-      console.log('Apple Sign In successful');
+      console.log('[Auth] Apple Sign In successful. User:', data.user?.id);
       return { data, error: null };
     }
     
+    console.error('[Auth] No identity token received from Apple.');
     return { data: null, error: { message: 'No identity token received from Apple' } };
   } catch (error: any) {
     if (error.code === 'ERR_REQUEST_CANCELED') {
-      console.log('Apple Sign In cancelled by user');
+      console.log('[Auth] Apple Sign In cancelled by user.');
       return { data: null, error: { message: 'User cancelled' } };
     }
-    console.error('Unexpected error during Apple Sign In:', error);
+    console.error('[Auth] Unexpected error during Apple Sign In:', error);
     return { data: null, error };
   }
 };

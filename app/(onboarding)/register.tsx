@@ -136,10 +136,11 @@ export default function RegisterScreen() {
   }, [totalValue, totalFees]);
 
   const saveCardsToDatabase = async (userId: string) => {
+    console.log(`[Register] Attempting to save cards for user ${userId}`);
     try {
       const { error } = await saveUserCards(userId, selectedCardObjects, {});
       if (error) {
-        console.error('Error saving cards to database:', error);
+        console.error('[Register] Error saving cards to database:', error);
         Alert.alert(
           'Error',
           'Failed to save your cards. Please try again.',
@@ -148,12 +149,13 @@ export default function RegisterScreen() {
         return false;
       }
       
+      console.log(`[Register] Successfully saved cards for user ${userId}`);
       // Add a small delay to ensure database operations complete
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       return true;
     } catch (error) {
-      console.error('Unexpected error saving cards:', error);
+      console.error('[Register] Unexpected error saving cards:', error);
       Alert.alert(
         'Error',
         'An unexpected error occurred. Please try again.',
@@ -164,75 +166,95 @@ export default function RegisterScreen() {
   };
 
   const handleGoogleSignIn = async () => {
+    console.log('[Register] Attempting Google Sign In...');
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
       const { data, error } = await signInGoogle();
+      console.log('[Register] Google Sign In Result:', { data: data?.user?.id, error: error?.message });
       if (error) {
         // Only throw if it's not a cancellation
         if (error.message !== 'User cancelled') {
+          console.error('[Register] Google Sign In Error:', error);
           throw error;
         }
         // If it's a cancellation, just return without navigation
+        console.log('[Register] Google Sign In cancelled by user.');
         return;
       }
       
       // Save cards to database after successful authentication
       if (data?.user?.id) {
+        console.log('[Register] User authenticated, saving cards for user:', data.user.id);
         const success = await saveCardsToDatabase(data.user.id);
         if (!success) {
+          console.log('[Register] Failed to save cards, stopping flow.');
           setIsLoading(false);
           return;
         }
+        console.log('[Register] Cards saved successfully.');
       }
       
       // Set onboarding as complete after successful registration
+      console.log('[Register] Setting onboarding as complete.');
       await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      console.log('[Register] Redirecting to dashboard...');
       router.replace('/(tabs)/01-dashboard' as any);
     } catch (error) {
-      console.error('Google sign in error:', error);
+      console.error('[Register] Google sign in process failed:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
+      console.log('[Register] Google Sign In flow finished.');
       setIsLoading(false);
     }
   };
 
   const handleAppleSignIn = async () => {
+    console.log('[Register] Attempting Apple Sign In...');
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
       const { data, error } = await signInApple();
+      console.log('[Register] Apple Sign In Result:', { data: data?.user?.id, error: error?.message });
       if (error) {
         // Only throw if it's not a cancellation
         if (error.message !== 'User cancelled') {
+          console.error('[Register] Apple Sign In Error:', error);
           throw error;
         }
         // If it's a cancellation, just return without navigation
+        console.log('[Register] Apple Sign In cancelled by user.');
         return;
       }
       
       // Save cards to database after successful authentication
       if (data?.user?.id) {
+        console.log('[Register] User authenticated, saving cards for user:', data.user.id);
         const success = await saveCardsToDatabase(data.user.id);
         if (!success) {
+          console.log('[Register] Failed to save cards, stopping flow.');
           setIsLoading(false);
           return;
         }
+        console.log('[Register] Cards saved successfully.');
       }
       
       // Set onboarding as complete after successful registration
+      console.log('[Register] Setting onboarding as complete.');
       await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      console.log('[Register] Redirecting to dashboard...');
       router.replace('/(tabs)/01-dashboard' as any);
     } catch (error) {
-      console.error('Apple sign in error:', error);
+      console.error('[Register] Apple sign in process failed:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
+      console.log('[Register] Apple Sign In flow finished.');
       setIsLoading(false);
     }
   };
