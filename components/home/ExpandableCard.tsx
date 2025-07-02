@@ -108,6 +108,7 @@ const ExpandableCardComponent = ({
   userHasSeenSwipeHint,
   onHintDismissed,
 }: ExpandableCardProps) => {
+  const validPerks = perks ? perks.filter(Boolean) : [];
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRedeemedExpanded, setIsRedeemedExpanded] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
@@ -122,7 +123,7 @@ const ExpandableCardComponent = ({
   const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
   
   // Ref to track if the card had redeemed perks in the previous render
-  const hadRedeemedPerks = useRef(perks.some(p => p.status === 'redeemed'));
+  const hadRedeemedPerks = useRef(validPerks.some(p => p.status === 'redeemed'));
   
   // When card becomes active (e.g. from action hint pill), ensure it expands
   React.useEffect(() => {
@@ -151,7 +152,7 @@ const ExpandableCardComponent = ({
   const { monthlyPerks, otherPerks } = useMemo<{ monthlyPerks: CardPerk[], otherPerks: CardPerk[] }>(() => {
     const monthly: CardPerk[] = [];
     const other: CardPerk[] = [];
-    perks.forEach((p: CardPerk) => {
+    validPerks.forEach((p: CardPerk) => {
       if (p.periodMonths === 1) {
         monthly.push(p);
       } else {
@@ -159,7 +160,7 @@ const ExpandableCardComponent = ({
       }
     });
     return { monthlyPerks: monthly, otherPerks: other };
-  }, [perks]);
+  }, [validPerks]);
 
   const monthlyPerkStats = useMemo(() => {
     const total = monthlyPerks.length;
@@ -172,16 +173,16 @@ const ExpandableCardComponent = ({
   }, [otherPerks]);
 
   const isFullyRedeemed = useMemo(() => {
-    return perks.every((p: CardPerk) => p.status === 'redeemed');
-  }, [perks]);
+    return validPerks.every((p: CardPerk) => p.status === 'redeemed');
+  }, [validPerks]);
   
   const hasUnredeemedPerks = useMemo(() => {
-    return perks.some((p: CardPerk) => p.status !== 'redeemed');
-  }, [perks]);
+    return validPerks.some((p: CardPerk) => p.status !== 'redeemed');
+  }, [validPerks]);
 
   // Calculate total saved value including partial redemptions
   const totalSavedValue = useMemo(() => {
-    return perks.reduce((total, perk) => {
+    return validPerks.reduce((total, perk) => {
       if (perk.status === 'redeemed') {
         return total + perk.value;
       } else if (perk.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
@@ -189,7 +190,7 @@ const ExpandableCardComponent = ({
       }
       return total;
     }, 0);
-  }, [perks]);
+  }, [validPerks]);
 
   useEffect(() => {
     if (totalSavedValue !== cumulativeSavedValue) {
@@ -270,7 +271,7 @@ const ExpandableCardComponent = ({
 
   // This effect watches for the first perk to be marked as 'redeemed' while the card is open
   useEffect(() => {
-    const nowHasRedeemedPerks = perks.some(p => p.status === 'redeemed');
+    const nowHasRedeemedPerks = validPerks.some(p => p.status === 'redeemed');
 
     // If the card is expanded and we just transitioned from 0 redeemed perks to 1+
     if (isExpanded && nowHasRedeemedPerks && !hadRedeemedPerks.current) {
@@ -286,7 +287,7 @@ const ExpandableCardComponent = ({
     
     // Update the ref for the next render
     hadRedeemedPerks.current = nowHasRedeemedPerks;
-  }, [perks, isExpanded, showOnboarding]);
+  }, [validPerks, isExpanded, showOnboarding]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
@@ -303,36 +304,40 @@ const ExpandableCardComponent = ({
   }));
 
   const firstAvailablePerkId = useMemo(() => {
-    const availablePerks = perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed');
+    const availablePerks = validPerks.filter(p => p.status === 'available' || p.status === 'partially_redeemed');
     const sortedAvailablePerks = sortPerks(availablePerks);
     return sortedAvailablePerks[0]?.id;
-  }, [perks]);
+  }, [validPerks]);
 
   const firstRedeemedPerkId = useMemo(() => {
-    return perks.find(p => p.status === 'redeemed')?.id;
-  }, [perks]);
+    return validPerks.find(p => p.status === 'redeemed')?.id;
+  }, [validPerks]);
 
   const handleExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
     onExpandChange?.(card.id, newExpandedState, sortIndex);
-    Object.values(swipeableRefs.current).forEach(ref => ref?.close());
 
-    // Show redeem hint if there are perks to swipe (remains visible for testing)
-    if (newExpandedState && perks.some(p => p.status !== 'redeemed')) {
+    // Also collapse the redeemed section when the main card collapses
+    if (!newExpandedState) {
+      setIsRedeemedExpanded(false);
+    }
+    
+    // Show swipe hint only if there are available perks
+    const hasAvailablePerks = validPerks.some(p => p.status === 'available');
+    if (newExpandedState && !userHasSeenSwipeHint && hasAvailablePerks) {
       setShowSwipeHint(true);
-    } else if (!newExpandedState) {
-      setShowSwipeHint(false); // Hide hint on collapse
-      setIsRedeemedExpanded(false); // Also collapse the redeemed perks section
+    } else {
+      setShowSwipeHint(false);
     }
-
-    // Show undo hint if there are redeemed perks (remains visible for testing)
-    const hasRedeemedPerks = perks.some(p => p.status === 'redeemed');
-    if (newExpandedState && hasRedeemedPerks) {
-      setShowUndoHint(true);
-    } else if (!newExpandedState) {
-      setShowUndoHint(false);
+    
+    const hasRedeemedPerks = validPerks.some(p => p.status === 'redeemed');
+    const nowHasRedeemedPerks = validPerks.some(p => p.status === 'redeemed');
+    if (nowHasRedeemedPerks && !hadRedeemedPerks.current) {
+        setShowUndoHint(true);
     }
+    hadRedeemedPerks.current = nowHasRedeemedPerks;
   };
 
   const executePerkAction = async (perk: CardPerk, action: 'redeemed' | 'available') => {
@@ -728,6 +733,14 @@ const ExpandableCardComponent = ({
     );
   };
 
+  const handleRedeemedExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsRedeemedExpanded(!isRedeemedExpanded);
+  };
+
+  const availablePerks = sortPerks(validPerks.filter(p => p.status === 'available' || p.status === 'partially_redeemed'));
+  const redeemedPerks = validPerks.filter(p => p.status === 'redeemed');
+
   return (
     <>
       <Reanimated.View 
@@ -754,21 +767,20 @@ const ExpandableCardComponent = ({
             layout={Layout.springify().duration(300)}
           >
             <View style={styles.perksGroupContainer}>
-              {perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed').length > 0 && (
+              {availablePerks.length > 0 && (
                 <>
                   <Text style={styles.sectionLabel}>Available Perks</Text>
-                  {sortPerks(perks.filter(p => p.status === 'available' || p.status === 'partially_redeemed')).map(p => renderPerkRow(p, true))}
+                  {availablePerks.map(p => renderPerkRow(p, true))}
                 </>
               )}
               {(() => {
-                const redeemedPerks = perks.filter(p => p.status === 'redeemed');
                 if (redeemedPerks.length === 0) return null;
 
                 return (
                   <>
                     <TouchableOpacity
                       style={styles.sectionHeader}
-                      onPress={() => setIsRedeemedExpanded(prev => !prev)}
+                      onPress={handleRedeemedExpand}
                       activeOpacity={0.7}
                     >
                       <Text style={styles.sectionLabel}>Redeemed ({redeemedPerks.length})</Text>
