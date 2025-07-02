@@ -36,54 +36,56 @@ function getIssuer(card: Card): string {
 
 export function useGroupedCards() {
   const groupedCards = useMemo(() => {
+    console.log('[useGroupedCards] Recalculating grouped cards...');
+    // --- Data Preparation ---
     const frequentlyOwnedIdsSet = new Set(FREQUENTLY_OWNED_IDS);
-    
+
+    // Group all cards by their issuer in a single pass.
+    const allCardsGroupedByIssuer = allCards.reduce((acc, card) => {
+      const issuer = getIssuer(card);
+      if (!acc[issuer]) {
+        acc[issuer] = [];
+      }
+      acc[issuer].push(card);
+      return acc;
+    }, {} as { [key: string]: Card[] });
+
+    // --- Section 1: Frequently Owned (Top Section) ---
     const frequentlyOwned = FREQUENTLY_OWNED_IDS
       .map(id => allCards.find(c => c.id === id))
       .filter((c): c is Card => c !== undefined);
-    
-    const remainingCards = allCards.filter(c => !frequentlyOwnedIdsSet.has(c.id));
-    
-    const allRemainingGroups: { [key: string]: Card[] } = {};
-    remainingCards.forEach(card => {
-      const issuer = getIssuer(card);
-      if (!allRemainingGroups[issuer]) {
-        allRemainingGroups[issuer] = [];
-      }
-      allRemainingGroups[issuer].push(card);
-    });
 
+    // --- Section 2: All Other Cards (Grouped and Sorted) ---
+    // Start with the main issuers in their defined order.
     const allCardsByIssuer: { [key: string]: Card[] } = {};
-    const mainIssuerSet = new Set(ISSUER_ORDER);
-    const otherIssuersList: Card[] = [];
-    const nonMainMultiCardIssuers: { [key: string]: Card[] } = {};
-
-    for (const issuerName in allRemainingGroups) {
-        const cards = allRemainingGroups[issuerName];
-        if (mainIssuerSet.has(issuerName)) {
-            continue;
-        }
-        if (cards.length > 1) {
-            nonMainMultiCardIssuers[issuerName] = cards;
-        } else {
-            otherIssuersList.push(...cards);
-        }
-    }
     
     ISSUER_ORDER.forEach(issuerName => {
-        if (allRemainingGroups[issuerName]) {
-            allCardsByIssuer[issuerName] = allRemainingGroups[issuerName].sort((a,b) => a.name.localeCompare(b.name));
+      const cards = allCardsGroupedByIssuer[issuerName];
+      if (cards && cards.length > 0) {
+        // Filter out any cards that might have been shown in "Frequently Owned"
+        const remaining = cards.filter(c => !frequentlyOwnedIdsSet.has(c.id));
+        if (remaining.length > 0) {
+          allCardsByIssuer[issuerName] = remaining.sort((a, b) => a.name.localeCompare(b.name));
         }
+      }
     });
+
+    // Get the names of all issuers we've already processed.
+    const processedIssuers = new Set([...ISSUER_ORDER, ...frequentlyOwned.map(getIssuer)]);
     
-    Object.keys(nonMainMultiCardIssuers).sort().forEach(issuerName => {
-        allCardsByIssuer[issuerName] = nonMainMultiCardIssuers[issuerName].sort((a,b) => a.name.localeCompare(b.name));
-    });
-    
-    if (otherIssuersList.length > 0) {
-        allCardsByIssuer["Other Issuers"] = otherIssuersList.sort((a, b) => a.name.localeCompare(b.name));
-    }
-    
+    // Process the rest of the issuers, sorted alphabetically.
+    Object.keys(allCardsGroupedByIssuer)
+      .sort()
+      .forEach(issuerName => {
+        if (!processedIssuers.has(issuerName)) {
+          const remaining = allCardsGroupedByIssuer[issuerName].filter(c => !frequentlyOwnedIdsSet.has(c.id));
+          if (remaining.length > 0) {
+            allCardsByIssuer[issuerName] = remaining.sort((a, b) => a.name.localeCompare(b.name));
+          }
+        }
+      });
+      
+    console.log('[useGroupedCards] Grouping complete.');
     return { frequentlyOwned, allCardsByIssuer };
   }, []);
 
