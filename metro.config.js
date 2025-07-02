@@ -1,6 +1,8 @@
-const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 const fs = require('fs');
+const {
+  getSentryExpoConfig
+} = require("@sentry/react-native/metro");
 
 // Ensure shims directory exists
 const shimsDir = path.resolve(__dirname, 'shims');
@@ -14,7 +16,7 @@ if (!fs.existsSync(emptyShimPath)) {
   fs.writeFileSync(emptyShimPath, 'module.exports = {};');
 }
 
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 // Safe polyfills configuration
 const polyfills = {
@@ -59,4 +61,4 @@ nodeShims.forEach(module => {
   config.resolver.extraNodeModules[module] = emptyShimPath;
 });
 
-module.exports = config; 
+module.exports = config;

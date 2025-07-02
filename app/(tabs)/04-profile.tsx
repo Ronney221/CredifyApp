@@ -23,6 +23,7 @@ import { schedulePerkExpiryNotifications } from '../../services/notification-per
 import { NotificationPreferences } from '../../types/notification-types';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
+import * as Sentry from '@sentry/react-native';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -284,6 +285,20 @@ const ProfileScreen = () => {
     {
       title: 'Developer',
       data: [
+        {
+          id: 'test-sentry',
+          title: 'Test Sentry Error',
+          icon: 'bug-outline',
+          onPress: () => {
+            try {
+              Sentry.captureException(new Error('Sentry test error from Profile screen'));
+              Alert.alert('Success', 'Sentry test error captured. Check your Sentry dashboard.');
+            } catch (error) {
+              console.error("Sentry test failed:", error);
+              Alert.alert('Error', 'Failed to capture Sentry error.');
+            }
+          }
+        },
         { 
           id: 'reset-first-redemption', 
           title: 'Reset First Redemption', 

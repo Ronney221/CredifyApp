@@ -148,6 +148,14 @@
             "enableShrinkResources": true
           }
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "credify-ios",
+          "organization": "credify-j9"
+        }
       ]
     ],
     "experiments": {
