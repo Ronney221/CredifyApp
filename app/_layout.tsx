@@ -29,6 +29,8 @@ Sentry.init({
   // spotlight: __DEV__,
 });
 
+//Sentry.captureException(new Error('Testing Sentry connection on app launch.'));
+
 // This is a simple Presentational Component. No hooks, no logic.
 function RootStack() {
   return (
