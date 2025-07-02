@@ -36,6 +36,27 @@ This release focuses on a more robust user experience, deeper insights, and seam
 
 ---
 
+### **Update: Version 1.2 Features (Released 7/2/2025)**
+
+This release introduces a powerful new layer of intelligence and backend robustness, positioning Credify as a leader in smart financial tooling.
+
+*   **AI-Powered Financial Assistant:**
+    *   Integrated a conversational AI chatbot powered by the **OpenAI API**.
+    *   Users can now ask complex questions and receive personalized advice on card benefits and spending.
+*   **Advanced RAG Architecture:**
+    *   Implemented a sophisticated, two-stage **Retrieval-Augmented Generation (RAG)** pipeline for the AI.
+    *   This system uses local pre-filtering and context compression to deliver highly accurate, cost-effective, and low-latency responses.
+*   **Sophisticated Prompt Engineering:**
+    *   Engineered a robust prompting system that forces the LLM to return structured, reliable JSON, offloading complex business logic into the prompt itself.
+*   **Enhanced Data Insights:**
+    *   The "Insights" dashboard now includes a **6-month historical chart** of perk redemptions, allowing users to track and compare their usage over time.
+*   **Robust Backend & Security:**
+    *   Added **Supabase Storage** for managing user-generated content like avatars.
+    *   Integrated **Sentry** for real-time error monitoring and crash reporting.
+    *   Secured production environment variables using **EAS Secrets**.
+
+---
+
 ## Core Features ✨
 
 ### 🧠 AI-Powered Financial Assistant
@@ -101,14 +122,14 @@ graph TD
         A[User Query] --> B{Stage 1: Local Pre-Filtering};
         B -- "Filter & Rank Perks<br/>(Fuse.js)" --> C{Context Compression};
         C -- "Create Minified JSON<br/>(Lean Context)" --> D[Call Supabase Edge Function];
-        H[Render Dynamic UI] <-- G{Parse Structured JSON};
+        G{Parse Structured JSON} --> H[Render Dynamic UI];
     end
 
     subgraph "Backend"
-        D -- "Execute Structured Prompt<br/>with Lean Context" --> E(OpenAI API);
-        E -- "Returns Structured<br/>JSON Response" --> F[Supabase Edge Function];
+        E(OpenAI API) -- "Returns Structured<br/>JSON Response" --> F[Supabase Edge Function];
     end
-    
+
+    D -- "Execute Structured Prompt<br/>with Lean Context" --> E;
     F -- "Stream Response to Client" --> G;
 ```
 
@@ -167,8 +188,6 @@ You can download the official Credify app from our website:
 Available now for iOS, with Android support coming soon!
 
 ---
-
-
 
 ## License 📄
 
