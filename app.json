@@ -148,23 +148,6 @@
             "enableShrinkResources": true
           }
         }
-      ],
-      [
-        "sentry-expo",
-        {
-          "enableInExpoDevelopment": true,
-          "enableAutoPerformanceTracking": true,
-          "uploadSourceMaps": true,
-          "hooks": {
-            "postPublish": {
-              "includePaths": [
-                "app/**",
-                "components/**",
-                "lib/**"
-              ]
-            }
-          }
-        }
       ]
     ],
     "experiments": {
