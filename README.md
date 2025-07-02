@@ -49,7 +49,7 @@ This release focuses on a more robust user experience, deeper insights, and seam
 
 ### 📊 Data-Driven Insights & Analytics
 - **Spending Analysis:** Discover which cards provide the most value with detailed analytics on your redemption habits.
-- **Visualized Data:** Interactive charts and graphs from the Insights tab help you understand your financial landscape at a glance. Features include ROI leaderboards, sparklines for spending trends, and bar charts for category-wise summaries.
+- **Visualized Data:** Interactive charts and graphs, including a 6-month history of perk redemptions, help you track usage and compare month-over-month. Features include ROI leaderboards, spending sparklines, and category-based bar charts.
 
 ### 🚀 Seamless User Experience
 - **Modern, Interactive UI:** A clean, native-feel interface built for efficiency, featuring draggable card lists, context menus for quick actions, and polished bottom sheets.
@@ -139,9 +139,10 @@ This project leverages a modern, robust, and scalable technology stack, ideal fo
 
 ### **Backend & Database**
 - **Backend-as-a-Service (BaaS):** [Supabase](https://supabase.com/)
-- **Database:** [Supabase Postgres](https://supabase.com/database) for relational data storage, with a well-defined SQL schema and migrations.
+- **Database:** [Supabase Postgres](https://supabase.com/database) for relational data storage. The schema is meticulously designed and managed with version-controlled SQL migration scripts, defining tables for users, cards, perks, and redemption history.
 - **Authentication:** [Supabase Auth](https://supabase.com/auth) for secure handling of users, including social logins (Apple, Google).
 - **Serverless Functions:** [Supabase Edge Functions](https://supabase.com/functions) (written in TypeScript) to handle secure, server-side logic, such as calling the OpenAI API.
+- **File Storage:** [Supabase Storage](https://supabase.com/storage) for managing user-generated content like avatars, including logic to handle uploads and cleanup of old files.
 
 ### **AI & Machine Learning**
 - **AI Service:** [OpenAI API](https://openai.com/blog/openai-api) for natural language processing and powering the in-app financial assistant.
@@ -152,37 +153,22 @@ This project leverages a modern, robust, and scalable technology stack, ideal fo
 
 ### **DevOps & Tooling**
 - **Build & Deployment:** [Expo Application Services (EAS)](https://expo.dev/eas) for creating and distributing builds for iOS and Android.
+- **Environment Management:** Secure handling of environment variables and secrets using [Expo Application Services (EAS) Secrets](https://docs.expo.dev/eas/secrets/) for production builds.
 - **Code Quality:** [ESLint](https://eslint.org/) and [Prettier](https://prettier.io/) to enforce consistent code style.
 
 ---
 
-## Getting Started 🚀
+## Download Credify 🚀
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+You can download the official Credify app from our website:
 
-2. **Configure environment:**
-   Create a `.env` file and add your Supabase and other service credentials.
+**[getcredify.app](https://getcredify.app)**
 
-3. **Start development:**
-   ```bash
-   npx expo start
-   ```
+Available now for iOS, with Android support coming soon!
 
-4. **Run on device/simulator:**
-   ```bash
-   # iOS
-   npx expo run:ios
-   
-   # Android
-   npx expo run:android
-   ```
+---
 
-## Contributing 🤝
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License 📄
 
