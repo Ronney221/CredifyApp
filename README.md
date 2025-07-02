@@ -1,6 +1,8 @@
-# Credify: Your Smart Credit Card Companion 🚀
+# Credify: Your AI-Powered Smart Credit Card Companion 🚀
 
 **Stop leaving money on the table. Credify is the ultimate app for tracking, managing, and maximizing your credit card benefits, ensuring you get every dollar of value from your annual fees.**
+
+Credify is an intelligent, AI-enhanced command center for your credit card perks. It transforms how you manage your finances by providing a unified dashboard to track and redeem benefits, smart reminders to prevent missed opportunities, and data-driven insights to maximize your return on investment.
 
 ![1-portrait](https://github.com/user-attachments/assets/3c13b338-c85f-43d9-856f-0c534a8f9ada)
 
@@ -34,80 +36,125 @@ This release focuses on a more robust user experience, deeper insights, and seam
 
 ---
 
-## Key Features ✨
+## Core Features ✨
 
-* **Flexible Card Management:**
-  * Add any credit card with annual fees
-  * Set custom renewal dates and reminder preferences
-  * Track multiple cards in one unified dashboard
+### 🧠 AI-Powered Financial Assistant
+- **Conversational AI Chat:** Engage with an intelligent assistant powered by the OpenAI API. Ask complex questions about your benefits, get personalized advice on which card to use for a specific purchase, and receive summaries of your spending habits.
+- **Smart Perk Matching:** The AI helps you understand and categorize your perks, making it easier to find and use the benefits that matter most to you.
 
-* **Comprehensive Perk Tracking:**
-  * View all benefits by category (dining, travel, entertainment, etc.)
-  * Filter by timeframe (monthly, quarterly, semi-annual, annual)
-  * Track redemption status and history
+### 📈 Intelligent Perk & ROI Tracking
+- **Unified Dashboard:** Add all your credit cards to see a consolidated view of every available benefit—monthly, quarterly, and annual.
+- **Real-Time ROI Dashboard:** Instantly see your return on investment for each card. Credify visualizes your progress toward breaking even on annual fees, showing you the real-time value you've redeemed.
+- **Automated Reminders:** Get smart, customizable push notifications before any perk expires.
 
-* **Intelligent Redemption System:**
-  * One-tap deep linking to merchant apps and websites
-  * Smart status tracking (Available, Pending, Redeemed)
-  * Automatic redemption marking with manual override options
+### 📊 Data-Driven Insights & Analytics
+- **Spending Analysis:** Discover which cards provide the most value with detailed analytics on your redemption habits.
+- **Visualized Data:** Interactive charts and graphs from the Insights tab help you understand your financial landscape at a glance. Features include ROI leaderboards, sparklines for spending trends, and bar charts for category-wise summaries.
 
-* **Progress & Analytics:**
-  * Visual dashboards showing redemption progress and total savings
-  * Annual fee break-even tracking
-  * Card-by-card value comparison to identify your most valuable cards
-  * Cumulative savings metrics over time
+### 🚀 Seamless User Experience
+- **Modern, Interactive UI:** A clean, native-feel interface built for efficiency, featuring draggable card lists, context menus for quick actions, and polished bottom sheets.
+- **One-Tap Redemptions:** Deep links take you directly to merchant apps and websites (e.g., Uber, Grubhub) to redeem perks in seconds.
+- **Fluid Animations:** Built with **Moti & Reanimated** for a smooth, high-performance user experience with haptic feedback.
+- **Guided Onboarding:** A multi-step wizard simplifies setup, guiding users to add cards and immediately see their potential annual savings.
 
-* **Customizable Notifications:**
-  * Flexible reminder windows (3 days, 7 days, 1 day before deadlines)
-  * Perk expiration alerts
-  * Renewal date notifications
-  * Custom notification preferences per card
+---
 
-* **Secure Authentication:**
-  * Sign in with Email, Google, or Apple
-  * Secure handling of all user data via Supabase
+## System Architecture
 
-* **User Experience:**
-  * Clean, intuitive interface
-  * Dark/Light mode support
-  * Haptic feedback
-  * Celebration animations for redemptions
-  * Progress visualizations
+Credify is built on a modern, scalable, and serverless architecture. The system is designed for security, real-time data synchronization, and robust performance.
 
-## Why Use Credify? 💰
+```mermaid
+graph TD
+    subgraph "Client (React Native)"
+        A[React Native App]
+    end
 
-* **Maximize Value:** Stop letting the benefits you pay for expire.
-* **Save Time:** All your card perks, organized in one beautiful dashboard.
-* **Stay Organized:** Smart notifications keep you on top of every deadline.
-* **Redeem Effortlessly:** One tap to open the right app and track your usage.
-* **Make Smarter Decisions:** See exactly which cards are providing the most value.
-* **Break Even, Faster:** Visually track your progress toward offsetting your annual fees.
+    subgraph "Backend (Supabase)"
+        B(Supabase Auth)
+        C(Supabase DB/Postgres)
+        D[Supabase Edge Functions]
+    end
+
+    subgraph "Third-Party Services"
+        E(OpenAI API)
+        F(Sentry)
+    end
+
+    A -- "Login/Signup" --> B
+    A -- "CRUD Operations" --> C
+    A -- "AI Chat Queries" --> D
+    A -- "Error Reporting" --> F
+    D -- "Processes queries, calls OpenAI" --> E
+    E -- "Returns AI response" --> D
+    D -- "Streams response to client" --> A
+```
+
+---
+
+## AI-Powered RAG & Prompt Engineering
+
+The core of Credify's intelligence lies in a sophisticated, two-stage Retrieval-Augmented Generation (RAG) pipeline. This system is designed to provide highly accurate, context-aware, and cost-effective recommendations by minimizing token usage and maximizing the relevance of the data sent to the LLM.
+
+```mermaid
+graph TD
+    subgraph "Client (React Native)"
+        A[User Query] --> B{Stage 1: Local Pre-Filtering};
+        B -- "Filter & Rank Perks<br/>(Fuse.js)" --> C{Context Compression};
+        C -- "Create Minified JSON<br/>(Lean Context)" --> D[Call Supabase Edge Function];
+        H[Render Dynamic UI] <-- G{Parse Structured JSON};
+    end
+
+    subgraph "Backend"
+        D -- "Execute Structured Prompt<br/>with Lean Context" --> E(OpenAI API);
+        E -- "Returns Structured<br/>JSON Response" --> F[Supabase Edge Function];
+    end
+    
+    F -- "Stream Response to Client" --> G;
+```
+
+### Advanced Prompt Engineering Techniques
+
+The system's reliability hinges on advanced prompt engineering, which forces the LLM to act as a predictable, structured data source.
+
+-   **Strict JSON Output:** The prompt commands the model to return **only a single, minified JSON object**. This output is governed by a rigid schema, ensuring that the response can be reliably parsed and rendered in the UI without unexpected formatting errors.
+-   **Multi-Step Logic Injection:** The prompt defines a clear, 3-step prioritization logic (1. Category Match, 2. Urgency, 3. Value) that the LLM must follow. This offloads complex business logic into the prompt itself, ensuring consistent and high-quality sorting of recommendations.
+-   **Dynamic Personalization & Formatting:** The AI is instructed to generate personalized `displayText` tailored to the user's query (e.g., mentioning "Chicago" if the user asks about a trip there). It is also required to use Markdown for bolding key entities, which the app then renders natively.
+-   **Cost & Latency Optimization:**
+    -   If the initial local filtering returns no relevant perks, **no API call is made**, saving costs and providing an instant response.
+    -   The context sent to the AI is heavily minified (e.g., `cardName` becomes `cn`, `remainingValue` becomes `rv`), drastically reducing the token count for both the prompt and completion, which directly lowers API costs and improves latency.
+
+---
 
 ## Technology Stack 💻
 
-Built with a modern, reliable, and scalable technology stack:
+This project leverages a modern, robust, and scalable technology stack, ideal for building high-quality mobile applications.
 
-* **Frontend:**
-  * React Native with Expo
-  * TypeScript for type safety
-  * Expo Router for file-based navigation
-  * Lottie for smooth animations
-  * **Moti & Reanimated:** for fluid, performant animations.
+### **Frontend**
+- **Framework:** [React Native](https://reactnative.dev/) with [Expo (SDK 53)](https://expo.dev/) (Managed Workflow)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Navigation:** [Expo Router](https://docs.expo.dev/router/introduction/) for file-based routing & [React Navigation](https://reactnavigation.org/) for native stack/tab navigation.
+- **Animations:** [Moti](https://moti.fyi/) & [Reanimated](https://docs.swmansion.com/react-native-reanimated/) for fluid, 60FPS animations.
+- **UI Components:** Custom component library, [Gorhom Bottom Sheet](https://gorhom.github.io/react-native-bottom-sheet/), [Draggable FlatList](https://github.com/computerjazz/react-native-draggable-flatlist), and [Lottie](https://lottiefiles.com/) for complex animations.
+- **Data Fetching & State:** React Context with Hooks for global state, [Async Storage](https://react-native-async-storage.github.io/async-storage/) for persistence.
 
-* **State Management:**
-  * React Context for global state
-  * Hooks for local state
-  * Async Storage for persistence
+### **Backend & Database**
+- **Backend-as-a-Service (BaaS):** [Supabase](https://supabase.com/)
+- **Database:** [Supabase Postgres](https://supabase.com/database) for relational data storage, with a well-defined SQL schema and migrations.
+- **Authentication:** [Supabase Auth](https://supabase.com/auth) for secure handling of users, including social logins (Apple, Google).
+- **Serverless Functions:** [Supabase Edge Functions](https://supabase.com/functions) (written in TypeScript) to handle secure, server-side logic, such as calling the OpenAI API.
 
-* **Backend & Auth:**
-  * Supabase for authentication, database, and real-time sync
-  * Secure user data handling with social logins (Apple, Google)
+### **AI & Machine Learning**
+- **AI Service:** [OpenAI API](https://openai.com/blog/openai-api) for natural language processing and powering the in-app financial assistant.
 
-* **Core Functionality:**
-  * **Expo SDK:** Access to native device APIs like Haptics, Notifications, and Secure Storage.
-  * **Deep Linking:** For seamless integration with other apps.
-  * **Push Notifications:** For timely reminders and alerts.
-  * **Analytics & Tracking:** To help you understand your benefits.
+### **Testing & Quality Assurance**
+- **Unit & Component Testing:** [Jest](https://jestjs.io/) with [React Native Testing Library](https://testing-library.com/docs/react-native-testing-library/intro/) for comprehensive testing of components and business logic.
+- **Error Reporting:** [Sentry](https://sentry.io/) for real-time error monitoring and crash reporting in production.
+
+### **DevOps & Tooling**
+- **Build & Deployment:** [Expo Application Services (EAS)](https://expo.dev/eas) for creating and distributing builds for iOS and Android.
+- **Code Quality:** [ESLint](https://eslint.org/) and [Prettier](https://prettier.io/) to enforce consistent code style.
+
+---
 
 ## Getting Started 🚀
 
@@ -117,10 +164,7 @@ Built with a modern, reliable, and scalable technology stack:
    ```
 
 2. **Configure environment:**
-   ```bash
-   cp .env.example .env
-   ```
-   Add your Supabase credentials to `.env`
+   Create a `.env` file and add your Supabase and other service credentials.
 
 3. **Start development:**
    ```bash
