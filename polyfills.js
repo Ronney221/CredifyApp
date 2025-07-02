@@ -1,3 +1,12 @@
+/**
+ * This file is used to load polyfills for the app.
+ * It's important to import this file at the top of your entry file
+ * to ensure the environment is correctly set up.
+ */
+
+// Polyfill for URL and URLSearchParams
+import 'react-native-url-polyfill/auto';
+
 // Add at the beginning of the file
 if (typeof global.gc === 'function') {
   // Configure periodic garbage collection
