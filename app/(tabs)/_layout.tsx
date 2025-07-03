@@ -175,42 +175,28 @@ export default function TabLayout() {
           name="profile/manage_cards"
           options={{
             href: null,
+            headerShown: true,
           }}
         />
         <Tabs.Screen
           name="profile/notifications"
           options={{
             href: null,
+            headerShown: true,
           }}
         />
         <Tabs.Screen
           name="profile/edit-profile"
           options={{
             href: null,
+            headerShown: true,
           }}
         />
         <Tabs.Screen
           name="profile/help-faq"
           options={{
             href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="profile/reminders/first-of-month"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="profile/reminders/card-renewal"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="profile/reminders/perk-expiry"
-          options={{
-            href: null,
+            headerShown: true,
           }}
         />
       </Tabs>
