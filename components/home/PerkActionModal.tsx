@@ -17,6 +17,8 @@ import {
   AppStateStatus,
   KeyboardEventListener,
   KeyboardEvent as RNKeyboardEvent,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,14 +28,20 @@ import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-  useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  useAnimatedStyle,
   withTiming,
+  withSpring,
   useAnimatedProps,
+  Easing,
+  runOnJS,
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../src/data/card-data';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface PerkActionModalProps {
   visible: boolean;
@@ -238,35 +246,19 @@ export default function PerkActionModal({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // Animated values
+  // Animated values for slider
   const translateY = useSharedValue(0);
   const sliderAnimation = useSharedValue(0);
   const sliderPosition = useSharedValue(0);
-  const descriptionMeasuredHeight = useSharedValue(0);
 
-  // Animated styles
+  // Animated styles for modal presentation
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateY: translateY.value }]
+      transform: [{ translateY: translateY.value }],
     };
   });
 
-  // Animated description style
-  const animatedDescriptionStyle = useAnimatedStyle(() => {
-    let targetHeight = 0;
-    if (isDescriptionExpanded) {
-      targetHeight = descriptionMeasuredHeight.value;
-    }
-    return {
-      height: withSpring(targetHeight, {
-        damping: 15,
-        stiffness: 120,
-      }),
-      opacity: withSpring(isDescriptionExpanded ? 1 : 0),
-    };
-  }, [isDescriptionExpanded]);
-
-  // Animated props
+  // Animated props for slider
   const animatedSliderProps = useAnimatedProps(() => ({
     value: sliderAnimation.value,
   }));
@@ -364,11 +356,17 @@ export default function PerkActionModal({
   }, [perk, partialAmount, sliderAnimation]);
 
   const toggleDescription = useCallback(() => {
-    if (!isDescriptionExpanded) {
-      Haptics.selectionAsync().catch(console.error);
-      setIsDescriptionExpanded(true);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsDescriptionExpanded(prev => !prev);
+    Haptics.selectionAsync().catch(console.error);
+  }, []);
+
+  // Reset description state when modal closes
+  useEffect(() => {
+    if (!visible || !perk) {
+      setIsDescriptionExpanded(false);
     }
-  }, [isDescriptionExpanded]);
+  }, [visible, perk]);
 
   useEffect(() => {
     const keyboardWillShow = (e: RNKeyboardEvent) => {
@@ -424,6 +422,13 @@ export default function PerkActionModal({
     translateY.value = withTiming(0, { duration: 300 });
     setIsEditingNumber(false);
   }, [visible, perk, getCurrentRedeemedAmount, sliderAnimation, sliderPosition, translateY]);
+
+  useEffect(() => {
+    // Log the perk object whenever the modal becomes visible or the perk changes
+    if (visible && perk) {
+      console.log('[PerkActionModal] Received perk data:', JSON.stringify(perk, null, 2));
+    }
+  }, [visible, perk]);
 
   if (!visible || !perk) {
     return null;
@@ -653,29 +658,32 @@ export default function PerkActionModal({
                   onPress={toggleDescription}
                   hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
                 >
-                  <Ionicons name="information-circle-outline" size={24} color="#007AFF" />
+                  <Ionicons
+                    name={isDescriptionExpanded ? 'information-circle' : 'information-circle-outline'}
+                    size={24}
+                    color="#007AFF"
+                  />
                 </TouchableOpacity>
               </View>
-              
-              <Animated.View style={[styles.descriptionContainer, animatedDescriptionStyle]}>
-                <View
-                  onLayout={(event) => {
-                    const { height } = event.nativeEvent.layout;
-                    if (height > 0) {
-                      // When the view lays out, store its height.
-                      descriptionMeasuredHeight.value = height;
-                    }
-                  }}
-                >
-                  <Text style={styles.description}>{perk.description}</Text>
-                  {perk.redemptionInstructions && (
-                    <>
-                      <Text style={styles.redemptionTitle}>How to Redeem</Text>
-                      <Text style={styles.description}>{perk.redemptionInstructions}</Text>
-                    </>
-                  )}
-                </View>
-              </Animated.View>
+
+              <View
+                style={[
+                  styles.descriptionContainer,
+                  {
+                    maxHeight: isDescriptionExpanded ? undefined : 0,
+                    // Remove paddingBottom when collapsed to prevent extra space
+                    paddingBottom: isDescriptionExpanded ? 16 : 0,
+                  },
+                ]}
+              >
+                <Text style={styles.description}>{perk.description}</Text>
+                {perk.redemptionInstructions && (
+                  <>
+                    <Text style={styles.redemptionTitle}>How to Redeem</Text>
+                    <Text style={styles.description}>{perk.redemptionInstructions}</Text>
+                  </>
+                )}
+              </View>
 
               <View style={styles.valueContainer}>
                 <Text style={styles.remainingValue}>
@@ -813,6 +821,7 @@ const styles = StyleSheet.create({
   },
   descriptionContainer: {
     overflow: 'hidden',
+    // paddingBottom is now conditional
   },
   description: {
     fontSize: 15,
