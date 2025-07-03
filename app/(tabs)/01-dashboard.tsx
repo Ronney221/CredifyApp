@@ -1009,12 +1009,21 @@ export default function Dashboard() {
     }
   }, [userCardsWithPerks.length, isUserCardsInitialLoading, retryAttempt, refreshUserCards]);
 
-  if (isUserCardsInitialLoading) {
+  if (isUserCardsInitialLoading || (userCardsWithPerks.length === 0 && retryAttempt < maxRetries)) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
-          <Text style={styles.loadingText}>Loading your card data...</Text>
+          <LottieView
+            source={require('../../assets/animations/credit_card_animation.json')}
+            autoPlay
+            loop
+            style={styles.loadingAnimation}
+            renderMode="HARDWARE"
+            speed={0.7}
+          />
+          <Text style={styles.loadingText}>
+            {isUserCardsInitialLoading ? 'Loading your card data...' : 'Syncing your cards...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -1331,7 +1340,8 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#8e8e93',
+    color: Colors.light.secondaryLabel,
+    fontWeight: '500',
   },
   errorText: {
     fontSize: 18,
@@ -1429,5 +1439,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2000, // Make sure it's on top of everything
+  },
+  loadingAnimation: {
+    width: 300,
+    height: 300,
+    marginBottom: -40, // Adjust spacing between animation and text
   },
 }); 

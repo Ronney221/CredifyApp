@@ -129,7 +129,7 @@ export default function PotentialSavingsScreen() {
           // Show MotiView after celebration animation completes
           setTimeout(() => {
             setIsCountingComplete(true);
-          }, 1500); // Give celebration animation time to play
+          }, 2000); // Give celebration animation time to play
 
           // Hide celebration after animation completes
           setTimeout(() => {
