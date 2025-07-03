@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Card, allCards } from '../../../src/data/card-data';
-import { useRouter, useFocusEffect, useNavigation, Stack, useLocalSearchParams } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation, Stack, useLocalSearchParams, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Colors } from '../../../constants/Colors';
@@ -35,12 +35,14 @@ import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 import { updateCardOrder, saveUserCards } from '../../../lib/database';
+import BackButton from '../../../components/ui/BackButton';
 
 export default function ManageCardsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user } = useAuth();
   const params = useLocalSearchParams<{ highlightCardId?: string }>();
+  const pathname = usePathname();
   
   const cardManagement = useCardManagement(user?.id);
   
@@ -347,36 +349,29 @@ export default function ManageCardsScreen() {
   }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation, removingCardId, fadeAnim, translateX]);
 
   useLayoutEffect(() => {
+    const isFromDashboard = pathname.includes('01-dashboard');
     navigation.setOptions({
+      headerLeft: () => (
+        <BackButton 
+          label={isFromDashboard ? 'Dashboard' : 'Profile'} 
+          fallbackRoute={isFromDashboard ? '/(tabs)/01-dashboard' : '/(tabs)/04-profile'} 
+        />
+      ),
+      headerTitle: 'Manage Cards',
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {isEditMode ? (
+          {selectedCards.length > 0 && (
             <TouchableOpacity onPress={handleEditModeToggle} style={{ marginRight: 15 }}>
               <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
-                Done
+                {isEditMode ? 'Done' : 'Edit'}
               </Text>
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
-              <Ionicons name="add" size={28} color={Colors.light.tint} />
-            </TouchableOpacity>
           )}
+          <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
+            <Ionicons name="add" size={28} color={Colors.light.tint} />
+          </TouchableOpacity>
         </View>
       ),
-      headerLeft: () => {
-        if (selectedCards.length === 0) {
-          return null;
-        }
-
-        return (
-          <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
-            <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
-              {isEditMode ? '' : 'Edit'}
-            </Text>
-          </TouchableOpacity>
-        );
-      },
-      headerTitle: 'Manage Cards',
       headerShown: true,
     });
   }, [navigation, isEditMode, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal]);
