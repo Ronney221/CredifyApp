@@ -593,14 +593,9 @@ export default function Dashboard() {
   // Refresh data when navigating back to dashboard
   useFocusEffect(
     useCallback(() => {
-      // StatusBar.setBarStyle('dark-content'); // Temporarily comment out for testing
-      // if (Platform.OS === 'android') { // Commenting out Android specific calls as well
-      //   StatusBar.setBackgroundColor('transparent'); 
-      //   StatusBar.setTranslucent(true); 
-      // }
-      
       const refreshData = async () => {
         try {
+          // Load stored periods first
           const storedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
           let periodsToSchedule: number[] = [];
           if (storedPeriods !== null) {
@@ -617,10 +612,21 @@ export default function Dashboard() {
 
           await checkNotificationStatus();
 
-          await refreshUserCards();
+          // Force a complete refresh of user cards
+          if (refreshUserCards) {
+            await refreshUserCards();
+            // Add a small delay to ensure the cards are loaded before refreshing other data
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+          // Refresh other data
           await refreshSavings();
           await refreshAutoRedemptions();
-          donutDisplayRef.current?.refresh();
+          
+          // Refresh the donut display
+          if (donutDisplayRef.current?.refresh) {
+            donutDisplayRef.current.refresh();
+          }
         } catch (error) {
           console.warn('[Dashboard] Focus effect refresh failed:', error);
         }
@@ -1023,7 +1029,10 @@ export default function Dashboard() {
 
   // Add handler for renewal date press
   const handleRenewalDatePress = useCallback((cardId: string) => {
-    router.push("/(tabs)/profile/manage_cards");
+    router.push({
+      pathname: "/(tabs)/profile/manage_cards",
+      params: { highlightCardId: cardId }
+    });
   }, [router]);
 
   // Map cards to CardListItems with all required properties
