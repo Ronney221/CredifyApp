@@ -265,7 +265,13 @@ export default function OnboardingSheet({
   
   // Reset translateY when modal becomes visible
   useEffect(() => {
+    console.log('[OnboardingSheet] Visibility changed:', {
+      visible,
+      timestamp: new Date().toISOString()
+    });
+
     if (visible) {
+      console.log('[OnboardingSheet] Sheet becoming visible');
       translateY.value = 0;
     }
   }, [visible]);
@@ -281,6 +287,7 @@ export default function OnboardingSheet({
       const shouldDismiss = event.translationY > 150 || event.velocityY > 1000;
       
       if (shouldDismiss) {
+        console.log('[OnboardingSheet] Pan gesture dismissing sheet');
         translateY.value = withSpring(500, {}, () => {
           runOnJS(onDismiss)();
         });
@@ -299,18 +306,30 @@ export default function OnboardingSheet({
 
   // Don't render anything if not visible
   if (!visible) {
+    console.log('[OnboardingSheet] Not rendering - visibility is false');
     return null;
   }
+
+  console.log('[OnboardingSheet] Rendering sheet');
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onDismiss}
+      onRequestClose={() => {
+        console.log('[OnboardingSheet] Modal requesting close');
+        onDismiss();
+      }}
       presentationStyle="overFullScreen"
     >
-      <Pressable style={styles.overlay} onPress={onDismiss}>
+      <Pressable 
+        style={styles.overlay} 
+        onPress={() => {
+          console.log('[OnboardingSheet] Overlay pressed, dismissing');
+          onDismiss();
+        }}
+      >
         <BlurView intensity={20} style={styles.blurOverlay} />
       </Pressable>
       

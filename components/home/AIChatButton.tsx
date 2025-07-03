@@ -93,7 +93,13 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
   };
 
   const handlePress = () => {
+    console.log('[AIChatButton] Button pressed, current state:', {
+      hasRedeemedFirstPerk,
+      timestamp: new Date().toISOString()
+    });
+    
     if (!hasRedeemedFirstPerk) {
+      console.log('[AIChatButton] Button locked, showing tooltip');
       showTooltipWithTimeout();
       return;
     }

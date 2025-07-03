@@ -168,12 +168,8 @@ export function usePerkStatus(
           throw allRedemptionsError;
         }
 
-        // Update isFirstPerkRedemption based on existing redemptions
-        if (allUserRedemptions && allUserRedemptions.length > 0) {
-          console.log('[usePerkStatus] Found existing redemptions, marking first perk as redeemed');
-          setIsFirstPerkRedemption(false);
-          markFirstPerkRedeemed();
-        }
+        // Remove automatic first perk redemption logic
+        // We'll let the dashboard component handle this explicitly
 
         const latestRedemptionsMap = new Map<string, {
           reset_date: string;
@@ -321,14 +317,10 @@ export function usePerkStatus(
     console.log('========= [usePerkStatus] setPerkStatus called =========');
     console.log('Input parameters:', { cardId, perkId, newStatus, remainingValue });
     
-    // Check if this is a redemption (either full or partial)
-    const isRedemption = newStatus === 'redeemed' || newStatus === 'partially_redeemed';
-
-    // If this is a redemption and we haven't marked the first perk yet
-    if (isRedemption && isFirstPerkRedemption) {
+    // This is where we should mark first redemption - when user actively redeems a perk
+    if (newStatus === 'redeemed' || newStatus === 'partially_redeemed') {
       console.log('[usePerkStatus] First perk redemption detected, marking onboarding state');
       markFirstPerkRedeemed();
-      setIsFirstPerkRedemption(false);
     }
 
     let perkValue = 0;

@@ -21,7 +21,7 @@ const InsightsHelpModal: React.FC<InsightsHelpModalProps> = ({ isVisible, onClos
         <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>How Insights Work</Text>
+            <Text style={styles.modalTitle}>How Insights Work</Text
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={Colors.light.text} />
             </TouchableOpacity>

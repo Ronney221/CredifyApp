@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useCallback, use
 import { Card } from '../../../src/data/card-data';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
+export const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
 
 interface OnboardingContextType {
   // Card Management
@@ -47,30 +47,52 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   // Perk Redemption State
   const [hasRedeemedFirstPerk, setHasRedeemedFirstPerk] = useState(false);
 
-  // Load hasRedeemedFirstPerk from AsyncStorage on mount
+  // Load initial state
   useEffect(() => {
-    const loadRedemptionState = async () => {
+    const loadState = async () => {
       try {
+        console.log('[OnboardingContext] Loading initial state from AsyncStorage');
         const value = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
-        console.log('[OnboardingContext] Loading redemption state:', {
-          storedValue: value,
-          parsedValue: value !== null ? JSON.parse(value) : null,
-          timestamp: new Date().toISOString()
-        });
-        if (value !== null) {
-          setHasRedeemedFirstPerk(JSON.parse(value));
-        }
+        console.log('[OnboardingContext] Initial AsyncStorage value:', value);
+        
+        // Only set to true if explicitly 'true'
+        const shouldMarkRedeemed = value === 'true';
+        console.log('[OnboardingContext] Setting initial state:', shouldMarkRedeemed);
+        setHasRedeemedFirstPerk(shouldMarkRedeemed);
       } catch (error) {
-        console.error('[OnboardingContext] Error loading redemption state:', error);
+        console.error('[OnboardingContext] Error loading state:', error);
       }
     };
-    loadRedemptionState();
+    loadState();
   }, []);
 
-  // Add logging for state changes
+  const markFirstPerkRedeemed = useCallback(async () => {
+    console.log('[OnboardingContext] Marking first perk as redeemed');
+    try {
+      await AsyncStorage.setItem(HAS_REDEEMED_FIRST_PERK_KEY, 'true');
+      const verifyValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      console.log('[OnboardingContext] Verified AsyncStorage value after set:', verifyValue);
+      setHasRedeemedFirstPerk(true);
+    } catch (error) {
+      console.error('[OnboardingContext] Error marking first perk redeemed:', error);
+    }
+  }, []);
+
+  const resetFirstPerkRedemption = useCallback(async () => {
+    console.log('[OnboardingContext] Resetting first perk redemption state');
+    try {
+      await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      const verifyValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      console.log('[OnboardingContext] Verified AsyncStorage value after reset:', verifyValue);
+      setHasRedeemedFirstPerk(false);
+    } catch (error) {
+      console.error('[OnboardingContext] Error resetting first perk:', error);
+    }
+  }, []);
+
   useEffect(() => {
-    console.log('[OnboardingContext] hasRedeemedFirstPerk state changed:', {
-      newValue: hasRedeemedFirstPerk,
+    console.log('[OnboardingContext] State changed:', {
+      hasRedeemedFirstPerk,
       timestamp: new Date().toISOString()
     });
   }, [hasRedeemedFirstPerk]);
@@ -104,18 +126,6 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
       }
       return [...prev, cardId];
     });
-  }, []);
-
-  // Perk Redemption Functions
-  const markFirstPerkRedeemed = useCallback(async () => {
-    try {
-      console.log('[OnboardingContext] Marking first perk as redeemed');
-      await AsyncStorage.setItem(HAS_REDEEMED_FIRST_PERK_KEY, JSON.stringify(true));
-      setHasRedeemedFirstPerk(true);
-      console.log('[OnboardingContext] Successfully marked first perk as redeemed');
-    } catch (error) {
-      console.error('[OnboardingContext] Error saving redemption state:', error);
-    }
   }, []);
 
   // --- This is an example, you should determine the total steps for your flow ---
