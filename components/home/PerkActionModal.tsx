@@ -257,11 +257,18 @@ export default function PerkActionModal({
   const context = useSharedValue({ y: 0 });
   const sliderAnimation = useSharedValue(0);
   const sliderPosition = useSharedValue(0);
+  const rotation = useSharedValue(0);
 
   // Animated styles for modal presentation
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: translateY.value }],
+    };
+  });
+
+  const animatedChevronStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }],
     };
   });
 
@@ -392,6 +399,11 @@ export default function PerkActionModal({
     setIsDescriptionExpanded(prev => !prev);
     Haptics.selectionAsync().catch(console.error);
   }, []);
+
+  // Animate chevron rotation
+  useEffect(() => {
+    rotation.value = withTiming(isDescriptionExpanded ? 180 : 0);
+  }, [isDescriptionExpanded]);
 
   // Reset description state when modal closes
   useEffect(() => {
@@ -682,117 +694,120 @@ export default function PerkActionModal({
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.content}>
-                <Animated.View layout={Layout.springify()}>
-                  <View style={styles.titleContainer}>
-                    <Text style={styles.title}>{toTitleCase(perk.name)}</Text>
-                    <TouchableOpacity
-                      style={styles.infoButton}
-                      onPress={toggleDescription}
-                      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                    >
-                      <Ionicons
-                        name={isDescriptionExpanded ? 'information-circle' : 'information-circle-outline'}
-                        size={24}
-                        color="#007AFF"
-                      />
-                    </TouchableOpacity>
-                  </View>
+                <View style={styles.titleContainer}>
+                  <Text style={styles.title}>{toTitleCase(perk.name)}</Text>
+                </View>
 
-                  <View
-                    style={[
-                      styles.descriptionContainer,
-                      {
-                        maxHeight: isDescriptionExpanded ? undefined : 0,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.description}>{perk.description}</Text>
-                    {perk.redemptionInstructions && (
-                      <>
-                        <Text style={styles.redemptionTitle}>How to Redeem</Text>
-                        <Text style={styles.description}>{perk.redemptionInstructions}</Text>
-                      </>
-                    )}
-                  </View>
+                <View style={styles.valueContainer}>
+                  <Text style={styles.remainingValue}>
+                    Remaining: {formattedRemainingValue}
+                  </Text>
+                  <Text style={styles.maxValue}>
+                    {perk.period === 'monthly'
+                      ? 'Monthly'
+                      : perk.period === 'quarterly'
+                      ? 'Quarterly'
+                      : perk.period === 'semi_annual'
+                      ? 'Semi-annual'
+                      : perk.period === 'annual'
+                      ? 'Annual'
+                      : 'Monthly'}{' '}
+                    credit: {formattedValue}
+                    {'\n'}
+                    (up to {formatCurrency(calculateYearlyTotal(perk))}/year)
+                  </Text>
+                </View>
 
-                  <View style={styles.valueContainer}>
-                    <Text style={styles.remainingValue}>
-                      Remaining: {formattedRemainingValue}
-                    </Text>
-                    <Text style={styles.maxValue}>
-                      {perk.period === 'monthly' ? 'Monthly' :
-                       perk.period === 'quarterly' ? 'Quarterly' :
-                       perk.period === 'semi_annual' ? 'Semi-annual' :
-                       perk.period === 'annual' ? 'Annual' : 'Monthly'} credit: {formattedValue}{'\n'}
-                      (up to {formatCurrency(calculateYearlyTotal(perk))}/year)
-                    </Text>
-                  </View>
-                  
-                  {!isRedeemed && (
-                    <>
-                      <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Log your usage:</Text>
-                      </View>
+                {!isRedeemed && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>Log your usage:</Text>
+                    </View>
 
-                      <View style={styles.amountSelectorContainer}>
-                        <View style={styles.sliderContainer}>
-                          <Text style={styles.sliderValue}>
-                            {perk?.status === 'partially_redeemed' ? '$0' : '$0'}
-                          </Text>
-                          <View style={styles.sliderWrapper}>
-                            <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
-                            <AnimatedSlider
-                              minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.10}
-                              maximumValue={perk?.value || 0}
-                              minimumTrackTintColor="#007AFF"
-                              maximumTrackTintColor="#E5E5EA"
-                              thumbTintColor="#007AFF"
-                              onValueChange={handleSliderChange}
-                              animatedProps={animatedSliderProps}
-                              step={0.10}
-                              style={styles.slider}
-                            />
-                          </View>
-                          <Text style={styles.sliderValue}>{formatExactCurrency(perk?.value || 0)}</Text>
+                    <View style={styles.amountSelectorContainer}>
+                      <View style={styles.sliderContainer}>
+                        <Text style={styles.sliderValue}>
+                          {perk?.status === 'partially_redeemed' ? '$0' : '$0'}
+                        </Text>
+                        <View style={styles.sliderWrapper}>
+                          <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
+                          <AnimatedSlider
+                            minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.1}
+                            maximumValue={perk?.value || 0}
+                            minimumTrackTintColor="#007AFF"
+                            maximumTrackTintColor="#E5E5EA"
+                            thumbTintColor="#007AFF"
+                            onValueChange={handleSliderChange}
+                            animatedProps={animatedSliderProps}
+                            step={0.1}
+                            style={styles.slider}
+                          />
                         </View>
+                        <Text style={styles.sliderValue}>{formatExactCurrency(perk?.value || 0)}</Text>
                       </View>
+                    </View>
+                  </>
+                )}
 
-                      {renderPrimaryButton()}
+                <View style={styles.divider} />
 
-                      <TouchableOpacity
-                        style={[styles.button, styles.secondaryButton]}
-                        onPress={handleOpenApp}
-                      >
-                        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                          Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
+                <TouchableOpacity onPress={toggleDescription} style={styles.expandableHeader}>
+                  <Text style={styles.expandableTitle}>How it Works</Text>
+                  <Animated.View style={animatedChevronStyle}>
+                    <Ionicons name="chevron-down" size={24} color="#666666" />
+                  </Animated.View>
+                </TouchableOpacity>
 
-                  {isRedeemed && (
+                <View
+                  style={[
+                    styles.descriptionContainer,
+                    {
+                      maxHeight: isDescriptionExpanded ? undefined : 0,
+                    },
+                  ]}
+                >
+                  <Text style={styles.description}>{perk.description}</Text>
+                  {perk.redemptionInstructions && (
                     <>
-                      <TouchableOpacity
-                        style={[styles.button, styles.markAvailableButton]}
-                        onPress={() => {
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          handleMarkAvailable();
-                        }}
-                      >
-                        <Text style={styles.buttonText}>Mark as Available</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.button, styles.secondaryButton]}
-                        onPress={handleOpenApp}
-                      >
-                        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                          Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
-                        </Text>
-                      </TouchableOpacity>
+                      <Text style={styles.redemptionTitle}>How to Redeem</Text>
+                      <Text style={styles.description}>{perk.redemptionInstructions}</Text>
                     </>
                   )}
-                </Animated.View>
+                </View>
+
+                <View style={styles.divider} />
+
+                {!isRedeemed && (
+                  <>
+                    {renderPrimaryButton()}
+
+                    <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={handleOpenApp}>
+                      <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                        Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {isRedeemed && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.button, styles.markAvailableButton]}
+                      onPress={() => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        handleMarkAvailable();
+                      }}
+                    >
+                      <Text style={styles.buttonText}>Mark as Available</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={handleOpenApp}>
+                      <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                        Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             </ScrollView>
           </Animated.View>
@@ -853,6 +868,8 @@ const styles = StyleSheet.create({
   },
   descriptionContainer: {
     overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingBottom: 8,
   },
   description: {
     fontSize: 15,
@@ -886,6 +903,23 @@ const styles = StyleSheet.create({
     color: '#666666',
     lineHeight: 20,
     letterSpacing: -0.24,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E5EA',
+    marginVertical: 16,
+  },
+  expandableHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  expandableTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    letterSpacing: -0.41,
   },
   sectionHeader: {
     marginBottom: 16,
