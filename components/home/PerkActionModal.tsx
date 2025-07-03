@@ -15,6 +15,8 @@ import {
   InputAccessoryView,
   AppState,
   AppStateStatus,
+  KeyboardEventListener,
+  KeyboardEvent as RNKeyboardEvent,
 } from 'react-native';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -222,8 +224,9 @@ export default function PerkActionModal({
   onOpenApp,
   onMarkRedeemed,
   onMarkAvailable,
+  setPendingToast,
 }: PerkActionModalProps) {
-  // State hooks
+  // State hooks must be at the top, before any conditional returns
   const [selectedPreset, setSelectedPreset] = useState<AmountOption>('full');
   const [sliderValue, setSliderValue] = useState(0);
   const [showCustomAmount, setShowCustomAmount] = useState(false);
@@ -235,14 +238,140 @@ export default function PerkActionModal({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // Memoized values - must be before any conditional returns
+  // Animated values
+  const translateY = useSharedValue(0);
+  const sliderAnimation = useSharedValue(0);
+  const sliderPosition = useSharedValue(0);
+  const descriptionMeasuredHeight = useSharedValue(0);
+
+  // Animated styles
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: translateY.value }]
+    };
+  });
+
+  // Animated description style
+  const animatedDescriptionStyle = useAnimatedStyle(() => {
+    let targetHeight = 0;
+    if (isDescriptionExpanded) {
+      targetHeight = descriptionMeasuredHeight.value;
+    }
+    return {
+      height: withSpring(targetHeight, {
+        damping: 15,
+        stiffness: 120,
+      }),
+      opacity: withSpring(isDescriptionExpanded ? 1 : 0),
+    };
+  }, [isDescriptionExpanded]);
+
+  // Animated props
+  const animatedSliderProps = useAnimatedProps(() => ({
+    value: sliderAnimation.value,
+  }));
+
+  // Memoized values
   const yearlyTotal = useMemo(() => calculateYearlyTotal(perk), [perk]);
   const maxValue = useMemo(() => perk?.value || 0, [perk]);
   const appName = useMemo(() => perk ? getAppName(perk) : '', [perk]);
 
-  // Keyboard event handlers
+  // Safe calculation of remaining value
+  const remainingValueDisplay = useMemo(() => {
+    if (!perk || typeof perk.remaining_value !== 'number' || perk.remaining_value < 0) {
+      return perk?.value || 0;
+    }
+    return perk.remaining_value;
+  }, [perk]);
+
+  // Safe access to redemption data
+  const redemptionData = useMemo(() => {
+    if (!perk || !perk.redemptionInstructions) {
+      return [];
+    }
+    return perk.redemptionInstructions;
+  }, [perk]);
+
+  // Get the currently redeemed amount if partially redeemed
+  const getCurrentRedeemedAmount = useCallback(() => {
+    if (!perk) return 0;
+    if (perk.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
+      return roundToNearestDime(perk.value - perk.remaining_value);
+    }
+    return 0;
+  }, [perk]);
+
+  // Handle slider value change with animation
+  const handleSliderChange = useCallback((value: number) => {
+    if (!perk) return;
+    
+    const roundedValue = roundToNearestDime(value);
+    const maxValue = perk.value;
+    
+    // Ensure value doesn't exceed max
+    const validatedValue = Math.min(roundedValue, maxValue);
+    
+    setSliderValue(validatedValue);
+    setPartialAmount(validatedValue.toFixed(2));
+    
+    // Animate the slider
+    sliderAnimation.value = withSpring(validatedValue, {
+      damping: 15,
+      stiffness: 120,
+    });
+  }, [perk, sliderAnimation]);
+
+  // Handle text input changes
+  const handleAmountChange = useCallback((text: string) => {
+    if (!perk) return;
+    
+    // Remove any non-numeric characters except decimal point
+    const cleanedText = text.replace(/[^0-9.]/g, '');
+    
+    // Parse the value
+    const parsedValue = parseDecimalInput(cleanedText);
+    
+    // Validate the value
+    if (parsedValue > perk.value) {
+      setPartialAmount(perk.value.toFixed(2));
+      sliderAnimation.value = withSpring(perk.value);
+    } else {
+      setPartialAmount(cleanedText);
+      if (!isNaN(parsedValue)) {
+        sliderAnimation.value = withSpring(parsedValue);
+      }
+    }
+  }, [perk, sliderAnimation]);
+
+  // Handle blur event for text input
+  const handleAmountBlur = useCallback(() => {
+    if (!perk) return;
+    
+    const numValue = parseFloat(partialAmount);
+    if (isNaN(numValue) || numValue <= 0) {
+      setPartialAmount('0.00');
+      setSliderValue(0);
+      sliderAnimation.value = withSpring(0);
+      return;
+    }
+    
+    const maxValue = perk.value;
+    const validatedValue = Math.min(roundToNearestDime(numValue), maxValue);
+    
+    setPartialAmount(validatedValue.toFixed(2));
+    setSliderValue(validatedValue);
+    sliderAnimation.value = withSpring(validatedValue);
+  }, [perk, partialAmount, sliderAnimation]);
+
+  const toggleDescription = useCallback(() => {
+    if (!isDescriptionExpanded) {
+      Haptics.selectionAsync().catch(console.error);
+      setIsDescriptionExpanded(true);
+    }
+  }, [isDescriptionExpanded]);
+
   useEffect(() => {
-    const keyboardWillShow = (e: KeyboardEvent) => {
+    const keyboardWillShow = (e: RNKeyboardEvent) => {
       setKeyboardHeight(e.endCoordinates.height);
       setIsKeyboardVisible(true);
     };
@@ -260,95 +389,6 @@ export default function PerkActionModal({
       hideSubscription.remove();
     };
   }, []);
-
-  if (!perk || !visible) return null;
-
-  const handleOpenApp = async () => {
-    if (!perk || !perk.name) return;
-
-    // Close modal first
-    handleDismiss();
-
-    try {
-      // Always attempt to open the app target
-      await onOpenApp();
-      if (Platform.OS === 'ios') {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-    } catch (openErrorOrDbError) {
-      console.error('Error opening app:', openErrorOrDbError);
-      Alert.alert('Error', 'Failed to open the app.');
-    }
-  };
-
-  const handleMarkRedeemed = () => {
-    handleDismiss();
-    onMarkRedeemed();
-  };
-
-  const handleMarkAvailable = () => {
-    handleDismiss();
-    onMarkAvailable();
-  };
-
-  const handleConfirmAction = () => {
-    Keyboard.dismiss();
-    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
-    if (isNaN(amount)) {
-      Alert.alert('Invalid Amount', 'Please enter a valid number.');
-      return;
-    }
-    
-    handleDismiss();
-    if (amount === 0 && perk?.status === 'partially_redeemed') {
-      onMarkAvailable();
-    } else {
-      onMarkRedeemed(amount);
-    }
-  };
-
-  // Safe access to redemption data
-  const redemptionData = useMemo(() => {
-    if (!perk || !perk.redemptionInstructions) {
-      return [];
-    }
-    return [perk.redemptionInstructions];
-  }, [perk?.redemptionInstructions]);
-
-  // Safe calculation of remaining value
-  const remainingValueDisplay = useMemo(() => {
-    if (!perk || typeof perk.remaining_value !== 'number' || perk.remaining_value < 0) {
-      return perk?.value || 0;
-    }
-    return perk.remaining_value;
-  }, [perk?.remaining_value, perk?.value]);
-
-  // Animated values
-  const translateY = useSharedValue(0);
-  const sliderAnimation = useSharedValue(0);
-  const sliderPosition = useSharedValue(0);
-  const descriptionMeasuredHeight = useSharedValue(0);
-
-  // Animated props
-  const animatedSliderProps = useAnimatedProps(() => ({
-    value: sliderAnimation.value,
-  }));
-
-  // Animated styles
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }]
-    };
-  });
-
-  // Get the currently redeemed amount if partially redeemed
-  const getCurrentRedeemedAmount = useCallback(() => {
-    if (!perk) return 0;
-    if (perk.status === 'partially_redeemed' && perk.value && perk.remaining_value) {
-      return roundToNearestDime(perk.value - perk.remaining_value);
-    }
-    return 0;
-  }, [perk]);
 
   // Reset state when modal becomes visible or perk changes
   useEffect(() => {
@@ -383,98 +423,111 @@ export default function PerkActionModal({
     // Animate modal
     translateY.value = withTiming(0, { duration: 300 });
     setIsEditingNumber(false);
-  }, [visible, perk, getCurrentRedeemedAmount]);
+  }, [visible, perk, getCurrentRedeemedAmount, sliderAnimation, sliderPosition, translateY]);
 
-  // Handle slider value change with animation
-  const handleSliderChange = useCallback((value: number) => {
-    if (!perk) return;
-    
-    const roundedValue = roundToNearestDime(value);
-    
-    // Only allow 0 if already partially redeemed
-    if (roundedValue === 0 && perk.status !== 'partially_redeemed') {
-      setSliderValue(0.10);
-      setPartialAmount('0.10');
-      sliderAnimation.value = 0.10;
-    } else if (roundedValue > perk.value) {
-      setSliderValue(perk.value);
-      setPartialAmount(perk.value.toFixed(2));
-      sliderAnimation.value = perk.value;
-    } else {
-      setSliderValue(roundedValue);
-      setPartialAmount(roundedValue.toFixed(2));
-      sliderAnimation.value = roundedValue;
-    }
-    setIsEditingNumber(false);
-  }, [perk]);
+  if (!visible || !perk) {
+    return null;
+  }
 
-  // Handle text input changes
-  const handleAmountChange = useCallback((text: string) => {
-    if (!perk) return;
-    
-    setPartialAmount(text);
-    const value = parseDecimalInput(text);
-    
-    if (value === 0 && perk.status !== 'partially_redeemed') {
-      setSliderValue(0.10);
-      sliderAnimation.value = withSpring(0.10);
-    } else if (value > perk.value) {
-      setSliderValue(perk.value);
-      sliderAnimation.value = withSpring(perk.value);
-      setPartialAmount(perk.value.toFixed(2));
-    } else {
-      setSliderValue(value);
-      sliderAnimation.value = withSpring(value);
-    }
-    setIsEditingNumber(true);
-  }, [perk]);
+  const handleOpenApp = async () => {
+    if (!perk || !perk.name) return;
 
-  // Handle blur event for text input
-  const handleAmountBlur = useCallback(() => {
-    const roundedValue = roundToNearestDime(parseFloat(partialAmount));
-    setPartialAmount(roundedValue.toFixed(2));
-    setSliderValue(roundedValue);
-    sliderAnimation.value = withSpring(roundedValue);
-  }, [partialAmount]);
+    // Close modal first
+    handleDismiss();
 
-  const toggleDescription = () => {
-    if (!isDescriptionExpanded) {
-      Haptics.selectionAsync().catch(console.error);
-      setIsDescriptionExpanded(true);
+    try {
+      // Always attempt to open the app target
+      await onOpenApp();
+      if (Platform.OS === 'ios') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    } catch (openErrorOrDbError) {
+      console.error('Error opening app:', openErrorOrDbError);
+      Alert.alert('Error', 'Failed to open the app.');
     }
   };
 
-  // Move the hook to the top level
-  const animatedDescriptionStyle = useAnimatedStyle(() => {
-    let targetHeight = 0;
+  const handleMarkRedeemed = async (partialAmount?: number) => {
+    if (!perk) return;
 
-    if (isDescriptionExpanded) {
-      if (descriptionMeasuredHeight.value > 0) {
-        targetHeight = descriptionMeasuredHeight.value;
-      } else {
-        return {
-          height: 'auto',
-          opacity: 1,
-          marginBottom: 24,
-        };
+    try {
+      // Close modal first to prevent state conflicts
+      handleDismiss();
+
+      // For partial redemptions, validate the amount
+      if (partialAmount !== undefined) {
+        if (partialAmount <= 0 || partialAmount > perk.value) {
+          Alert.alert('Invalid Amount', 'Please enter a valid amount between 0 and the total credit value.');
+          return;
+        }
       }
-    }
 
-    return {
-      height: withSpring(targetHeight, {
-        damping: 20,
-        stiffness: 90,
-      }),
-      opacity: withSpring(isDescriptionExpanded ? 1 : 0, {
-        damping: 20,
-        stiffness: 90,
-      }),
-      marginBottom: withSpring(isDescriptionExpanded ? 24 : 0, {
-        damping: 20,
-        stiffness: 90,
-      }),
-    };
-  });
+      // Call the parent handler
+      await onMarkRedeemed(partialAmount);
+
+      // Show success toast with appropriate message
+      if (setPendingToast) {
+        const message = partialAmount !== undefined
+          ? `${perk.name} partially redeemed ($${partialAmount.toFixed(2)})`
+          : `${perk.name} redeemed.`;
+
+        setPendingToast({
+          message,
+          onUndo: async () => {
+            await onMarkAvailable();
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error marking perk as redeemed:', error);
+      Alert.alert('Error', 'Failed to mark perk as redeemed. Please try again.');
+    }
+  };
+
+  const handleMarkAvailable = async () => {
+    if (!perk) return;
+
+    try {
+      // Close modal first to prevent state conflicts
+      handleDismiss();
+
+      // Call the parent handler
+      await onMarkAvailable();
+
+      // Show success toast
+      if (setPendingToast) {
+        setPendingToast({
+          message: `${perk.name} marked as available.`,
+          onUndo: async () => {
+            if (perk.status === 'partially_redeemed' && perk.remaining_value !== undefined) {
+              await onMarkRedeemed(perk.value - perk.remaining_value);
+            } else {
+              await onMarkRedeemed();
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error marking perk as available:', error);
+      Alert.alert('Error', 'Failed to mark perk as available. Please try again.');
+    }
+  };
+
+  const handleConfirmAction = () => {
+    Keyboard.dismiss();
+    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
+    if (isNaN(amount)) {
+      Alert.alert('Invalid Amount', 'Please enter a valid number.');
+      return;
+    }
+    
+    handleDismiss();
+    if (amount === 0 && perk?.status === 'partially_redeemed') {
+      onMarkAvailable();
+    } else {
+      onMarkRedeemed(amount);
+    }
+  };
 
   // Safely access perk properties with defaults
   const {
@@ -487,16 +540,12 @@ export default function PerkActionModal({
   } = perk;
 
   const handleDismiss = () => {
-    translateY.value = withTiming(0, { duration: 300 });
-    setTimeout(() => {
-      onDismiss();
-      setShowCustomAmount(false);
-      setSelectedPreset(null);
-      setPartialAmount('');
-      setSliderValue(0);
-      setIsEditingNumber(false);
-      setIsDescriptionExpanded(false);
-    }, 200);
+    // Reset all state
+    setShowCustomAmount(false);
+    setPartialAmount('');
+    setIsEditingNumber(false);
+    setSelectedPreset('full');
+    onDismiss();
   };
 
   const isRedeemed = perk.status === 'redeemed';
