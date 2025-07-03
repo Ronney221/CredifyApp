@@ -65,14 +65,21 @@
         "gc": "heuristic",
         "small-global-tables": true,
         "track-io": false
-      }
+      },
+      "buildNumber": "8",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "associatedDomains": [
+        "applinks:credify.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.credifyronney.credify",
+      "package": "com.credifyapp.credify",
       "allowBackup": true,
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
@@ -105,7 +112,8 @@
         "gc": "heuristic",
         "small-global-tables": true,
         "track-io": false
-      }
+      },
+      "versionCode": 8
     },
     "web": {
       "bundler": "metro",
@@ -166,7 +174,7 @@
       "router": {
         "origin": false
       },
-      "eas": {
+            "eas": {
         "projectId": "75e33702-056a-43e1-a206-50e6b8d63b05"
       },
       "EXPO_PUBLIC_SUPABASE_URL": "https://ozgnkpadloshnwliaodw.supabase.co",

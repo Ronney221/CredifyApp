@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { OnboardingProvider } from './(onboarding)/_context/OnboardingContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Text, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/Colors';
 import { useFonts } from 'expo-font';
@@ -140,7 +140,7 @@ function AuthStateHandler() {
   return null;
 }
 
-export default Sentry.wrap(function RootLayout() {
+export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <RootSiblingParent>
@@ -166,5 +166,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#ffffff',
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: Colors.light.error || '#ff0000',
+  },
+  errorMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: Colors.light.text || '#000000',
+  },
+  retryButton: {
+    backgroundColor: Colors.light.tint || '#2196F3',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
