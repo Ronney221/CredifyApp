@@ -888,18 +888,20 @@ export async function updateCardOrder(userId: string, cardIds: string[]) {
       ])
     );
 
-    // Update each card's display order
-    const updates = existingCards.map(card => ({
-      id: card.id,
-      display_order: cardNameToOrder.get(card.card_name) ?? 0,
-      updated_at: new Date().toISOString()
-    }));
+    // Update each card's display order one by one
+    for (const card of existingCards) {
+      const newOrder = cardNameToOrder.get(card.card_name) ?? 0;
+      const { error: updateError } = await supabase
+        .from('user_credit_cards')
+        .update({
+          display_order: newOrder,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', card.id)
+        .eq('user_id', userId);
 
-    const { error: updateError } = await supabase
-      .from('user_credit_cards')
-      .upsert(updates);
-
-    if (updateError) throw updateError;
+      if (updateError) throw updateError;
+    }
 
     return { error: null };
   } catch (error) {
