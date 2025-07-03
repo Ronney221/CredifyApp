@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
   Pressable,
   Linking,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useNavigation } from 'expo-router';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Colors } from '../../../constants/Colors';
 import Toast from 'react-native-root-toast';
@@ -27,9 +27,11 @@ import {
 } from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import { uploadAvatar, updateUserProfile } from '../../../lib/supabase';
+import BackButton from '../../../components/ui/BackButton';
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { user, updateUserMetadata, loading: authLoading } = useAuth();
 
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
@@ -46,6 +48,28 @@ export default function EditProfileScreen() {
     console.log('Change detection:', { nameChanged, avatarChanged, fullName, originalFullName: originalFullName.current, avatarUri, originalAvatarUrl: originalAvatarUrl.current });
     return nameChanged || avatarChanged;
   }, [fullName, avatarUri]);
+
+  // Configure header (back title and Save button)
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => <BackButton label="Profile" />, 
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleSaveChanges}
+          disabled={!hasChanges || isLoading}
+          style={{ marginRight: 15, opacity: !hasChanges || isLoading ? 0.3 : 1 }}
+          hitSlop={10}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color={Colors.light.tint} />
+          ) : (
+            <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>Save</Text>
+          )}
+        </TouchableOpacity>
+      ),
+      headerShown: true,
+    });
+  }, [navigation, hasChanges, isLoading]);
 
   const handleSaveChanges = async () => {
     if (!hasChanges || isLoading) return;
@@ -193,7 +217,7 @@ export default function EditProfileScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           bounces
           alwaysBounceVertical
@@ -246,19 +270,6 @@ export default function EditProfileScreen() {
             </View>
           </View>
         </ScrollView>
-        <View style={styles.footer}>
-          <TouchableOpacity 
-            style={[styles.saveButton, !hasChanges && styles.saveButtonDisabled]}
-            onPress={handleSaveChanges}
-            disabled={!hasChanges || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={Colors.light.textOnPrimary} />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            )}
-          </TouchableOpacity>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -353,26 +364,5 @@ const styles = StyleSheet.create({
   disabledInput: {
     color: Colors.light.secondaryLabel,
   },
-  footer: {
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    backgroundColor: Colors.light.systemGroupedBackground,
-  },
-  saveButton: {
-    backgroundColor: Colors.light.accent,
-    borderRadius: 13,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-    opacity: 1,
-  },
-  saveButtonDisabled: {
-    opacity: 0,
-  },
-  saveButtonText: {
-    color: Colors.light.textOnAccent,
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.4,
-  },
+  // Footer styles removed — Save action now lives in the navigation bar
 }); 
