@@ -4,9 +4,22 @@
 
 Credify is an intelligent, AI-enhanced command center for your credit card perks. It transforms how you manage your finances by providing a unified dashboard to track and redeem benefits, smart reminders to prevent missed opportunities, and data-driven insights to maximize your return on investment.
 
-![1-portrait](https://github.com/user-attachments/assets/3c13b338-c85f-43d9-856f-0c534a8f9ada)
+<details>
+  <summary>View Screenshots</summary>
+  <img src="https://github.com/user-attachments/assets/c53dae3d-1a48-4b7a-83b6-2fb0aac497f0" width="300">
+  <img src="https://github.com/user-attachments/assets/a87363dc-102a-4f23-a79d-b95daf822bc5" width="300">
+  <img src="https://github.com/user-attachments/assets/83bdf261-ac47-4e28-a717-83b2ccd433e0" width="300">
+  <img src="https://github.com/user-attachments/assets/0d654718-b4bf-4dec-9270-926abaae8048" width="300">
+  <img src="https://github.com/user-attachments/assets/799004cf-21d6-4b79-9145-0d22e6cfb269" width="300">
+  <img src="https://github.com/user-attachments/assets/2f2c62d3-b95f-499e-8b35-33c23528f508" width="300">
+  <img src="https://github.com/user-attachments/assets/6e01f46f-47e6-41ce-86bd-405c06338b88" width="300">
+  <img src="https://github.com/user-attachments/assets/73ce31e3-3041-4d48-8974-b1421a8f6f81" width="300">
+  <img src="https://github.com/user-attachments/assets/e0689961-7744-4632-a040-6c9f03ddc956" width="300">
+  <img src="https://github.com/user-attachments/assets/2ebb5695-a84a-4548-b5d5-4b94c46a51e2" width="300">
+</details>
 
-![2-left](https://github.com/user-attachments/assets/f036e115-bde7-4aa7-8f79-3636cbf191d3)
+
+  <img src="https://github.com/user-attachments/assets/beb4cfa2-9486-42a2-902e-6e47d3fb562f" width="900">
 
 ## What is Credify? 🤔
 
