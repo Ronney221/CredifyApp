@@ -27,6 +27,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUserCards } from '../../hooks/useUserCards';
 import { useFocusEffect , useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import LottieView from 'lottie-react-native';
 
 import { BlurView } from 'expo-blur';
 
@@ -218,6 +219,61 @@ const rightPad = <T,>(arr: T[] = [], size = 6, fillValue: T): T[] => {
   const offset = size - Math.min(arr.length, size);
   arr.slice(-size).forEach((v, i) => (res[offset + i] = v));
   return res;
+};
+
+// Add LoadingAnimation component at the top level
+const LoadingAnimation: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
+  const [retryCount, setRetryCount] = useState(0);
+  const [showRetryButton, setShowRetryButton] = useState(false);
+  const lottieRef = useRef<LottieView>(null);
+  const maxRetries = 3;
+  const baseDelay = 2000; // 2 seconds
+
+  useEffect(() => {
+    if (lottieRef.current) {
+      lottieRef.current.play();
+    }
+
+    // Exponential backoff logic
+    if (retryCount < maxRetries) {
+      const delay = Math.min(baseDelay * Math.pow(2, retryCount), 10000); // Cap at 10 seconds
+      const timer = setTimeout(() => {
+        onRetry();
+        setRetryCount(prev => prev + 1);
+      }, delay);
+
+      return () => clearTimeout(timer);
+    } else {
+      setShowRetryButton(true);
+    }
+  }, [retryCount, onRetry]);
+
+  const handleManualRetry = () => {
+    setRetryCount(0);
+    setShowRetryButton(false);
+    onRetry();
+  };
+
+  return (
+    <View style={styles.loadingContainer}>
+      <LottieView
+        ref={lottieRef}
+        source={require('../../assets/animations/credit_card_animation.json')}
+        autoPlay
+        loop
+        style={styles.lottieAnimation}
+      />
+      <Text style={styles.loadingText}>Loading your insights...</Text>
+      {showRetryButton && (
+        <TouchableOpacity 
+          style={styles.retryButton} 
+          onPress={handleManualRetry}
+        >
+          <Text style={styles.retryButtonText}>Retry Loading</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 };
 
 export default function InsightsScreen() {
@@ -581,10 +637,7 @@ export default function InsightsScreen() {
   if (isLoadingUserCards || !isDataLoaded) {
     return (
       <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
-          <Text style={styles.loadingText}>Loading your insights...</Text>
-        </View>
+        <LoadingAnimation onRetry={refreshUserCards} />
       </View>
     );
   }
@@ -869,11 +922,37 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.light.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
     color: '#8e8e93',
+    textAlign: 'center',
+  },
+  lottieAnimation: {
+    width: 200,
+    height: 200,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: Colors.light.tint,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   historySection: { 
     paddingBottom: 80,
