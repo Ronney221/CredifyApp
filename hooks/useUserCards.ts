@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Card, allCards , CardPerk } from '../src/data/card-data';
-import { getUserCards } from '../lib/database';
-
+import { Card, allCards, CardPerk } from '../src/data/card-data';
+import { getUserActiveCards } from '../lib/database';
 
 interface UserCard {
   id: string;
@@ -11,9 +10,10 @@ interface UserCard {
   card_brand: string;
   card_category: string;
   annual_fee: number;
-  is_active: boolean;
+  status: 'active' | 'removed';
   renewal_date?: string;
   display_order: number;
+  updated_at?: string;
 }
 
 interface UserCardsHookResult {
@@ -50,7 +50,7 @@ export function useUserCards(): UserCardsHookResult {
       }
 
       console.log('[useUserCards] Authenticated user, fetching from DB for user:', user.id);
-      const { data: userCardsFromDb, error: dbError } = await getUserCards(user.id);
+      const { data: userCardsFromDb, error: dbError } = await getUserActiveCards(user.id);
       if (dbError) {
         throw dbError;
       }
@@ -64,7 +64,8 @@ export function useUserCards(): UserCardsHookResult {
 
         console.log('[useUserCards] Database records:', userCardsFromDb.map(card => ({
           name: card.card_name,
-          renewal_date: card.renewal_date
+          renewal_date: card.renewal_date,
+          status: card.status
         })));
 
         // Filter and map allCards to match the database records
@@ -86,9 +87,10 @@ export function useUserCards(): UserCardsHookResult {
           console.log('[useUserCards] Processing card:', {
             name: card.name,
             dbRenewalDate: dbRecord.renewal_date,
-            parsedRenewalDate: renewalDate
+            parsedRenewalDate: renewalDate,
+            status: dbRecord.status
           });
-          
+
           return {
             card: {
               ...card,
@@ -107,7 +109,7 @@ export function useUserCards(): UserCardsHookResult {
         console.log('[useUserCards] Processed cards with order:', 
           finalCards.map(c => `${c.card.name} (${cardNameToDbRecord.get(c.card.name)?.display_order})`));
       } else {
-        console.log('[useUserCards] No cards found in DB for authenticated user.');
+        console.log('[useUserCards] No active cards found in DB for authenticated user.');
       }
 
       setUserCardsWithPerks(finalCards);

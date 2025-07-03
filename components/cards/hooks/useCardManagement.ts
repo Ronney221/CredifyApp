@@ -15,6 +15,7 @@ export const useCardManagement = (userId: string | undefined) => {
   const [initialSelectedCards, setInitialSelectedCards] = useState<string[]>([]);
   const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
   const [initialRenewalDates, setInitialRenewalDates] = useState<Record<string, Date>>({});
+  const [removedCardDates, setRemovedCardDates] = useState<Record<string, Date>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [deletedCard, setDeletedCard] = useState<{card: Card, renewalDate?: Date} | null>(null);
@@ -95,6 +96,14 @@ export const useCardManagement = (userId: string | undefined) => {
     if (cardToRemove) {
       const renewalDate = renewalDates[cardId];
       setDeletedCard({ card: cardToRemove, renewalDate });
+      
+      // Store the renewal date if it exists
+      if (renewalDate) {
+        setRemovedCardDates(prev => ({
+          ...prev,
+          [cardId]: renewalDate
+        }));
+      }
     }
     
     setSelectedCards(prev => prev.filter(id => id !== cardId));
@@ -114,9 +123,48 @@ export const useCardManagement = (userId: string | undefined) => {
     setSelectedCards(initialSelectedCards);
     setRenewalDates(initialRenewalDates);
     setDeletedCard(null);
+    setRemovedCardDates({}); // Clear removed card dates
     
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleDoneAddCardModal = async (newCardIds: string[]) => {
+    const updatedSelectedCards = [...selectedCards];
+    const updatedRenewalDates = { ...renewalDates };
+    
+    newCardIds.forEach(id => {
+      if (!updatedSelectedCards.includes(id)) {
+        updatedSelectedCards.push(id);
+        // Restore renewal date if it exists
+        if (removedCardDates[id]) {
+          updatedRenewalDates[id] = removedCardDates[id];
+          // Remove from removedCardDates since it's restored
+          const { [id]: _, ...remainingRemovedDates } = removedCardDates;
+          setRemovedCardDates(remainingRemovedDates);
+        }
+      }
+    });
+    
+    setSelectedCards(updatedSelectedCards);
+    setRenewalDates(updatedRenewalDates);
+    
+    // Save changes if needed
+    if (userId) {
+      const updatedCards = updatedSelectedCards
+        .map(id => allCards.find(c => c.id === id))
+        .filter(Boolean) as Card[];
+      
+      const { error } = await saveUserCards(userId, updatedCards, updatedRenewalDates);
+      if (error) {
+        console.error('Error saving new cards:', error);
+        Alert.alert(
+          "Error",
+          "Failed to save new cards. Please try again.",
+          [{ text: "OK" }]
+        );
+      }
     }
   };
 
@@ -306,5 +354,6 @@ export const useCardManagement = (userId: string | undefined) => {
     handleDiscardChanges,
     handleSaveChanges,
     loadExistingCards,
+    handleDoneAddCardModal,
   };
 }; 
