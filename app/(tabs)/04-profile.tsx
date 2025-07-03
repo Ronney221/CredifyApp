@@ -20,6 +20,7 @@ import { Colors } from '../../constants/Colors';
 import { ProfileHeader } from '../../components/profile/ProfileHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
+import { scheduleCardRenewalNotifications, scheduleFirstOfMonthReminder, schedulePerkResetNotification } from '../../utils/notifications';
 import { NotificationPreferences } from '../../types/notification-types';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
@@ -65,30 +66,52 @@ const ProfileScreen = () => {
       quarterlyPerkRemindersEnabled: true,
       semiAnnualPerkRemindersEnabled: true,
       annualPerkRemindersEnabled: true,
-      // Other preferences are not needed for this specific test
-      renewalRemindersEnabled: false,
-      perkResetConfirmationEnabled: false,
+      renewalRemindersEnabled: true,
+      perkResetConfirmationEnabled: true,
       weeklyDigestEnabled: false,
+      renewalReminderDays: [90, 30, 7, 1],
+      firstOfMonthRemindersEnabled: true
     };
 
     try {
-      console.log('[ProfileScreen] Scheduling test perk expiry notifications for all periods.');
-      const allPromises = [
+      console.log('[ProfileScreen] Testing all notification types');
+      
+      // Test perk expiry notifications
+      const perkExpiryPromises = [
         schedulePerkExpiryNotifications(user.id, testPreferences, 1, true),
         schedulePerkExpiryNotifications(user.id, testPreferences, 3, true),
         schedulePerkExpiryNotifications(user.id, testPreferences, 6, true),
         schedulePerkExpiryNotifications(user.id, testPreferences, 12, true),
       ];
 
-      const results = await Promise.all(allPromises);
-      const scheduledIds = results.flat().filter((id: string | null) => id !== null);
+      // Test other notifications
+      const otherPromises = [
+        scheduleCardRenewalNotifications(user.id, testPreferences, true),
+        scheduleFirstOfMonthReminder(user.id, testPreferences, true),
+        schedulePerkResetNotification(user.id, testPreferences),
+      ];
+
+      const [perkExpiryResults, otherResults] = await Promise.all([
+        Promise.all(perkExpiryPromises),
+        Promise.all(otherPromises),
+      ]);
+
+      const totalScheduled = [
+        ...perkExpiryResults.flat(),
+        ...otherResults,
+      ].filter(id => id !== null).length;
 
       Alert.alert(
         "Success",
-        `Scheduled ${scheduledIds.length} perk expiry test notifications. You should receive them shortly.`
+        `Scheduled ${totalScheduled} test notifications including:\n` +
+        "- Perk expiry reminders\n" +
+        "- Card renewal notifications\n" +
+        "- First of month reminders\n" +
+        "- Perk reset notifications\n\n" +
+        "You should receive them shortly."
       );
     } catch (error) {
-      console.error('Error testing perk expiry notifications:', error);
+      console.error('Error testing notifications:', error);
       Alert.alert('Error', 'Failed to schedule test notifications.');
     }
   };

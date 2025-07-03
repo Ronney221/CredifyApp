@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { sendTestNotification as sendTest, NotificationPreferences } from '../../../utils/notifications';
+import { sendTestNotification } from '../../../utils/notifications';
+import { NotificationPreferences } from '../../../types/notification-types';
 import { supabase } from '../../../lib/database';
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences';
@@ -22,7 +23,8 @@ export const useNotificationPreferences = (userId?: string) => {
   const [semiAnnualPerkRemindersEnabled, setSemiAnnualPerkRemindersEnabled] = useState(false);
   const [annualPerkRemindersEnabled, setAnnualPerkRemindersEnabled] = useState(false);
   const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(false);
-  const [renewalReminderDays, setRenewalReminderDays] = useState(7);
+  const [firstOfMonthRemindersEnabled, setFirstOfMonthRemindersEnabled] = useState(true);
+  const [renewalReminderDays, setRenewalReminderDays] = useState<number[]>([90, 30, 7, 1]);
   const [perkResetConfirmationEnabled, setPerkResetConfirmationEnabled] = useState(true);
   const [weeklyDigestEnabled, setWeeklyDigestEnabled] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -69,7 +71,9 @@ export const useNotificationPreferences = (userId?: string) => {
     monthlyPerkExpiryReminderDays: [1, 3, 7],
     quarterlyPerkExpiryReminderDays: [7, 14],
     semiAnnualPerkExpiryReminderDays: [14, 30],
-    annualPerkExpiryReminderDays: [30, 60]
+    annualPerkExpiryReminderDays: [30, 60],
+    renewalReminderDays,
+    firstOfMonthRemindersEnabled
   });
 
   const [remind1DayBeforeMonthly, setRemind1DayBeforeMonthly] = useState(true);
@@ -109,7 +113,8 @@ export const useNotificationPreferences = (userId?: string) => {
           const prefs = JSON.parse(jsonValue);
           setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : false);
           setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : false);
-          setRenewalReminderDays(prefs.renewalReminderDays !== undefined ? prefs.renewalReminderDays : 7);
+          setFirstOfMonthRemindersEnabled(prefs.firstOfMonthRemindersEnabled !== undefined ? prefs.firstOfMonthRemindersEnabled : true);
+          setRenewalReminderDays(prefs.renewalReminderDays || [90, 30, 7, 1]);
           setPerkResetConfirmationEnabled(prefs.perkResetConfirmationEnabled !== undefined ? prefs.perkResetConfirmationEnabled : true);
           setWeeklyDigestEnabled(prefs.weeklyDigestEnabled !== undefined ? prefs.weeklyDigestEnabled : false);
           setRemind1DayBeforeMonthly(prefs.remind1DayBeforeMonthly !== undefined ? prefs.remind1DayBeforeMonthly : true);
@@ -180,6 +185,7 @@ export const useNotificationPreferences = (userId?: string) => {
         remind30DaysBeforeAnnual,
         remind60DaysBeforeAnnual,
         annualPerkExpiryReminderDays,
+        firstOfMonthRemindersEnabled
       };
       await AsyncStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefsToSave));
     } catch (e) {
@@ -197,7 +203,8 @@ export const useNotificationPreferences = (userId?: string) => {
     };
   }, [
     perkExpiryRemindersEnabled,
-    renewalRemindersEnabled, 
+    renewalRemindersEnabled,
+    firstOfMonthRemindersEnabled,
     renewalReminderDays,
     perkResetConfirmationEnabled,
     weeklyDigestEnabled,
@@ -215,13 +222,13 @@ export const useNotificationPreferences = (userId?: string) => {
     remind60DaysBeforeAnnual,
   ]);
 
-  const sendTestNotification = async (userId: string) => {
+  const testNotifications = async (userId: string) => {
     try {
       const currentPrefs = getPreferences();
 
-      const notificationIds = await sendTest(userId, currentPrefs);
+      const notificationIds = await sendTestNotification(userId, currentPrefs);
       if (notificationIds.length > 0) {
-        Alert.alert('Test Notifications Sent', `You should receive ${notificationIds.length} perk reminder notifications in a few seconds based on your current settings.`);
+        Alert.alert('Test Notifications Sent', `You should receive ${notificationIds.length} notifications in a few seconds based on your current settings.`);
       } else {
         Alert.alert('No Reminders to Send', 'Based on your current settings, there are no test reminders to send. Try enabling a notification category.');
       }
@@ -291,60 +298,56 @@ export const useNotificationPreferences = (userId?: string) => {
       iconColor: "#FF9500",
     });
 
-    // Card Renewal Reminders (simplified to just a toggle)
-    notificationItems.push(
-      { 
-        key: 'card_renewal',
-        iconName: "calendar-outline" as const,
-        title: "Card Renewal Reminders", 
-        details: anyRenewalDateSet 
-          ? ["Notify 7 days before renewal dates"] 
-          : ["Add renewal dates first"],
-        toggles: [
-          { 
-            label: "Enable renewal reminders", 
-            value: renewalRemindersEnabled, 
-            onValueChange: handleRenewalReminderToggle,
+    // Card Renewal Reminders
+    notificationItems.push({ 
+      key: 'card_renewal',
+      isExpanded: expandedSections['card_renewal'],
+      onToggleExpand: () => handleSectionToggle('card_renewal'),
+      iconName: "calendar-outline" as const,
+      title: "Card Renewal Reminders", 
+      details: anyRenewalDateSet 
+        ? ["Notify at 90, 30, 7, and 1 day before renewal"] 
+        : ["Add renewal dates first"],
+      toggles: [
+        { 
+          label: "Enable renewal reminders", 
+          value: renewalRemindersEnabled, 
+          onValueChange: handleRenewalReminderToggle,
+          disabled: !anyRenewalDateSet
+        }
+      ],
+      iconColor: anyRenewalDateSet ? "#34C759" : "#8E8E93",
+      dimmed: !anyRenewalDateSet,
+    });
+
+    // First of Month Reminders
+    notificationItems.push({ 
+      key: 'first_of_month',
+      isExpanded: expandedSections['first_of_month'],
+      onToggleExpand: () => handleSectionToggle('first_of_month'),
+      iconName: "calendar-clear-outline" as const,
+      title: "First of Month Reminders", 
+      details: ["Get notified when your monthly perks reset"],
+      toggles: [
+        { 
+          label: "Enable first of month reminders", 
+          value: firstOfMonthRemindersEnabled, 
+          onValueChange: (value: boolean) => {
+            setFirstOfMonthRemindersEnabled(value);
+            if (Platform.OS === 'ios') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
           }
-        ],
-        iconColor: anyRenewalDateSet ? "#34C759" : "#8E8E93",
-        dimmed: !anyRenewalDateSet,
-      },
-      // { 
-      //   key: 'perk_reset',
-      //   iconName: "refresh-circle-outline" as const, 
-      //   title: "Monthly Perk Reset Alerts", 
-      //   details: ["Get notified when your perks refresh"],
-      //   toggles: [
-      //     { 
-      //       label: "Enable reset alerts", 
-      //       value: perkResetConfirmationEnabled, 
-      //       onValueChange: handleResetConfirmationToggle,
-      //     }
-      //   ],
-      //   iconColor: "#007AFF" 
-      // },
-      // {
-      //   key: 'weekly_digest',
-      //   iconName: "stats-chart-outline" as const,
-      //   title: "Weekly Digest",
-      //   details: ["A summary of your perks and benefits"],
-      //   toggles: [
-      //     {
-      //       label: "Enable weekly digest",
-      //       value: weeklyDigestEnabled,
-      //       onValueChange: handleWeeklyDigestToggle,
-      //     },
-      //   ],
-      //   iconColor: "#5856D6",
-      // }
-    );
+        }
+      ],
+      iconColor: "#FF9500"
+    });
     
     return notificationItems;
   };
 
   return {
     buildNotificationItems,
-    sendTestNotification,
+    sendTestNotification: testNotifications,
   };
 };

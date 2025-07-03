@@ -11,5 +11,7 @@ export interface NotificationPreferences {
   semiAnnualPerkExpiryReminderDays?: number[];
   annualPerkExpiryReminderDays?: number[];
   perkExpiryReminderTime?: string;
-  renewalReminderDays?: number[];
+  renewalReminderDays: number[];
+  renewalReminderTime?: string;
+  firstOfMonthRemindersEnabled: boolean;
 } 
