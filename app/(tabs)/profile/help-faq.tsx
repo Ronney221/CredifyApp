@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Lin
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
+import BackButton from '../../../components/ui/BackButton';
 
 // Fallback colors - ideally, add these to your Colors.ts
 const FauxColors = {
@@ -39,63 +40,51 @@ export default function HelpFAQScreen() {
 
   const faqs = [
     {
+      question: 'What is Credify and how does it work?',
+      answer: 'Credify is your AI-powered command center for credit card perks. It helps you track, manage, and maximize your credit card benefits in one place. The app shows a unified dashboard of all your available benefits—monthly, quarterly, and annual—and helps ensure you get every dollar of value from your annual fees.',
+    },
+    {
       question: 'How do I add my first credit card?',
-      answer: 'Go to the "Cards" tab and tap the "+" icon in the top right. Search for your card provider and select your specific card. You&apos;ll be prompted to set up your card&apos;s renewal date and any auto-redemption preferences for recurring perks.',
+      answer: 'Our step-by-step onboarding wizard will guide you through adding your first card. You can also:\n\n1. Go to Profile > Manage Cards\n2. Tap the "+" icon in the top right\n3. Search for your card provider and select your specific card\n4. Set your card\'s renewal date\n5. Configure any auto-redemption preferences for recurring perks',
     },
     {
-      question: 'How does the Dashboard work?',
-      answer: 'The Dashboard shows an overview of all your cards and their perks. The donut chart displays your available and redeemed perks for the current period. You can tap on any card to expand it and see detailed perk information. The action pill at the top highlights perks that need your attention.',
+      question: 'How does the AI Assistant work?',
+      answer: 'The AI Assistant is your personal financial advisor. You can:\n\n- Ask questions about your card benefits\n- Get personalized advice on which card to use\n- Receive summaries of your spending habits\n- Get help understanding complex perks\n\nJust tap the chat icon on your dashboard to start a conversation.',
     },
     {
-      question: 'How do I track my perks?',
-      answer: 'There are several ways to track perks:\n\n1. Tap a perk to open a modal with options to:\n   - Open the associated app\n   - Mark as redeemed\n   - Mark as available\n\n2. Use auto-redemption for recurring perks like monthly credits\n\n3. Set up notifications for perk expiry reminders\n\nThe app will automatically track your savings and show them in the Dashboard.',
+      question: 'How do I track and redeem perks?',
+      answer: 'Credify makes perk tracking and redemption easy:\n\n1. Dashboard View: See all your cards and available perks\n2. One-Tap Redemption: Tap a perk to:\n   - Open the associated merchant app\n   - Mark as redeemed\n   - Set partial redemption amounts\n3. Auto-Redemption: Set up automatic tracking for recurring perks\n4. Progress Tracking: Watch your savings add up in real-time\n5. Smart Notifications: Get reminders before perks expire',
     },
     {
-      question: 'What are auto-redemptions?',
-      answer: 'Auto-redemption is a feature that automatically marks certain perks as redeemed at the start of each cycle. This is perfect for recurring credits like monthly streaming credits or dining credits. You can set up auto-redemption when adding a card or by editing an existing card&apos;s perks.',
+      question: 'What insights and analytics are available?',
+      answer: 'The Insights tab provides detailed analytics including:\n\n- 6-month history of perk redemptions\n- ROI leaderboard showing your best-performing cards\n- Category-based spending analysis\n- Progress toward breaking even on annual fees\n- Monthly and yearly savings summaries',
     },
     {
-      question: 'How do I manage my card renewal dates?',
-      answer: 'When adding a card, you&apos;ll be prompted to set its renewal date. You can update this later by going to the "Cards" tab, tapping on the card, and selecting "Edit". Setting renewal dates helps us track your annual fee and send timely reminders.',
+      question: 'How do notifications work?',
+      answer: 'You can customize various notification types in Profile > Notification Preferences:\n\n- Perk expiry reminders (7, 3, and 1 day before)\n- Card renewal alerts\n- Monthly perk reset reminders\n- Weekly digest of available perks\n- Quarterly and annual perk summaries',
     },
     {
-      question: 'What notifications will I receive?',
-      answer: 'The app can send you:\n\n- Perk expiry reminders (configurable: 7, 3, and 1 day before expiry)\n- Card renewal reminders\n- Weekly digest of available perks\n- Monthly summary of your savings\n\nYou can manage these in your notification settings.',
+      question: 'How do I manage my cards?',
+      answer: 'Go to Profile > Manage Cards to:\n\n- Add new cards\n- Reorder cards by dragging\n- Update renewal dates\n- Configure auto-redemptions\n- Remove cards\n\nYou can also quickly access card management from the dashboard by tapping the card icon.',
     },
     {
-      question: 'How do I edit or remove a card?',
-      answer: 'Go to the "Cards" tab and tap on the card you want to manage. You can:\n\n- Edit card details\n- Set up auto-redemptions\n- Configure notifications\n- Remove the card\n\nTo remove a card, tap "Edit" in the top left, then tap the remove button on the card.',
-    },
-    {
-      question: 'How is my savings calculated?',
-      answer: 'The app tracks the value of perks you&apos;ve redeemed and displays your total savings in the Dashboard. This includes:\n\n- Redeemed perks (manually or auto-redeemed)\n- Partially redeemed perks\n- Perks with pending redemption\n\nThe savings are calculated per card and shown in the expanded card view.',
+      question: 'How is my ROI calculated?',
+      answer: 'Credify tracks your return on investment by:\n\n1. Monitoring all redeemed perks\n2. Calculating the actual value received\n3. Comparing against your annual fees\n4. Showing progress toward breaking even\n\nView detailed ROI analytics in the Insights tab.',
     },
     {
       question: 'What if I need to undo a redemption?',
-      answer: 'If you accidentally mark a perk as redeemed, you can:\n\n1. Tap the perk to open the action modal\n2. Select "Mark as Available"\n\nOr, if you just redeemed it, you can tap the toast notification that appears to undo the action.',
+      answer: 'To undo a redemption:\n\n1. Tap the perk to open the action modal\n2. Select "Mark as Available"\n\nOr, if you just redeemed it:\n- Tap the undo button in the toast notification that appears',
     },
     {
-      question: 'How do I add a card if I don&apos;t see it?',
-      answer: 'If you don&apos;t see your card, you can add it by tapping the &apos;Add Card&apos; button in the manage cards section.',
-    },
-    {
-      question: 'How do I manage my card&apos;s notifications?',
-      answer: 'You can manage your card&apos;s notifications in the &apos;Notifications&apos; section of your profile.',
+      question: 'Is my data secure?',
+      answer: 'Yes! Credify takes security seriously:\n\n- All data is encrypted\n- We use secure social logins (Apple, Google)\n- We never store your actual credit card numbers\n- You can enable biometric authentication\n- Your chat history with the AI assistant is private',
     },
   ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ title: 'Help & FAQ' }} />
+      <Stack.Screen options={{ title: 'Help & FAQ', headerShown: true, headerLeft: () => <BackButton label="Profile" /> }} />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.headerSection}>
-          <Ionicons name="help-buoy-outline" size={48} color={Colors.light.tint} />
-          <Text style={styles.title}>Help & FAQ</Text>
-          <Text style={styles.subtitle}>
-            Find answers to common questions about using Credify. If you can&apos;t find what you&apos;re looking for, feel free to reach out to our support team.
-          </Text>
-        </View>
-
         {faqs.map((faq, index) => (
           <FAQItem key={index} question={faq.question} answer={faq.answer} />
         ))}
@@ -128,25 +117,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingVertical: 24,
     paddingHorizontal: 16,
-  },
-  headerSection: {
-    alignItems: 'center',
-    marginBottom: 32,
-    paddingHorizontal: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: Colors.light.secondaryLabel,
-    textAlign: 'center',
-    lineHeight: 22,
+    paddingBottom: 80,
   },
   faqItemContainer: {
     backgroundColor: Colors.light.background,
