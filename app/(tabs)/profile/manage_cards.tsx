@@ -41,7 +41,7 @@ export default function ManageCardsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user } = useAuth();
-  const params = useLocalSearchParams<{ highlightCardId?: string }>();
+  const params = useLocalSearchParams<{ highlightCardId?: string; backRoute?: string }>();
   const pathname = usePathname();
   
   const cardManagement = useCardManagement(user?.id);
@@ -348,8 +348,9 @@ export default function ManageCardsScreen() {
     );
   }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation, removingCardId, fadeAnim, translateX]);
 
+  const isFromDashboard = params.backRoute === '/(tabs)/01-dashboard' || pathname.includes('01-dashboard');
+  
   useLayoutEffect(() => {
-    const isFromDashboard = pathname.includes('01-dashboard');
     navigation.setOptions({
       headerLeft: () => (
         <BackButton 
@@ -374,7 +375,7 @@ export default function ManageCardsScreen() {
       ),
       headerShown: true,
     });
-  }, [navigation, isEditMode, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal]);
+  }, [navigation, isEditMode, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal, isFromDashboard]);
 
   if (isLoading) {
     return (

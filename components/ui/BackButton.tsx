@@ -10,46 +10,39 @@ interface BackButtonProps {
   fallbackRoute?: string;
 }
 
-type ValidRoute = '/(tabs)/04-profile' | '/(tabs)/01-dashboard';
-
 export default function BackButton({ label, fallbackRoute }: BackButtonProps) {
   const navigation = useNavigation();
   const router = useRouter();
   const pathname = usePathname();
-  const params = useLocalSearchParams<{ backRoute?: ValidRoute }>();
+  const params = useLocalSearchParams<{ backRoute?: string }>();
 
   const handlePress = () => {
-    // 1. First priority: Use backRoute parameter if provided during navigation
+    // If we have a backRoute parameter, always use it first
     if (params.backRoute) {
-      router.replace(params.backRoute as ValidRoute);
+      router.replace(params.backRoute as any);
       return;
     }
 
-    // 2. Second priority: Handle known sub-routes
-    if (pathname.includes('/profile/')) {
-      router.replace('/(tabs)/04-profile' as ValidRoute);
-      return;
-    }
-
-    if (pathname.includes('/01-dashboard/')) {
-      router.replace('/(tabs)/01-dashboard' as ValidRoute);
-      return;
-    }
-
-    // 3. Third priority: Try native back navigation
-    if (navigation.canGoBack()) {
+    // If we can go back and we're not on a tab route, use native back
+    if (navigation.canGoBack() && !pathname.startsWith('/(tabs)')) {
       navigation.goBack();
       return;
     }
 
-    // 4. Fourth priority: Use provided fallback route
+    // If we have a fallback route, use it
     if (fallbackRoute) {
-      router.replace(fallbackRoute as ValidRoute);
+      router.replace(fallbackRoute as any);
       return;
     }
 
-    // 5. Last resort: Default to profile
-    router.replace('/(tabs)/04-profile' as ValidRoute);
+    // Default behavior based on current path
+    if (pathname.includes('/profile/')) {
+      router.replace('/(tabs)/04-profile' as any);
+    } else if (pathname.includes('/01-dashboard/')) {
+      router.replace('/(tabs)/01-dashboard' as any);
+    } else {
+      router.replace('/(tabs)/04-profile' as any);
+    }
   };
 
   return (

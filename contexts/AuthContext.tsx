@@ -19,6 +19,7 @@ interface AuthContextType {
   signInApple: () => Promise<any>;
   signInEmail: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
+  updateUserMetadata?: (updates: Record<string, any>) => Promise<void>;
 }
 
 // Create the context
@@ -77,6 +78,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- THIS IS THE FIX ---
   // We now correctly assign the imported functions to the context value.
+  const updateUserMetadata = async (updates: Record<string, any>) => {
+    // Update local user object shallowly; supabase update handled elsewhere
+    setUser(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        user_metadata: {
+          ...prev.user_metadata,
+          ...updates,
+        },
+      } as User;
+    });
+  };
+
   const value = {
     user,
     session,
@@ -86,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signInApple: signInWithApple,   // Assign the imported function
     signInEmail: signInWithEmail,   // Assign the imported function
     signOut: () => supabase.auth.signOut(),
+    updateUserMetadata,
   };
   // --------------------
 

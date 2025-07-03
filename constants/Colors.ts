@@ -24,6 +24,10 @@ export const Colors = {
     warning: '#FF3B30',
     error: '#FF3B30',
     separator: '#E5E5E5',
+    accent: '#34C759', // iOS system green as accent
+    secondaryAccent: '#E2F5EA', // Light green background for accents
+    // Background similar to iOS secondarySystemGroupedBackground
+    secondarySystemGroupedBackground: '#F2F2F7',
   },
   dark: {
     text: '#fff',
@@ -42,5 +46,8 @@ export const Colors = {
     warning: '#FF453A',
     error: '#FF453A',
     separator: '#2C2C2E',
+    accent: '#30D158',
+    secondaryAccent: '#1E2E1E',
+    secondarySystemGroupedBackground: '#2C2C2E',
   },
 };

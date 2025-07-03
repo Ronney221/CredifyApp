@@ -265,14 +265,16 @@ const ProfileScreen = () => {
   
   const sections: ProfileSection[] = [
     {
-      title: 'Account Settings',
+      title: 'Account',
       data: [
-        { 
-          id: 'manage-cards', 
-          title: 'Manage Cards', 
-          icon: 'card-outline', 
-          subtitle: 'View and update your linked cards',
-          onPress: () => router.push('/(tabs)/profile/manage_cards') 
+        {
+          id: 'manage-cards',
+          title: 'Manage Cards',
+          icon: 'card-outline',
+          onPress: () => router.push({
+            pathname: '/profile/manage_cards',
+            params: { backRoute: '/(tabs)/04-profile' }
+          }),
         },
         { 
           id: 'preferences', 
