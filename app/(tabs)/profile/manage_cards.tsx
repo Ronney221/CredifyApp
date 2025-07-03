@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Card, allCards } from '../../../src/data/card-data';
-import { useRouter, useFocusEffect, useNavigation, Stack } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Colors } from '../../../constants/Colors';
@@ -40,6 +40,7 @@ export default function ManageCardsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user } = useAuth();
+  const params = useLocalSearchParams<{ highlightCardId?: string }>();
   
   const cardManagement = useCardManagement(user?.id);
   
@@ -69,6 +70,7 @@ export default function ManageCardsScreen() {
     formatDate,
     selectedCardObjects,
     handleRemoveCard,
+    handleDoneAddCardModal,
   } = cardManagement;
 
   useEffect(() => {
@@ -76,6 +78,24 @@ export default function ManageCardsScreen() {
       setIsEditMode(false);
     }
   }, [isEditMode, selectedCards.length]);
+
+  useEffect(() => {
+    if (params.highlightCardId && selectedCards.includes(params.highlightCardId)) {
+      setCurrentEditingCardId(params.highlightCardId);
+      setDatePickerVisibility(true);
+      
+      const cardIndex = selectedCardObjects.findIndex(card => card.id === params.highlightCardId);
+      if (cardIndex !== -1 && flatListRef.current) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: cardIndex,
+            animated: true,
+            viewPosition: 0.3
+          });
+        }, 300);
+      }
+    }
+  }, [params.highlightCardId, selectedCards, selectedCardObjects]);
 
   const handleEditModeToggle = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -138,7 +158,10 @@ export default function ManageCardsScreen() {
               // Then save to database
               if (user?.id) {
                 const updatedCards = selectedCardObjects.filter(c => c.id !== cardId);
-                const { error } = await saveUserCards(user.id, updatedCards, renewalDates);
+                // Keep the renewal dates for other cards
+                const updatedRenewalDates = { ...renewalDates };
+                delete updatedRenewalDates[cardId];
+                const { error } = await saveUserCards(user.id, updatedCards, updatedRenewalDates);
                 if (error) {
                   console.error('Error saving cards after removal:', error);
                   Alert.alert("Error", "Failed to save changes. Please try again.");
@@ -185,6 +208,20 @@ export default function ManageCardsScreen() {
 
   const handleConfirmDate = (date: Date) => {
     if (currentEditingCardId) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
+
+      if (selectedDate <= now) {
+        Alert.alert(
+          "Invalid Date",
+          "Please select a future date for the renewal reminder.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
       setRenewalDates((prevDates) => ({
         ...prevDates,
         [currentEditingCardId]: date,
@@ -227,31 +264,11 @@ export default function ManageCardsScreen() {
     setAddCardModalVisible(true);
   }, []);
 
-  const handleDoneAddCardModal = async () => {
+  const handleModalDone = async () => {
     const newCardIds = Array.from(tempSelectedCardIdsInModal);
     if (newCardIds.length > 0) {
-      const updatedSelectedCards = [...selectedCards];
-      newCardIds.forEach(id => {
-        if (!updatedSelectedCards.includes(id)) {
-          updatedSelectedCards.push(id);
-        }
-      });
-      setSelectedCards(updatedSelectedCards);
+      await handleDoneAddCardModal(newCardIds);
       setNewlyAddedCardIdForScroll(newCardIds[0]);
-
-      // Save the changes to the database
-      if (user?.id) {
-        const updatedCards = updatedSelectedCards.map(id => allCards.find(c => c.id === id)).filter(Boolean) as Card[];
-        const { error } = await saveUserCards(user.id, updatedCards, renewalDates);
-        if (error) {
-          console.error('Error saving new cards:', error);
-          Alert.alert(
-            "Error",
-            "Failed to save new cards. Please try again.",
-            [{ text: "OK" }]
-          );
-        }
-      }
     }
     setAddCardModalVisible(false);
     setTempSelectedCardIdsInModal(new Set());
@@ -407,7 +424,7 @@ export default function ManageCardsScreen() {
 
       <AddCardModal
         visible={addCardModalVisible}
-        onClose={handleDoneAddCardModal}
+        onClose={handleModalDone}
         selectedCardIds={selectedCards}
         tempSelectedCardIds={tempSelectedCardIdsInModal}
         searchQuery={modalSearchQuery}
