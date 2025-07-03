@@ -19,11 +19,12 @@ import {
   KeyboardEvent as RNKeyboardEvent,
   LayoutAnimation,
   UIManager,
+  Dimensions,
 } from 'react-native';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { PanGestureHandler } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Toast from 'react-native-root-toast';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +36,9 @@ import Animated, {
   useAnimatedProps,
   Easing,
   runOnJS,
+  Layout,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
 import { CardPerk, APP_SCHEMES, multiChoicePerksConfig } from '../../src/data/card-data';
@@ -225,6 +229,8 @@ const getAppName = (perk: CardPerk): string => {
   return 'App';
 };
 
+const { height: screenHeight } = Dimensions.get('window');
+
 export default function PerkActionModal({
   visible,
   perk,
@@ -246,8 +252,9 @@ export default function PerkActionModal({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // Animated values for slider
-  const translateY = useSharedValue(0);
+  // Animated values
+  const translateY = useSharedValue(screenHeight);
+  const context = useSharedValue({ y: 0 });
   const sliderAnimation = useSharedValue(0);
   const sliderPosition = useSharedValue(0);
 
@@ -355,6 +362,31 @@ export default function PerkActionModal({
     sliderAnimation.value = withSpring(validatedValue);
   }, [perk, partialAmount, sliderAnimation]);
 
+  const handleDismiss = useCallback(() => {
+    translateY.value = withTiming(screenHeight, { duration: 300 }, isFinished => {
+      if (isFinished) {
+        runOnJS(onDismiss)();
+      }
+    });
+  }, [onDismiss, translateY]);
+
+  // Handle gesture for swipe-to-close
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      context.value = { y: translateY.value };
+    })
+    .onUpdate(event => {
+      translateY.value = event.translationY + context.value.y;
+      translateY.value = Math.max(translateY.value, 0); // Prevent swiping up past the top
+    })
+    .onEnd(() => {
+      if (translateY.value > 150) {
+        runOnJS(handleDismiss)();
+      } else {
+        translateY.value = withSpring(0, { damping: 50 });
+      }
+    });
+
   const toggleDescription = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsDescriptionExpanded(prev => !prev);
@@ -388,6 +420,13 @@ export default function PerkActionModal({
     };
   }, []);
 
+  // Animate modal in when it becomes visible
+  useEffect(() => {
+    if (visible) {
+      translateY.value = withSpring(0, { damping: 50 });
+    }
+  }, [visible]);
+
   // Reset state when modal becomes visible or perk changes
   useEffect(() => {
     if (!visible || !perk) return;
@@ -417,11 +456,8 @@ export default function PerkActionModal({
       setSelectedPreset('full');
       setShowCustomAmount(false);
     }
-
-    // Animate modal
-    translateY.value = withTiming(0, { duration: 300 });
     setIsEditingNumber(false);
-  }, [visible, perk, getCurrentRedeemedAmount, sliderAnimation, sliderPosition, translateY]);
+  }, [visible, perk, getCurrentRedeemedAmount, sliderAnimation, sliderPosition]);
 
   useEffect(() => {
     // Log the perk object whenever the modal becomes visible or the perk changes
@@ -586,15 +622,6 @@ export default function PerkActionModal({
     periodMonths = 1,
   } = perk;
 
-  const handleDismiss = () => {
-    // Reset all state
-    setShowCustomAmount(false);
-    setPartialAmount('');
-    setIsEditingNumber(false);
-    setSelectedPreset('full');
-    onDismiss();
-  };
-
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
   const formattedValue = perk.value.toLocaleString('en-US', {
@@ -643,128 +670,130 @@ export default function PerkActionModal({
         style={{ flex: 1, justifyContent: 'flex-end' }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
-        <View style={[styles.container, animatedStyle]}>
-          <View style={styles.handle} />
-          <ScrollView 
-            style={styles.scrollView}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.content}>
-              <View style={styles.titleContainer}>
-                <Text style={styles.title}>{toTitleCase(perk.name)}</Text>
-                <TouchableOpacity
-                  style={styles.infoButton}
-                  onPress={toggleDescription}
-                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                >
-                  <Ionicons
-                    name={isDescriptionExpanded ? 'information-circle' : 'information-circle-outline'}
-                    size={24}
-                    color="#007AFF"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View
-                style={[
-                  styles.descriptionContainer,
-                  {
-                    maxHeight: isDescriptionExpanded ? undefined : 0,
-                    // Remove paddingBottom when collapsed to prevent extra space
-                    paddingBottom: isDescriptionExpanded ? 16 : 0,
-                  },
-                ]}
-              >
-                <Text style={styles.description}>{perk.description}</Text>
-                {perk.redemptionInstructions && (
-                  <>
-                    <Text style={styles.redemptionTitle}>How to Redeem</Text>
-                    <Text style={styles.description}>{perk.redemptionInstructions}</Text>
-                  </>
-                )}
-              </View>
-
-              <View style={styles.valueContainer}>
-                <Text style={styles.remainingValue}>
-                  Remaining: {formattedRemainingValue}
-                </Text>
-                <Text style={styles.maxValue}>
-                  {perk.period === 'monthly' ? 'Monthly' :
-                   perk.period === 'quarterly' ? 'Quarterly' :
-                   perk.period === 'semi_annual' ? 'Semi-annual' :
-                   perk.period === 'annual' ? 'Annual' : 'Monthly'} credit: {formattedValue}{'\n'}
-                  (up to {formatCurrency(calculateYearlyTotal(perk))}/year)
-                </Text>
-              </View>
-              
-              {!isRedeemed && (
-                <>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Log your usage:</Text>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={[styles.container, animatedStyle]}>
+            <View style={styles.handle} />
+            <ScrollView 
+              style={styles.scrollView}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.content}>
+                <Animated.View layout={Layout.springify()}>
+                  <View style={styles.titleContainer}>
+                    <Text style={styles.title}>{toTitleCase(perk.name)}</Text>
+                    <TouchableOpacity
+                      style={styles.infoButton}
+                      onPress={toggleDescription}
+                      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                    >
+                      <Ionicons
+                        name={isDescriptionExpanded ? 'information-circle' : 'information-circle-outline'}
+                        size={24}
+                        color="#007AFF"
+                      />
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={styles.amountSelectorContainer}>
-                    <View style={styles.sliderContainer}>
-                      <Text style={styles.sliderValue}>
-                        {perk?.status === 'partially_redeemed' ? '$0' : '$0'}
-                      </Text>
-                      <View style={styles.sliderWrapper}>
-                        <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
-                        <AnimatedSlider
-                          minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.10}
-                          maximumValue={perk?.value || 0}
-                          minimumTrackTintColor="#007AFF"
-                          maximumTrackTintColor="#E5E5EA"
-                          thumbTintColor="#007AFF"
-                          onValueChange={handleSliderChange}
-                          animatedProps={animatedSliderProps}
-                          step={0.10}
-                          style={styles.slider}
-                        />
+                  <View
+                    style={[
+                      styles.descriptionContainer,
+                      {
+                        maxHeight: isDescriptionExpanded ? undefined : 0,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.description}>{perk.description}</Text>
+                    {perk.redemptionInstructions && (
+                      <>
+                        <Text style={styles.redemptionTitle}>How to Redeem</Text>
+                        <Text style={styles.description}>{perk.redemptionInstructions}</Text>
+                      </>
+                    )}
+                  </View>
+
+                  <View style={styles.valueContainer}>
+                    <Text style={styles.remainingValue}>
+                      Remaining: {formattedRemainingValue}
+                    </Text>
+                    <Text style={styles.maxValue}>
+                      {perk.period === 'monthly' ? 'Monthly' :
+                       perk.period === 'quarterly' ? 'Quarterly' :
+                       perk.period === 'semi_annual' ? 'Semi-annual' :
+                       perk.period === 'annual' ? 'Annual' : 'Monthly'} credit: {formattedValue}{'\n'}
+                      (up to {formatCurrency(calculateYearlyTotal(perk))}/year)
+                    </Text>
+                  </View>
+                  
+                  {!isRedeemed && (
+                    <>
+                      <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Log your usage:</Text>
                       </View>
-                      <Text style={styles.sliderValue}>{formatExactCurrency(perk?.value || 0)}</Text>
-                    </View>
-                  </View>
 
-                  {renderPrimaryButton()}
+                      <View style={styles.amountSelectorContainer}>
+                        <View style={styles.sliderContainer}>
+                          <Text style={styles.sliderValue}>
+                            {perk?.status === 'partially_redeemed' ? '$0' : '$0'}
+                          </Text>
+                          <View style={styles.sliderWrapper}>
+                            <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
+                            <AnimatedSlider
+                              minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.10}
+                              maximumValue={perk?.value || 0}
+                              minimumTrackTintColor="#007AFF"
+                              maximumTrackTintColor="#E5E5EA"
+                              thumbTintColor="#007AFF"
+                              onValueChange={handleSliderChange}
+                              animatedProps={animatedSliderProps}
+                              step={0.10}
+                              style={styles.slider}
+                            />
+                          </View>
+                          <Text style={styles.sliderValue}>{formatExactCurrency(perk?.value || 0)}</Text>
+                        </View>
+                      </View>
 
-                  <TouchableOpacity
-                    style={[styles.button, styles.secondaryButton]}
-                    onPress={handleOpenApp}
-                  >
-                    <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                      Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
+                      {renderPrimaryButton()}
 
-              {isRedeemed && (
-                <>
-                  <TouchableOpacity
-                    style={[styles.button, styles.markAvailableButton]}
-                    onPress={() => {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      handleMarkAvailable();
-                    }}
-                  >
-                    <Text style={styles.buttonText}>Mark as Available</Text>
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.button, styles.secondaryButton]}
+                        onPress={handleOpenApp}
+                      >
+                        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                          Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
 
-                  <TouchableOpacity
-                    style={[styles.button, styles.secondaryButton]}
-                    onPress={handleOpenApp}
-                  >
-                    <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                      Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </ScrollView>
-        </View>
+                  {isRedeemed && (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.button, styles.markAvailableButton]}
+                        onPress={() => {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          handleMarkAvailable();
+                        }}
+                      >
+                        <Text style={styles.buttonText}>Mark as Available</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.button, styles.secondaryButton]}
+                        onPress={handleOpenApp}
+                      >
+                        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                          Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </Animated.View>
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </GestureDetector>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -821,7 +850,6 @@ const styles = StyleSheet.create({
   },
   descriptionContainer: {
     overflow: 'hidden',
-    // paddingBottom is now conditional
   },
   description: {
     fontSize: 15,
