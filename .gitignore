@@ -112,3 +112,4 @@ expo-env.d.ts
 # @end expo-cli
 .env.local
 .cursor/rules/mobile.mdc
+.cursor/rules/my-rule.mdc

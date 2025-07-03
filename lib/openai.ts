@@ -3,20 +3,6 @@ import { getRelevantPerks } from '../utils/perk-matcher';
 import { supabase } from './supabase';
 import { MinifiedCard, MinifiedPerk } from '../utils/perk-matcher';
 
-// --- Make sure you have your minified types defined or imported ---
-interface MinifiedPerk {
-  i: string; // The original perk ID is CRUCIAL for matching
-  n: string;
-  rv: number;
-  s: 'a' | 'p' | 'r';
-  e: string | null;
-  c: string[];
-}
-interface MinifiedCard {
-  cn: string;
-  p: MinifiedPerk[];
-}
-
 interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
@@ -133,7 +119,23 @@ User Context (JSON):
   console.log('[OpenAI] Sending lean user prompt to AI:', user_prompt);
 
   try {
-    const response = await fetch(`${supabaseUrl}/functions/v1/openai`, {
+    const envDebug = {
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      hasAnonKey: !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      buildType: __DEV__ ? 'development' : 'production',
+      // Check if we're using production URLs in development
+      isProductionUrl: process.env.EXPO_PUBLIC_SUPABASE_URL?.includes('ozgnkpadloshnwliaodw')
+    };
+    console.log('[OpenAI] Debug - Environment:', envDebug);
+
+    // If we're using production URLs, always use production endpoint
+    const endpoint = envDebug.isProductionUrl
+      ? `${supabaseUrl}/functions/v1/openai`
+      : 'http://localhost:54321/functions/v1/openai';
+
+    console.log('[OpenAI] Using endpoint:', endpoint);
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -145,14 +147,33 @@ User Context (JSON):
       }),
     });
 
+    // Enhanced error logging
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('[OpenAI] API Error:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      const errorText = await response.text(); // Get raw response text first
+      console.error('[OpenAI] Response not OK:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        rawResponse: errorText,
+        endpoint
+      });
+
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        errorData = { error: errorText };
+      }
+
+      throw new Error(`OpenAI API error: ${errorData.error?.message || errorText || 'Unknown error'}`);
     }
 
     const data = await response.json();
-    console.log('[OpenAI] API Response:', data);
+    console.log('[OpenAI] Successful response:', {
+      status: response.status,
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length
+    });
 
     if (!data.choices || data.choices.length === 0 || !data.choices[0].message?.content) {
       console.error('[OpenAI] Invalid response structure from API:', data);
