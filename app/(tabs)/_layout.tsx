@@ -195,6 +195,24 @@ export default function TabLayout() {
             href: null,
           }}
         />
+        <Tabs.Screen
+          name="profile/reminders/first-of-month"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="profile/reminders/card-renewal"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="profile/reminders/perk-expiry"
+          options={{
+            href: null,
+          }}
+        />
       </Tabs>
     </View>
   );
