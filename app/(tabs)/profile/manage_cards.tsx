@@ -394,9 +394,14 @@ export default function ManageCardsScreen() {
           showsVerticalScrollIndicator={false}
           onLayout={handleScrollViewLayout}
           getItemLayout={getItemLayout}
-          dragItemOverflow={true}
-          dragHitSlop={{ top: 0, bottom: 0, left: 0, right: 0 }}
-          activationDistance={0}
+          dragItemOverflow={false}
+          dragHitSlop={{ top: -10, bottom: -10, left: -10, right: -10 }}
+          activationDistance={8}
+          animationConfig={{
+            damping: 20,
+            mass: 0.2,
+            stiffness: 100,
+          }}
         />
       </SafeAreaView>
 
@@ -444,7 +449,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase' 
   },
   cardContainer: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: 'transparent',
     borderRadius: 10,
     overflow: 'hidden',
     marginBottom: 12,
