@@ -313,20 +313,20 @@ const ProfileScreen = () => {
     {
       title: 'Developer',
       data: [
-        {
-          id: 'test-sentry',
-          title: 'Test Sentry Error',
-          icon: 'bug-outline',
-          onPress: () => {
-            try {
-              Sentry.captureException(new Error('Sentry test error from Profile screen'));
-              Alert.alert('Success', 'Sentry test error captured. Check your Sentry dashboard.');
-            } catch (error) {
-              console.error("Sentry test failed:", error);
-              Alert.alert('Error', 'Failed to capture Sentry error.');
-            }
-          }
-        },
+        // {
+        //   id: 'test-sentry',
+        //   title: 'Test Sentry Error',
+        //   icon: 'bug-outline',
+        //   onPress: () => {
+        //     try {
+        //       Sentry.captureException(new Error('Sentry test error from Profile screen'));
+        //       Alert.alert('Success', 'Sentry test error captured. Check your Sentry dashboard.');
+        //     } catch (error) {
+        //       console.error("Sentry test failed:", error);
+        //       Alert.alert('Error', 'Failed to capture Sentry error.');
+        //     }
+        //   }
+        // },
         { 
           id: 'reset-first-redemption', 
           title: 'Reset First Redemption', 
@@ -339,12 +339,12 @@ const ProfileScreen = () => {
           icon: 'chatbubble-ellipses-outline',
           onPress: handleClearChat
         },
-        {
-          id: 'show-chat-notification',
-          title: 'Test AI Chat Notification',
-          icon: 'notifications-circle-outline',
-          onPress: handleShowChatNotification
-        },
+        // {
+        //   id: 'show-chat-notification',
+        //   title: 'Test AI Chat Notification',
+        //   icon: 'notifications-circle-outline',
+        //   onPress: handleShowChatNotification
+        // },
         {
           id: 'reset-chat-credits',
           title: 'Reset Chat Credits',
@@ -353,13 +353,13 @@ const ProfileScreen = () => {
         },
         {
           id: 'test-inactivity-message',
-          title: 'Test 48-hour Message',
+          title: 'Send Suggested AI Message',
           icon: 'time-outline',
           onPress: handleTestInactivityMessage
         },
         {
           id: 'test-perk-expiry-notifications',
-          title: 'Test Perk Expiry Notifications',
+          title: 'Test All Notifications',
           icon: 'timer-outline',
           onPress: handleTestPerkExpiryNotifications
         },
