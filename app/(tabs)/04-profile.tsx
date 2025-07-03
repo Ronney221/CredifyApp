@@ -239,7 +239,7 @@ const ProfileScreen = () => {
   
   const sections: ProfileSection[] = [
     {
-      title: 'Wallet',
+      title: 'Account Settings',
       data: [
         { 
           id: 'manage-cards', 
@@ -248,14 +248,9 @@ const ProfileScreen = () => {
           subtitle: 'View and update your linked cards',
           onPress: () => router.push('/(tabs)/profile/manage_cards') 
         },
-      ],
-    },
-    {
-      title: 'Notifications',
-      data: [
         { 
           id: 'preferences', 
-          title: 'Preferences', 
+          title: 'Notification Preferences', 
           icon: 'notifications-outline', 
           subtitle: 'Customize your notification settings',
           onPress: () => router.push('/(tabs)/profile/notifications') 
@@ -271,6 +266,13 @@ const ProfileScreen = () => {
           icon: 'help-circle-outline', 
           subtitle: 'Get answers to common questions',
           onPress: () => router.push('/(tabs)/profile/help-faq') 
+        },
+        {
+          id: 'legal',
+          title: 'Legal',
+          icon: 'document-text-outline',
+          subtitle: 'Privacy Policy and Terms of Service',
+          onPress: () => router.push('/(legal)/terms')
         },
         { 
           id: 'sign-out', 
