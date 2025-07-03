@@ -6,6 +6,7 @@ import { Card, allCards, Benefit } from '../src/data/card-data';
 import { getUserCards } from '../lib/database';
 import { NotificationPreferences } from '../types/notification-types';
 import { scheduleNotificationAsync } from './notification-scheduler';
+import { generateDummyInsightsData, CardROI } from '../src/data/dummy-insights';
 
 interface UserCard {
   card_name: string;
@@ -81,7 +82,7 @@ export const scheduleCardRenewalNotifications = async (
         if (notificationDate > new Date() || isTest) {
           const renewalDate = new Date(card.renewal_date);
           const title = generateRenewalTitle(daysBeforeRenewal);
-          const { body, data } = generateRenewalBody(card.card_name, renewalDate, daysBeforeRenewal);
+          const { body, data } = await generateRenewalBody(card.card_name, renewalDate, daysBeforeRenewal);
           tasks.push(scheduleNotificationAsync(title, body, notificationDate, data));
         }
       }
@@ -108,7 +109,7 @@ function generateRenewalTitle(daysBeforeRenewal: number): string {
   }
 }
 
-function generateRenewalBody(cardName: string, renewalDate: Date, daysBeforeRenewal: number): { body: string; data: any } {
+async function generateRenewalBody(cardName: string, renewalDate: Date, daysBeforeRenewal: number): Promise<{ body: string; data: any }> {
   const formattedDate = renewalDate.toLocaleDateString();
   const card = allCards.find(c => c.name === cardName);
   const annualFee = card?.annualFee || 0;
@@ -121,51 +122,67 @@ function generateRenewalBody(cardName: string, renewalDate: Date, daysBeforeRene
     }
   };
 
-  // Calculate time period for ROI
-  const now = new Date();
-  const yearStart = new Date(now.getFullYear(), 0, 1);
-  const yearEnd = new Date(now.getFullYear(), 11, 31);
-  
-  // Get total value redeemed for this card in the current year
-  const totalRedeemed = card?.benefits.reduce((sum, benefit) => {
-    // For simplicity, we'll just use the benefit value
-    // In a real app, you'd want to get actual redemption data from your database
-    return sum + benefit.value;
-  }, 0) || 0;
+  // Get ROI data from the insights data
+  const cardId = card?.id;
+  if (!cardId) {
+    return {
+      body: `Your ${cardName} annual fee ($${annualFee}) is due on ${formattedDate}.`,
+      data: notificationData
+    };
+  }
 
-  // Calculate ROI
-  const roi = annualFee > 0 ? ((totalRedeemed - annualFee) / annualFee * 100).toFixed(0) : 0;
-  const roiText = annualFee > 0 ? 
-    `Based on your current usage, you're getting a ${roi}% return on your annual fee investment.` :
-    'This card has no annual fee.';
-  
+  const insightsData = await generateDummyInsightsData([cardId]);
+  const cardRoi = insightsData.cardRois.find(roi => roi.id === cardId);
+  const totalRedeemed = cardRoi?.totalRedeemed || 0;
+  const roiPercentage = annualFee > 0 ? (totalRedeemed / annualFee) * 100 : 0;
+
+  let message = '';
   switch (daysBeforeRenewal) {
     case 90:
-      return {
-        body: `Your ${cardName} annual fee of $${annualFee} will be charged on ${formattedDate}. ${roiText} Open to review your benefits usage in detail.`,
-        data: notificationData
-      };
+      message = `Your ${cardName} annual fee of $${annualFee} is due in 3 months. `;
+      if (roiPercentage >= 100) {
+        message += `You've already gotten great value - $${totalRedeemed.toFixed(0)} in benefits (${Math.round(roiPercentage)}% ROI)! 🎯`;
+      } else {
+        message += `So far you've redeemed $${totalRedeemed.toFixed(0)} in benefits (${Math.round(roiPercentage)}% ROI). Let's maximize your remaining perks! 💪`;
+      }
+      break;
     case 30:
-      return {
-        body: `${cardName} annual fee of $${annualFee} will be charged in 30 days on ${formattedDate}. You've redeemed $${totalRedeemed} in benefits this year. Open to analyze if keeping the card makes sense.`,
-        data: notificationData
-      };
+      message = `${cardName} annual fee ($${annualFee}) coming up in a month. `;
+      if (roiPercentage >= 100) {
+        message += `Great job getting $${totalRedeemed.toFixed(0)} in value this year (${Math.round(roiPercentage)}% ROI)! 🏆`;
+      } else {
+        message += `You've redeemed $${totalRedeemed.toFixed(0)} so far (${Math.round(roiPercentage)}% ROI). Time to review if this card still fits your needs. 🤔`;
+      }
+      break;
     case 7:
-      return {
-        body: `${cardName} annual fee of $${annualFee} will be charged next week on ${formattedDate}. This year you've gotten $${totalRedeemed} in value from the card. Tap to review and decide.`,
-        data: notificationData
-      };
+      message = `${cardName} annual fee ($${annualFee}) due next week. `;
+      if (roiPercentage >= 100) {
+        message += `With $${totalRedeemed.toFixed(0)} in benefits redeemed (${Math.round(roiPercentage)}% ROI), this card's been a great investment! 🌟`;
+      } else {
+        message += `You've redeemed $${totalRedeemed.toFixed(0)} in benefits (${Math.round(roiPercentage)}% ROI). Consider if the benefits justify the fee. 📊`;
+      }
+      break;
     case 1:
-      return {
-        body: `Important: ${cardName} annual fee of $${annualFee} will be charged tomorrow on ${formattedDate}. Final chance to review your $${totalRedeemed} in benefits and make a keep/cancel decision.`,
-        data: notificationData
-      };
+      message = `${cardName} annual fee ($${annualFee}) due tomorrow! `;
+      if (roiPercentage >= 100) {
+        message += `You've maximized this card with $${totalRedeemed.toFixed(0)} in value (${Math.round(roiPercentage)}% ROI)! 🎉`;
+      } else {
+        message += `This year's value: $${totalRedeemed.toFixed(0)} (${Math.round(roiPercentage)}% ROI). Time to decide if you want to keep, downgrade, or cancel. ⚖️`;
+      }
+      break;
     default:
-      return {
-        body: `${cardName} annual fee of $${annualFee} will be charged in ${daysBeforeRenewal} days on ${formattedDate}. You've redeemed $${totalRedeemed} in benefits this year. Open to analyze if keeping the card makes sense.`,
-        data: notificationData
-      };
+      message = `${cardName} annual fee ($${annualFee}) is due on ${formattedDate}. `;
+      if (roiPercentage >= 100) {
+        message += `You've gotten $${totalRedeemed.toFixed(0)} in value this year! 🎯`;
+      } else {
+        message += `You've redeemed $${totalRedeemed.toFixed(0)} in benefits so far. 📈`;
+      }
   }
+
+  return {
+    body: message,
+    data: notificationData
+  };
 }
 
 export const scheduleFirstOfMonthReminder = async (

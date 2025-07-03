@@ -142,7 +142,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="01-dashboard"
           options={{
-            title: 'Dashboard',
+            title: 'Home',
             headerShown: false,
             tabBarIcon: ({ color, size, focused }) => (
               <AnimatedTabIcon name="card-outline" color={color} size={size} focused={focused} />
@@ -153,7 +153,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="03-insights"
           options={{
-            title: 'Your Journey',
+            title: 'Insights',
             headerShown: false,
             tabBarIcon: ({ color, size, focused }) => (
               <AnimatedTabIcon name="rocket-outline" color={color} size={size} focused={focused} />
