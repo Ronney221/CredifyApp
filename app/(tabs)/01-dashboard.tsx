@@ -53,7 +53,6 @@ import OnboardingSheetContent from '../(onboarding)/welcome';
 import UserCardItem from '../../components/home/UserCardItem';
 import SwipeCoachMark from '../../components/home/SwipeCoachMark';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
-import type { ErrorBoundaryProps } from 'expo-router';
 
 // Import notification functions
 import {
@@ -233,18 +232,6 @@ const defaultNotificationPreferences: NotificationPreferences = {
 
 // Add constant for tab bar offset
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
-
-export function ErrorBoundary(props: ErrorBoundaryProps) {
-  return (
-    <View style={styles.errorContainer}>
-      <Text style={styles.errorTitle}>Dashboard Error</Text>
-      <Text style={styles.errorMessage}>{props.error.message}</Text>
-      <Pressable style={styles.retryButton} onPress={props.retry}>
-        <Text style={styles.retryText}>Try Again</Text>
-      </Pressable>
-    </View>
-  );
-}
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();

@@ -15,9 +15,9 @@ if (!supabaseUrl || !supabaseKey) {
 
 const isWeb = Platform.OS === 'web';
 
-const supabaseOptions = {
+const supabaseOptions: SupabaseClientOptions<'public'> = {
   auth: {
-    storage: isWeb ? localStorage : AsyncStorage,
+    storage: isWeb && typeof window !== 'undefined' ? localStorage : AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: isWeb, // Only true for web
