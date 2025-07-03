@@ -1138,6 +1138,20 @@ export default function Dashboard() {
     handleOpenAiChat
   ]);
 
+  // Create the ListFooterElement using useMemo for stability
+  const listFooterElement = useMemo(() => (
+    <View style={styles.manageCardsContainer}>
+      <TouchableOpacity
+        style={styles.manageCardsFooter}
+        onPress={() => router.push("/(tabs)/profile/manage_cards")}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.manageCardsText}>Manage & Reorder Cards</Text>
+        <Ionicons name="chevron-forward" size={16} color={Colors.light.tint} />
+      </TouchableOpacity>
+    </View>
+  ), [router]);
+
   // Only show full-screen loader on the very first load of user cards.
   // Subsequent refreshes (isUserCardsRefreshing) or savings calculations (isCalculatingSavings)
   // will happen in the background without a full-screen loader.
@@ -1286,6 +1300,7 @@ export default function Dashboard() {
             renderItem={renderExpandableCardItem}
             keyExtractor={(item) => item.card.id}
             ListHeaderComponent={listHeaderElement}
+            ListFooterComponent={listFooterElement}
             contentContainerStyle={[
               styles.flatListContent,
               { paddingTop: scrollViewPaddingTop }
@@ -1602,6 +1617,25 @@ const styles = StyleSheet.create({
   loadingAnimation: {
     width: 300,
     height: 300,
-    marginBottom: -40, // Adjust spacing between animation and text
+    marginBottom: -40,
   },
-}); 
+  manageCardsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  manageCardsFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
+  },
+  manageCardsText: {
+    fontSize: 16,
+    color: Colors.light.tint,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+} as const); 
