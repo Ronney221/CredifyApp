@@ -13,6 +13,10 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
 import { RootSiblingParent } from 'react-native-root-siblings';
+import { setupNotificationHandler } from '../utils/notification-handler';
+
+// Initialize notification handler
+setupNotificationHandler();
 
 Sentry.init({
   dsn: 'https://3db3be6e5d65a5d41c649684dad25607@o4509597568204800.ingest.us.sentry.io/4509597574103040',

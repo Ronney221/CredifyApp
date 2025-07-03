@@ -26,6 +26,7 @@ export const scheduleNotificationAsync = async (
   title: string,
   body: string,
   date: Date,
+  data?: Record<string, any>
 ): Promise<string | null> => {
   try {
     // Check if we have permission first
@@ -60,7 +61,11 @@ export const scheduleNotificationAsync = async (
     }
 
     return await Notifications.scheduleNotificationAsync({
-      content: { title, body },
+      content: { 
+        title, 
+        body,
+        data: data || {} 
+      },
       trigger,
     });
   } catch (error) {

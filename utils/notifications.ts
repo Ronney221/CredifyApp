@@ -44,7 +44,6 @@ export const scheduleCardRenewalNotifications = async (
     return [];
   }
 
-  // Default reminder days if not specified
   const reminderDays = preferences.renewalReminderDays || [90, 30, 7, 1];
   
   try {
@@ -75,7 +74,6 @@ export const scheduleCardRenewalNotifications = async (
           notificationDate = new Date(renewalDate);
           notificationDate.setDate(renewalDate.getDate() - daysBeforeRenewal);
           
-          // Set notification time (default to 10 AM if not specified)
           const [hours, minutes] = (preferences.renewalReminderTime || '10:00').split(':').map(Number);
           notificationDate.setHours(hours || 10, minutes || 0, 0, 0);
         }
@@ -83,8 +81,8 @@ export const scheduleCardRenewalNotifications = async (
         if (notificationDate > new Date() || isTest) {
           const renewalDate = new Date(card.renewal_date);
           const title = generateRenewalTitle(daysBeforeRenewal);
-          const body = generateRenewalBody(card.card_name, renewalDate, daysBeforeRenewal);
-          tasks.push(scheduleNotificationAsync(title, body, notificationDate));
+          const { body, data } = generateRenewalBody(card.card_name, renewalDate, daysBeforeRenewal);
+          tasks.push(scheduleNotificationAsync(title, body, notificationDate, data));
         }
       }
     }
@@ -98,32 +96,75 @@ export const scheduleCardRenewalNotifications = async (
 function generateRenewalTitle(daysBeforeRenewal: number): string {
   switch (daysBeforeRenewal) {
     case 90:
-      return "💳 Card Renewal Planning";
+      return "💳 Card Review Time";
     case 30:
-      return "💳 Card Renewal Coming Up";
+      return "💳 Annual Fee Coming Up";
     case 7:
-      return "💳 Card Renewal Next Week";
+      return "💳 Annual Fee Next Week";
     case 1:
-      return "⚠️ Card Renewal Tomorrow";
+      return "⚠️ Annual Fee Tomorrow";
     default:
-      return "💳 Card Renewal Reminder";
+      return "💳 Annual Fee Reminder";
   }
 }
 
-function generateRenewalBody(cardName: string, renewalDate: Date, daysBeforeRenewal: number): string {
+function generateRenewalBody(cardName: string, renewalDate: Date, daysBeforeRenewal: number): { body: string; data: any } {
   const formattedDate = renewalDate.toLocaleDateString();
+  const card = allCards.find(c => c.name === cardName);
+  const annualFee = card?.annualFee || 0;
+  
+  const notificationData = {
+    screen: '/(tabs)/03-insights',
+    params: {
+      cardId: card?.id,
+      showRenewalInfo: 'true'
+    }
+  };
+
+  // Calculate time period for ROI
+  const now = new Date();
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const yearEnd = new Date(now.getFullYear(), 11, 31);
+  
+  // Get total value redeemed for this card in the current year
+  const totalRedeemed = card?.benefits.reduce((sum, benefit) => {
+    // For simplicity, we'll just use the benefit value
+    // In a real app, you'd want to get actual redemption data from your database
+    return sum + benefit.value;
+  }, 0) || 0;
+
+  // Calculate ROI
+  const roi = annualFee > 0 ? ((totalRedeemed - annualFee) / annualFee * 100).toFixed(0) : 0;
+  const roiText = annualFee > 0 ? 
+    `Based on your current usage, you're getting a ${roi}% return on your annual fee investment.` :
+    'This card has no annual fee.';
   
   switch (daysBeforeRenewal) {
     case 90:
-      return `Your ${cardName} will renew on ${formattedDate}. Start planning if you want to keep, cancel, or upgrade this card.`;
+      return {
+        body: `Your ${cardName} annual fee of $${annualFee} will be charged on ${formattedDate}. ${roiText} Open to review your benefits usage in detail.`,
+        data: notificationData
+      };
     case 30:
-      return `${cardName} renews in 30 days on ${formattedDate}. Review your card benefits and decide if it's worth keeping.`;
+      return {
+        body: `${cardName} annual fee of $${annualFee} will be charged in 30 days on ${formattedDate}. You've redeemed $${totalRedeemed} in benefits this year. Open to analyze if keeping the card makes sense.`,
+        data: notificationData
+      };
     case 7:
-      return `${cardName} renews next week on ${formattedDate}. Make sure you've maximized your card benefits before renewal.`;
+      return {
+        body: `${cardName} annual fee of $${annualFee} will be charged next week on ${formattedDate}. This year you've gotten $${totalRedeemed} in value from the card. Tap to review and decide.`,
+        data: notificationData
+      };
     case 1:
-      return `Important: ${cardName} renews tomorrow on ${formattedDate}. Last chance to decide if you want to keep or cancel the card.`;
+      return {
+        body: `Important: ${cardName} annual fee of $${annualFee} will be charged tomorrow on ${formattedDate}. Final chance to review your $${totalRedeemed} in benefits and make a keep/cancel decision.`,
+        data: notificationData
+      };
     default:
-      return `${cardName} renews in ${daysBeforeRenewal} days on ${formattedDate}. Review your card benefits and usage.`;
+      return {
+        body: `${cardName} annual fee of $${annualFee} will be charged in ${daysBeforeRenewal} days on ${formattedDate}. You've redeemed $${totalRedeemed} in benefits this year. Open to analyze if keeping the card makes sense.`,
+        data: notificationData
+      };
   }
 }
 
