@@ -207,6 +207,9 @@ export default function Dashboard() {
   const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showPerkActionModal, setShowPerkActionModal] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const maxRetries = 5; // Maximum number of retry attempts
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Move all useEffects to the top level, right after state declarations
   useEffect(() => {
@@ -986,7 +989,27 @@ export default function Dashboard() {
   // will happen in the background without a full-screen loader.
   const coachMarkTopOffset = COLLAPSED_HEADER_CONTENT_HEIGHT + 250; // Position below the collapsed header and card header
 
-  if (isUserCardsInitialLoading) { // Check only the initial loading state from useUserCards
+  // Add useEffect for automatic retry
+  useEffect(() => {
+    let timeoutId: number;
+    
+    if (userCardsWithPerks.length === 0 && !isUserCardsInitialLoading && retryAttempt < maxRetries) {
+      const retryDelay = Math.min(1000 * Math.pow(2, retryAttempt), 10000); // Exponential backoff, max 10 seconds
+      
+      timeoutId = window.setTimeout(() => {
+        refreshUserCards();
+        setRetryAttempt(prev => prev + 1);
+      }, retryDelay);
+
+      return () => {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+      };
+    }
+  }, [userCardsWithPerks.length, isUserCardsInitialLoading, retryAttempt, refreshUserCards]);
+
+  if (isUserCardsInitialLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
@@ -1001,7 +1024,16 @@ export default function Dashboard() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>Error loading cards. Please try again.</Text>
+          <Text style={styles.errorText}>No cards found</Text>
+          <Text style={styles.errorSubText}>
+            Get started by adding your first credit card to track rewards.
+          </Text>
+          <TouchableOpacity
+            style={styles.errorAddCardButton}
+            onPress={() => router.push("/(tabs)/profile/manage_cards")}
+          >
+            <Text style={styles.addCardButtonText}>Add Cards</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -1241,12 +1273,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1c1c1e',
   },
-  addCardButton: {
+  headerAddCardButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 8,
   },
-  addCardText: {
+  headerAddCardText: {
     color: '#007aff',
     marginLeft: 4,
     fontSize: 15,
@@ -1302,9 +1334,46 @@ const styles = StyleSheet.create({
     color: '#8e8e93',
   },
   errorText: {
-    fontSize: 16,
-    color: '#ff3b30',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1c1c1e',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  errorSubText: {
+    fontSize: 16,
+    color: Colors.light.secondaryLabel,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 32,
+  },
+  errorButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  retryButton: {
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorAddCardButton: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+  },
+  addCardButtonText: {
+    color: Colors.light.tint,
+    fontSize: 16,
+    fontWeight: '600',
   },
   lottieCelebration: {
     position: 'absolute',
