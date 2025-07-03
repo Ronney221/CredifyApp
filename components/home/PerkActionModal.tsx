@@ -13,8 +13,10 @@ import {
   ScrollView,
   Keyboard,
   InputAccessoryView,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { PanGestureHandler } from 'react-native-gesture-handler';
@@ -220,18 +222,90 @@ export default function PerkActionModal({
   onOpenApp,
   onMarkRedeemed,
   onMarkAvailable,
-  setPendingToast,
 }: PerkActionModalProps) {
   // State hooks
+  const [selectedPreset, setSelectedPreset] = useState<AmountOption>('full');
   const [sliderValue, setSliderValue] = useState(0);
-  const [partialAmount, setPartialAmount] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState<AmountOption | null>(null);
   const [showCustomAmount, setShowCustomAmount] = useState(false);
+  const [partialAmount, setPartialAmount] = useState('');
   const [isEditingNumber, setIsEditingNumber] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [showDescription, setShowDescription] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Memoized values - must be before any conditional returns
+  const yearlyTotal = useMemo(() => calculateYearlyTotal(perk), [perk]);
+  const maxValue = useMemo(() => perk?.value || 0, [perk]);
+  const appName = useMemo(() => perk ? getAppName(perk) : '', [perk]);
+
+  // Keyboard event handlers
+  useEffect(() => {
+    const keyboardWillShow = (e: KeyboardEvent) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setIsKeyboardVisible(true);
+    };
+
+    const keyboardWillHide = () => {
+      setKeyboardHeight(0);
+      setIsKeyboardVisible(false);
+    };
+
+    const showSubscription = Keyboard.addListener('keyboardWillShow', keyboardWillShow);
+    const hideSubscription = Keyboard.addListener('keyboardWillHide', keyboardWillHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  if (!perk || !visible) return null;
+
+  const handleOpenApp = async () => {
+    if (!perk || !perk.name) return;
+
+    // Close modal first
+    handleDismiss();
+
+    try {
+      // Always attempt to open the app target
+      await onOpenApp();
+      if (Platform.OS === 'ios') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    } catch (openErrorOrDbError) {
+      console.error('Error opening app:', openErrorOrDbError);
+      Alert.alert('Error', 'Failed to open the app.');
+    }
+  };
+
+  const handleMarkRedeemed = () => {
+    handleDismiss();
+    onMarkRedeemed();
+  };
+
+  const handleMarkAvailable = () => {
+    handleDismiss();
+    onMarkAvailable();
+  };
+
+  const handleConfirmAction = () => {
+    Keyboard.dismiss();
+    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
+    if (isNaN(amount)) {
+      Alert.alert('Invalid Amount', 'Please enter a valid number.');
+      return;
+    }
+    
+    handleDismiss();
+    if (amount === 0 && perk?.status === 'partially_redeemed') {
+      onMarkAvailable();
+    } else {
+      onMarkRedeemed(amount);
+    }
+  };
 
   // Safe access to redemption data
   const redemptionData = useMemo(() => {
@@ -267,12 +341,6 @@ export default function PerkActionModal({
     };
   });
 
-  const overlayStyle = useAnimatedStyle(() => {
-    return {
-      opacity: 1
-    };
-  });
-
   // Get the currently redeemed amount if partially redeemed
   const getCurrentRedeemedAmount = useCallback(() => {
     if (!perk) return 0;
@@ -281,30 +349,6 @@ export default function PerkActionModal({
     }
     return 0;
   }, [perk]);
-
-  // Keyboard event handlers
-  useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-        setIsKeyboardVisible(true);
-      }
-    );
-
-    const keyboardWillHide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
-        setIsKeyboardVisible(false);
-      }
-    );
-
-    return () => {
-      keyboardWillShow.remove();
-      keyboardWillHide.remove();
-    };
-  }, []);
 
   // Reset state when modal becomes visible or perk changes
   useEffect(() => {
@@ -432,11 +476,6 @@ export default function PerkActionModal({
     };
   });
 
-  // Early return if no perk or not visible
-  if (!visible || !perk) {
-    return null;
-  }
-
   // Safely access perk properties with defaults
   const {
     name = '',
@@ -460,130 +499,6 @@ export default function PerkActionModal({
     }, 200);
   };
 
-  const handleOpenApp = async () => {
-    if (!perk || !perk.name) return;
-
-    // Close modal first
-    handleDismiss();
-
-    try {
-      // Always attempt to open the app target
-      await onOpenApp();
-      if (Platform.OS === 'ios') {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-
-      // Store the perk status before opening the app
-      const isPartiallyRedeemed = perk.status === 'partially_redeemed';
-
-      // Set the pending toast to be shown when user returns to app
-      setPendingToast({
-        message: `Did you use ${perk.name}?`,
-        onUndo: () => {
-          // Show confirmation dialog when they return
-          Alert.alert(
-            'Confirm Usage',
-            isPartiallyRedeemed
-              ? `Did you use more of your ${perk.name} credit?`
-              : `Did you use your ${perk.name} credit?`,
-            [
-              {
-                text: 'No',
-                style: 'cancel'
-              },
-              {
-                text: 'Yes',
-                onPress: () => {
-                  // For partially redeemed perks, show the modal again to select amount
-                  if (isPartiallyRedeemed) {
-                    setSelectedPreset('custom');
-                    setShowCustomAmount(true);
-                    setModalVisible(true);
-                  } else {
-                    // For regular perks, mark as fully redeemed
-                    onMarkRedeemed();
-                    setPendingToast({
-                      message: `${perk.name} marked as redeemed`,
-                      onUndo: () => onMarkAvailable()
-                    });
-                  }
-                }
-              }
-            ]
-          );
-        }
-      });
-    } catch (openErrorOrDbError) {
-      console.error('Error in perk action flow:', openErrorOrDbError);
-      handleDismiss();
-      Alert.alert('Operation Failed', 'An error occurred while processing the perk. Please check its status.');
-    }
-  };
-
-  const handleMarkRedeemed = () => {
-    handleDismiss();
-    const previousStatus = perk?.status;
-    const previousValue = perk?.remaining_value;
-    const isPartiallyRedeemed = previousStatus === 'partially_redeemed';
-
-    onMarkRedeemed();
-    setPendingToast({
-      message: `${perk?.name} marked as redeemed`,
-      onUndo: () => {
-        if (isPartiallyRedeemed && previousValue !== undefined) {
-          // Restore partial redemption state with the correct amount
-          onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
-        } else {
-          onMarkAvailable();
-        }
-      }
-    });
-  };
-
-  const handleMarkAvailable = () => {
-    handleDismiss();
-    const previousStatus = perk?.status;
-    const previousValue = perk?.remaining_value;
-    onMarkAvailable();
-    setPendingToast({
-      message: `${perk?.name} marked as available`,
-      onUndo: () => {
-        if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
-          // Restore partial redemption
-          onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
-        } else if (previousStatus === 'redeemed') {
-          onMarkRedeemed();
-        }
-      }
-    });
-  };
-
-  const handleConfirmAction = () => {
-    Keyboard.dismiss();
-    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
-    if (isNaN(amount)) {
-      Alert.alert('Invalid Amount', 'Please enter a valid number.');
-      return;
-    }
-    
-    handleDismiss();
-    if (amount === 0 && perk?.status === 'partially_redeemed') {
-      onMarkAvailable();
-      setPendingToast({
-        message: `${perk?.name} marked as available`,
-        onUndo: () => onMarkRedeemed(perk?.value)
-      });
-    } else {
-      onMarkRedeemed(amount);
-      setPendingToast({
-        message: amount === perk?.value 
-          ? `${perk?.name} fully logged` 
-          : `${perk?.name} partially logged: ${formatCurrency(amount)}`,
-        onUndo: () => onMarkAvailable()
-      });
-    }
-  };
-
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
   const formattedValue = perk.value.toLocaleString('en-US', {
@@ -596,30 +511,28 @@ export default function PerkActionModal({
     currency: 'USD',
   }) : formattedValue;
 
-  const appName = getAppName(perk);
-
   return (
     <Modal
-      transparent
       visible={visible}
-      onRequestClose={() => {
-        Keyboard.dismiss();
-        handleDismiss();
-      }}
-      animationType="none"
+      transparent
+      animationType="fade"
+      onRequestClose={handleDismiss}
     >
-      <Animated.View style={[styles.overlay, overlayStyle]}>
-        <Pressable style={styles.overlayPress} onPress={() => {
-          Keyboard.dismiss();
-          handleDismiss();
-        }} />
-      </Animated.View>
+      <View style={styles.overlay}>
+        <Pressable 
+          style={styles.overlayPress} 
+          onPress={() => {
+            Keyboard.dismiss();
+            handleDismiss();
+          }} 
+        />
+      </View>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, justifyContent: 'flex-end' }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
-        <Animated.View style={[styles.container, animatedStyle]}>
+        <View style={[styles.container, animatedStyle]}>
           <View style={styles.handle} />
           <ScrollView 
             style={styles.scrollView}
@@ -744,7 +657,7 @@ export default function PerkActionModal({
               )}
             </View>
           </ScrollView>
-        </Animated.View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );

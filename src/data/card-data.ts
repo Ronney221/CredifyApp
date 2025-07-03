@@ -632,7 +632,7 @@ export const allCards: Card[] = [
     benefits: [
       {
         id: 'amex_gold_uber',
-        name: 'Uber Cash Credit',
+        name: 'Uber Cash',
         value: 10,
         period: 'monthly',
         periodMonths: 1,

@@ -719,6 +719,16 @@ export default function Dashboard() {
       ? { ...selectedPerk, name: targetPerkName }
       : selectedPerk;
 
+    // Store perk info for when user returns
+    const perkInfo = {
+      perkId: selectedPerk.id,
+      cardId: selectedCardId,
+      status: selectedPerk.status,
+      name: selectedPerk.name,
+      value: selectedPerk.value,
+      remaining_value: selectedPerk.remaining_value
+    };
+
     // Close modal first
     handleModalDismiss();
 
@@ -729,73 +739,106 @@ export default function Dashboard() {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      // Only track redemption if the perk is currently available
-      if (selectedPerk.status === 'available') {
-        const originalStatus = selectedPerk.status; 
+      // Only track redemption if the perk is currently available or partially redeemed
+      if (selectedPerk.status === 'available' || selectedPerk.status === 'partially_redeemed') {
+        console.log('Setting up AppState listener for perk:', perkInfo.name);
+        
+        let hasShownAlert = false;
+        let wasInBackground = false;
 
-        // Optimistic update for redemption
-        setPerkStatus(selectedCardId, selectedPerk.id, 'redeemed');
-          
-        // Background database operation
-        const { error } = await trackPerkRedemption(user.id, selectedCardId, selectedPerk, selectedPerk.value);
-          
-        if (error) {
-          console.error('Error tracking redemption in DB:', error);
-          // Revert optimistic update on error
-          setPerkStatus(selectedCardId, selectedPerk.id, originalStatus);
-          handlePerkStatusChange();
-            
-          if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
-            Alert.alert('Already Redeemed', 'This perk was already marked as redeemed.');
-          } else {
-            Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
+        // Set up a one-time AppState change listener
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+          console.log('AppState changed:', { 
+            current: appState.current, 
+            next: nextAppState,
+            perkName: perkInfo.name,
+            hasShownAlert,
+            wasInBackground 
+          });
+
+          // Track when app goes to background
+          if (nextAppState === 'background') {
+            wasInBackground = true;
+            return;
           }
-          return;
-        }
 
-        // DB operation successful
-        handlePerkStatusChange();
-          
-        // Defer the toast until the user returns to the app
-        setPendingToast({
-          message: `${selectedPerk.name} marked as redeemed`,
-          onUndo: async () => {
-            setPerkStatus(selectedCardId, selectedPerk.id, 'available');
-            try {
-              const { error: undoError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
-              if (undoError) {
-                console.error('Error undoing redemption in DB:', undoError);
-                setPerkStatus(selectedCardId, selectedPerk.id, 'redeemed'); 
-                handlePerkStatusChange(); 
-                showToast('Error undoing redemption');
-              } else {
-                handlePerkStatusChange();
-                showToast(`${selectedPerk.name} redemption undone.`);
-              }
-            } catch (undoCatchError) {
-              console.error('Unexpected error during undo redemption:', undoCatchError);
-              setPerkStatus(selectedCardId, selectedPerk.id, 'redeemed'); 
-              handlePerkStatusChange(); 
-              showToast('Error undoing redemption');
-            }
-          },
-        });
+          // Show alert when coming back to active state
+          if (nextAppState === 'active' && wasInBackground && !hasShownAlert) {
+            console.log('Showing confirmation for:', perkInfo.name);
+            hasShownAlert = true;
+            
+            // Remove the listener since we only want to handle the first return to the app
+            subscription.remove();
 
-        // Check if this is the first perk redemption
-        if (!hasRedeemedFirstPerk) {
-          await markFirstPerkRedeemed();
-          setShowOnboardingSheet(true);
-          setShowAiChatNotification(true); // Show dot immediately
-          await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true'); // Persist for next load
-        }
-      } else if (selectedPerk.status === 'redeemed') {
-        // Perk is already redeemed, we just opened the app.
+            // Show confirmation dialog
+            Alert.alert(
+              'Confirm Usage',
+              perkInfo.status === 'partially_redeemed'
+                ? `Did you use more of your ${perkInfo.name} credit?`
+                : `Did you use your ${perkInfo.name} credit?`,
+              [
+                {
+                  text: 'No',
+                  style: 'cancel'
+                },
+                {
+                  text: 'Yes',
+                  onPress: async () => {
+                    console.log('User confirmed usage for:', perkInfo.name);
+                    
+                    // For partially redeemed perks, show the modal again to select amount
+                    if (perkInfo.status === 'partially_redeemed') {
+                      setSelectedPerk({ ...selectedPerk, id: perkInfo.perkId });
+                      setSelectedCardId(perkInfo.cardId);
+                      setModalVisible(true);
+                    } else {
+                      // For regular perks, mark as fully redeemed
+                      console.log('Marking perk as redeemed:', perkInfo.name);
+                      
+                      // Optimistic update for redemption
+                      setPerkStatus(perkInfo.cardId, perkInfo.perkId, 'redeemed');
+                        
+                      // Background database operation
+                      const { error } = await trackPerkRedemption(user.id, perkInfo.cardId, selectedPerk, perkInfo.value);
+                        
+                      if (error) {
+                        console.error('Error tracking redemption in DB:', error);
+                        // Revert optimistic update on error
+                        setPerkStatus(perkInfo.cardId, perkInfo.perkId, perkInfo.status);
+                        handlePerkStatusChange();
+                          
+                        if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
+                          Alert.alert('Already Redeemed', 'This perk was already marked as redeemed.');
+                        } else {
+                          Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
+                        }
+                        return;
+                      }
+
+                      // DB operation successful
+                      handlePerkStatusChange();
+
+                      // Check if this is the first perk redemption
+                      if (!hasRedeemedFirstPerk) {
+                        await markFirstPerkRedeemed();
+                        setShowOnboardingSheet(true);
+                        setShowAiChatNotification(true);
+                        await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
+                      }
+                    }
+                  }
+                }
+              ]
+            );
+          }
+          appState.current = nextAppState;
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
       }
     } catch (openErrorOrDbError) {
       console.error('Error in perk action flow:', openErrorOrDbError);
-      // If an error occurs, ensure the modal is dismissed if it wasn't already.
-      handleModalDismiss(); 
-
+      handleModalDismiss();
       Alert.alert('Operation Failed', 'An error occurred while processing the perk. Please check its status.');
     }
   };
@@ -1264,12 +1307,12 @@ export default function Dashboard() {
           onDismiss={() => setShowOnboardingSheet(false)}
         />
 
-        {/* ADD THIS LOADING OVERLAY */}
-        {/* {isUpdatingPerk && (
+        {/* Loading overlay */}
+        {isUpdatingPerk && (
           <View style={styles.updatingOverlay}>
             <ActivityIndicator size="large" color="#FFFFFF" />
           </View>
-        )} */}
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1504,11 +1547,15 @@ const styles = StyleSheet.create({
     paddingBottom: TAB_BAR_OFFSET,
   },
   updatingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 2000, // Make sure it's on top of everything
+    zIndex: 2000,
   },
   loadingAnimation: {
     width: 300,
