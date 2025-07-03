@@ -654,6 +654,7 @@ const ExpandableCardComponent = ({
 
   const availablePerks = sortPerks(validPerks.filter(p => p.status === 'available' || p.status === 'partially_redeemed'));
   const redeemedPerks = validPerks.filter(p => p.status === 'redeemed');
+  const allPerksRedeemed = availablePerks.length === 0 && redeemedPerks.length > 0;
 
   return (
     <>
@@ -687,35 +688,52 @@ const ExpandableCardComponent = ({
                   {availablePerks.map(p => renderPerkRow(p, true))}
                 </>
               )}
-              {(() => {
-                if (redeemedPerks.length === 0) return null;
-
-                return (
-                  <>
-                    <TouchableOpacity
-                      style={styles.sectionHeader}
-                      onPress={handleRedeemedExpand}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.sectionLabel}>Redeemed ({redeemedPerks.length})</Text>
-                      <Ionicons
-                        name={isRedeemedExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={20}
-                        color="#666"
-                      />
-                    </TouchableOpacity>
-                    {isRedeemedExpanded && (
-                      <Reanimated.View
-                        layout={Layout.springify()}
-                        entering={FadeIn.duration(200)}
-                        exiting={FadeOut.duration(200)}
-                      >
+              {redeemedPerks.length > 0 && (
+                <>
+                  {allPerksRedeemed && (
+                    <View style={styles.allRedeemedInfo}>
+                      <Ionicons name="information-circle-outline" size={20} color="#666" />
+                      <Text style={styles.allRedeemedText}>
+                        You&apos;ve redeemed all available perks for this card.
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.redeemedSection}>
+                    {allPerksRedeemed ? (
+                      // When all perks are redeemed, show without accordion
+                      <>
+                        <Text style={styles.sectionLabel}>Redeemed ({redeemedPerks.length})</Text>
                         {redeemedPerks.map(p => renderPerkRow(p, false))}
-                      </Reanimated.View>
+                      </>
+                    ) : (
+                      // When there are both available and redeemed perks, keep the accordion
+                      <>
+                        <TouchableOpacity
+                          style={styles.sectionHeader}
+                          onPress={handleRedeemedExpand}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.sectionLabel}>Redeemed ({redeemedPerks.length})</Text>
+                          <Ionicons
+                            name={isRedeemedExpanded ? 'chevron-up' : 'chevron-down'}
+                            size={20}
+                            color="#666"
+                          />
+                        </TouchableOpacity>
+                        {isRedeemedExpanded && (
+                          <Reanimated.View
+                            layout={Layout.springify()}
+                            entering={FadeIn.duration(200)}
+                            exiting={FadeOut.duration(200)}
+                          >
+                            {redeemedPerks.map(p => renderPerkRow(p, false))}
+                          </Reanimated.View>
+                        )}
+                      </>
                     )}
-                  </>
-                );
-              })()}
+                  </View>
+                </>
+              )}
             </View>
           </Reanimated.View>
         )}
@@ -998,5 +1016,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     marginLeft: 6,
+  },
+  allRedeemedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  allRedeemedText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+    flex: 1,
+  },
+  redeemedSection: {
+    marginTop: 8,
   },
 }); 
