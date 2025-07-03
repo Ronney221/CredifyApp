@@ -29,6 +29,51 @@ import CardHeader from './expandable-card/CardHeader';
 import OnboardingSheet from './OnboardingSheet';
 import { useOnboardingContext } from '../../app/(onboarding)/_context/OnboardingContext';
 
+// Add showToast function
+const showToast = (message: string, onUndo?: () => void) => {
+  const toastMessage = onUndo ? `${message}\nTap to undo` : message;
+  const toast = Toast.show(toastMessage, {
+    duration: onUndo ? 4000 : 2000,
+    position: Toast.positions.BOTTOM,
+    shadow: true,
+    animation: true,
+    hideOnPress: true,
+    delay: 0,
+    opacity: 1,
+    containerStyle: { 
+      borderRadius: 12, 
+      paddingHorizontal: 16, 
+      paddingVertical: 12, 
+      marginBottom: Platform.OS === 'ios' ? 64 : 48, 
+      backgroundColor: '#1c1c1e',
+      width: '90%',
+      maxWidth: 400,
+      alignSelf: 'center',
+    },
+    textStyle: { 
+      fontSize: 14, 
+      fontWeight: '500', 
+      textAlign: 'center', 
+      lineHeight: 20,
+      color: '#FFFFFF',
+    },
+    onShow: () => {
+      console.log('Toast shown:', toastMessage);
+    },
+    onHidden: () => {
+      console.log('Toast hidden:', toastMessage);
+    },
+    onPress: () => { 
+      if (onUndo) { 
+        Toast.hide(toast);
+        onUndo(); 
+      }
+    },
+  });
+  
+  return toast;
+};
+
 export interface ExpandableCardProps {
   card: Card;
   perks: CardPerk[];
@@ -41,41 +86,8 @@ export interface ExpandableCardProps {
   sortIndex: number;
   userHasSeenSwipeHint: boolean;
   onHintDismissed: () => void;
+  setPendingToast: (toast: { message: string; onUndo: () => void; } | null) => void;
 }
-
-const showToast = (message: string, onUndo?: () => void) => {
-  const toastMessage = onUndo 
-    ? `${message}\nTap to undo`
-    : message;
-
-  const toast = Toast.show(toastMessage, {
-    duration: onUndo ? 4000 : 2000,
-    position: Toast.positions.BOTTOM - 80,
-    shadow: true,
-    animation: true,
-    hideOnPress: true,
-    delay: 0,
-    containerStyle: {
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      marginBottom: 64,
-      backgroundColor: '#1c1c1e',
-    },
-    textStyle: {
-      fontSize: 14,
-      fontWeight: '500',
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    onPress: () => {
-      if (onUndo) {
-        Toast.hide(toast);
-        onUndo();
-      }
-    },
-  });
-};
 
 const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
 
@@ -107,6 +119,7 @@ const ExpandableCardComponent = ({
   sortIndex,
   userHasSeenSwipeHint,
   onHintDismissed,
+  setPendingToast,
 }: ExpandableCardProps) => {
   const validPerks = perks ? perks.filter(Boolean) : [];
   const [isExpanded, setIsExpanded] = useState(false);
@@ -341,172 +354,112 @@ const ExpandableCardComponent = ({
   };
 
   const executePerkAction = async (perk: CardPerk, action: 'redeemed' | 'available') => {
-    if (!user) return;
-
-    const isPartiallyRedeemed = perk.status === 'partially_redeemed';
-    const previousStatus = perk.status;
-    const previousValue = perk.remaining_value;
-    const partiallyRedeemedAmount = isPartiallyRedeemed && previousValue !== undefined ? 
-      perk.value - previousValue : 0;
+    if (!user) {
+      Alert.alert(
+        "Authentication Required",
+        "Please log in to track perks.",
+        [
+          { text: "Log In", onPress: () => router.push('/(auth)/login') },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+      return;
+    }
 
     try {
+      const previousStatus = perk.status;
+      const previousValue = perk.remaining_value;
+
       if (action === 'redeemed') {
-        // For partially redeemed perks, we need to delete the existing partial redemption first
-        if (isPartiallyRedeemed) {
-          // First delete the partial redemption
-          const { error: deleteError } = await deletePerkRedemption(user.id, perk.definition_id);
-          if (deleteError) {
-            console.error('Error deleting partial redemption:', deleteError);
-            Alert.alert('Error', 'Failed to update perk redemption.');
-            return;
-          }
-        }
-
-        // Now track the full redemption, making the UI update atomic
+        // Optimistic UI update
         setPerkStatus?.(card.id, perk.id, 'redeemed');
-        const result = await trackPerkRedemption(
-          user.id, 
-          card.id, 
-          perk, 
-          perk.value,
-          perk.parent_redemption_id
-        );
 
-        if (result.error) {
-          console.error('Error tracking redemption:', result.error);
-          setPerkStatus?.(card.id, perk.id, previousStatus, previousValue);
-          if (isPartiallyRedeemed) {
-            // Re-track the partial redemption if we failed
-            await trackPerkRedemption(
-              user.id, 
-              card.id, 
-              { ...perk, status: previousStatus }, 
-              partiallyRedeemedAmount
-            );
+        // Track redemption in database
+        const { error: redeemError } = await trackPerkRedemption(user.id, card.id, perk, perk.value);
+        
+        if (redeemError) {
+          console.error('Error tracking redemption in DB:', redeemError);
+          // Revert optimistic update on error
+          if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
+            setPerkStatus?.(card.id, perk.id, 'partially_redeemed', previousValue);
+          } else {
+            setPerkStatus?.(card.id, perk.id, 'available');
           }
-          onPerkStatusChange?.();
-          Alert.alert('Error', 'Failed to track perk redemption.');
+          showToast('Error marking perk as redeemed');
           return;
         }
 
-        // After successful redemption, refresh all data
-        await Promise.all([
-          onPerkStatusChange?.(),
-          refreshAutoRedemptions?.()
-        ]);
-
-        // Check if this is the first perk redemption
-        if (!hasRedeemedFirstPerk) {
-          await markFirstPerkRedeemed();
-          setShowOnboarding(true);
-        }
-
-        showToast(
-          `${perk.name} marked as redeemed`,
-          async () => {
-            try {
-              // On undo, restore the previous state exactly
-              setPerkStatus?.(card.id, perk.id, previousStatus, previousValue);
-              
-              // First delete the full redemption
-              const { error: undoError } = await deletePerkRedemption(user.id, perk.definition_id);
-              if (undoError) {
-                setPerkStatus?.(card.id, perk.id, 'redeemed');
-                onPerkStatusChange?.();
-                console.error('Error undoing redemption:', undoError);
-                showToast('Error undoing redemption');
-                return;
-              }
-
-              // If it was partially redeemed before, restore that state
-              if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
-                const partialResult = await trackPerkRedemption(
-                  user.id, 
-                  card.id, 
-                  { ...perk, status: previousStatus }, 
-                  partiallyRedeemedAmount
-                );
-                if (partialResult.error) {
-                  setPerkStatus?.(card.id, perk.id, 'redeemed');
-                  onPerkStatusChange?.();
-                  showToast('Error restoring partial redemption');
-                  return;
-                }
-              }
-              
-              onPerkStatusChange?.();
-            } catch (error) {
+        showToast(`${perk.name} marked as redeemed`, async () => {
+          try {
+            // Delete the redemption record
+            const { error: undoError } = await deletePerkRedemption(user.id, perk.definition_id);
+            if (undoError) {
+              console.error('Error undoing redemption in DB:', undoError);
               setPerkStatus?.(card.id, perk.id, 'redeemed');
-              onPerkStatusChange?.();
-              console.error('Error undoing redemption:', error);
               showToast('Error undoing redemption');
+            } else {
+              if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
+                setPerkStatus?.(card.id, perk.id, 'partially_redeemed', previousValue);
+              } else {
+                setPerkStatus?.(card.id, perk.id, 'available');
+              }
+              showToast(`${perk.name} redemption undone`);
             }
+          } catch (error) {
+            console.error('Error undoing redemption:', error);
+            setPerkStatus?.(card.id, perk.id, 'redeemed');
+            showToast('Error undoing redemption');
           }
-        );
-      } else { // For 'available' action
-        console.log(`[ExpandableCard] Setting perk ${perk.name} to fully available`);
-        const previousStatus = perk.status;
-        const previousValue = perk.remaining_value;
-        const previousRedeemedAmount = previousStatus === 'partially_redeemed' && previousValue !== undefined 
-          ? perk.value - previousValue 
-          : perk.value;
-
-        // Set status to available first (optimistic update)
+        });
+      } else {
+        // Optimistic UI update
         setPerkStatus?.(card.id, perk.id, 'available');
 
-        // Delete the redemption record
+        // Delete redemption from database
         const { error: deleteError } = await deletePerkRedemption(user.id, perk.definition_id);
+        
         if (deleteError) {
-          console.error('Error deleting redemption:', deleteError);
-          setPerkStatus?.(card.id, perk.id, previousStatus, previousValue);
-          onPerkStatusChange?.();
-          Alert.alert('Error', 'Failed to mark perk as available.');
+          console.error('Error deleting redemption from DB:', deleteError);
+          // Revert optimistic update on error
+          if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
+            setPerkStatus?.(card.id, perk.id, 'partially_redeemed', previousValue);
+          } else {
+            setPerkStatus?.(card.id, perk.id, 'redeemed');
+          }
+          showToast('Error marking perk as available');
           return;
         }
 
-        // After successful operation, refresh all data
-        await Promise.all([
-          onPerkStatusChange?.(),
-          refreshAutoRedemptions?.()
-        ]);
-
-        showToast(
-          `${perk.name} marked as available`,
-          async () => {
-            try {
-              // Restore previous state
-              setPerkStatus?.(card.id, perk.id, previousStatus, previousValue);
-              
-              // Re-track the redemption
-              const result = await trackPerkRedemption(
-                user.id,
-                card.id,
-                { ...perk, status: previousStatus },
-                previousRedeemedAmount
-              );
-              
-              if (result.error) {
-                setPerkStatus?.(card.id, perk.id, 'available');
-                onPerkStatusChange?.();
-                showToast('Error restoring previous state');
-                return;
-              }
-              
-              onPerkStatusChange?.();
-            } catch (error) {
+        showToast(`${perk.name} marked as available`, async () => {
+          try {
+            // Re-track the redemption
+            const { error: redeemError } = await trackPerkRedemption(user.id, card.id, perk, perk.value);
+            if (redeemError) {
+              console.error('Error restoring redemption in DB:', redeemError);
               setPerkStatus?.(card.id, perk.id, 'available');
-              onPerkStatusChange?.();
-              console.error('Error undoing available:', error);
               showToast('Error restoring previous state');
+            } else {
+              if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
+                setPerkStatus?.(card.id, perk.id, 'partially_redeemed', previousValue);
+              } else {
+                setPerkStatus?.(card.id, perk.id, 'redeemed');
+              }
+              showToast(`${perk.name} restored to redeemed`);
             }
+          } catch (error) {
+            console.error('Error restoring previous state:', error);
+            setPerkStatus?.(card.id, perk.id, 'available');
+            showToast('Error restoring previous state');
           }
-        );
+        });
       }
-    } catch (error) {
-      console.error('Error in perk action:', error);
-      setPerkStatus?.(card.id, perk.id, previousStatus, previousValue);
+
+      // Trigger any necessary UI updates
       onPerkStatusChange?.();
-      Alert.alert('Error', 'An unexpected error occurred.');
+
+    } catch (error) {
+      console.error('Error executing perk action:', error);
+      showToast('Error updating perk status');
     }
   };
 

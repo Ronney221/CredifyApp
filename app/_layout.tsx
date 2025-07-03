@@ -12,6 +12,7 @@ import { Colors } from '../constants/Colors';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
+import { RootSiblingParent } from 'react-native-root-siblings';
 
 Sentry.init({
   dsn: 'https://3db3be6e5d65a5d41c649684dad25607@o4509597568204800.ingest.us.sentry.io/4509597574103040',
@@ -138,14 +139,16 @@ function AuthStateHandler() {
 export default Sentry.wrap(function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <OnboardingProvider>
-            <AuthStateHandler />
-            <RootStack />
-          </OnboardingProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
+      <RootSiblingParent>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <OnboardingProvider>
+              <AuthStateHandler />
+              <RootStack />
+            </OnboardingProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </RootSiblingParent>
     </GestureHandlerRootView>
   );
 });

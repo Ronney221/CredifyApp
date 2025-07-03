@@ -20,6 +20,7 @@ import {
   FlatList,
   AppState,
   AppStateStatus,
+  RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -98,9 +99,34 @@ const showToast = (message: string, onUndo?: () => void) => {
   const toast = Toast.show(toastMessage, {
     duration: onUndo ? 4000 : 2000,
     position: Toast.positions.BOTTOM,
-    shadow: true, animation: true, hideOnPress: true, delay: 0,
-    containerStyle: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 64, backgroundColor: '#1c1c1e' },
-    textStyle: { fontSize: 14, fontWeight: '500', textAlign: 'center', lineHeight: 20 },
+    shadow: true,
+    animation: true,
+    hideOnPress: true,
+    delay: 0,
+    opacity: 1,
+    containerStyle: { 
+      borderRadius: 12, 
+      paddingHorizontal: 16, 
+      paddingVertical: 12, 
+      marginBottom: Platform.OS === 'ios' ? 64 : 48, 
+      backgroundColor: '#1c1c1e',
+      width: '90%',
+      maxWidth: 400,
+      alignSelf: 'center',
+    },
+    textStyle: { 
+      fontSize: 14, 
+      fontWeight: '500', 
+      textAlign: 'center', 
+      lineHeight: 20,
+      color: '#FFFFFF',
+    },
+    onShow: () => {
+      console.log('Toast shown:', toastMessage);
+    },
+    onHidden: () => {
+      console.log('Toast hidden:', toastMessage);
+    },
     onPress: () => { 
       if (onUndo) { 
         Toast.hide(toast);
@@ -108,6 +134,8 @@ const showToast = (message: string, onUndo?: () => void) => {
       }
     },
   });
+  
+  return toast;
 };
 
 // Define CardPerkWithMeta type for nextPerkRef
@@ -170,7 +198,20 @@ const ESTIMATED_COLLAPSED_CARD_HEIGHT = 109; // Updated from 96, based on Amex G
 const ESTIMATED_EXPANDED_CARD_HEIGHT = 555; // Updated from 316, based on Amex Gold (max observed) expanded height
 
 // Define the type for a single item in the cards list - MOVED HERE and defined explicitly
-type CardListItem = { card: Card; perks: CardPerk[] };
+interface CardListItem {
+  card: Card;
+  perks: CardPerk[];
+  cumulativeSavedValue: number;
+  onTapPerk: (cardId: string, perkId: string, perk: CardPerk) => Promise<void>;
+  onExpandChange: (cardId: string, isExpanded: boolean, index: number) => void;
+  onPerkStatusChange: () => void;
+  setPerkStatus: (cardId: string, perkId: string, status: 'available' | 'redeemed' | 'partially_redeemed', remainingValue?: number) => void;
+  isActive: boolean;
+  sortIndex: number;
+  userHasSeenSwipeHint: boolean;
+  onHintDismissed: () => Promise<void>;
+  setPendingToast: (toast: { message: string; onUndo: () => void; } | null) => void;
+}
 
 // Add default notification preferences
 const defaultNotificationPreferences: NotificationPreferences = {
@@ -209,7 +250,7 @@ export default function Dashboard() {
   const [showPerkActionModal, setShowPerkActionModal] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const maxRetries = 5; // Maximum number of retry attempts
-  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Move all useEffects to the top level, right after state declarations
   useEffect(() => {
@@ -423,8 +464,13 @@ export default function Dashboard() {
       ) {
         // App has come to the foreground
         if (pendingToast) {
-          showToast(pendingToast.message, pendingToast.onUndo);
-          setPendingToast(null); // Clear after showing
+          // Add a small delay to ensure the toast shows after the app is fully active
+          setTimeout(() => {
+            if (pendingToast) {
+              showToast(pendingToast.message, pendingToast.onUndo);
+              setPendingToast(null); // Clear after showing
+            }
+          }, 500);
         }
       }
       appState.current = nextAppState;
@@ -750,12 +796,6 @@ export default function Dashboard() {
       // If an error occurs, ensure the modal is dismissed if it wasn't already.
       handleModalDismiss(); 
 
-      // Attempt to revert optimistic UI update if it was an 'available' perk that failed redemption.
-      // Check if selectedPerk is still defined and if its status was 'available' before this error.
-      // This part is tricky because originalStatus is scoped inside the 'if (available)' block.
-      // A more robust way would be to rely on the `setPerkStatus` calls within the error handling
-      // of the `trackPerkRedemption` block.
-      // For now, a generic error alert is shown.
       Alert.alert('Operation Failed', 'An error occurred while processing the perk. Please check its status.');
     }
   };
@@ -914,20 +954,49 @@ export default function Dashboard() {
   if (!isUserCardsInitialLoading) {
   }
 
+  // Map cards to CardListItems with all required properties
+  const cardListItems: CardListItem[] = useMemo(() => cardsListData.map((cardData, index) => ({
+    card: cardData.card,
+    perks: cardData.perks,
+    cumulativeSavedValue: cumulativeValueSavedPerCard[cardData.card.id] || 0,
+    onTapPerk: handleTapPerk,
+    onExpandChange: handleCardExpandChange,
+    onPerkStatusChange: handlePerkStatusChange,
+    setPerkStatus,
+    isActive: activeCardId === cardData.card.id,
+    sortIndex: index,
+    userHasSeenSwipeHint,
+    onHintDismissed: handleHintDismissed,
+    setPendingToast
+  })), [
+    cardsListData,
+    cumulativeValueSavedPerCard,
+    activeCardId,
+    userHasSeenSwipeHint,
+    handleHintDismissed,
+    handleTapPerk,
+    handleCardExpandChange,
+    handlePerkStatusChange,
+    setPerkStatus,
+    setPendingToast
+  ]);
+
   // renderItem function for the FlatList
   const renderExpandableCardItem = ({ item, index }: { item: CardListItem, index: number }) => (
     <ExpandableCard
+      key={item.card.id}
       card={item.card}
       perks={item.perks}
-      cumulativeSavedValue={cumulativeValueSavedPerCard[item.card.id] || 0}
-      onTapPerk={handleTapPerk}
-      onExpandChange={handleCardExpandChange}
-      onPerkStatusChange={handlePerkStatusChange}
-      setPerkStatus={setPerkStatus}
-      isActive={item.card.id === activeCardId}
-      sortIndex={index} 
-      userHasSeenSwipeHint={userHasSeenSwipeHint}
-      onHintDismissed={handleHintDismissed}
+      cumulativeSavedValue={item.cumulativeSavedValue}
+      onTapPerk={item.onTapPerk}
+      onExpandChange={item.onExpandChange}
+      onPerkStatusChange={item.onPerkStatusChange}
+      setPerkStatus={item.setPerkStatus}
+      isActive={item.isActive}
+      sortIndex={index}
+      userHasSeenSwipeHint={item.userHasSeenSwipeHint}
+      onHintDismissed={item.onHintDismissed}
+      setPendingToast={item.setPendingToast}
     />
   );
 
@@ -1128,7 +1197,7 @@ export default function Dashboard() {
         {sortedCards.length > 0 ? (
           <Animated.FlatList
             ref={flatListRef}
-            data={cardsListData}
+            data={cardListItems}
             renderItem={renderExpandableCardItem}
             keyExtractor={(item) => item.card.id}
             ListHeaderComponent={listHeaderElement}
@@ -1186,6 +1255,7 @@ export default function Dashboard() {
           onOpenApp={handleOpenApp}
           onMarkRedeemed={handleMarkRedeemed}
           onMarkAvailable={handleMarkAvailable}
+          setPendingToast={setPendingToast}
         />
 
         {/* Add OnboardingSheet */}

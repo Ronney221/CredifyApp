@@ -38,38 +38,8 @@ interface PerkActionModalProps {
   onOpenApp: (targetPerkName?: string) => void;
   onMarkRedeemed: (partialAmount?: number) => void;
   onMarkAvailable: () => void;
+  setPendingToast: (toast: { message: string; onUndo: () => void; } | null) => void;
 }
-
-const showToast = (message: string, onUndo?: () => void) => {
-  const toastMessage = onUndo ? `${message}\nTap to undo` : message;
-  const toast = Toast.show(toastMessage, {
-    duration: onUndo ? 4000 : 2000,
-    position: Toast.positions.BOTTOM,
-    shadow: true,
-    animation: true,
-    hideOnPress: true,
-    delay: 0,
-    containerStyle: {
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      marginBottom: 64,
-      backgroundColor: '#1c1c1e',
-    },
-    textStyle: {
-      fontSize: 14,
-      fontWeight: '500',
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    onPress: () => {
-      if (onUndo) {
-        Toast.hide(toast);
-        onUndo();
-      }
-    },
-  });
-};
 
 const AnimatedSlider = Animated.createAnimatedComponent(Slider);
 
@@ -250,6 +220,7 @@ export default function PerkActionModal({
   onOpenApp,
   onMarkRedeemed,
   onMarkAvailable,
+  setPendingToast,
 }: PerkActionModalProps) {
   // State hooks
   const [sliderValue, setSliderValue] = useState(0);
@@ -260,6 +231,23 @@ export default function PerkActionModal({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  // Safe access to redemption data
+  const redemptionData = useMemo(() => {
+    if (!perk || !perk.redemptionInstructions) {
+      return [];
+    }
+    return [perk.redemptionInstructions];
+  }, [perk?.redemptionInstructions]);
+
+  // Safe calculation of remaining value
+  const remainingValueDisplay = useMemo(() => {
+    if (!perk || typeof perk.remaining_value !== 'number' || perk.remaining_value < 0) {
+      return perk?.value || 0;
+    }
+    return perk.remaining_value;
+  }, [perk?.remaining_value, perk?.value]);
 
   // Animated values
   const translateY = useSharedValue(0);
@@ -459,22 +447,6 @@ export default function PerkActionModal({
     periodMonths = 1,
   } = perk;
 
-  // Safe access to redemption data
-  const redemptionData = useMemo(() => {
-    if (!perk || !perk.redemptions || !Array.isArray(perk.redemptions)) {
-      return [];
-    }
-    return perk.redemptions;
-  }, [perk?.redemptions]);
-
-  // Safe calculation of remaining value
-  const remainingValueDisplay = useMemo(() => {
-    if (typeof remaining_value !== 'number' || remaining_value < 0) {
-      return value;
-    }
-    return remaining_value;
-  }, [remaining_value, value]);
-
   const handleDismiss = () => {
     translateY.value = withTiming(0, { duration: 300 });
     setTimeout(() => {
@@ -488,9 +460,64 @@ export default function PerkActionModal({
     }, 200);
   };
 
-  const handleOpenApp = () => {
+  const handleOpenApp = async () => {
+    if (!perk || !perk.name) return;
+
+    // Close modal first
     handleDismiss();
-    onOpenApp?.();
+
+    try {
+      // Always attempt to open the app target
+      await onOpenApp();
+      if (Platform.OS === 'ios') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Store the perk status before opening the app
+      const isPartiallyRedeemed = perk.status === 'partially_redeemed';
+
+      // Set the pending toast to be shown when user returns to app
+      setPendingToast({
+        message: `Did you use ${perk.name}?`,
+        onUndo: () => {
+          // Show confirmation dialog when they return
+          Alert.alert(
+            'Confirm Usage',
+            isPartiallyRedeemed
+              ? `Did you use more of your ${perk.name} credit?`
+              : `Did you use your ${perk.name} credit?`,
+            [
+              {
+                text: 'No',
+                style: 'cancel'
+              },
+              {
+                text: 'Yes',
+                onPress: () => {
+                  // For partially redeemed perks, show the modal again to select amount
+                  if (isPartiallyRedeemed) {
+                    setSelectedPreset('custom');
+                    setShowCustomAmount(true);
+                    setModalVisible(true);
+                  } else {
+                    // For regular perks, mark as fully redeemed
+                    onMarkRedeemed();
+                    setPendingToast({
+                      message: `${perk.name} marked as redeemed`,
+                      onUndo: () => onMarkAvailable()
+                    });
+                  }
+                }
+              }
+            ]
+          );
+        }
+      });
+    } catch (openErrorOrDbError) {
+      console.error('Error in perk action flow:', openErrorOrDbError);
+      handleDismiss();
+      Alert.alert('Operation Failed', 'An error occurred while processing the perk. Please check its status.');
+    }
   };
 
   const handleMarkRedeemed = () => {
@@ -500,9 +527,9 @@ export default function PerkActionModal({
     const isPartiallyRedeemed = previousStatus === 'partially_redeemed';
 
     onMarkRedeemed();
-    showToast(
-      `${perk?.name} marked as redeemed`,
-      () => {
+    setPendingToast({
+      message: `${perk?.name} marked as redeemed`,
+      onUndo: () => {
         if (isPartiallyRedeemed && previousValue !== undefined) {
           // Restore partial redemption state with the correct amount
           onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
@@ -510,7 +537,7 @@ export default function PerkActionModal({
           onMarkAvailable();
         }
       }
-    );
+    });
   };
 
   const handleMarkAvailable = () => {
@@ -518,9 +545,9 @@ export default function PerkActionModal({
     const previousStatus = perk?.status;
     const previousValue = perk?.remaining_value;
     onMarkAvailable();
-    showToast(
-      `${perk?.name} marked as available`,
-      () => {
+    setPendingToast({
+      message: `${perk?.name} marked as available`,
+      onUndo: () => {
         if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
           // Restore partial redemption
           onMarkRedeemed(perk?.value ? perk.value - previousValue : 0);
@@ -528,7 +555,7 @@ export default function PerkActionModal({
           onMarkRedeemed();
         }
       }
-    );
+    });
   };
 
   const handleConfirmAction = () => {
@@ -542,14 +569,18 @@ export default function PerkActionModal({
     handleDismiss();
     if (amount === 0 && perk?.status === 'partially_redeemed') {
       onMarkAvailable();
-      showToast(`${perk?.name} marked as available`);
+      setPendingToast({
+        message: `${perk?.name} marked as available`,
+        onUndo: () => onMarkRedeemed(perk?.value)
+      });
     } else {
       onMarkRedeemed(amount);
-      showToast(
-        amount === perk?.value 
+      setPendingToast({
+        message: amount === perk?.value 
           ? `${perk?.name} fully logged` 
-          : `${perk?.name} partially logged: ${formatCurrency(amount)}`
-      );
+          : `${perk?.name} partially logged: ${formatCurrency(amount)}`,
+        onUndo: () => onMarkAvailable()
+      });
     }
   };
 
@@ -680,10 +711,7 @@ export default function PerkActionModal({
 
                   <TouchableOpacity
                     style={[styles.button, styles.secondaryButton]}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      handleOpenApp();
-                    }}
+                    onPress={handleOpenApp}
                   >
                     <Text style={[styles.buttonText, styles.secondaryButtonText]}>
                       Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
@@ -706,10 +734,7 @@ export default function PerkActionModal({
 
                   <TouchableOpacity
                     style={[styles.button, styles.secondaryButton]}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      handleOpenApp();
-                    }}
+                    onPress={handleOpenApp}
                   >
                     <Text style={[styles.buttonText, styles.secondaryButtonText]}>
                       Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
