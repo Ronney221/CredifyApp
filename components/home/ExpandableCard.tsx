@@ -31,9 +31,11 @@ import { useOnboardingContext } from '../../app/(onboarding)/_context/Onboarding
 
 // Add showToast function
 const showToast = (message: string, onUndo?: () => void) => {
-  const toastMessage = onUndo ? `${message}\nTap to undo` : message;
+  // For swipe actions, we don't want to show the undo functionality
+  const isSwipeAction = message.includes('marked as redeemed') || message.includes('marked as available');
+  const toastMessage = !isSwipeAction && onUndo ? `${message}\nTap to undo` : message;
   const toast = Toast.show(toastMessage, {
-    duration: onUndo ? 4000 : 2000,
+    duration: !isSwipeAction && onUndo ? 4000 : 2000,
     position: Toast.positions.BOTTOM,
     shadow: true,
     animation: true,
@@ -64,7 +66,7 @@ const showToast = (message: string, onUndo?: () => void) => {
       console.log('Toast hidden:', toastMessage);
     },
     onPress: () => { 
-      if (onUndo) { 
+      if (!isSwipeAction && onUndo) { 
         Toast.hide(toast);
         onUndo(); 
       }
@@ -86,7 +88,7 @@ export interface ExpandableCardProps {
   sortIndex: number;
   userHasSeenSwipeHint: boolean;
   onHintDismissed: () => void;
-  setPendingToast: (toast: { message: string; onUndo: () => void; } | null) => void;
+  setPendingToast: (toast: { message: string; onUndo?: (() => void) | null } | null) => void;
 }
 
 const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
@@ -389,28 +391,8 @@ const ExpandableCardComponent = ({
           return;
         }
 
-        showToast(`${perk.name} marked as redeemed`, async () => {
-          try {
-            // Delete the redemption record
-            const { error: undoError } = await deletePerkRedemption(user.id, perk.definition_id);
-            if (undoError) {
-              console.error('Error undoing redemption in DB:', undoError);
-              setPerkStatus?.(card.id, perk.id, 'redeemed');
-              showToast('Error undoing redemption');
-            } else {
-              if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
-                setPerkStatus?.(card.id, perk.id, 'partially_redeemed', previousValue);
-              } else {
-                setPerkStatus?.(card.id, perk.id, 'available');
-              }
-              showToast(`${perk.name} redemption undone`);
-            }
-          } catch (error) {
-            console.error('Error undoing redemption:', error);
-            setPerkStatus?.(card.id, perk.id, 'redeemed');
-            showToast('Error undoing redemption');
-          }
-        });
+        // Show toast without undo functionality for swipe actions
+        showToast(`${perk.name} marked as redeemed`);
       } else {
         // Optimistic UI update
         setPerkStatus?.(card.id, perk.id, 'available');
@@ -430,33 +412,12 @@ const ExpandableCardComponent = ({
           return;
         }
 
-        showToast(`${perk.name} marked as available`, async () => {
-          try {
-            // Re-track the redemption
-            const { error: redeemError } = await trackPerkRedemption(user.id, card.id, perk, perk.value);
-            if (redeemError) {
-              console.error('Error restoring redemption in DB:', redeemError);
-              setPerkStatus?.(card.id, perk.id, 'available');
-              showToast('Error restoring previous state');
-            } else {
-              if (previousStatus === 'partially_redeemed' && previousValue !== undefined) {
-                setPerkStatus?.(card.id, perk.id, 'partially_redeemed', previousValue);
-              } else {
-                setPerkStatus?.(card.id, perk.id, 'redeemed');
-              }
-              showToast(`${perk.name} restored to redeemed`);
-            }
-          } catch (error) {
-            console.error('Error restoring previous state:', error);
-            setPerkStatus?.(card.id, perk.id, 'available');
-            showToast('Error restoring previous state');
-          }
-        });
+        // Show toast without undo functionality for swipe actions
+        showToast(`${perk.name} marked as available`);
       }
 
       // Trigger any necessary UI updates
       onPerkStatusChange?.();
-
     } catch (error) {
       console.error('Error executing perk action:', error);
       showToast('Error updating perk status');

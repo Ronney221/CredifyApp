@@ -42,7 +42,7 @@ interface PerkActionModalProps {
   onOpenApp: (targetPerkName?: string) => void;
   onMarkRedeemed: (partialAmount?: number) => void;
   onMarkAvailable: () => void;
-  setPendingToast: (toast: { message: string; onUndo: () => void; } | null) => void;
+  setPendingToast: (toast: { message: string; onUndo?: (() => void) | null } | null) => void;
 }
 
 const AnimatedSlider = Animated.createAnimatedComponent(Slider);
@@ -447,6 +447,31 @@ export default function PerkActionModal({
     }
   };
 
+  const renderActionButton = () => {
+    if (!perk) return null;
+
+    // Handle slider-based input
+    if (!showCustomAmount) {
+      if (sliderValue === 0) return 'Mark as Available';
+      if (sliderValue === perk.value) return 'Mark as Redeemed';
+      return `Log $${sliderValue.toFixed(2)}`;
+    }
+
+    // Handle custom amount input
+    if (selectedPreset === 'custom') {
+      const amount = parseFloat(partialAmount);
+      // If amount is 0 or invalid, and perk is partially redeemed, show "Mark as Available"
+      if ((isNaN(amount) || amount === 0) && perk.status === 'partially_redeemed') {
+        return 'Mark as Available';
+      }
+      if (amount === perk.value) return 'Mark as Redeemed';
+      return `Log $${amount.toFixed(2)}`;
+    }
+
+    // Default case
+    return 'Mark as Redeemed';
+  };
+
   const handleMarkRedeemed = async (partialAmount?: number) => {
     if (!perk) return;
 
@@ -467,15 +492,14 @@ export default function PerkActionModal({
 
       // Show success toast with appropriate message
       if (setPendingToast) {
-        const message = partialAmount !== undefined
+        const message = partialAmount !== undefined && partialAmount !== perk.value
           ? `${perk.name} partially redeemed ($${partialAmount.toFixed(2)})`
-          : `${perk.name} redeemed.`;
+          : `${perk.name} marked as redeemed`;
 
+        // Show toast without undo functionality
         setPendingToast({
           message,
-          onUndo: async () => {
-            await onMarkAvailable();
-          }
+          onUndo: null
         });
       }
     } catch (error) {
@@ -494,17 +518,12 @@ export default function PerkActionModal({
       // Call the parent handler
       await onMarkAvailable();
 
-      // Show success toast
+      // Show success toast without undo functionality
       if (setPendingToast) {
+        const message = `${perk.name} marked as available.`;
         setPendingToast({
-          message: `${perk.name} marked as available.`,
-          onUndo: async () => {
-            if (perk.status === 'partially_redeemed' && perk.remaining_value !== undefined) {
-              await onMarkRedeemed(perk.value - perk.remaining_value);
-            } else {
-              await onMarkRedeemed();
-            }
-          }
+          message,
+          onUndo: null
         });
       }
     } catch (error) {
@@ -514,18 +533,41 @@ export default function PerkActionModal({
   };
 
   const handleConfirmAction = () => {
+    if (!perk) return;
     Keyboard.dismiss();
-    const amount = isEditingNumber ? parseFloat(partialAmount) : sliderValue;
-    if (isNaN(amount)) {
-      Alert.alert('Invalid Amount', 'Please enter a valid number.');
+
+    // For custom amount input
+    if (showCustomAmount && selectedPreset === 'custom') {
+      const amount = parseFloat(partialAmount);
+      
+      // Special case: marking a partially redeemed perk as available
+      if ((isNaN(amount) || amount === 0) && perk.status === 'partially_redeemed') {
+        handleDismiss();
+        handleMarkAvailable();
+        return;
+      }
+
+      // Validate non-zero amounts
+      if (isNaN(amount)) {
+        Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+        return;
+      }
+      if (amount < 0 || amount > perk.value) {
+        Alert.alert('Invalid Amount', 'Amount cannot exceed the total credit value.');
+        return;
+      }
+
+      handleDismiss();
+      handleMarkRedeemed(amount);
       return;
     }
-    
+
+    // For slider-based input
     handleDismiss();
-    if (amount === 0 && perk?.status === 'partially_redeemed') {
-      onMarkAvailable();
+    if (sliderValue === 0 && perk.status === 'partially_redeemed') {
+      handleMarkAvailable();
     } else {
-      onMarkRedeemed(amount);
+      handleMarkRedeemed(sliderValue);
     }
   };
 
@@ -559,6 +601,21 @@ export default function PerkActionModal({
     style: 'currency',
     currency: 'USD',
   }) : formattedValue;
+
+  const renderPrimaryButton = () => {
+    if (!perk) return null;
+
+    return (
+      <TouchableOpacity
+        style={[styles.button, styles.primaryButton]}
+        onPress={handleConfirmAction}
+      >
+        <Text style={[styles.buttonText, styles.primaryButtonText]}>
+          {renderActionButton()}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal
@@ -662,14 +719,7 @@ export default function PerkActionModal({
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    style={[styles.button, styles.primaryButton]}
-                    onPress={handleConfirmAction}
-                  >
-                    <Text style={[styles.buttonText, styles.primaryButtonText]}>
-                      {sliderValue === 0 ? 'Mark as Available' : `Log ${formatCurrency(sliderValue)}`}
-                    </Text>
-                  </TouchableOpacity>
+                  {renderPrimaryButton()}
 
                   <TouchableOpacity
                     style={[styles.button, styles.secondaryButton]}

@@ -54,7 +54,8 @@ export function usePerkRedemption({
   const handleMarkRedeemed = useCallback(async (
     cardId: string,
     perk: CardPerk,
-    partialAmount?: number
+    partialAmount?: number,
+    isSwipeAction: boolean = false
   ) => {
     const originalStatus = perk.status;
     const isPartiallyRedeemed = originalStatus === 'partially_redeemed';
@@ -85,8 +86,8 @@ export function usePerkRedemption({
       // Optimistic update
       setPerkStatus(cardId, perk.id, newStatus, remainingValue);
 
-      // Track the redemption in the database
-      const result = await supabase.from('perk_redemptions').insert([
+      // Track the redemption
+      const { error } = await supabase.from('perk_redemptions').insert([
         {
           user_id: userId,
           card_id: cardId,
@@ -98,77 +99,67 @@ export function usePerkRedemption({
         },
       ]).select().single();
 
-      if (result.error) {
-        console.error('Error tracking redemption:', result.error);
+      if (error) {
+        // Revert optimistic update on error
         setPerkStatus(cardId, perk.id, originalStatus, previousValue);
-        if (isPartiallyRedeemed) {
-          // Re-track the partial redemption if we failed
-          await supabase.from('perk_redemptions').insert([
-            {
-              user_id: userId,
-              card_id: cardId,
-              perk_id: perk.id,
-              amount: partiallyRedeemedAmount,
-              status: originalStatus,
-              remaining_value: remainingValue,
-              parent_redemption_id: perk.parent_redemption_id,
-            },
-          ]).select().single();
-        }
         onPerkStatusChange?.();
-        Alert.alert('Error', 'Failed to track perk redemption.');
+        console.error('Error tracking redemption:', error);
+        Alert.alert('Error', 'Failed to track redemption.');
         return;
       }
 
-      // After successful redemption, refresh all data
-      await Promise.all([
-        onPerkStatusChange?.(),
-        refreshAutoRedemptions?.()
-      ]);
+      // Refresh auto-redemptions in case this affects any
+      await refreshAutoRedemptions?.();
+      await onPerkStatusChange?.();
 
-      // Show toast with undo functionality
-      const toastMessage = partialAmount 
-        ? `${perk.name} partially redeemed: $${partialAmount.toFixed(2)}`
+      const toastMessage = partialAmount !== undefined && partialAmount < perk.value
+        ? `${perk.name} partially redeemed ($${partialAmount.toFixed(2)})`
         : `${perk.name} marked as redeemed`;
 
-      showToast(toastMessage, async () => {
-        try {
-          // On undo, restore the previous state exactly
-          setPerkStatus(cardId, perk.id, originalStatus, previousValue);
-          
-          // First delete the new redemption
-          const { error: undoError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
-          if (undoError) {
+      // Only show undo functionality if it's not a swipe action
+      if (!isSwipeAction) {
+        showToast(toastMessage, async () => {
+          try {
+            // On undo, restore the previous state exactly
+            setPerkStatus(cardId, perk.id, originalStatus, previousValue);
+            
+            // First delete the new redemption
+            const { error: undoError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
+            if (undoError) {
+              setPerkStatus(cardId, perk.id, newStatus, remainingValue);
+              onPerkStatusChange?.();
+              console.error('Error undoing redemption:', undoError);
+              showToast('Error undoing redemption');
+              return;
+            }
+
+            // If it was partially redeemed before, restore that state
+            if (originalStatus === 'partially_redeemed' && previousValue !== undefined) {
+              await supabase.from('perk_redemptions').insert([
+                {
+                  user_id: userId,
+                  card_id: cardId,
+                  perk_id: perk.id,
+                  amount: partiallyRedeemedAmount,
+                  status: originalStatus,
+                  remaining_value: remainingValue,
+                  parent_redemption_id: perk.parent_redemption_id,
+                },
+              ]).select().single();
+            }
+            
+            onPerkStatusChange?.();
+          } catch (error) {
             setPerkStatus(cardId, perk.id, newStatus, remainingValue);
             onPerkStatusChange?.();
-            console.error('Error undoing redemption:', undoError);
+            console.error('Error undoing redemption:', error);
             showToast('Error undoing redemption');
-            return;
           }
-
-          // If it was partially redeemed before, restore that state
-          if (originalStatus === 'partially_redeemed' && previousValue !== undefined) {
-            await supabase.from('perk_redemptions').insert([
-              {
-                user_id: userId,
-                card_id: cardId,
-                perk_id: perk.id,
-                amount: partiallyRedeemedAmount,
-                status: originalStatus,
-                remaining_value: remainingValue,
-                parent_redemption_id: perk.parent_redemption_id,
-              },
-            ]).select().single();
-          }
-          
-          onPerkStatusChange?.();
-        } catch (error) {
-          setPerkStatus(cardId, perk.id, newStatus, remainingValue);
-          onPerkStatusChange?.();
-          console.error('Error undoing redemption:', error);
-          showToast('Error undoing redemption');
-        }
-      });
+        });
+      } else {
+        // For swipe actions, just show a simple toast without undo
+        showToast(toastMessage);
+      }
 
     } catch (error) {
       console.error('Unexpected error marking perk as redeemed:', error);
@@ -179,65 +170,65 @@ export function usePerkRedemption({
 
   const handleMarkAvailable = useCallback(async (
     cardId: string,
-    perk: CardPerk
+    perk: CardPerk,
+    isSwipeAction: boolean = false
   ) => {
     const originalStatus = perk.status;
     const previousValue = perk.remaining_value;
-    const previousRedeemedAmount = originalStatus === 'partially_redeemed' && previousValue !== undefined 
-      ? perk.value - previousValue 
-      : perk.value;
+    const previousRedeemedAmount = perk.value - (previousValue ?? 0);
 
     try {
-      // Set status to available first (optimistic update)
+      // Optimistic update
       setPerkStatus(cardId, perk.id, 'available', perk.value);
 
-      // Delete all redemption records for this perk and user
-      const { error: deleteError } = await supabase
-        .from('perk_redemptions')
-        .delete()
-        .eq('user_id', userId)
-        .eq('perk_id', perk.id);
+      // Delete the redemption
+      const { error } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
 
-      if (deleteError) {
-        console.error('Error deleting redemption records:', deleteError);
-        setPerkStatus(cardId, perk.id, originalStatus, previousValue); // Revert optimistic update
+      if (error) {
+        // Revert optimistic update on error
+        setPerkStatus(cardId, perk.id, originalStatus, previousValue);
         onPerkStatusChange?.();
+        console.error('Error marking as available:', error);
         Alert.alert('Error', 'Failed to mark perk as available.');
         return;
       }
 
-      // After successful operation, refresh all data
-      await onPerkStatusChange?.();
+      // Refresh auto-redemptions in case this affects any
       await refreshAutoRedemptions?.();
+      await onPerkStatusChange?.();
 
+      // Only show undo functionality if it's not a swipe action
+      if (!isSwipeAction) {
+        showToast(`${perk.name} marked as available`, async () => {
+          try {
+            // On undo, restore the previous state exactly
+            setPerkStatus(cardId, perk.id, originalStatus, previousValue);
+            
+            // Track the redemption again
+            await supabase.from('perk_redemptions').insert([
+              {
+                user_id: userId,
+                card_id: cardId,
+                perk_id: perk.id,
+                amount: previousRedeemedAmount,
+                status: originalStatus,
+                remaining_value: previousValue,
+                parent_redemption_id: perk.parent_redemption_id,
+              },
+            ]).select().single();
 
-      // Show toast with undo functionality
-      showToast(`${perk.name} marked as available`, async () => {
-        try {
-          // On undo, restore the previous state exactly
-          setPerkStatus(cardId, perk.id, originalStatus, previousValue);
-          
-          // Track the redemption again
-          await supabase.from('perk_redemptions').insert([
-            {
-              user_id: userId,
-              card_id: cardId,
-              perk_id: perk.id,
-              amount: previousRedeemedAmount,
-              status: originalStatus,
-              remaining_value: previousValue,
-              parent_redemption_id: perk.parent_redemption_id,
-            },
-          ]).select().single();
-
-          onPerkStatusChange?.();
-        } catch (error) {
-          setPerkStatus(cardId, perk.id, 'available', perk.value);
-          onPerkStatusChange?.();
-          console.error('Error undoing mark as available:', error);
-          showToast('Error undoing mark as available');
-        }
-      });
+            onPerkStatusChange?.();
+          } catch (error) {
+            setPerkStatus(cardId, perk.id, 'available', perk.value);
+            onPerkStatusChange?.();
+            console.error('Error undoing mark as available:', error);
+            showToast('Error undoing mark as available');
+          }
+        });
+      } else {
+        // For swipe actions, just show a simple toast without undo
+        showToast(`${perk.name} marked as available`);
+      }
 
     } catch (error) {
       console.error('Unexpected error marking perk as available:', error);

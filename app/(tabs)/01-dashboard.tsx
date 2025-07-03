@@ -94,7 +94,8 @@ const SWIPE_HINT_STORAGE_KEY = '@user_seen_swipe_hint';
 const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
 const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
 
-const showToast = (message: string, onUndo?: () => void) => {
+const showToast = (message: string, onUndo?: (() => void) | null) => {
+  // Only append "Tap to undo" if there's an actual undo function
   const toastMessage = onUndo ? `${message}\nTap to undo` : message;
   const toast = Toast.show(toastMessage, {
     duration: onUndo ? 4000 : 2000,
@@ -210,7 +211,7 @@ interface CardListItem {
   sortIndex: number;
   userHasSeenSwipeHint: boolean;
   onHintDismissed: () => Promise<void>;
-  setPendingToast: (toast: { message: string; onUndo: () => void; } | null) => void;
+  setPendingToast: (toast: { message: string; onUndo?: (() => void) | null } | null) => void;
 }
 
 // Add default notification preferences
@@ -273,7 +274,7 @@ export default function Dashboard() {
   }, [refreshUserCards]);
 
   // State for pending toast notification after returning from another app
-  const [pendingToast, setPendingToast] = useState<{ message: string; onUndo: () => void; } | null>(null);
+  const [pendingToast, setPendingToast] = useState<{ message: string; onUndo?: (() => void) | null } | null>(null);
   const appState = useRef(AppState.currentState);
 
   // State for DEV date picker

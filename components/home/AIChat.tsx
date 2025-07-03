@@ -1,3 +1,4 @@
+// AIChat.tsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
