@@ -30,6 +30,7 @@ import { useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
 
 import { BlurView } from 'expo-blur';
+import InsightsHelpModal from '../../components/insights/InsightsHelpModal';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -291,6 +292,7 @@ export default function InsightsScreen() {
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [isHelpModalVisible, setHelpModalVisible] = useState(false);
 
   // Add scroll animation values
   const scrollY = useSharedValue(0);
@@ -377,13 +379,14 @@ export default function InsightsScreen() {
   useEffect(() => {
     console.log('[InsightsScreen] Cards changed, updating selected cards');
     if (availableCardsForFilter.length > 0) {
-      setSelectedCardIds(availableCardsForFilter.map((c: CardWithActivity) => c.id));
+      // Only select default cards initially
+      setSelectedCardIds(defaultSelectedCardIds);
       setIsDataLoaded(true);
     } else {
       setSelectedCardIds([]);
       setIsDataLoaded(false);
     }
-  }, [availableCardsForFilter]);
+  }, [availableCardsForFilter, defaultSelectedCardIds]);
 
   // Reset expanded state when cards change
   useEffect(() => {
@@ -611,28 +614,12 @@ export default function InsightsScreen() {
   };
 
 
-  // Add useLayoutEffect for header configuration
+  // Update useLayoutEffect for header configuration
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity 
-          onPress={() => setFilterModalVisible(true)}
-          style={styles.headerButton}
-        >
-          <Ionicons 
-            name="funnel-outline" 
-            size={22} 
-            color={Colors.light.text} 
-          />
-          {activeFilterCount > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{activeFilterCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      ),
+      headerRight: () => null
     });
-  }, [navigation, activeFilterCount]);
+  }, [navigation]);
 
   if (isLoadingUserCards || !isDataLoaded) {
     return (
@@ -754,12 +741,33 @@ export default function InsightsScreen() {
             <Text style={styles.collapsedHeaderTitle}>
               {currentYearData && `${currentYearData.year} ROI: ${Math.round((currentYearData.totalRedeemed / currentYearData.totalAnnualFees) * 100)}%`}
             </Text>
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={() => setFilterModalVisible(true)}
-            >
-              <Ionicons name="filter" size={20} color="#007AFF" />
-            </TouchableOpacity>
+            <View style={styles.headerButtonsContainer}>
+              <TouchableOpacity 
+                onPress={() => setHelpModalVisible(true)}
+                style={[styles.headerButton, styles.helpButton]}
+              >
+                <Ionicons 
+                  name="help-circle-outline" 
+                  size={24} 
+                  color={Colors.light.text} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.headerButton, styles.filterButton]}
+                onPress={() => setFilterModalVisible(true)}
+              >
+                <Ionicons 
+                  name="funnel-outline" 
+                  size={24} 
+                  color={Colors.light.text} 
+                />
+                {activeFilterCount > 0 && (
+                  <View style={styles.headerBadge}>
+                    <Text style={styles.headerBadgeText}>{activeFilterCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </Animated.View>
 
@@ -803,14 +811,6 @@ export default function InsightsScreen() {
             <View style={styles.chartSection}>
               <View style={styles.chartHeader}>
                 <Text style={styles.chartTitle}>Monthly Performance</Text>
-                <TouchableOpacity 
-                  onPress={() => Alert.alert(
-                    "Monthly Performance",
-                    "This chart shows your total savings from redeemed perks each month."
-                  )}
-                >
-                  <Ionicons name="information-circle-outline" size={20} color={Colors.light.icon} />
-                </TouchableOpacity>
               </View>
               {currentYearSection && (
                 <React.Fragment>
@@ -902,6 +902,10 @@ export default function InsightsScreen() {
         )}
 
         {renderFilterModal()}
+        <InsightsHelpModal 
+          isVisible={isHelpModalVisible}
+          onClose={() => setHelpModalVisible(false)}
+        />
       </View>
     </SafeAreaView>
   );
@@ -1172,15 +1176,10 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 15,
   },
-  headerButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-  },
   headerBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: -2,
+    right: -2,
     backgroundColor: Colors.light.tint,
     borderRadius: 8,
     minWidth: 16,
@@ -1299,7 +1298,26 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#1C1C1E',
+    flex: 1,
   },
   sectionHeaderContainer: {
+  },
+  headerButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    marginLeft: 8,
+  },
+  helpButton: {
+    backgroundColor: 'rgba(142, 142, 147, 0.12)',
+  },
+  filterButton: {
+    backgroundColor: 'rgba(142, 142, 147, 0.12)',
   },
 }); 

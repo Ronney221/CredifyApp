@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import MiniBarChart from './MiniBarChart';
-import { Ionicons } from '@expo/vector-icons';
 import Animated, { 
   useAnimatedStyle, 
   interpolate, 
@@ -108,15 +107,6 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
           <Text style={styles.roiText}>
             <Text style={styles.roiPercentage}>{Math.round(roi)}% ROI</Text>
           </Text>
-          <TouchableOpacity 
-            style={styles.infoButton}
-            onPress={() => Alert.alert(
-              "Return on Investment (ROI)",
-              "This shows how much value you've redeemed compared to your total annual fees. An ROI of 100% means you've broken even on your annual fees."
-            )}
-          >
-            <Ionicons name="information-circle-outline" size={16} color={Colors.light.icon} />
-          </TouchableOpacity>
         </View>
         <Text style={styles.savingsText}>
           {amountSaved} saved of {totalFees} in total fees
@@ -176,10 +166,6 @@ const styles = StyleSheet.create({
   },
   roiPercentage: {
     color: Colors.light.tint,
-  },
-  infoButton: {
-    padding: 8,
-    marginLeft: 4,
   },
   savingsText: {
     fontSize: 16,

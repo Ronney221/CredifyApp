@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { CardROI } from '../../src/data/dummy-insights';
 
@@ -41,14 +40,6 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Card ROI for {new Date().getFullYear()}</Text>
-        <TouchableOpacity 
-          onPress={() => Alert.alert(
-            "Card ROI",
-            "Return on Investment (ROI) shows how much value you've redeemed compared to your annual fee. A card with 100% ROI means you've redeemed benefits equal to its annual fee."
-          )}
-        >
-          <Ionicons name="help-circle-outline" size={20} color={Colors.light.icon} />
-        </TouchableOpacity>
       </View>
       <View style={styles.leaderboard}>
         {sortedRois.map((roi, index) => (
