@@ -89,6 +89,8 @@ export interface ExpandableCardProps {
   userHasSeenSwipeHint: boolean;
   onHintDismissed: () => void;
   setPendingToast: (toast: { message: string; onUndo?: (() => void) | null } | null) => void;
+  renewalDate?: Date | null;
+  onRenewalDatePress?: () => void;
 }
 
 const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
@@ -122,7 +124,15 @@ const ExpandableCardComponent = ({
   userHasSeenSwipeHint,
   onHintDismissed,
   setPendingToast,
+  renewalDate,
+  onRenewalDatePress,
 }: ExpandableCardProps) => {
+  console.log('[ExpandableCard] Rendering card:', {
+    cardName: card.name,
+    renewalDate: renewalDate,
+    cardRenewalDate: card.renewalDate,
+    hasHandler: !!onRenewalDatePress
+  });
   const validPerks = perks ? perks.filter(Boolean) : [];
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRedeemedExpanded, setIsRedeemedExpanded] = useState(false);
@@ -674,6 +684,8 @@ const ExpandableCardComponent = ({
           monthlyPerkStats={monthlyPerkStats}
           otherPerksAvailableCount={otherPerksAvailableCount}
           onPress={handleExpand}
+          renewalDate={card.renewalDate || renewalDate}
+          onRenewalDatePress={onRenewalDatePress}
         />
 
         {isExpanded && (
@@ -756,7 +768,9 @@ const areEqual = (prevProps: ExpandableCardProps, nextProps: ExpandableCardProps
 
   if (prevProps.cumulativeSavedValue !== nextProps.cumulativeSavedValue ||
       prevProps.isActive !== nextProps.isActive ||
-      prevProps.sortIndex !== nextProps.sortIndex) {
+      prevProps.sortIndex !== nextProps.sortIndex ||
+      prevProps.onRenewalDatePress !== nextProps.onRenewalDatePress ||
+      String(prevProps.renewalDate) !== String(nextProps.renewalDate)) {
     return false;
   }
 

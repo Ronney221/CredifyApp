@@ -62,6 +62,11 @@ export function useUserCards(): UserCardsHookResult {
           userCardsFromDb.map(dbCard => [dbCard.card_name, dbCard])
         );
 
+        console.log('[useUserCards] Database records:', userCardsFromDb.map(card => ({
+          name: card.card_name,
+          renewal_date: card.renewal_date
+        })));
+
         // Filter and map allCards to match the database records
         const matchedCards = allCards
           .filter(card => cardNameToDbRecord.has(card.name))
@@ -76,16 +81,28 @@ export function useUserCards(): UserCardsHookResult {
         );
 
         // Transform to final format with proper perk transformation
-        finalCards = matchedCards.map(({ card }) => ({
-          card,
-          perks: card.benefits.map(benefit => ({
-            ...benefit,
-            cardId: card.id,
-            status: 'available' as const,
-            streakCount: 0,
-            coldStreakCount: 0,
-          }))
-        }));
+        finalCards = matchedCards.map(({ card, dbRecord }) => {
+          const renewalDate = dbRecord.renewal_date ? new Date(dbRecord.renewal_date) : null;
+          console.log('[useUserCards] Processing card:', {
+            name: card.name,
+            dbRenewalDate: dbRecord.renewal_date,
+            parsedRenewalDate: renewalDate
+          });
+          
+          return {
+            card: {
+              ...card,
+              renewalDate
+            },
+            perks: card.benefits.map(benefit => ({
+              ...benefit,
+              cardId: card.id,
+              status: 'available' as const,
+              streakCount: 0,
+              coldStreakCount: 0,
+            }))
+          };
+        });
 
         console.log('[useUserCards] Processed cards with order:', 
           finalCards.map(c => `${c.card.name} (${cardNameToDbRecord.get(c.card.name)?.display_order})`));

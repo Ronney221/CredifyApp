@@ -33,6 +33,7 @@ export interface Card {
   rewardsCurrency?: string;
   network?: string;
   benefits: Benefit[];
+  renewalDate?: Date | null;
 }
 
 export interface CardPerk extends Benefit {

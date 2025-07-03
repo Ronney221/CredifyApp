@@ -212,6 +212,8 @@ interface CardListItem {
   userHasSeenSwipeHint: boolean;
   onHintDismissed: () => Promise<void>;
   setPendingToast: (toast: { message: string; onUndo?: (() => void) | null } | null) => void;
+  renewalDate?: Date | null;
+  onRenewalDatePress?: () => void;
 }
 
 // Add default notification preferences
@@ -998,21 +1000,57 @@ export default function Dashboard() {
   if (!isUserCardsInitialLoading) {
   }
 
+  // Add state for renewal dates from URL params
+  const [renewalDates, setRenewalDates] = useState<Record<string, Date>>({});
+
+  // Parse renewal dates from URL params
+  useEffect(() => {
+    if (params.renewalDates) {
+      try {
+        const dates = JSON.parse(params.renewalDates);
+        const parsedDates: Record<string, Date> = {};
+        Object.entries(dates).forEach(([cardId, dateStr]) => {
+          if (typeof dateStr === 'string') {
+            parsedDates[cardId] = new Date(dateStr);
+          }
+        });
+        setRenewalDates(parsedDates);
+      } catch (error) {
+        console.error('Error parsing renewal dates:', error);
+      }
+    }
+  }, [params.renewalDates]);
+
+  // Add handler for renewal date press
+  const handleRenewalDatePress = useCallback((cardId: string) => {
+    router.push("/(tabs)/profile/manage_cards");
+  }, [router]);
+
   // Map cards to CardListItems with all required properties
-  const cardListItems: CardListItem[] = useMemo(() => cardsListData.map((cardData, index) => ({
-    card: cardData.card,
-    perks: cardData.perks,
-    cumulativeSavedValue: cumulativeValueSavedPerCard[cardData.card.id] || 0,
-    onTapPerk: handleTapPerk,
-    onExpandChange: handleCardExpandChange,
-    onPerkStatusChange: handlePerkStatusChange,
-    setPerkStatus,
-    isActive: activeCardId === cardData.card.id,
-    sortIndex: index,
-    userHasSeenSwipeHint,
-    onHintDismissed: handleHintDismissed,
-    setPendingToast
-  })), [
+  const cardListItems: CardListItem[] = useMemo(() => cardsListData.map((cardData, index) => {
+    console.log('[Dashboard] Mapping card to list item:', {
+      cardName: cardData.card.name,
+      cardRenewalDate: cardData.card.renewalDate,
+      stateRenewalDate: renewalDates[cardData.card.id]
+    });
+    
+    return {
+      card: cardData.card,
+      perks: cardData.perks,
+      cumulativeSavedValue: cumulativeValueSavedPerCard[cardData.card.id] || 0,
+      onTapPerk: handleTapPerk,
+      onExpandChange: handleCardExpandChange,
+      onPerkStatusChange: handlePerkStatusChange,
+      setPerkStatus,
+      isActive: activeCardId === cardData.card.id,
+      sortIndex: index,
+      userHasSeenSwipeHint,
+      onHintDismissed: handleHintDismissed,
+      setPendingToast,
+      renewalDate: cardData.card.renewalDate,
+      onRenewalDatePress: () => handleRenewalDatePress(cardData.card.id)
+    };
+  }), [
     cardsListData,
     cumulativeValueSavedPerCard,
     activeCardId,
@@ -1022,7 +1060,8 @@ export default function Dashboard() {
     handleCardExpandChange,
     handlePerkStatusChange,
     setPerkStatus,
-    setPendingToast
+    setPendingToast,
+    handleRenewalDatePress
   ]);
 
   // renderItem function for the FlatList
@@ -1041,6 +1080,8 @@ export default function Dashboard() {
       userHasSeenSwipeHint={item.userHasSeenSwipeHint}
       onHintDismissed={item.onHintDismissed}
       setPendingToast={item.setPendingToast}
+      renewalDate={item.renewalDate}
+      onRenewalDatePress={item.onRenewalDatePress}
     />
   );
 

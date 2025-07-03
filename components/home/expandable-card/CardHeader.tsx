@@ -13,9 +13,12 @@ interface CardHeaderProps {
   monthlyPerkStats: { total: number; redeemed: number };
   otherPerksAvailableCount: number;
   onPress: () => void;
+  renewalDate?: Date | null;
+  onRenewalDatePress?: () => void;
 }
 
 const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
+const systemBlue = Platform.OS === 'ios' ? PlatformColor('systemBlue') : '#007AFF';
 
 const CardHeader: React.FC<CardHeaderProps> = ({
   card,
@@ -26,6 +29,8 @@ const CardHeader: React.FC<CardHeaderProps> = ({
   monthlyPerkStats,
   otherPerksAvailableCount,
   onPress,
+  renewalDate,
+  onRenewalDatePress,
 }) => {
   const cardNetworkColor = React.useMemo(() => {
     switch (card.network?.toLowerCase()) {
@@ -145,6 +150,30 @@ const CardHeader: React.FC<CardHeaderProps> = ({
     );
   };
 
+  const renderRenewalDatePrompt = () => {
+    console.log('[CardHeader] renderRenewalDatePrompt:', {
+      cardName: card.name,
+      renewalDate: renewalDate,
+      hasHandler: !!onRenewalDatePress,
+      renewalDateType: renewalDate ? typeof renewalDate : 'null',
+      isDateObject: renewalDate instanceof Date
+    });
+
+    if (renewalDate || !onRenewalDatePress) return null;
+
+    return (
+      <TouchableOpacity 
+        onPress={onRenewalDatePress}
+        style={styles.renewalPrompt}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="calendar-outline" size={14} color={systemBlue} />
+        <Text style={styles.renewalPromptText}>
+          Set renewal date for reminders
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <TouchableOpacity
@@ -161,6 +190,7 @@ const CardHeader: React.FC<CardHeaderProps> = ({
           <View style={styles.cardSubtitle}>
              {renderSubtitle()}
           </View>
+          {renderRenewalDatePrompt()}
           {renderProgressSection()}
         </View>
       </View>
@@ -291,7 +321,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  }
+  },
+  renewalPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  renewalPromptText: {
+    fontSize: 13,
+    color: systemBlue,
+    marginLeft: 6,
+    fontWeight: '500',
+  },
 });
 
 export default React.memo(CardHeader); 
