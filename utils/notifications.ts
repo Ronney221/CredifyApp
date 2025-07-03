@@ -131,7 +131,54 @@ async function generateRenewalBody(cardName: string, renewalDate: Date, daysBefo
     };
   }
 
-  const insightsData = await generateDummyInsightsData([cardId]);
+  // Get the current user ID from Supabase auth
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user?.id) {
+    console.error('Error getting user ID for notifications:', userError);
+    return {
+      body: `Your ${cardName} annual fee ($${annualFee}) is due on ${formattedDate}.`,
+      data: notificationData
+    };
+  }
+
+  // Get user's cards with perks
+  const { data: userCards, error: cardsError } = await getUserCards(user.id);
+  if (cardsError || !userCards) {
+    console.error('Error getting user cards for notifications:', cardsError);
+    return {
+      body: `Your ${cardName} annual fee ($${annualFee}) is due on ${formattedDate}.`,
+      data: notificationData
+    };
+  }
+
+  // Find the specific card and process its data
+  const userCard = userCards.find(uc => uc.card_name === cardName);
+  if (!userCard) {
+    return {
+      body: `Your ${cardName} annual fee ($${annualFee}) is due on ${formattedDate}.`,
+      data: notificationData
+    };
+  }
+
+  // Format the card data as expected by generateDummyInsightsData
+  const processedCard = {
+    card: {
+      id: cardId,
+      name: cardName,
+      benefits: card?.benefits || [],
+      annualFee: annualFee
+    },
+    perks: card?.benefits.map(benefit => ({
+      id: `${cardId}_${benefit.definition_id}`,
+      definition_id: benefit.definition_id,
+      name: benefit.name,
+      value: benefit.value,
+      status: 'available' as const,
+      period: benefit.period
+    })) || []
+  };
+
+  const insightsData = await generateDummyInsightsData([cardId], [processedCard], user.id);
   const cardRoi = insightsData.cardRois.find(roi => roi.id === cardId);
   const totalRedeemed = cardRoi?.totalRedeemed || 0;
   const roiPercentage = annualFee > 0 ? (totalRedeemed / annualFee) * 100 : 0;
