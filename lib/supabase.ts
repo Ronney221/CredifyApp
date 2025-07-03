@@ -5,9 +5,10 @@ import { Platform } from 'react-native';
 import { decode } from 'base64-arraybuffer';
 import Constants from 'expo-constants';
 
-const { SUPABASE_URL, SUPABASE_KEY } = Constants.expoConfig!.extra as any;
+const supabaseUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
+if (!supabaseUrl || !supabaseKey) {
   // Fail loud in both dev & prod
   throw new Error('Supabase env missing – check app.config.js / eas.json');
 }
@@ -27,7 +28,7 @@ const supabaseOptions: SupabaseClientOptions<'public'> = {
   //realtime: isWeb ? undefined : { params: {} }, // Pass undefined for web to use defaults, or empty for mobile to potentially avoid 'ws'
 };
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, supabaseOptions);
+export const supabase = createClient(supabaseUrl, supabaseKey, supabaseOptions);
 
 // Auth helper functions
 export const signOut = async () => {

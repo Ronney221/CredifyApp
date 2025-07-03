@@ -169,8 +169,8 @@
       "eas": {
         "projectId": "75e33702-056a-43e1-a206-50e6b8d63b05"
       },
-      "SUPABASE_URL": "https://ozgnkpadloshnwliaodw.supabase.co",
-      "SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96Z25rcGFkbG9zaG53bGlhb2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMjYzMjAsImV4cCI6MjA2MzYwMjMyMH0.PyD1EYJbZcR_SCfTRuye2cOqnLCHl_44vitM9kGWm9w"
+      "EXPO_PUBLIC_SUPABASE_URL": "https://ozgnkpadloshnwliaodw.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96Z25rcGFkbG9zaG53bGlhb2R3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMjYzMjAsImV4cCI6MjA2MzYwMjMyMH0.PyD1EYJbZcR_SCfTRuye2cOqnLCHl_44vitM9kGWm9w"
     },
     "updates": {
       "enabled": true,
