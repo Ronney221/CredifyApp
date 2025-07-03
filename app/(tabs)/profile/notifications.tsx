@@ -1,13 +1,17 @@
 //app/(tabs)/profile/notifications.tsx
-import React, { useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Switch,
+  UIManager,
+  LayoutAnimation,
   Platform,
-  UIManager
+  Modal,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
@@ -16,6 +20,8 @@ import { useCardManagement } from '../../../components/cards/hooks/useCardManage
 import { useAuth } from '../../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
+import { BlurView } from 'expo-blur';
+import BackButton from '../../../components/ui/BackButton';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -24,25 +30,83 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 interface NotificationSectionProps {
   item: {
     key: string;
-    href: string;
+    isExpanded?: boolean;
+    onToggleExpand?: () => void;
     iconName: any;
     title: string;
-    subtitle: string;
+    details?: string[];
+    toggles?: any[];
     iconColor: string;
     dimmed?: boolean;
+    renewalOptions?: {
+      current: number;
+      setter: (value: number) => void;
+      options: { label: string; value: number }[];
+    };
   };
   isLastItem: boolean;
 }
 
+interface RenewalModalProps {
+  visible: boolean;
+  onClose: () => void;
+  options: { label: string; value: number }[];
+  onSelect: (value: number) => void;
+  currentValue: number;
+}
+
+const RenewalOptionModal: React.FC<RenewalModalProps> = ({ visible, onClose, options, onSelect, currentValue }) => {
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+        <View style={styles.modalContent}>
+          {options.map((option, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={[
+                styles.modalOption, 
+                index === options.length - 1 && styles.noBorder
+              ]} 
+              onPress={() => {
+                onSelect(option.value);
+                onClose();
+              }}
+            >
+              <Text style={styles.modalOptionText}>{option.label}</Text>
+              {currentValue === option.value && <Ionicons name="checkmark" size={20} color={Colors.light.tint} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastItem }) => {
   const router = useRouter();
+  const [isRenewalModalVisible, setRenewalModalVisible] = useState(false);
   
+  const toggle = item.toggles?.[0];
+  const isPerkExpirySection = item.key === 'perk_expiry';
+
+  const handleToggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (item.onToggleExpand) {
+      item.onToggleExpand();
+    }
+  };
+
   return (
     <View style={[styles.section, isLastItem && styles.noBorder]}>
       <TouchableOpacity 
         activeOpacity={0.8} 
-        onPress={() => router.push(item.href as any)}
-        disabled={item.dimmed}
+        onPress={handleToggle} 
+        disabled={!item.onToggleExpand || item.dimmed}
         style={[styles.sectionHeader, item.dimmed && styles.dimmed]}
       >
         <View style={[styles.iconContainer, { backgroundColor: item.iconColor }]}>
@@ -50,10 +114,68 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
         </View>
         <View style={styles.sectionHeaderText}>
           <Text style={styles.sectionTitle}>{item.title}</Text>
-          {item.subtitle && <Text style={styles.sectionDetails}>{item.subtitle}</Text>}
+          {item.details && <Text style={styles.sectionDetails}>{item.details.join(', ')}</Text>}
         </View>
-        <Ionicons name="chevron-forward" size={22} color="#c7c7cc" />
+        {isPerkExpirySection ? (
+          <Ionicons name="chevron-forward" size={22} color="#c7c7cc" />
+        ) : (
+          toggle && (
+            <Switch
+              value={toggle.value}
+              onValueChange={toggle.onValueChange}
+              disabled={item.dimmed}
+              trackColor={{ false: '#e9e9ea', true: Colors.light.tint }}
+              thumbColor={'#ffffff'}
+              ios_backgroundColor="#e9e9ea"
+            />
+          )
+        )}
       </TouchableOpacity>
+
+      {item.isExpanded && isPerkExpirySection && item.toggles && (
+        <View style={styles.childTogglesContainer}>
+          {item.toggles.map((toggle, index) => (
+            <View key={index} style={[styles.toggleRow, index === item.toggles!.length - 1 && styles.noBorder]}>
+              <Text style={styles.toggleLabel}>{toggle.label}</Text>
+              <Switch
+                value={toggle.value}
+                onValueChange={toggle.onValueChange}
+                disabled={toggle.disabled}
+                trackColor={{ false: '#e9e9ea', true: Colors.light.tint }}
+                thumbColor={'#ffffff'}
+                ios_backgroundColor="#e9e9ea"
+              />
+            </View>
+          ))}
+        </View>
+      )}
+
+      {item.isExpanded && !isPerkExpirySection && item.toggles && item.toggles.length > 1 && (
+        <View style={styles.childTogglesContainer}>
+          {item.toggles.slice(1).map((toggle, index) => (
+            <View key={index} style={[styles.toggleRow, index === item.toggles!.length - 2 && styles.noBorder]}>
+              <Text style={styles.toggleLabel}>{toggle.label}</Text>
+              <Switch
+                value={toggle.value}
+                onValueChange={toggle.onValueChange}
+                disabled={toggle.disabled}
+                trackColor={{ false: '#e9e9ea', true: Colors.light.tint }}
+                thumbColor={'#ffffff'}
+                ios_backgroundColor="#e9e9ea"
+              />
+            </View>
+          ))}
+        </View>
+      )}
+
+      {item.isExpanded && (
+        <View style={styles.previewContainer}>
+          <Ionicons name="notifications-outline" size={16} color="#6e6e73" style={{ marginRight: 8 }} />
+          <Text style={styles.previewText}>
+            {item.details ? item.details.join(', ') : 'Notification preview will appear here.'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -61,61 +183,22 @@ const NotificationSection: React.FC<NotificationSectionProps> = ({ item, isLastI
 export default function NotificationSettingsScreen() {
   const { user } = useAuth();
   const { anyRenewalDateSet, loadExistingCards } = useCardManagement(user?.id);
-  // TODO: Once useNotificationPreferences is updated, use it to get dynamic subtitles
-  // const { preferences } = useNotificationPreferences();
+  const { buildNotificationItems } = useNotificationPreferences();
 
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
+        console.log('[NotificationsScreen] Focussed, reloading card data.');
         loadExistingCards();
       }
     }, [user?.id])
   );
   
-  const getPerkExpirySubtitle = () => {
-    // Placeholder subtitle
-    return `Active: Monthly, Annual`;
-  };
-
-  const getCardRenewalSubtitle = () => {
-    if (!anyRenewalDateSet) return 'Add a card with a renewal date';
-    // Placeholder subtitle
-    return `Notify at 90, 30, 7, and 1 day before`;
-  };
-
-  const notificationItems = [
-    {
-      key: 'perk_expiry',
-      title: 'Perk Expiry Reminders',
-      subtitle: getPerkExpirySubtitle(),
-      iconName: 'sparkles-outline' as const,
-      iconColor: '#ff9500',
-      href: '/(tabs)/profile/reminders/perk-expiry',
-      dimmed: false,
-    },
-    {
-      key: 'card_renewal',
-      title: 'Card Renewal Reminders',
-      subtitle: getCardRenewalSubtitle(),
-      iconName: 'card-outline' as const,
-      iconColor: '#34c759',
-      href: '/(tabs)/profile/reminders/card-renewal',
-      dimmed: !anyRenewalDateSet,
-    },
-    {
-      key: 'first_of_month',
-      title: 'First of Month Reminders',
-      subtitle: 'On', // Placeholder
-      iconName: 'calendar-outline' as const,
-      iconColor: '#5856d6',
-      href: '/(tabs)/profile/reminders/first-of-month',
-      dimmed: false,
-    },
-  ];
+  const notificationItems = buildNotificationItems(anyRenewalDateSet);
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Notification Preferences', headerShown: true }} />
+      <Stack.Screen options={{ title: 'Notification Preferences', headerShown: true, headerLeft: () => <BackButton label="Profile" /> }} />
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <View style={styles.sectionContainer}>
