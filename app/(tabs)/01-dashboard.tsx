@@ -1125,7 +1125,6 @@ export default function Dashboard() {
         <View style={styles.cardsSectionHeader}>
           <Text style={styles.sectionTitle}>Your Cards</Text>
           <AIChatButton
-            hasRedeemedFirstPerk={hasRedeemedFirstPerk}
             showNotification={showAiChatNotification}
             onOpen={handleOpenAiChat}
             onClose={checkNotificationStatus}
@@ -1142,7 +1141,6 @@ export default function Dashboard() {
     redeemedInCurrentCycle, 
     uniquePerkPeriodsForToggle,
     listHeaderHeight,
-    hasRedeemedFirstPerk,
     showAiChatNotification,
     handleOpenAiChat
   ]);

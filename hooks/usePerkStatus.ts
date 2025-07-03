@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardPerk } from '../src/data/card-data';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+import { useOnboardingContext } from '../app/(onboarding)/_context/OnboardingContext';
 
 interface PerkDefinition {
   id: string;
@@ -77,6 +78,7 @@ export function usePerkStatus(
   initialUserCardsWithPerks: { card: Card; perks: CardPerk[] }[]
 ): PerkStatusHookResult {
   const { user } = useAuth();
+  const { markFirstPerkRedeemed } = useOnboardingContext();
   const [isLoadingHook, setIsLoadingHook] = useState(true);
   // Removed old monthly/yearly specific states
   const [periodAggregates, setPeriodAggregates] = useState<Record<number, PeriodAggregate>>({});
@@ -90,6 +92,7 @@ export function usePerkStatus(
   const [arePerkDefinitionsLoading, setArePerkDefinitionsLoading] = useState(true);
   const [processedCardsWithPerks, setProcessedCardsWithPerks] = useState<{ card: Card; perks: CardPerk[] }[]>([]);
   const [isCalculatingSavings, setIsCalculatingSavings] = useState(false);
+  const [isFirstPerkRedemption, setIsFirstPerkRedemption] = useState(true);
 
   // Removed isPerkRedeemedAnnually and yearlyRedemptionsRef as logic is now more generic
 
@@ -163,6 +166,13 @@ export function usePerkStatus(
         if (allRedemptionsError) {
           console.error('Error fetching redemptions:', allRedemptionsError);
           throw allRedemptionsError;
+        }
+
+        // Update isFirstPerkRedemption based on existing redemptions
+        if (allUserRedemptions && allUserRedemptions.length > 0) {
+          console.log('[usePerkStatus] Found existing redemptions, marking first perk as redeemed');
+          setIsFirstPerkRedemption(false);
+          markFirstPerkRedeemed();
         }
 
         const latestRedemptionsMap = new Map<string, {
@@ -311,6 +321,16 @@ export function usePerkStatus(
     console.log('========= [usePerkStatus] setPerkStatus called =========');
     console.log('Input parameters:', { cardId, perkId, newStatus, remainingValue });
     
+    // Check if this is a redemption (either full or partial)
+    const isRedemption = newStatus === 'redeemed' || newStatus === 'partially_redeemed';
+
+    // If this is a redemption and we haven't marked the first perk yet
+    if (isRedemption && isFirstPerkRedemption) {
+      console.log('[usePerkStatus] First perk redemption detected, marking onboarding state');
+      markFirstPerkRedeemed();
+      setIsFirstPerkRedemption(false);
+    }
+
     let perkValue = 0;
     let periodMonths = 0;
     let definitionId = '';
@@ -436,7 +456,7 @@ export function usePerkStatus(
 
     console.log('New redeemedInCurrentCycle state:', redeemedInCurrentCycle);
     console.log('========= [usePerkStatus] setPerkStatus complete =========');
-  }, []);
+  }, [markFirstPerkRedeemed]);
 
   const refreshSavings = useCallback(() => {
     console.log('========= [usePerkStatus] refreshSavings called =========');

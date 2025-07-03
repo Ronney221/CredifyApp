@@ -52,15 +52,28 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     const loadRedemptionState = async () => {
       try {
         const value = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
+        console.log('[OnboardingContext] Loading redemption state:', {
+          storedValue: value,
+          parsedValue: value !== null ? JSON.parse(value) : null,
+          timestamp: new Date().toISOString()
+        });
         if (value !== null) {
           setHasRedeemedFirstPerk(JSON.parse(value));
         }
       } catch (error) {
-        console.error('Error loading redemption state:', error);
+        console.error('[OnboardingContext] Error loading redemption state:', error);
       }
     };
     loadRedemptionState();
   }, []);
+
+  // Add logging for state changes
+  useEffect(() => {
+    console.log('[OnboardingContext] hasRedeemedFirstPerk state changed:', {
+      newValue: hasRedeemedFirstPerk,
+      timestamp: new Date().toISOString()
+    });
+  }, [hasRedeemedFirstPerk]);
 
   // Card Management Functions
   const addCard = useCallback((cardId: string) => {
@@ -96,10 +109,12 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   // Perk Redemption Functions
   const markFirstPerkRedeemed = useCallback(async () => {
     try {
+      console.log('[OnboardingContext] Marking first perk as redeemed');
       await AsyncStorage.setItem(HAS_REDEEMED_FIRST_PERK_KEY, JSON.stringify(true));
       setHasRedeemedFirstPerk(true);
+      console.log('[OnboardingContext] Successfully marked first perk as redeemed');
     } catch (error) {
-      console.error('Error saving redemption state:', error);
+      console.error('[OnboardingContext] Error saving redemption state:', error);
     }
   }, []);
 

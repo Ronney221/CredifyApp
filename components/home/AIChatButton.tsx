@@ -14,19 +14,42 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AIChat from './AIChat';
 import { Colors } from '../../constants/Colors';
+import { useOnboardingContext } from '../../app/(onboarding)/_context/OnboardingContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AIChatButtonProps {
-  hasRedeemedFirstPerk: boolean;
   showNotification?: boolean;
   onOpen?: () => void;
   onClose?: () => void;
 }
 
-export default function AIChatButton({ hasRedeemedFirstPerk, showNotification, onOpen, onClose }: AIChatButtonProps) {
+export default function AIChatButton({ showNotification, onOpen, onClose }: AIChatButtonProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipOpacity = useRef(new Animated.Value(0)).current;
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const { hasRedeemedFirstPerk } = useOnboardingContext();
+
+  // Add logging for component mount and context value
+  useEffect(() => {
+    const checkState = async () => {
+      const storedValue = await AsyncStorage.getItem('HAS_REDEEMED_FIRST_PERK_KEY');
+      console.log('[AIChatButton] Component mounted:', {
+        contextValue: hasRedeemedFirstPerk,
+        asyncStorageValue: storedValue,
+        timestamp: new Date().toISOString()
+      });
+    };
+    checkState();
+  }, []);
+
+  // Add logging for context value changes
+  useEffect(() => {
+    console.log('[AIChatButton] hasRedeemedFirstPerk changed:', {
+      newValue: hasRedeemedFirstPerk,
+      timestamp: new Date().toISOString()
+    });
+  }, [hasRedeemedFirstPerk]);
 
   useEffect(() => {
     return () => {

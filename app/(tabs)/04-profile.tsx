@@ -24,6 +24,7 @@ import { NotificationPreferences } from '../../types/notification-types';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import * as Sentry from '@sentry/react-native';
+import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -50,6 +51,7 @@ interface ProfileSection {
 const ProfileScreen = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
+  const { setHasRedeemedFirstPerk } = useOnboardingContext();
 
   const handleTestPerkExpiryNotifications = async () => {
     if (!user?.id) {
@@ -94,6 +96,7 @@ const ProfileScreen = () => {
   const handleResetFirstRedemption = async () => {
     try {
       await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      setHasRedeemedFirstPerk(false);
       Alert.alert(
         "Success",
         "First redemption state has been reset. The onboarding sheet will show after your next perk redemption.",
