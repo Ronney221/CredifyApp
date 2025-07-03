@@ -80,7 +80,7 @@ export default function PotentialSavingsScreen() {
     const finalValue = Math.round(totalValue);
     const finalFees = Math.round(totalFees);
     const finalNetValue = Math.round(netValue);
-    const duration = 2000; // 2 seconds
+    const duration = 1200; // 2 seconds
     const steps = 60; // 60 steps for smooth animation
     const stepDuration = duration / steps;
     const increment = finalValue / steps;
@@ -111,7 +111,6 @@ export default function PotentialSavingsScreen() {
         // Only trigger animations if we haven't already
         if (!hasAnimated.current) {
           hasAnimated.current = true;
-          setIsCountingComplete(true);
           setShowCelebration(true);
           
           // Animate the scale
@@ -127,7 +126,12 @@ export default function PotentialSavingsScreen() {
             }),
           ]).start();
           
-          // Hide celebration after 3 seconds
+          // Show MotiView after celebration animation completes
+          setTimeout(() => {
+            setIsCountingComplete(true);
+          }, 1000); // Give celebration animation time to play
+
+          // Hide celebration after animation completes
           setTimeout(() => {
             setShowCelebration(false);
           }, 2000);
@@ -205,24 +209,26 @@ export default function PotentialSavingsScreen() {
             </View>
           </View>
 
-          <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 400, delay: 400 }}
-            style={styles.subheadContainer}
-          >
-            <Text style={styles.subheadText}>
-              {displayNetValue > 0 ? (
-                <>
-                  Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks covers your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees and leave you with <Text style={styles.subheadHighlight}>${displayNetValue}</Text> to claim.
-                </>
-              ) : (
-                <>
-                  Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks helps offset your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees. Let&apos;s track your perks to maximize their value.
-                </>
-              )}
-            </Text>
-          </MotiView>
+          {isCountingComplete && (
+            <MotiView
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 400, delay: 400 }}
+              style={styles.subheadContainer}
+            >
+              <Text style={styles.subheadText}>
+                {displayNetValue > 0 ? (
+                  <>
+                    Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks covers your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees and leave you with <Text style={styles.subheadHighlight}>${displayNetValue}</Text> to claim.
+                  </>
+                ) : (
+                  <>
+                    Your <Text style={styles.subheadHighlight}>${displayValue}</Text> in total perks helps offset your <Text style={styles.subheadHighlight}>${displayFees}</Text> in fees. Let&apos;s track your perks to maximize their value.
+                  </>
+                )}
+              </Text>
+            </MotiView>
+          )}
         </MotiView>
 
         <ScrollView 
@@ -322,6 +328,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -1,
     transform: [{ scale: 1 }],
+    minWidth: 280, // Ensures consistent width for up to 6 digits + $ sign
   },
   extraValueText: {
     fontSize: 20,
