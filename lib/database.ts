@@ -10,7 +10,7 @@ interface UserCard {
   card_brand: string;
   card_category: string;
   annual_fee: number;
-  is_active: boolean;
+  status: 'active' | 'removed';
   renewal_date?: string;
   display_order: number;
 }
@@ -93,7 +93,7 @@ export async function getUserCards(userId: string) {
       .from('user_credit_cards')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_active', true)
+      .eq('status', 'active')
       .order('display_order', { ascending: true });
 
     if (error) {
@@ -109,57 +109,102 @@ export async function getUserCards(userId: string) {
   }
 }
 
+export async function upsertUserCard(
+  userId: string,
+  card: Card,
+  renewalDate?: Date | null,
+  displayOrder?: number
+) {
+  const { data, error } = await supabase
+    .from('user_credit_cards')
+    .upsert({
+      user_id: userId,
+      card_name: card.name,
+      card_brand: card.id.split('_')[0],
+      card_category: 'rewards',
+      annual_fee: card.annualFee || 0,
+      renewal_date: renewalDate,
+      display_order: displayOrder,
+      status: 'active',
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id,card_name'
+    });
+  
+  return { data, error };
+}
+
+export async function markCardAsRemoved(
+  userId: string,
+  cardName: string
+) {
+  const { data, error } = await supabase
+    .from('user_credit_cards')
+    .update({
+      status: 'removed',
+      updated_at: new Date().toISOString()
+    })
+    .match({ user_id: userId, card_name: cardName });
+
+  return { data, error };
+}
+
+export async function getUserActiveCards(userId: string) {
+  const { data, error } = await supabase
+    .from('user_credit_cards')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('display_order');
+
+  if (error) {
+    console.error('Error fetching active user cards:', error);
+  }
+
+  return { data, error };
+}
+
 export async function saveUserCards(
-  userId: string, 
-  selectedCards: Card[], 
-  renewalDates: Record<string, Date>
+  userId: string,
+  cards: Card[],
+  renewalDates: Record<string, Date | null> = {}
 ) {
   try {
-    console.log('Saving cards for user:', userId);
-    console.log('Selected cards:', selectedCards.length);
-
-    // First, deactivate all existing cards
-    const { error: deactivateError } = await supabase
+    // First, mark all existing active cards as removed
+    const { error: updateError } = await supabase
       .from('user_credit_cards')
-      .update({ is_active: false })
-      .eq('user_id', userId);
+      .update({ 
+        status: 'removed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('status', 'active');
 
-    if (deactivateError) {
-      console.error('Database error deactivating existing cards:', deactivateError);
-      return { error: deactivateError };
-    }
+    if (updateError) throw updateError;
 
-    // Prepare cards for insertion with display_order
-    const cardsToInsert = selectedCards.map((card, index) => {
-      const cardData = {
-        user_id: userId,
-        card_name: card.name,
-        card_brand: card.id.split('_')[0],
-        card_category: 'rewards',
-        annual_fee: card.annualFee || 0,
-        is_active: true,
-        renewal_date: renewalDates[card.id] ? renewalDates[card.id].toISOString() : null,
-        display_order: index // Add display_order based on array index
-      };
-      console.log('Preparing card for insertion:', card.name, 'with order:', index);
-      return cardData;
-    });
+    // Then insert new active cards
+    const cardsToInsert = cards.map((card, index) => ({
+      user_id: userId,
+      card_name: card.name,
+      card_brand: card.id.split('_')[0],
+      card_category: 'rewards',
+      annual_fee: card.annualFee || 0,
+      renewal_date: renewalDates[card.id] ? renewalDates[card.id]?.toISOString() : null,
+      display_order: index,
+      status: 'active' as const,
+      updated_at: new Date().toISOString()
+    }));
 
-    // Insert new cards
-    const { data, error: insertError } = await supabase
+    // Use insert instead of upsert since we've already marked existing cards as removed
+    const { error: insertError } = await supabase
       .from('user_credit_cards')
-      .insert(cardsToInsert)
-      .select();
+      .insert(cardsToInsert);
 
-    if (insertError) {
-      console.error('Database error inserting new cards:', insertError);
-      return { error: insertError };
-    }
+    if (insertError) throw insertError;
 
-    console.log('Successfully saved cards:', data?.length || 0);
-    return { data, error: null };
+    return { error: null };
   } catch (error) {
-    console.error('Unexpected error saving user cards:', error);
+    console.error('Error saving user cards:', error);
     return { error };
   }
 }
@@ -171,7 +216,7 @@ export async function hasUserSelectedCards(userId: string): Promise<boolean> {
       .from('user_credit_cards')
       .select('id')
       .eq('user_id', userId)
-      .eq('is_active', true)
+      .eq('status', 'active')
       .limit(1);
 
     if (error) {
@@ -280,7 +325,7 @@ export async function trackPerkRedemption(
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
       .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
-      .eq('is_active', true);
+      .eq('status', 'active');
 
     if (cardError || !userCardsResult || userCardsResult.length === 0) {
       console.error('Error finding user card:', cardError);
@@ -579,7 +624,7 @@ export async function setAutoRedemption(
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
       .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
-      .eq('is_active', true);
+      .eq('status', 'active');
 
     if (cardError) {
       console.error('Error querying user card for auto-redemption:', {
@@ -757,7 +802,7 @@ export async function checkAutoRedemptionByCardId(
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
       .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
-      .eq('is_active', true)
+      .eq('status', 'active')
       .single();
 
     if (cardError || !userCards) {
@@ -824,57 +869,41 @@ export async function getRedemptionsForPeriod(userId: string, startDate: Date, e
   }
 }
 
-// Add a new function to update card order
 export async function updateCardOrder(userId: string, cardIds: string[]) {
   try {
-    // Get the current active cards
+    // Get current active cards
     const { data: existingCards, error: fetchError } = await supabase
       .from('user_credit_cards')
       .select('id, card_name')
       .eq('user_id', userId)
-      .eq('is_active', true);
+      .eq('status', 'active');
 
-    if (fetchError) {
-      console.error('Error fetching existing cards:', fetchError);
-      return { error: fetchError };
-    }
+    if (fetchError) throw fetchError;
 
-    // Create a map of card names to database IDs
-    const cardNameToId = new Map(existingCards?.map(card => [card.card_name, card.id]));
+    // Create a map of card names to their new order
+    const cardNameToOrder = new Map(
+      cardIds.map((cardId, index) => [
+        allCards.find(c => c.id === cardId)?.name || '',
+        index
+      ])
+    );
 
-    // Prepare the updates
-    const updates = cardIds.map((cardId, index) => {
-      const card = allCards.find(c => c.id === cardId);
-      if (!card) return null;
-      
-      const dbId = cardNameToId.get(card.name);
-      if (!dbId) return null;
+    // Update each card's display order
+    const updates = existingCards.map(card => ({
+      id: card.id,
+      display_order: cardNameToOrder.get(card.card_name) ?? 0,
+      updated_at: new Date().toISOString()
+    }));
 
-      return {
-        id: dbId,
-        display_order: index
-      };
-    }).filter(Boolean);
+    const { error: updateError } = await supabase
+      .from('user_credit_cards')
+      .upsert(updates);
 
-    // Update each card's display_order
-    for (const update of updates) {
-      if (!update) continue;
-      
-      const { error } = await supabase
-        .from('user_credit_cards')
-        .update({ display_order: update.display_order })
-        .eq('id', update.id)
-        .eq('user_id', userId);
+    if (updateError) throw updateError;
 
-      if (error) {
-        console.error('Error updating card order:', error);
-        return { error };
-      }
-    }
-
-    return { data: true, error: null };
+    return { error: null };
   } catch (error) {
-    console.error('Unexpected error updating card order:', error);
+    console.error('Error updating card order:', error);
     return { error };
   }
 } 
