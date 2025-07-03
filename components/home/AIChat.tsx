@@ -276,12 +276,13 @@ const ChatHeader = ({ onClose, onStartOver, hasMessages }: {
             styles.headerButton,
             pressed && { opacity: 0.7 }
           ]}
-          disabled={!hasMessages}
+          accessibilityLabel="Get suggested prompts"
+          accessibilityHint="Shows a list of example questions you can ask"
         >
           <Ionicons 
-            name="sparkles-outline" 
+            name="bulb-outline" 
             size={22} 
-            color={hasMessages ? "#007AFF" : "#C7C7CC"} 
+            color="#007AFF" 
           />
         </Pressable>
         <Pressable 
@@ -1085,36 +1086,17 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   };
 
   const handleStartOver = () => {
-    console.log('[AIChat][handleStartOver] User initiated start over.');
-    Alert.alert(
-      "Start New Conversation",
-      "This will archive your current chat and start a new one. Are you sure?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Start Over",
-          style: "default",
-          onPress: async () => {
-            try {
-              const newChatId = `chat_${Date.now()}`;
-              console.log(`[AIChat][handleStartOver] Creating new chat with ID: ${newChatId}`);
-              // Set the UI first to give immediate feedback
-              setMessages(getOnboardingMessages());
-              setCurrentChatId(newChatId);
-              // Then update storage
-              await AsyncStorage.setItem(CURRENT_CHAT_ID_KEY, newChatId);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch (error) {
-              console.error('[AIChat] Error starting new chat:', error);
-              Alert.alert('Error', 'Failed to start a new conversation. Please try again.');
-            }
-          }
-        }
-      ]
-    );
+    console.log('[AIChat][handleStartOver] User requested suggested prompts.');
+    const suggestedPrompts = getRandomExamples(3);
+    const suggestedPromptsMessage: Message = {
+      _id: `suggestions_${Date.now()}`,
+      text: "Here are some things you can ask me about:",
+      createdAt: new Date(),
+      user: AI,
+      suggestedPrompts,
+    };
+    setMessages(prev => [suggestedPromptsMessage, ...prev]);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const renderItem = ({ item }: { item: Message }) => (

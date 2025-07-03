@@ -25,11 +25,10 @@ import { NotificationPreferences } from '../../types/notification-types';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import * as Sentry from '@sentry/react-native';
-import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext';
+import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY } from '../(onboarding)/_context/OnboardingContext';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
-const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
 const CURRENT_CHAT_ID_KEY = '@ai_chat_current_id';
 const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
 const CHAT_USAGE_KEY = '@ai_chat_usage';
@@ -118,15 +117,23 @@ const ProfileScreen = () => {
 
   const handleResetFirstRedemption = async () => {
     try {
+      console.log('[Profile] Resetting first redemption state');
+      const beforeValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      console.log('[Profile] Current value before reset:', beforeValue);
+      
       await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
       setHasRedeemedFirstPerk(false);
+      
+      const afterValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      console.log('[Profile] Value after reset:', afterValue);
+      
       Alert.alert(
         "Success",
         "First redemption state has been reset. The onboarding sheet will show after your next perk redemption.",
         [{ text: "OK" }]
       );
     } catch (error) {
-      console.error('Error resetting first redemption state:', error);
+      console.error('[Profile] Error resetting first redemption state:', error);
       Alert.alert('Error', 'Failed to reset first redemption state.');
     }
   };
@@ -353,12 +360,12 @@ const ProfileScreen = () => {
           icon: 'cash-outline',
           onPress: handleResetChatCredits
         },
-        {
-          id: 'test-inactivity-message',
-          title: 'Send Suggested AI Message',
-          icon: 'time-outline',
-          onPress: handleTestInactivityMessage
-        },
+        // {
+        //   id: 'test-inactivity-message',
+        //   title: 'Send Suggested AI Message',
+        //   icon: 'time-outline',
+        //   onPress: handleTestInactivityMessage
+        // },
         {
           id: 'test-perk-expiry-notifications',
           title: 'Test All Notifications',
