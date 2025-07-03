@@ -148,7 +148,12 @@ export default function PotentialSavingsScreen() {
   const handleStartTracking = async () => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push('/(onboarding)/register');
+      // Round down to nearest dollar by using Math.floor
+      const roundedNetValue = Math.floor(netValue);
+      router.push({
+        pathname: '/(onboarding)/register',
+        params: { potentialSavings: roundedNetValue }
+      });
     } catch (e) {
       console.error("Failed to navigate", e);
     }

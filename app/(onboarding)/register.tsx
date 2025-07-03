@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Link } from 'expo-router';
+import { useRouter, Link, useLocalSearchParams } from 'expo-router';
 import { MotiView } from 'moti';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
@@ -67,6 +67,8 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { selectedCards } = useOnboardingContext();
   const { signInGoogle, signInApple } = useAuth();
+  const { potentialSavings } = useLocalSearchParams();
+  const savingsAmount = typeof potentialSavings === 'string' ? parseInt(potentialSavings, 10) : 0;
   const [isLoading, setIsLoading] = React.useState(false);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
@@ -111,29 +113,6 @@ export default function RegisterScreen() {
       .map((cardId: string) => allCards.find(card => card.id === cardId))
       .filter((card): card is typeof allCards[0] => card !== undefined);
   }, [selectedCards]);
-
-  // Calculate total value with proper typing
-  const totalValue = useMemo(() => {
-    return selectedCardObjects.reduce((total: number, card: typeof allCards[0]) => {
-      const cardValue = card.benefits.reduce((sum: number, benefit: any) => {
-        const annualValue = benefit.value * (12 / benefit.periodMonths);
-        return sum + annualValue;
-      }, 0);
-      return total + cardValue;
-    }, 0);
-  }, [selectedCardObjects]);
-
-  // Calculate total fees
-  const totalFees = useMemo(() => {
-    return selectedCardObjects.reduce((total: number, card: typeof allCards[0]) => {
-      return total + (card.annualFee || 0);
-    }, 0);
-  }, [selectedCardObjects]);
-
-  // Calculate net value
-  const netValue = useMemo(() => {
-    return totalValue - totalFees;
-  }, [totalValue, totalFees]);
 
   const saveCardsToDatabase = async (userId: string) => {
     console.log(`[Register] Attempting to save cards for user ${userId}`);
@@ -330,17 +309,17 @@ export default function RegisterScreen() {
               resizeMode="contain"
             />
             <Text style={styles.title}>
-              {netValue > 0 ? (
-                `Secure Your $${netValue}`
+              {savingsAmount > 0 ? (
+                `Secure Your $${savingsAmount}`
               ) : (
                 `Maximize Your Card Benefits`
               )}
             </Text>
             <Text style={styles.subtitle}>
-              {netValue > 0 ? (
+              {savingsAmount > 0 ? (
                 'Create your Credify account to stay ahead of expiring credits'
               ) : (
-                'Create your Credify account to track and optimize your card perks'
+                'Create your Credify account to track and maximize your benefits'
               )}
             </Text>
           </View>
