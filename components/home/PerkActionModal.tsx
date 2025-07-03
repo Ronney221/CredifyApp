@@ -423,7 +423,10 @@ export default function PerkActionModal({
   // Animate modal in when it becomes visible
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 50 });
+      translateY.value = withTiming(0, {
+        duration: 240,
+        easing: Easing.out(Easing.quad),
+      });
     }
   }, [visible]);
 
@@ -653,7 +656,7 @@ export default function PerkActionModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={handleDismiss}
     >
       <View style={styles.overlay}>
