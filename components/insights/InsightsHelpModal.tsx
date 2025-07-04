@@ -21,7 +21,7 @@ const InsightsHelpModal: React.FC<InsightsHelpModalProps> = ({ isVisible, onClos
         <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>How Insights Work</Text
+            <Text style={styles.modalTitle}>How Insights Work</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={Colors.light.text} />
             </TouchableOpacity>
@@ -31,21 +31,21 @@ const InsightsHelpModal: React.FC<InsightsHelpModalProps> = ({ isVisible, onClos
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Overall Return on Investment (ROI)</Text>
               <Text style={styles.sectionText}>
-                This shows how much value you've redeemed compared to your total annual fees for all cards combined. An ROI of 100% means you've broken even for the year.
+                This shows how much value you&apos;ve redeemed compared to your total annual fees for all cards combined. An ROI of 100% means you&apos;ve broken even for the year.
               </Text>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Card ROI</Text>
               <Text style={styles.sectionText}>
-                This shows the specific ROI for each card, comparing the value you've redeemed from its benefits to that card's annual fee. Cards are ranked by their ROI percentage to help you identify your best performers.
+                This shows the specific ROI for each card, comparing the value you&apos;ve redeemed from its benefits to that card&apos;s annual fee. Cards are ranked by their ROI percentage to help you identify your best performers.
               </Text>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Monthly Performance</Text>
               <Text style={styles.sectionText}>
-                This chart visualizes your progress by showing the total savings you've earned from redeemed perks each month. The trend line helps you track your redemption patterns over time.
+                This chart visualizes your progress by showing the total savings you&apos;ve earned from redeemed perks each month. The trend line helps you track your redemption patterns over time.
               </Text>
             </View>
 
