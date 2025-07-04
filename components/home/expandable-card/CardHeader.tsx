@@ -151,13 +151,13 @@ const CardHeader: React.FC<CardHeaderProps> = ({
   };
 
   const renderRenewalDatePrompt = () => {
-    console.log('[CardHeader] renderRenewalDatePrompt:', {
-      cardName: card.name,
-      renewalDate: renewalDate,
-      hasHandler: !!onRenewalDatePress,
-      renewalDateType: renewalDate ? typeof renewalDate : 'null',
-      isDateObject: renewalDate instanceof Date
-    });
+    // console.log('[CardHeader] renderRenewalDatePrompt:', {
+    //   cardName: card.name,
+    //   renewalDate: renewalDate,
+    //   hasHandler: !!onRenewalDatePress,
+    //   renewalDateType: renewalDate ? typeof renewalDate : 'null',
+    //   isDateObject: renewalDate instanceof Date
+    // });
 
     if (renewalDate || !onRenewalDatePress) return null;
 

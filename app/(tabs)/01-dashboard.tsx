@@ -93,7 +93,6 @@ type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> }
 const SWIPE_HINT_STORAGE_KEY = '@user_seen_swipe_hint';
 const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
 const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
-// Persistence now handled inside OnboardingContext
 
 const showToast = (message: string, onUndo?: (() => void) | null) => {
   // Only append "Tap to undo" if there's an actual undo function
@@ -223,13 +222,13 @@ const defaultNotificationPreferences: NotificationPreferences = {
   renewalRemindersEnabled: true,
   perkResetConfirmationEnabled: true,
   weeklyDigestEnabled: true,
+  firstOfMonthRemindersEnabled: true,
   monthlyPerkExpiryReminderDays: [7, 3, 1],
   perkExpiryReminderTime: '09:00',
   renewalReminderDays: [7],
   quarterlyPerkRemindersEnabled: true,
   semiAnnualPerkRemindersEnabled: true,
-  annualPerkRemindersEnabled: true,
-  firstOfMonthRemindersEnabled: true // Add missing property
+  annualPerkRemindersEnabled: true
 };
 
 // Add constant for tab bar offset
@@ -245,27 +244,10 @@ export default function Dashboard() {
   const flatListRef = useRef<FlatList<CardListItem>>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
-  const appState = useRef(AppState.currentState);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showDevDatePicker, setShowDevDatePicker] = useState(false);
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  console.log('[DBG] render – showOnboarding state:', showOnboarding);
-
-  // Ensure we only show the onboarding sheet once per session (in-memory)
-  const hasShownOnboardingRef = useRef(false);
-
-  // --- Onboarding context flags ---
-  const {
-    hasRedeemedFirstPerk,
-    markFirstPerkRedeemed,
-    hasSeenOnboardingSheet,
-    markOnboardingSheetSeen,
-    isOnboardingFlagsReady,
-  } = useOnboardingContext();
-
-  // Duplicate onboarding effect removed – main effect lives after hasRedeemedFirstPerk declaration
-
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -273,22 +255,40 @@ export default function Dashboard() {
   const [retryAttempt, setRetryAttempt] = useState(0);
   const maxRetries = 5; // Maximum number of retry attempts
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [showAiChatNotification, setShowAiChatNotification] = useState(false);
-  const [isUpdatingPerk, setIsUpdatingPerk] = useState(false);
-  const [devSelectedDate, setDevSelectedDate] = useState<Date | null>(null);
+
+  // Move all useEffects to the top level, right after state declarations
+  useEffect(() => {
+    // Load async data on mount
+    const loadInitialData = async () => {
+      try {
+        const hintSeen = await AsyncStorage.getItem(SWIPE_HINT_STORAGE_KEY);
+        setUserHasSeenSwipeHint(hintSeen === 'true');
+      } catch (error) {
+        console.error('Error loading swipe hint status:', error);
+      }
+    };
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (refreshUserCards) {
+      refreshUserCards();
+    }
+  }, [refreshUserCards]);
+
+  // State for pending toast notification after returning from another app
   const [pendingToast, setPendingToast] = useState<{ message: string; onUndo?: (() => void) | null } | null>(null);
+  const appState = useRef(AppState.currentState);
+
+  // State for DEV date picker
+  const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
+  const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
 
   // Modal state for perk action
   const [modalVisible, setModalVisible] = useState(false);
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
-  // ... other modal state declarations ...
-
-  // Callbacks
-  const handleOnboardingDismiss = useCallback(() => {
-    console.log('[Dashboard] Dismissing onboarding sheet');
-    setShowOnboarding(false);
-    markOnboardingSheetSeen();
-  }, [markOnboardingSheetSeen]);
+  const [showAiChatNotification, setShowAiChatNotification] = useState(false);
+  const [isUpdatingPerk, setIsUpdatingPerk] = useState(false);
 
   // State for unique perk periods, default to monthly and annual if not found
   const [uniquePerkPeriodsForToggle, setUniquePerkPeriodsForToggle] = useState<number[]>([]); // Renamed for clarity
@@ -305,37 +305,13 @@ export default function Dashboard() {
     isCalculatingSavings, // This indicates background processing after cards are loaded
     refreshSavings,
     redeemedInCurrentCycle,
+    showCelebration,
+    setShowCelebration,
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
-
-  // Show onboarding sheet whenever the context flag flips to true
-  useEffect(() => {
-    if (
-      isOnboardingFlagsReady &&
-      hasRedeemedFirstPerk &&
-      !hasSeenOnboardingSheet &&
-      !hasShownOnboardingRef.current
-    ) {
-      console.log('[Dashboard] Triggering onboarding sheet display');
-      setShowOnboarding(true);
-      setShowAiChatNotification(true);
-      AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true').catch(() => {});
-      hasShownOnboardingRef.current = true; // Avoid duplicate popups in same session
-    }
-  }, [isOnboardingFlagsReady, hasRedeemedFirstPerk, hasSeenOnboardingSheet]);
-
-  // Remove duplicate state declaration
-  // const [showOnboardingSheet, setShowOnboardingSheet] = useState(false);
-
-  // Keep only the logging effect for debugging
-  useEffect(() => {
-    console.log('[Dashboard] Onboarding state changed:', {
-      hasRedeemedFirstPerk,
-      showOnboarding,
-      timestamp: new Date().toISOString()
-    });
-  }, [hasRedeemedFirstPerk, showOnboarding]);
+  const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
+  const [showOnboardingSheet, setShowOnboardingSheet] = useState(false);
 
   const checkNotificationStatus = async () => {
     const chatNotificationStatus = await AsyncStorage.getItem(CHAT_NOTIFICATION_KEY);
@@ -852,9 +828,12 @@ export default function Dashboard() {
                       // DB operation successful
                       handlePerkStatusChange();
 
-                      // First redemption handled globally via context effect
+                      // Check if this is the first perk redemption
                       if (!hasRedeemedFirstPerk) {
                         await markFirstPerkRedeemed();
+                        setShowOnboardingSheet(true);
+                        setShowAiChatNotification(true);
+                        await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
                       }
                     }
                   }
@@ -877,61 +856,64 @@ export default function Dashboard() {
   const handleMarkRedeemed = async (partialAmount?: number) => {
     if (!selectedPerk || !selectedCardId || !user) return;
 
-    console.log('[Dashboard] Starting perk redemption flow', {
-      hasRedeemedFirstPerk,
-      showOnboarding,
-      timestamp: new Date().toISOString()
-    });
-
     // --- Start loading state ---
     setIsUpdatingPerk(true);
     handleModalDismiss();
 
     try {
-      const isPartiallyRedeemed = selectedPerk.status === 'partially_redeemed';
-      const isPartialRedemption = partialAmount !== undefined && partialAmount < selectedPerk.value;
-      const valueToRedeem = partialAmount ?? selectedPerk.value;
+        const isPartiallyRedeemed = selectedPerk.status === 'partially_redeemed';
+        const isPartialRedemption = partialAmount !== undefined && partialAmount < selectedPerk.value;
+        const valueToRedeem = partialAmount ?? selectedPerk.value;
 
-      // Update perk status in database first
-      await setPerkStatus(
-        selectedCardId,
-        selectedPerk.id,
-        isPartialRedemption ? 'partially_redeemed' : 'redeemed',
-        isPartialRedemption ? selectedPerk.value - valueToRedeem : undefined
-      );
+        // NOTE: We no longer call setPerkStatus() here.
 
-      console.log('[DBG] hasRedeemedFirstPerk BEFORE IF:', hasRedeemedFirstPerk);
-      // If this is the first perk redemption, handle it AFTER the database operation
-      if (!hasRedeemedFirstPerk) {
-        // First perk redemption – let global effect handle showing the sheet
-        await markFirstPerkRedeemed();
-      }
+        // If fully redeeming a partially redeemed perk, delete the old record first.
+        if (isPartiallyRedeemed && !isPartialRedemption) {
+            const { error: deleteError } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
+            if (deleteError) {
+                throw new Error('Failed to delete prior partial redemption.');
+            }
+        }
 
-      // Show success message
-      setPendingToast({
-        message: `${selectedPerk.name} marked as ${isPartialRedemption ? 'partially ' : ''}redeemed!`,
-        onUndo: async () => {
-          if (!selectedPerk || !selectedCardId) return;
-          await setPerkStatus(selectedCardId, selectedPerk.id, isPartiallyRedeemed ? 'partially_redeemed' : 'available');
-          refreshUserCards();
-        },
-      });
+        // --- Await the database operation ---
+        const { error } = await trackPerkRedemption(
+            user.id,
+            selectedCardId,
+            selectedPerk,
+            valueToRedeem,
+            selectedPerk.parent_redemption_id
+        );
 
-      // Refresh data
-      refreshUserCards();
-      refreshAutoRedemptions();
-      
-      console.log('[Dashboard] Perk redemption completed successfully');
-    } catch (error) {
-      console.error('[Dashboard] Error marking perk as redeemed:', error);
-      setPendingToast({
-        message: 'Error marking perk as redeemed. Please try again.',
-        onUndo: null,
-      });
+        if (error) {
+            console.error('Error tracking redemption in DB:', error);
+            Alert.alert('Error', 'Failed to save redemption.');
+            setIsUpdatingPerk(false); // Turn off loading
+            return;
+        }
+
+        // --- On success, refresh state from the authoritative source (the server) ---
+        await refreshUserCards();
+        await refreshAutoRedemptions();
+
+        showToast(
+            `${selectedPerk.name} ${isPartialRedemption ? 'partially' : ''} redeemed${isPartialRedemption ? ` ($${valueToRedeem})` : ''}.`
+        );
+        
+        if (!hasRedeemedFirstPerk) {
+            await markFirstPerkRedeemed();
+            setShowOnboardingSheet(true);
+            setShowAiChatNotification(true);
+            await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
+        }
+
+    } catch (err) {
+        console.error('Unexpected error marking perk as redeemed:', err);
+        Alert.alert('Error', 'An unexpected error occurred.');
     } finally {
-      setIsUpdatingPerk(false);
+        // --- End loading state ---
+        setIsUpdatingPerk(false);
     }
-  };
+};
 
   // New function to handle marking a perk as available
   const handleMarkAvailable = async () => {
@@ -971,11 +953,11 @@ export default function Dashboard() {
 
   // DEV Date Picker Handler
   const handleDevDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (selectedDate) {
+    setShowDatePickerForDev(false);
+    if (event.type === 'set' && selectedDate) {
       setDevSelectedDate(selectedDate);
-      processNewMonth(selectedDate);
+      processNewMonth(selectedDate); 
     }
-    setShowDevDatePicker(false);
   };
 
   // DEV function to reset swipe hint for testing
@@ -1268,19 +1250,6 @@ export default function Dashboard() {
     extrapolate: 'clamp'
   });
 
-  const handleManageCards = () => {
-    router.push({
-      pathname: '/profile/manage_cards',
-      params: { backRoute: '/(tabs)/01-dashboard' }
-    });
-  };
-
-  // Add the onboarding sheet dismiss handler
-  // const handleOnboardingDismiss = useCallback(() => {
-  //   console.log('[Dashboard] Dismissing onboarding sheet');
-  //   setShowOnboarding(false);
-  // }, []);
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['right', 'left']}>
       <StatusBar 
@@ -1384,6 +1353,16 @@ export default function Dashboard() {
           </ScrollView>
         )}
 
+        {showCelebration && (
+          <LottieView 
+            source={require('../../assets/animations/celebration.json')}
+            autoPlay 
+            loop={false} 
+            onAnimationFinish={() => setShowCelebration(false)}
+            style={styles.lottieCelebration}
+          />
+        )}
+
         {/* Perk Action Modal */}
         <PerkActionModal
           key={selectedPerk ? selectedPerk.name : null}
@@ -1398,8 +1377,8 @@ export default function Dashboard() {
 
         {/* Add OnboardingSheet */}
         <OnboardingSheet
-          visible={showOnboarding}
-          onDismiss={handleOnboardingDismiss}
+          visible={showOnboardingSheet}
+          onDismiss={() => setShowOnboardingSheet(false)}
         />
 
         {/* Loading overlay */}

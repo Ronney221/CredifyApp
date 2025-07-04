@@ -39,7 +39,7 @@ export default function ProgressDonut({
   progressPercentageText,
 }: ProgressDonutProps) {
   // Log all incoming text-related props at the beginning of the function
-  console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, combinedStatsText, progressPercentageText });
+ // console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, combinedStatsText, progressPercentageText });
 
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
