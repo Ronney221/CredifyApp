@@ -93,6 +93,7 @@ type ScrollViewWithRef = ScrollViewProps & { ref?: React.RefObject<ScrollView> }
 const SWIPE_HINT_STORAGE_KEY = '@user_seen_swipe_hint';
 const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
 const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
+// Persistence now handled inside OnboardingContext
 
 const showToast = (message: string, onUndo?: (() => void) | null) => {
   // Only append "Tap to undo" if there's an actual undo function
@@ -249,6 +250,22 @@ export default function Dashboard() {
   const [showDevDatePicker, setShowDevDatePicker] = useState(false);
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  console.log('[DBG] render – showOnboarding state:', showOnboarding);
+
+  // Ensure we only show the onboarding sheet once per session (in-memory)
+  const hasShownOnboardingRef = useRef(false);
+
+  // --- Onboarding context flags ---
+  const {
+    hasRedeemedFirstPerk,
+    markFirstPerkRedeemed,
+    hasSeenOnboardingSheet,
+    markOnboardingSheetSeen,
+    isOnboardingFlagsReady,
+  } = useOnboardingContext();
+
+  // Duplicate onboarding effect removed – main effect lives after hasRedeemedFirstPerk declaration
+
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -270,7 +287,8 @@ export default function Dashboard() {
   const handleOnboardingDismiss = useCallback(() => {
     console.log('[Dashboard] Dismissing onboarding sheet');
     setShowOnboarding(false);
-  }, []);
+    markOnboardingSheetSeen();
+  }, [markOnboardingSheetSeen]);
 
   // State for unique perk periods, default to monthly and annual if not found
   const [uniquePerkPeriodsForToggle, setUniquePerkPeriodsForToggle] = useState<number[]>([]); // Renamed for clarity
@@ -287,31 +305,37 @@ export default function Dashboard() {
     isCalculatingSavings, // This indicates background processing after cards are loaded
     refreshSavings,
     redeemedInCurrentCycle,
-    showCelebration,
-    setShowCelebration,
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
-  const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
+
+  // Show onboarding sheet whenever the context flag flips to true
+  useEffect(() => {
+    if (
+      isOnboardingFlagsReady &&
+      hasRedeemedFirstPerk &&
+      !hasSeenOnboardingSheet &&
+      !hasShownOnboardingRef.current
+    ) {
+      console.log('[Dashboard] Triggering onboarding sheet display');
+      setShowOnboarding(true);
+      setShowAiChatNotification(true);
+      AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true').catch(() => {});
+      hasShownOnboardingRef.current = true; // Avoid duplicate popups in same session
+    }
+  }, [isOnboardingFlagsReady, hasRedeemedFirstPerk, hasSeenOnboardingSheet]);
+
   // Remove duplicate state declaration
   // const [showOnboardingSheet, setShowOnboardingSheet] = useState(false);
 
-  // Add effect to show onboarding when first perk is redeemed
-  useEffect(() => {
-    if (hasRedeemedFirstPerk) {
-      console.log('[Dashboard] First perk redeemed, showing onboarding sheet');
-      setShowOnboarding(true);
-    }
-  }, [hasRedeemedFirstPerk]);
-
-  // Add effect to log state changes
+  // Keep only the logging effect for debugging
   useEffect(() => {
     console.log('[Dashboard] Onboarding state changed:', {
-      showOnboarding,
       hasRedeemedFirstPerk,
+      showOnboarding,
       timestamp: new Date().toISOString()
     });
-  }, [showOnboarding, hasRedeemedFirstPerk]);
+  }, [hasRedeemedFirstPerk, showOnboarding]);
 
   const checkNotificationStatus = async () => {
     const chatNotificationStatus = await AsyncStorage.getItem(CHAT_NOTIFICATION_KEY);
@@ -828,12 +852,9 @@ export default function Dashboard() {
                       // DB operation successful
                       handlePerkStatusChange();
 
-                      // Check if this is the first perk redemption
+                      // First redemption handled globally via context effect
                       if (!hasRedeemedFirstPerk) {
                         await markFirstPerkRedeemed();
-                        setShowOnboarding(true);
-                        setShowAiChatNotification(true);
-                        await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
                       }
                     }
                   }
@@ -879,17 +900,11 @@ export default function Dashboard() {
         isPartialRedemption ? selectedPerk.value - valueToRedeem : undefined
       );
 
+      console.log('[DBG] hasRedeemedFirstPerk BEFORE IF:', hasRedeemedFirstPerk);
       // If this is the first perk redemption, handle it AFTER the database operation
       if (!hasRedeemedFirstPerk) {
-        console.log('[Dashboard] First perk redemption detected');
+        // First perk redemption – let global effect handle showing the sheet
         await markFirstPerkRedeemed();
-        // Use setTimeout to ensure this runs after all state updates
-        setTimeout(() => {
-          console.log('[Dashboard] Showing onboarding sheet after first redemption');
-          setShowOnboarding(true);
-          setShowAiChatNotification(true);
-        }, 500);
-        await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
       }
 
       // Show success message
@@ -1367,16 +1382,6 @@ export default function Dashboard() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-        )}
-
-        {showCelebration && (
-          <LottieView 
-            source={require('../../assets/animations/celebration.json')}
-            autoPlay 
-            loop={false} 
-            onAnimationFinish={() => setShowCelebration(false)}
-            style={styles.lottieCelebration}
-          />
         )}
 
         {/* Perk Action Modal */}

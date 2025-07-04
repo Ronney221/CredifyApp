@@ -3,6 +3,7 @@ import { Card } from '../../../src/data/card-data';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
+export const HAS_SEEN_ONBOARDING_SHEET_KEY = '@has_seen_onboarding_sheet';
 
 interface OnboardingContextType {
   // Card Management
@@ -26,6 +27,9 @@ interface OnboardingContextType {
   hasRedeemedFirstPerk: boolean;
   setHasRedeemedFirstPerk: (value: boolean) => void;
   markFirstPerkRedeemed: () => Promise<void>;
+  hasSeenOnboardingSheet: boolean;
+  markOnboardingSheetSeen: () => Promise<void>;
+  isOnboardingFlagsReady: boolean;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -46,45 +50,71 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
 
   // Perk Redemption State
   const [hasRedeemedFirstPerk, setHasRedeemedFirstPerk] = useState(false);
+  const [hasSeenOnboardingSheet, setHasSeenOnboardingSheet] = useState(false);
+  const [isOnboardingFlagsReady, setIsOnboardingFlagsReady] = useState(false);
 
   // Load initial state
   useEffect(() => {
-    const loadState = async () => {
+    const loadFlags = async () => {
       try {
-        console.log('[OnboardingContext] Loading initial state from AsyncStorage');
-        const value = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
-        console.log('[OnboardingContext] Initial AsyncStorage value:', value);
-        
-        // Only set to true if explicitly 'true'
-        const shouldMarkRedeemed = value === 'true';
-        console.log('[OnboardingContext] Setting initial state:', shouldMarkRedeemed);
-        setHasRedeemedFirstPerk(shouldMarkRedeemed);
-      } catch (error) {
-        console.error('[OnboardingContext] Error loading state:', error);
+        console.log('[OnboardingContext] Loading onboarding flags');
+        const [[, redeemedVal], [, seenVal]] = await AsyncStorage.multiGet([
+          HAS_REDEEMED_FIRST_PERK_KEY,
+          HAS_SEEN_ONBOARDING_SHEET_KEY,
+        ]);
+
+        const redeemedBool = redeemedVal === 'true';
+        const seenBool = seenVal === 'true';
+
+        setHasRedeemedFirstPerk(redeemedBool);
+        setHasSeenOnboardingSheet(seenBool);
+      } catch (err) {
+        console.error('[OnboardingContext] Failed to load onboarding flags', err);
+      } finally {
+        setIsOnboardingFlagsReady(true);
       }
     };
-    loadState();
+    loadFlags();
   }, []);
 
   const markFirstPerkRedeemed = useCallback(async () => {
     console.log('[OnboardingContext] Marking first perk as redeemed');
     try {
-      await AsyncStorage.setItem(HAS_REDEEMED_FIRST_PERK_KEY, 'true');
-      const verifyValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
-      console.log('[OnboardingContext] Verified AsyncStorage value after set:', verifyValue);
-      setHasRedeemedFirstPerk(true);
+      // Only set if it hasn't been set before to avoid unnecessary writes
+      if (!hasRedeemedFirstPerk) {
+        await AsyncStorage.setItem(HAS_REDEEMED_FIRST_PERK_KEY, 'true');
+        setHasRedeemedFirstPerk(true);
+        // Ensure the sheet will display next load
+        await AsyncStorage.removeItem(HAS_SEEN_ONBOARDING_SHEET_KEY);
+        setHasSeenOnboardingSheet(false);
+      } else {
+        console.log('[OnboardingContext] First perk already redeemed, skipping');
+      }
     } catch (error) {
       console.error('[OnboardingContext] Error marking first perk redeemed:', error);
     }
-  }, []);
+  }, [hasRedeemedFirstPerk]);
+
+  const markOnboardingSheetSeen = useCallback(async () => {
+    try {
+      if (!hasSeenOnboardingSheet) {
+        await AsyncStorage.setItem(HAS_SEEN_ONBOARDING_SHEET_KEY, 'true');
+        setHasSeenOnboardingSheet(true);
+      }
+    } catch (err) {
+      console.error('[OnboardingContext] Failed to persist sheet seen flag', err);
+    }
+  }, [hasSeenOnboardingSheet]);
 
   const resetFirstPerkRedemption = useCallback(async () => {
     console.log('[OnboardingContext] Resetting first perk redemption state');
     try {
       await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
+      await AsyncStorage.removeItem(HAS_SEEN_ONBOARDING_SHEET_KEY);
       const verifyValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
       console.log('[OnboardingContext] Verified AsyncStorage value after reset:', verifyValue);
       setHasRedeemedFirstPerk(false);
+      setHasSeenOnboardingSheet(false);
     } catch (error) {
       console.error('[OnboardingContext] Error resetting first perk:', error);
     }
@@ -153,6 +183,9 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     hasRedeemedFirstPerk,
     setHasRedeemedFirstPerk,
     markFirstPerkRedeemed,
+    hasSeenOnboardingSheet,
+    markOnboardingSheetSeen,
+    isOnboardingFlagsReady,
   };
 
   return (

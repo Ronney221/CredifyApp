@@ -1,3 +1,4 @@
+// components/home/OnboardingSheet.tsx
 'use worklet';
 
 import React, { useEffect } from 'react';

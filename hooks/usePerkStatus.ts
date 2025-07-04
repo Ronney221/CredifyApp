@@ -317,12 +317,6 @@ export function usePerkStatus(
     console.log('========= [usePerkStatus] setPerkStatus called =========');
     console.log('Input parameters:', { cardId, perkId, newStatus, remainingValue });
     
-    // This is where we should mark first redemption - when user actively redeems a perk
-    if (newStatus === 'redeemed' || newStatus === 'partially_redeemed') {
-      console.log('[usePerkStatus] First perk redemption detected, marking onboarding state');
-      markFirstPerkRedeemed();
-    }
-
     let perkValue = 0;
     let periodMonths = 0;
     let definitionId = '';
@@ -330,6 +324,9 @@ export function usePerkStatus(
     let originalStatusIsPartiallyRedeemed = false;
     let originalRemainingValue = 0;
 
+    // Detect first-ever redemption so the UI can show the onboarding sheet.
+    // We will evaluate this *after* we inspect the current perk details (see below).
+      
     setProcessedCardsWithPerks(prevUserCards =>
       prevUserCards.map(cardData => {
         if (cardData.card.id === cardId) {
@@ -428,6 +425,17 @@ export function usePerkStatus(
     const shouldAddToRedeemed = (newStatus === 'redeemed' || newStatus === 'partially_redeemed') && 
       !originalStatusIsRedeemed && !originalStatusIsPartiallyRedeemed;
     const shouldRemoveFromRedeemed = newStatus === 'available' && (originalStatusIsRedeemed || originalStatusIsPartiallyRedeemed);
+
+    // If this action represents the user's first-ever redemption, update onboarding context
+    if (shouldAddToRedeemed) {
+      console.log('[usePerkStatus] Triggering markFirstPerkRedeemed from setPerkStatus');
+      try {
+        markFirstPerkRedeemed();
+      } catch (err) {
+        console.warn('[usePerkStatus] markFirstPerkRedeemed threw', err);
+      }
+    }
+
     console.log('Status change analysis:', { 
       perkId, 
       newStatus, 
