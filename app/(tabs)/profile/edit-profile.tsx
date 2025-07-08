@@ -28,11 +28,12 @@ import {
 import { BlurView } from 'expo-blur';
 import { uploadAvatar, updateUserProfile } from '../../../lib/supabase';
 import BackButton from '../../../components/ui/BackButton';
+import { signOut } from '../../../lib/supabase';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { user, updateUserMetadata, loading: authLoading } = useAuth();
+  const { user, updateUserMetadata, loading: authLoading, deleteAccount } = useAuth();
 
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -202,6 +203,71 @@ export default function EditProfileScreen() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      "Are you sure?",
+      "Instead of deleting your account, you can log out and return later. All your data will be safely stored.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log Out",
+          style: "default",
+          onPress: async () => {
+            try {
+              const { error } = await signOut();
+              if (error) {
+                Alert.alert("Error", "Failed to sign out. Please try again.");
+                return;
+              }
+              router.replace('/(auth)/login');
+            } catch (error) {
+              console.error('Error signing out:', error);
+              Alert.alert("Error", "Failed to sign out. Please try again.");
+            }
+          }
+        },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            // Second confirmation for extra safety
+            Alert.alert(
+              "Delete Account Permanently",
+              "This will permanently delete:\n\n" +
+              "• All your personal data\n" +
+              "• Your saved cards\n" +
+              "• Your perk tracking history\n\n" +
+              "This action cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Yes, Delete My Account",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      setIsLoading(true);
+                      const { error } = await deleteAccount();
+                      if (error) {
+                        Alert.alert("Error", "Failed to delete account. Please try again or contact support.");
+                        console.error('Error deleting account:', error);
+                      }
+                      // If successful, deleteAccount will handle navigation
+                    } catch (error) {
+                      console.error('Error in delete account flow:', error);
+                      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
+  };
+
   if (authLoading && !user) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -268,6 +334,21 @@ export default function EditProfileScreen() {
                 editable={false}
               />
             </View>
+          </View>
+
+          <View style={styles.spacer} />
+
+          <View style={styles.deleteSection}>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDeleteAccount}
+              disabled={isLoading}
+            >
+              <Text style={styles.deleteButtonText}>Delete Account</Text>
+            </TouchableOpacity>
+            <Text style={styles.deleteSectionDescription}>
+              Deleting your account will permanently remove all your data. Consider logging out instead if you plan to return later.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -365,4 +446,35 @@ const styles = StyleSheet.create({
     color: Colors.light.secondaryLabel,
   },
   // Footer styles removed — Save action now lives in the navigation bar
+
+  spacer: {
+    flex: 1,
+    minHeight: 40,
+  },
+  deleteSection: {
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 148 : 124, // Account for bottom safe area
+    alignItems: 'center',
+  },
+  deleteButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.light.error + '40', // 25% opacity
+  },
+  deleteButtonText: {
+    color: Colors.light.error + '80', // 50% opacity
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  deleteSectionDescription: {
+    fontSize: 13,
+    color: Colors.light.tertiaryLabel,
+    textAlign: 'center',
+    marginTop: 12,
+    marginHorizontal: 32,
+    lineHeight: 18,
+  },
 }); 

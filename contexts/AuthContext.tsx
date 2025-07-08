@@ -8,6 +8,7 @@ import { signInWithGoogle, signInWithApple, signInWithEmail } from '../lib/auth-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { deleteUserAccount } from '../lib/supabase';
 
 // Define the context shape
 interface AuthContextType {
@@ -20,6 +21,7 @@ interface AuthContextType {
   signInEmail: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<any>;
   updateUserMetadata?: (updates: Record<string, any>) => Promise<void>;
+  deleteAccount: () => Promise<{ error: Error | null }>;
 }
 
 // Create the context
@@ -92,6 +94,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const deleteAccount = async () => {
+    try {
+      const result = await deleteUserAccount();
+      if (!result.error) {
+        try {
+          // First sign out from Supabase
+          await supabase.auth.signOut();
+          
+          // Clear all local storage
+          await AsyncStorage.clear();
+          
+          // Clear local state
+          setUser(null);
+          setSession(null);
+          
+          // Force navigation to welcome screen
+          router.replace('/(onboarding)/welcome');
+        } catch (error) {
+          console.error('Error during cleanup after account deletion:', error);
+          // Even if cleanup fails, we should still navigate away since the account is deleted
+          router.replace('/(onboarding)/welcome');
+        }
+      }
+      return { error: result.error as Error | null };
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      return { error: error instanceof Error ? error : new Error('Unknown error') };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -102,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signInEmail: signInWithEmail,   // Assign the imported function
     signOut: () => supabase.auth.signOut(),
     updateUserMetadata,
+    deleteAccount,
   };
   // --------------------
 

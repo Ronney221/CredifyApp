@@ -151,3 +151,31 @@ export const deleteAvatar = async (userId: string) => {
     return { error };
   }
 }; 
+
+export const deleteUserAccount = async () => {
+  try {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) throw new Error('No user found');
+
+    // Delete user's avatar from storage if it exists
+    if (user.user_metadata?.avatar_url) {
+      const { error: avatarError } = await deleteAvatar(user.id);
+      if (avatarError) {
+        console.warn('Error deleting avatar during account deletion:', avatarError);
+        // Continue with deletion even if avatar deletion fails
+      }
+    }
+
+    // Delete the user account using the RPC endpoint
+    // This will trigger cascading deletes for all related data
+    const { error: deleteError } = await supabase.rpc('delete_user');
+    if (deleteError) throw deleteError;
+
+    return { error: null };
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    return { error };
+  }
+}; 
