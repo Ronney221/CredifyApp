@@ -86,41 +86,7 @@ serve(async (req) => {
     const data = await openAIResponse.json();
     console.log('[Edge Function] Successfully processed OpenAI response');
 
-    // Extract and validate the content from OpenAI's response
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error('Invalid response from OpenAI: missing content');
-    }
-
-    // Parse the content as JSON and validate its structure
-    let parsedContent;
-    try {
-      parsedContent = JSON.parse(content.trim());
-      
-      // Validate the response structure
-      if (!parsedContent.responseType || !Array.isArray(parsedContent.recommendations)) {
-        throw new Error('Invalid response structure');
-      }
-    } catch (error) {
-      console.error('[Edge Function] Failed to parse OpenAI content:', error);
-      // If parsing fails, return a conversational response
-      parsedContent = {
-        responseType: 'Conversational',
-        recommendations: []
-      };
-    }
-
-    // Return the formatted response with usage data
-    const response = {
-      choices: [{
-        message: {
-          content: JSON.stringify(parsedContent)
-        }
-      }],
-      usage: data.usage
-    };
-
-    return new Response(JSON.stringify(response), {
+    return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
