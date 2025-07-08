@@ -121,10 +121,9 @@ const EXAMPLE_QUERIES = [
   "I'm booking flights for an international trip to Paris.",
   "What's the best card to use for my lunch order?",
   "I need some new clothes for summer.",
-  "Where should I get takeout from tonight?",
+  "Where should I order takeout from tonight?",
   "I'm planning a weekend trip to Chicago.",
   "I need a ride to the airport.",
-  "I need to get groceries for the week.",
   "What are the best perks for my vacation to Hawaii?",
   "I want to treat myself to a nice anniversary dinner.",
 ];
