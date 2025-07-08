@@ -96,10 +96,6 @@ const Sparkline: React.FC<SparklineProps> = ({ data, height, width, color }) => 
 };
 
 const ASYNC_STORAGE_FILTER_KEY = '@insights_filters';
-const defaultCardsForFilter = [
-  { id: 'amex_gold', name: 'American Express Gold' },
-  { id: 'chase_sapphire_preferred', name: 'Chase Sapphire Preferred' },
-];
 
 // --- NEW PLACEHOLDER COMPONENTS ---
 
@@ -360,8 +356,6 @@ export default function InsightsScreen() {
 
   // Define default filter states
   const defaultPerkStatusFilter: PerkStatusFilter = 'all';
-  const defaultSelectedCardIds = useMemo(() => defaultCardsForFilter.map(c => c.id), []);
-
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [perkStatusFilter, setPerkStatusFilter] = useState<PerkStatusFilter>('all');
   const scrollYPosition = useRef(0); // For scroll position restoration
@@ -379,14 +373,14 @@ export default function InsightsScreen() {
   useEffect(() => {
     console.log('[InsightsScreen] Cards changed, updating selected cards');
     if (availableCardsForFilter.length > 0) {
-      // Only select default cards initially
-      setSelectedCardIds(defaultSelectedCardIds);
+      // Select all available cards by default
+      setSelectedCardIds(availableCardsForFilter.map(card => card.id));
       setIsDataLoaded(true);
     } else {
       setSelectedCardIds([]);
       setIsDataLoaded(false);
     }
-  }, [availableCardsForFilter, defaultSelectedCardIds]);
+  }, [availableCardsForFilter]);
 
   // Reset expanded state when cards change
   useEffect(() => {
@@ -439,11 +433,10 @@ export default function InsightsScreen() {
   useEffect(() => {
     async function loadInsightsData() {
       if (!isDataLoaded) {
-        const defaultCardsWithActivity = defaultCardsForFilter.map(card => ({ ...card, activityCount: 0 }));
         setInsightsData({ 
           yearSections: [], 
           achievements: [], 
-          availableCardsForFilter: defaultCardsWithActivity, 
+          availableCardsForFilter: [], 
           currentFeeCoverageStreak: 0, 
           cardRois: [] 
         });
@@ -542,13 +535,12 @@ export default function InsightsScreen() {
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (perkStatusFilter !== defaultPerkStatusFilter) count++;
-    // Check if selectedCardIds is different from the default set
-    const sortedSelected = [...selectedCardIds].sort();
-    const sortedDefault = [...defaultSelectedCardIds].sort();
-    if (JSON.stringify(sortedSelected) !== JSON.stringify(sortedDefault)) count++;
+    // Only count perk status filter if it's not showing all
+    if (perkStatusFilter !== 'all') count++;
+    // Only count card filter if not all cards are selected
+    if (selectedCardIds.length < availableCardsForFilter.length) count++;
     return count;
-  }, [perkStatusFilter, selectedCardIds, defaultPerkStatusFilter, defaultSelectedCardIds]);
+  }, [perkStatusFilter, selectedCardIds, availableCardsForFilter]);
 
   const handleToggleMonth = (monthKey: string) => {
     setExpandedMonthKey(prev => (prev === monthKey ? null : monthKey));
