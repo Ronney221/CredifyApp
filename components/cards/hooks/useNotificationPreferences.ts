@@ -18,15 +18,15 @@ interface ToggleProps {
 }
 
 export const useNotificationPreferences = (userId?: string) => {
-  const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(false);
-  const [quarterlyPerkRemindersEnabled, setQuarterlyPerkRemindersEnabled] = useState(false);
-  const [semiAnnualPerkRemindersEnabled, setSemiAnnualPerkRemindersEnabled] = useState(false);
-  const [annualPerkRemindersEnabled, setAnnualPerkRemindersEnabled] = useState(false);
-  const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(false);
+  const [perkExpiryRemindersEnabled, setPerkExpiryRemindersEnabled] = useState(true);
+  const [quarterlyPerkRemindersEnabled, setQuarterlyPerkRemindersEnabled] = useState(true);
+  const [semiAnnualPerkRemindersEnabled, setSemiAnnualPerkRemindersEnabled] = useState(true);
+  const [annualPerkRemindersEnabled, setAnnualPerkRemindersEnabled] = useState(true);
+  const [renewalRemindersEnabled, setRenewalRemindersEnabled] = useState(true);
   const [firstOfMonthRemindersEnabled, setFirstOfMonthRemindersEnabled] = useState(true);
   const [renewalReminderDays, setRenewalReminderDays] = useState<number[]>([90, 30, 7, 1]);
   const [perkResetConfirmationEnabled, setPerkResetConfirmationEnabled] = useState(true);
-  const [weeklyDigestEnabled, setWeeklyDigestEnabled] = useState(false);
+  const [weeklyDigestEnabled, setWeeklyDigestEnabled] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   const handleSectionToggle = (key: string) => {
@@ -109,27 +109,34 @@ export const useNotificationPreferences = (userId?: string) => {
     const loadPrefs = async () => {
       try {
         const jsonValue = await AsyncStorage.getItem(NOTIFICATION_PREFS_KEY);
+        console.log('[useNotificationPreferences] Loading prefs from storage:', jsonValue);
+        
         if (jsonValue != null) {
           const prefs = JSON.parse(jsonValue);
-          setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : false);
-          setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : false);
+          console.log('[useNotificationPreferences] Parsed prefs:', prefs);
+          console.log('[useNotificationPreferences] renewalRemindersEnabled from storage:', prefs.renewalRemindersEnabled);
+          
+          setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : true);
+          setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : true);
           setFirstOfMonthRemindersEnabled(prefs.firstOfMonthRemindersEnabled !== undefined ? prefs.firstOfMonthRemindersEnabled : true);
           setRenewalReminderDays(prefs.renewalReminderDays || [90, 30, 7, 1]);
           setPerkResetConfirmationEnabled(prefs.perkResetConfirmationEnabled !== undefined ? prefs.perkResetConfirmationEnabled : true);
-          setWeeklyDigestEnabled(prefs.weeklyDigestEnabled !== undefined ? prefs.weeklyDigestEnabled : false);
+          setWeeklyDigestEnabled(prefs.weeklyDigestEnabled !== undefined ? prefs.weeklyDigestEnabled : true);
           setRemind1DayBeforeMonthly(prefs.remind1DayBeforeMonthly !== undefined ? prefs.remind1DayBeforeMonthly : true);
           setRemind3DaysBeforeMonthly(prefs.remind3DaysBeforeMonthly !== undefined ? prefs.remind3DaysBeforeMonthly : true);
           setRemind7DaysBeforeMonthly(prefs.remind7DaysBeforeMonthly !== undefined ? prefs.remind7DaysBeforeMonthly : true);
           
-          setQuarterlyPerkRemindersEnabled(prefs.quarterlyPerkRemindersEnabled !== undefined ? prefs.quarterlyPerkRemindersEnabled : false);
+          setQuarterlyPerkRemindersEnabled(prefs.quarterlyPerkRemindersEnabled !== undefined ? prefs.quarterlyPerkRemindersEnabled : true);
           setRemind7DaysBeforeQuarterly(prefs.remind7DaysBeforeQuarterly !== undefined ? prefs.remind7DaysBeforeQuarterly : true);
           setRemind14DaysBeforeQuarterly(prefs.remind14DaysBeforeQuarterly !== undefined ? prefs.remind14DaysBeforeQuarterly : true);
-          setSemiAnnualPerkRemindersEnabled(prefs.semiAnnualPerkRemindersEnabled !== undefined ? prefs.semiAnnualPerkRemindersEnabled : false);
+          setSemiAnnualPerkRemindersEnabled(prefs.semiAnnualPerkRemindersEnabled !== undefined ? prefs.semiAnnualPerkRemindersEnabled : true);
           setRemind14DaysBeforeSemiAnnual(prefs.remind14DaysBeforeSemiAnnual !== undefined ? prefs.remind14DaysBeforeSemiAnnual : true);
           setRemind30DaysBeforeSemiAnnual(prefs.remind30DaysBeforeSemiAnnual !== undefined ? prefs.remind30DaysBeforeSemiAnnual : true);
-          setAnnualPerkRemindersEnabled(prefs.annualPerkRemindersEnabled !== undefined ? prefs.annualPerkRemindersEnabled : false);
+          setAnnualPerkRemindersEnabled(prefs.annualPerkRemindersEnabled !== undefined ? prefs.annualPerkRemindersEnabled : true);
           setRemind30DaysBeforeAnnual(prefs.remind30DaysBeforeAnnual !== undefined ? prefs.remind30DaysBeforeAnnual : true);
           setRemind60DaysBeforeAnnual(prefs.remind60DaysBeforeAnnual !== undefined ? prefs.remind60DaysBeforeAnnual : true);
+        } else {
+          console.log('[useNotificationPreferences] No saved prefs found, using defaults');
         }
       } catch (e) {
         console.error("Failed to load notification prefs.", e);
@@ -311,7 +318,7 @@ export const useNotificationPreferences = (userId?: string) => {
       toggles: [
         { 
           label: "Enable renewal reminders", 
-          value: renewalRemindersEnabled, 
+          value: anyRenewalDateSet ? renewalRemindersEnabled : true, 
           onValueChange: handleRenewalReminderToggle,
           disabled: !anyRenewalDateSet
         }

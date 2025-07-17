@@ -74,7 +74,7 @@ const ProfileScreen = () => {
 
     try {
       console.log('[ProfileScreen] Testing all notification types');
-      
+
       // Test perk expiry notifications
       const perkExpiryPromises = [
         schedulePerkExpiryNotifications(user.id, testPreferences, 1, true),
@@ -120,13 +120,13 @@ const ProfileScreen = () => {
       console.log('[Profile] Resetting first redemption state');
       const beforeValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
       console.log('[Profile] Current value before reset:', beforeValue);
-      
+
       await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
       setHasRedeemedFirstPerk(false);
-      
+
       const afterValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
       console.log('[Profile] Value after reset:', afterValue);
-      
+
       Alert.alert(
         "Success",
         "First redemption state has been reset. The onboarding sheet will show after your next perk redemption.",
@@ -159,7 +159,7 @@ const ProfileScreen = () => {
         Alert.alert('No Active Chat', 'Please start a chat first to test this feature.');
         return;
       }
-      
+
       const historyKey = `@ai_chat_history_${chatId}`;
       const savedHistory = await AsyncStorage.getItem(historyKey);
 
@@ -209,19 +209,42 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleResetNotificationPreferences = async () => {
+    try {
+      const NOTIFICATION_PREFS_KEY = '@notification_preferences';
+      await AsyncStorage.removeItem(NOTIFICATION_PREFS_KEY);
+      console.log('[Profile] Successfully cleared notification preferences');
+
+      Alert.alert(
+        "Success",
+        "Notification preferences have been reset to defaults. All notifications are now enabled.",
+        [{
+          text: "OK",
+          onPress: () => {
+            // Optionally navigate to the notifications screen to see the changes
+            router.push('/(tabs)/profile/notifications');
+          }
+        }]
+      );
+    } catch (error) {
+      console.error('[Profile] Error resetting notification preferences:', error);
+      Alert.alert('Error', 'Failed to reset notification preferences.');
+    }
+  };
+
   const handleClearChat = async () => {
     Alert.alert(
       "Clear Chat History",
       "This will remove all archived conversations and start a fresh session. Are you sure?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Clear", 
+        {
+          text: "Clear",
           style: "destructive",
           onPress: async () => {
             try {
               const allKeys = await AsyncStorage.getAllKeys();
-              const chatKeys = allKeys.filter(key => 
+              const chatKeys = allKeys.filter(key =>
                 key.startsWith('@ai_chat_history_') || key === CURRENT_CHAT_ID_KEY
               );
               await AsyncStorage.multiRemove(chatKeys);
@@ -246,8 +269,8 @@ const ProfileScreen = () => {
       "Are you sure you want to sign out?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Sign Out", 
+        {
+          text: "Sign Out",
           style: "destructive",
           onPress: async () => {
             try {
@@ -257,7 +280,7 @@ const ProfileScreen = () => {
                 Alert.alert('Error', 'Failed to sign out. Please try again.');
                 return;
               }
-              
+
               // Navigate to login screen
               router.replace('/(auth)/login');
             } catch (e) {
@@ -269,7 +292,7 @@ const ProfileScreen = () => {
       ]
     );
   };
-  
+
   const sections: ProfileSection[] = [
     {
       title: 'Account',
@@ -283,24 +306,24 @@ const ProfileScreen = () => {
             params: { backRoute: '/(tabs)/04-profile' }
           }),
         },
-        { 
-          id: 'preferences', 
-          title: 'Notification Preferences', 
-          icon: 'notifications-outline', 
+        {
+          id: 'preferences',
+          title: 'Notification Preferences',
+          icon: 'notifications-outline',
           subtitle: 'Customize your notification settings',
-          onPress: () => router.push('/(tabs)/profile/notifications') 
+          onPress: () => router.push('/(tabs)/profile/notifications')
         },
       ],
     },
     {
       title: 'Support',
       data: [
-        { 
-          id: 'help-faq', 
-          title: 'Help & FAQ', 
-          icon: 'help-circle-outline', 
+        {
+          id: 'help-faq',
+          title: 'Help & FAQ',
+          icon: 'help-circle-outline',
           subtitle: 'Get answers to common questions',
-          onPress: () => router.push('/(tabs)/profile/help-faq') 
+          onPress: () => router.push('/(tabs)/profile/help-faq')
         },
         {
           id: 'legal',
@@ -309,12 +332,12 @@ const ProfileScreen = () => {
           subtitle: 'Privacy Policy and Terms of Service',
           onPress: () => router.push('/(legal)/terms')
         },
-        { 
-          id: 'sign-out', 
-          title: 'Sign Out', 
-          icon: 'log-out-outline', 
+        {
+          id: 'sign-out',
+          title: 'Sign Out',
+          icon: 'log-out-outline',
           isDestructive: true,
-          onPress: handleSignOut 
+          onPress: handleSignOut
         },
       ],
       footer: 'Get help with your account, cards, and more.',
@@ -336,11 +359,11 @@ const ProfileScreen = () => {
         //     }
         //   }
         // },
-        { 
-          id: 'reset-first-redemption', 
-          title: 'Reset First Redemption', 
-          icon: 'refresh-outline', 
-          onPress: handleResetFirstRedemption 
+        {
+          id: 'reset-first-redemption',
+          title: 'Reset First Redemption',
+          icon: 'refresh-outline',
+          onPress: handleResetFirstRedemption
         },
         {
           id: 'clear-chat',
@@ -359,6 +382,12 @@ const ProfileScreen = () => {
           title: 'Reset Chat Credits',
           icon: 'cash-outline',
           onPress: handleResetChatCredits
+        },
+        {
+          id: 'reset-notification-prefs',
+          title: 'Reset Notification Preferences',
+          icon: 'notifications-outline',
+          onPress: handleResetNotificationPreferences
         },
         // {
         //   id: 'test-inactivity-message',
@@ -391,7 +420,7 @@ const ProfileScreen = () => {
     }
 
     return (
-      <Pressable 
+      <Pressable
         onPress={item.onPress}
         style={({ pressed }) => [
           rowStyle,
@@ -399,9 +428,9 @@ const ProfileScreen = () => {
         ]}
       >
         {item.icon && (
-          <Ionicons 
-            name={item.icon} 
-            size={22} 
+          <Ionicons
+            name={item.icon}
+            size={22}
             color={item.isDestructive ? Colors.light.error : Colors.light.secondaryLabel}
             style={styles.icon}
           />
@@ -418,11 +447,11 @@ const ProfileScreen = () => {
           )}
         </View>
         {!item.isDestructive && (
-          <Ionicons 
-            name="chevron-forward" 
-            size={20} 
-            color={Colors.light.secondaryLabel} 
-            style={styles.chevron} 
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={Colors.light.secondaryLabel}
+            style={styles.chevron}
           />
         )}
       </Pressable>
@@ -450,7 +479,7 @@ const ProfileScreen = () => {
         avatarUrl={user?.user_metadata?.avatar_url}
         onPress={() => router.push('/(tabs)/profile/edit-profile')}
       />
-      
+
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
