@@ -638,10 +638,10 @@ export default function PerkActionModal({
 
     return (
       <TouchableOpacity
-        style={[styles.button, styles.primaryButton]}
+        style={[styles.button, styles.secondaryButton]}
         onPress={handleConfirmAction}
       >
-        <Text style={[styles.buttonText, styles.primaryButtonText]}>
+        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
           {renderActionButton()}
         </Text>
       </TouchableOpacity>
@@ -755,9 +755,9 @@ export default function PerkActionModal({
                   <>
                     {renderPrimaryButton()}
 
-                    <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={handleOpenApp}>
-                      <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                        Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                    <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleOpenApp}>
+                      <Text style={[styles.buttonText, styles.primaryButtonText]}>
+                        Open {appName} <Ionicons name="open-outline" size={16} color="#FFFFFF" />
                       </Text>
                     </TouchableOpacity>
                   </>
@@ -775,9 +775,9 @@ export default function PerkActionModal({
                       <Text style={styles.buttonText}>Mark as Available</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={handleOpenApp}>
-                      <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-                        Open {appName} <Ionicons name="open-outline" size={16} color="#007AFF" />
+                    <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleOpenApp}>
+                      <Text style={[styles.buttonText, styles.primaryButtonText]}>
+                        Open {appName} <Ionicons name="open-outline" size={16} color="#FFFFFF" />
                       </Text>
                     </TouchableOpacity>
                   </>
