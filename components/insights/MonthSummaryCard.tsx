@@ -20,7 +20,7 @@ import { BlurView } from 'expo-blur';
 
 // Constants
 const SUCCESS_GREEN = '#34C759';
-const PARTIAL_ORANGE = '#FF9500';
+const PARTIAL_GREEN = '#4CAF50'; // A slightly different green to show partial but still successful
 const NEUTRAL_GRAY_COLOR = '#8A8A8E';
 const SUBTLE_GRAY_TEXT = Colors.light.icon;
 const SEPARATOR_COLOR = '#E0E0E0';
@@ -196,39 +196,55 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
   }, [relevantPerks]);
 
-  // Update the bar segments calculation to handle empty current month and partial redemptions
-  const getBarSegments = () => {
-    // If it's current month and we have no perks, show one "available" segment
+  // Calculate value-weighted progress bar
+  const getValueWeightedProgress = () => {
+    // If it's current month and we have no perks, show empty progress
     if (isCurrentMonth && !hasAnyPerks) {
-      return [{ type: 'available', color: Colors.light.tint }];
+      return { redeemedPercentage: 0, partialPercentage: 0, availablePercentage: 1 };
     }
 
-    const segments = [];
+    // Calculate total values for each status from relevant perks
+    const redeemedValue = relevantPerks
+      .filter(perk => perk.status === 'redeemed')
+      .reduce((sum, perk) => sum + perk.value, 0);
     
-    // Add redeemed segments
-    for (let i = 0; i < redeemedPerks; i++) {
-      segments.push({ type: 'redeemed', color: SUCCESS_GREEN });
-    }
-
-    // Add partial segments
-    for (let i = 0; i < partialPerks; i++) {
-      segments.push({ type: 'partial', color: PARTIAL_ORANGE });
+    const partialValue = relevantPerks
+      .filter(perk => perk.status === 'partial')
+      .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
+    
+    const availableValue = relevantPerks
+      .filter(perk => perk.status === 'available')
+      .reduce((sum, perk) => sum + perk.value, 0);
+    
+    const missedValue = relevantPerks
+      .filter(perk => perk.status === 'missed')
+      .reduce((sum, perk) => sum + perk.value, 0);
+    
+    // Calculate total potential value for the month (all perks that could have been redeemed)
+    const totalPotentialValue = summary.totalPotentialValue;
+    
+    // For current month, use total potential value to show full width
+    // For historical months, use the total potential value as the denominator
+    const totalValue = totalPotentialValue > 0 ? totalPotentialValue : (redeemedValue + partialValue + availableValue + missedValue);
+    
+    if (totalValue === 0) {
+      return { redeemedPercentage: 0, partialPercentage: 0, availablePercentage: 1 };
     }
     
-    // Add missed segments
-    for (let i = 0; i < missedPerks; i++) {
-      segments.push({ type: 'missed', color: NEUTRAL_GRAY_COLOR });
-    }
+    // For current month, calculate available percentage as remaining potential
+    const availablePercentage = isCurrentMonth 
+      ? (totalPotentialValue - redeemedValue - partialValue) / totalPotentialValue
+      : availableValue / totalValue;
     
-    // Add available segments
-    for (let i = 0; i < availablePerks; i++) {
-      segments.push({ type: 'available', color: Colors.light.tint });
-    }
-    
-    return segments;
+    return {
+      redeemedPercentage: redeemedValue / totalValue,
+      partialPercentage: partialValue / totalValue,
+      availablePercentage: Math.max(0, availablePercentage),
+      missedPercentage: missedValue / totalValue
+    };
   };
 
-  const barSegments = getBarSegments();
+  const progressData = getValueWeightedProgress();
 
   useEffect(() => {
     rotation.value = withTiming(isExpanded ? 90 : 0, {
@@ -317,7 +333,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           perk.status === 'redeemed' 
             ? SUCCESS_GREEN 
             : perk.status === 'partial'
-            ? PARTIAL_ORANGE
+            ? PARTIAL_GREEN
             : perk.status === 'available'
             ? Colors.light.tint
             : NEUTRAL_GRAY_COLOR
@@ -331,11 +347,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
             perk.status === 'missed' && styles.missedPerkText
           ]}>{perk.name}</Text>
           <View style={styles.perkValueContainer}>
-            {perk.status === 'partial' && perk.partialValue ? (
-              <Text style={styles.perkValue}>
-                ${perk.partialValue.toFixed(0)} / ${perk.value.toFixed(0)}
-              </Text>
-            ) : (
+                      {perk.status === 'partial' && perk.partialValue ? (
+            <Text style={[styles.perkValue, { color: PARTIAL_GREEN }]}>
+              ${perk.partialValue.toFixed(0)} / ${perk.value.toFixed(0)}
+            </Text>
+          ) : (
               <Text style={[
                 styles.perkValue,
                 perk.status === 'missed' && styles.missedPerkText
@@ -362,19 +378,113 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     </View>
   );
 
-  const renderVisualMeter = () => (
-    <View style={styles.visualMeter}>
-      {barSegments.map((segment, index) => (
-        <View
-          key={index}
-          style={[
-            styles.meterSegment,
-            { backgroundColor: segment.color }
-          ]}
-        />
-      ))}
-    </View>
-  );
+  const renderVisualMeter = () => {
+    // For current month, show a different approach
+    if (isCurrentMonth) {
+      const hasRedeemedPerks = progressData.redeemedPercentage > 0 || progressData.partialPercentage > 0;
+      
+      return (
+        <View style={styles.visualMeter}>
+          {/* Show redeemed/partial progress if any exists */}
+          {hasRedeemedPerks ? (
+            <>
+              {progressData.redeemedPercentage > 0 && (
+                <View
+                  style={[
+                    styles.meterSegment,
+                    { 
+                      backgroundColor: SUCCESS_GREEN,
+                      flex: progressData.redeemedPercentage
+                    }
+                  ]}
+                />
+              )}
+              
+              {progressData.partialPercentage > 0 && (
+                <View
+                  style={[
+                    styles.meterSegment,
+                    { 
+                      backgroundColor: PARTIAL_GREEN,
+                      flex: progressData.partialPercentage
+                    }
+                  ]}
+                />
+              )}
+              
+              {/* Show gray bar for remaining potential value */}
+              {progressData.availablePercentage > 0 && (
+                <View
+                  style={[
+                    styles.meterSegment,
+                    { 
+                      backgroundColor: NEUTRAL_GRAY_COLOR,
+                      flex: progressData.availablePercentage
+                    }
+                  ]}
+                />
+              )}
+            </>
+          ) : (
+            /* Show empty state if no perks redeemed yet */
+            <View
+              style={[
+                styles.meterSegment,
+                { 
+                  backgroundColor: NEUTRAL_GRAY_COLOR,
+                  flex: 1
+                }
+              ]}
+            />
+          )}
+        </View>
+      );
+    }
+    
+    // For historical months, show the full value-weighted progress
+    return (
+      <View style={styles.visualMeter}>
+        {/* Redeemed segment */}
+        {progressData.redeemedPercentage > 0 && (
+          <View
+            style={[
+              styles.meterSegment,
+              { 
+                backgroundColor: SUCCESS_GREEN,
+                flex: progressData.redeemedPercentage
+              }
+            ]}
+          />
+        )}
+        
+        {/* Partial segment */}
+        {progressData.partialPercentage > 0 && (
+          <View
+            style={[
+              styles.meterSegment,
+              { 
+                backgroundColor: PARTIAL_GREEN,
+                flex: progressData.partialPercentage
+              }
+            ]}
+          />
+        )}
+        
+        {/* Missed segment */}
+        {(progressData.missedPercentage || 0) > 0 && (
+          <View
+            style={[
+              styles.meterSegment,
+              { 
+                backgroundColor: NEUTRAL_GRAY_COLOR,
+                flex: progressData.missedPercentage || 0
+              }
+            ]}
+          />
+        )}
+      </View>
+    );
+  };
 
   return (
     <Pressable 
@@ -429,12 +539,12 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                       </Text>
                     </View>
                     {partialPerks > 0 && (
-                      <View style={styles.statItem}>
-                        <Ionicons name="checkmark-circle-outline" size={16} color={PARTIAL_ORANGE} />
-                        <Text style={styles.statText}>
-                          {partialPerks} Partial (${partialRedeemedValue.toFixed(0)})
-                        </Text>
-                      </View>
+                                          <View style={styles.statItem}>
+                      <Ionicons name="checkmark-circle-outline" size={16} color={PARTIAL_GREEN} />
+                      <Text style={styles.statText}>
+                        {partialPerks} Partial (${partialRedeemedValue.toFixed(0)})
+                      </Text>
+                    </View>
                     )}
                     {isCurrentMonth ? (
                       hasAnyPerks ? (
@@ -627,7 +737,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   meterSegment: {
-    flex: 1,
     marginHorizontal: 1,
   },
   monthStats: {
