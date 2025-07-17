@@ -410,8 +410,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   )}
                 </View>
                 <Text style={styles.totalValue}>
-                  ${(summary.totalRedeemedValue + partialRedeemedValue).toFixed(0)}
-                  {isCurrentMonth && ' Saved So Far'}
+                  {isCurrentMonth ? (
+                    `$${(summary.totalRedeemedValue + partialRedeemedValue).toFixed(0)} Saved So Far`
+                  ) : (
+                    `You Saved $${(summary.totalRedeemedValue + partialRedeemedValue).toFixed(0)}`
+                  )}
                 </Text>
               </View>
 
@@ -467,18 +470,16 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
               exiting={FadeOut.duration(150)} 
               style={styles.perkDetailsContainer}
             >
-              <View style={styles.detailedHeader}>
-                <Text style={styles.detailedTitle}>Perk Details</Text>
-                {missedOutValue > 0 ? (
-                  <Text style={styles.detailedSubtitle}>
-                    Missed out on ${missedOutValue.toFixed(0)} this month
+              {!isCurrentMonth && missedOutValue > 0 && (
+                <View style={styles.missedOpportunityHeader}>
+                  <Text style={styles.missedOpportunityTitle}>
+                    ${missedOutValue.toFixed(0)} in potential savings
                   </Text>
-                ) : (
-                  <Text style={styles.detailedSubtitle}>
-                    Great! No missed perks this month
+                  <Text style={styles.missedOpportunitySubtitle}>
+                    {missedOutValue > 50 ? 'Significant opportunity missed' : 'Opportunity to improve'}
                   </Text>
-                )}
-              </View>
+                </View>
+              )}
 
               {showCelebratoryEmptyState ? (
                 <View style={styles.celebratoryEmptyState}>
@@ -489,17 +490,17 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                 </View>
               ) : (monthlyPerkDetails.length > 0 || nonMonthlyPerkDetails.length > 0) ? (
                 <>
-                  {[...monthlyPerkDetails, ...nonMonthlyPerkDetails].some(perk => perk.status === 'missed' || perk.status === 'available') && (
+                  {!isCurrentMonth && missedOutValue > 0 && (
                     <TouchableOpacity 
                       onPress={() => handleRemindMe('')}
-                      style={styles.monthRemindButton}
+                      style={styles.missedOpportunityRemindButton}
                     >
                       <LinearGradient
                         colors={['rgba(0,122,255,0.1)', 'rgba(0,122,255,0.05)']}
                         style={styles.remindButtonGradient}
                       >
                         <Ionicons name="notifications-outline" size={16} color={Colors.light.tint} />
-                        <Text style={styles.monthRemindButtonText}>Set reminders for missed perks</Text>
+                        <Text style={styles.monthRemindButtonText}>Set reminders for next time</Text>
                         <Ionicons name="chevron-forward" size={16} color={Colors.light.tint} />
                       </LinearGradient>
                     </TouchableOpacity>
@@ -507,20 +508,24 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   
                   {monthlyPerkDetails.length > 0 && (
                     <View style={styles.perkSection}>
-                      <View style={styles.perkSectionHeader}>
-                        <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
-                        <Text style={styles.perkSectionCount}>({monthlyPerkDetails.length})</Text>
-                      </View>
+                      {isCurrentMonth && (
+                        <View style={styles.perkSectionHeader}>
+                          <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
+                          <Text style={styles.perkSectionCount}>({monthlyPerkDetails.length})</Text>
+                        </View>
+                      )}
                       {monthlyPerkDetails.map(perk => renderPerkItem(perk, true))}
                     </View>
                   )}
 
                   {nonMonthlyPerkDetails.length > 0 && (
                     <View style={styles.perkSection}>
-                      <View style={styles.perkSectionHeader}>
-                        <Text style={styles.perkSectionTitle}>Additional Perks</Text>
-                        <Text style={styles.perkSectionCount}>({nonMonthlyPerkDetails.length})</Text>
-                      </View>
+                      {isCurrentMonth && (
+                        <View style={styles.perkSectionHeader}>
+                          <Text style={styles.perkSectionTitle}>Additional Perks</Text>
+                          <Text style={styles.perkSectionCount}>({nonMonthlyPerkDetails.length})</Text>
+                        </View>
+                      )}
                       {nonMonthlyPerkDetails.map(perk => renderPerkItem(perk, false))}
                     </View>
                   )}
@@ -677,6 +682,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.light.text,
     opacity: 0.7,
+  },
+  missedOpportunityHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  missedOpportunityTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.light.tint,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  missedOpportunitySubtitle: {
+    fontSize: 16,
+    color: Colors.light.text,
+    opacity: 0.8,
+    textAlign: 'center',
+  },
+  missedOpportunityRemindButton: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   perkSection: {
     marginBottom: 20,
