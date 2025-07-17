@@ -8,8 +8,12 @@ import Animated, {
   withSequence,
   withTiming,
   Easing,
+  useAnimatedProps,
 } from 'react-native-reanimated';
 import { Colors } from '../../constants/Colors';
+import Svg, { Defs, Rect, Mask } from 'react-native-svg';
+
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 interface OnboardingOverlayProps {
   visible: boolean;
@@ -31,14 +35,29 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
 }) => {
   const glowScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
+  const maskScale = useSharedValue(1);
 
   useEffect(() => {
     if (visible && highlightedElementLayout) {
-      // Create a pulsing glow effect
+      // Create synchronized pulsing effect for both glow and mask
+      const animationConfig = {
+        duration: 1000,
+        easing: Easing.inOut(Easing.ease)
+      };
+      
       glowScale.value = withRepeat(
         withSequence(
-          withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.05, animationConfig),
+          withTiming(1, animationConfig)
+        ),
+        -1,
+        true
+      );
+
+      maskScale.value = withRepeat(
+        withSequence(
+          withTiming(1.02, animationConfig), // Slightly less scale for mask
+          withTiming(1, animationConfig)
         ),
         -1,
         true
@@ -46,8 +65,8 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
 
       glowOpacity.value = withRepeat(
         withSequence(
-          withTiming(0.5, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+          withTiming(0.5, animationConfig),
+          withTiming(0.3, animationConfig)
         ),
         -1,
         true
@@ -55,6 +74,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
     } else {
       glowScale.value = 1;
       glowOpacity.value = 0.3;
+      maskScale.value = 1;
     }
   }, [visible, highlightedElementLayout]);
 
@@ -70,6 +90,21 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
   // Now we have absolute screen coordinates from measure()
   const { x, y, width, height } = highlightedElementLayout;
   
+  // Animated props for the SVG mask cutout
+  const animatedMaskProps = useAnimatedProps(() => {
+    const scale = maskScale.value;
+    const offset = (1 - scale) / 2; // Center the scaling
+    
+    return {
+      x: x - (width * offset),
+      y: y - (height * offset),
+      width: width * scale,
+      height: height * scale,
+    };
+  });
+  
+  console.log('[OnboardingOverlay] Received layout:', { x, y, width, height });
+  
   // Calculate tooltip position
   const tooltipY = y + height + 20;
   const tooltipX = Math.max(16, Math.min(screenWidth - 296, x));
@@ -84,33 +119,43 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
     >
       <View style={styles.modalContainer} pointerEvents="box-only">
         {/* Full screen overlay that blocks all interactions */}
-        <TouchableOpacity 
-          style={styles.fullScreenOverlay} 
+        {/* SVG Mask for rounded corner cutout */}
+        <Svg
+          width={screenWidth}
+          height={Dimensions.get('window').height}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        >
+          <Defs>
+            <Mask id="mask">
+              {/* Fill entire screen with white (visible) */}
+              <Rect x="0" y="0" width="100%" height="100%" fill="white" />
+              {/* Cut out the highlighted area with rounded corners - animated */}
+              <AnimatedRect
+                animatedProps={animatedMaskProps}
+                rx="16"
+                ry="16"
+                fill="black"
+              />
+            </Mask>
+          </Defs>
+          {/* Apply mask to dark overlay */}
+          <Rect
+            x="0"
+            y="0"
+            width="100%"
+            height="100%"
+            fill="rgba(0, 0, 0, 0.75)"
+            mask="url(#mask)"
+          />
+        </Svg>
+        
+        {/* Invisible touch handler for dismissing */}
+        <TouchableOpacity
+          style={styles.fullScreenOverlay}
           activeOpacity={1}
           onPress={onDismiss}
-        >
-          {/* Top section */}
-          <View style={[styles.overlaySection, { height: y }]} />
-          
-          {/* Middle section with cutout */}
-          <View style={{ flexDirection: 'row', height: height }}>
-            {/* Left part */}
-            <View style={[styles.overlaySection, { width: x }]} />
-            
-            {/* Cutout (transparent area) - block touch events */}
-            <TouchableOpacity 
-              activeOpacity={1} 
-              style={{ width: width, height: height }}
-              onPress={(e) => e.stopPropagation()}
-            />
-            
-            {/* Right part */}
-            <View style={[styles.overlaySection, { flex: 1 }]} />
-          </View>
-          
-          {/* Bottom section */}
-          <View style={[styles.overlaySection, { flex: 1 }]} />
-        </TouchableOpacity>
+        />
 
         {/* Animated glow effect around the highlighted element */}
         <Animated.View
@@ -118,10 +163,10 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
             styles.glowEffect,
             {
               position: 'absolute',
-              left: x - 4,
-              top: y - 4,
-              width: width + 8,
-              height: height + 8,
+              left: x - 2,
+              top: y - 2,
+              width: width + 4,
+              height: height + 4,
             },
             glowStyle,
           ]}
@@ -175,21 +220,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fullScreenOverlay: {
-    flex: 1,
-  },
-  overlaySection: {
-    backgroundColor: 'rgba(0, 0, 0, 0.75)', // Consistent darker overlay
+    ...StyleSheet.absoluteFillObject,
   },
   glowEffect: {
     position: 'absolute',
-    borderRadius: 16,
-    borderWidth: 2,
+    borderRadius: 16, // Match PerkRow border radius
+    borderWidth: 3,
     borderColor: Colors.light.tint,
+    backgroundColor: 'transparent',
     shadowColor: Colors.light.tint,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
     ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 12,
+      },
       android: {
         elevation: 8,
       },

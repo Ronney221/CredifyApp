@@ -139,11 +139,13 @@ const PerkRow: React.FC<PerkRowProps> = ({
           style={containerStyle}
           onLayout={onLayout ? () => {
             // Use measure to get absolute screen coordinates
+            // Delay measurement to ensure card expansion animation is complete
             setTimeout(() => {
               touchableRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                console.log('[PerkRow] Measured layout:', { pageX, pageY, width, height, perkName: perk.name });
                 onLayout({ x: pageX, y: pageY, width, height });
               });
-            }, 100);
+            }, 500); // Increased delay to account for expansion animation
           } : undefined}
         >
             <View style={styles.perkIconContainer}>
