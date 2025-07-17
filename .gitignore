@@ -113,3 +113,4 @@ expo-env.d.ts
 .cursor/rules/mobile.mdc
 .cursor/rules/my-rule.mdc
 future_plan.md
+database/Supabase Snippet Public Schema Column Metadata Retrieval.csv

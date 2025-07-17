@@ -411,13 +411,24 @@ export default function InsightsScreen() {
             period: perk.period
           });
           
+          // Map database status to expected status format
+          let mappedStatus: 'available' | 'redeemed' | 'partial';
+          if (perk.status === 'partially_redeemed') {
+            mappedStatus = 'partial';
+          } else if (perk.status === 'redeemed') {
+            mappedStatus = 'redeemed';
+          } else {
+            mappedStatus = 'available';
+          }
+          
           return {
             id: perk.id,
             definition_id: perk.definition_id,
             name: perk.name,
             value: perk.value,
-            status: perk.status,
+            status: mappedStatus,
             period: perk.period,
+            remaining_value: perk.remaining_value,
           };
         }),
       }));

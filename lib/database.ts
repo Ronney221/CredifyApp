@@ -853,7 +853,7 @@ export async function getRedemptionsForPeriod(userId: string, startDate: Date, e
   try {
     const { data, error } = await supabase
       .from('perk_redemptions')
-      .select('perk_id, redemption_date')
+      .select('perk_id, redemption_date, status, value_redeemed, total_value, remaining_value')
       .eq('user_id', userId)
       .gte('redemption_date', startDate.toISOString())
       .lte('redemption_date', endDate.toISOString());

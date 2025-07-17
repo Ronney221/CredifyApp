@@ -2,7 +2,7 @@ import { allCards, Benefit } from './card-data';
 import { getRedemptionsForPeriod } from '../../lib/database';
 
 export type PerkPeriod = 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
-export type PerkStatus = 'redeemed' | 'missed' | 'available' | 'partially_redeemed';
+export type PerkStatus = 'redeemed' | 'missed' | 'available' | 'partial';
 export type PerkStatusFilter = 'all' | PerkStatus;
 
 // --- TYPE DEFINITIONS ---
@@ -20,10 +20,11 @@ export interface PerkDetail {
   id: string;
   name: string;
   value: number;
-  status: 'redeemed' | 'available' | 'missed' | 'partially_redeemed';
+  status: 'redeemed' | 'available' | 'missed' | 'partial';
   period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
   expiresThisMonth?: boolean;
   expiresNextMonth?: boolean;
+  partialValue?: number; // For partial redemptions
   reset_date?: string;
 }
 
@@ -87,7 +88,7 @@ export const generateDummyInsightsData = async (
       definition_id: string; 
       name: string; 
       value: number; 
-      status: 'redeemed' | 'available' | 'partially_redeemed'; 
+      status: 'redeemed' | 'available' | 'partial'; 
       period: Benefit['period'];
       remaining_value?: number;
       reset_date?: string;
@@ -129,7 +130,14 @@ export const generateDummyInsightsData = async (
   }
 
   // Get historical redemption data for the past 6 months
-  let historicalRedemptions: { perk_id: string; redemption_date: string }[] = [];
+  let historicalRedemptions: { 
+    perk_id: string; 
+    redemption_date: string; 
+    status: 'available' | 'redeemed' | 'partially_redeemed';
+    value_redeemed: number;
+    total_value: number;
+    remaining_value: number;
+  }[] = [];
   if (userId) {
     const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1); // 6 months ago
     const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); // End of current month
@@ -137,7 +145,11 @@ export const generateDummyInsightsData = async (
     if (result.data && !result.error) {
       historicalRedemptions = result.data.map(r => ({
         perk_id: r.perk_id,
-        redemption_date: r.redemption_date || new Date().toISOString() // Fallback to current date if missing
+        redemption_date: r.redemption_date || new Date().toISOString(), // Fallback to current date if missing
+        status: r.status,
+        value_redeemed: r.value_redeemed || 0,
+        total_value: r.total_value || 0,
+        remaining_value: r.remaining_value || 0
       }));
     }
   }
@@ -182,11 +194,19 @@ export const generateDummyInsightsData = async (
       const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
       const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0); // Last day of current month
       const nextMonthStart = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-      const wasRedeemed = (perkId: string) => historicalRedemptions.some(r => 
-        r.perk_id === perkId &&
-        new Date(r.redemption_date) >= monthStart &&
-        new Date(r.redemption_date) <= monthEnd
-      );
+      const getRedemptionStatus = (perkId: string) => {
+        const redemption = historicalRedemptions.find(r => 
+          r.perk_id === perkId &&
+          new Date(r.redemption_date) >= monthStart &&
+          new Date(r.redemption_date) <= monthEnd
+        );
+        return redemption ? {
+          status: redemption.status,
+          value_redeemed: redemption.value_redeemed,
+          total_value: redemption.total_value,
+          remaining_value: redemption.remaining_value
+        } : null;
+      };
 
       selectedProcessedCards.forEach(cardData => {
         cardData.perks.forEach(perk => {
@@ -199,8 +219,16 @@ export const generateDummyInsightsData = async (
           const perkDetailId = `${cardData.card.id}_${perk.definition_id}_${monthKey}`;
           
           // Check if this perk was redeemed in the current month
-          const isRedeemed = wasRedeemed(perk.definition_id);
-          const displayStatus = isRedeemed ? 'redeemed' : 'available';
+          const redemptionStatus = getRedemptionStatus(perk.definition_id);
+          const isRedeemed = redemptionStatus?.status === 'redeemed';
+          const isPartiallyRedeemed = redemptionStatus?.status === 'partially_redeemed';
+          
+          let displayStatus: 'redeemed' | 'partial' | 'available' = 'available';
+          if (isRedeemed) {
+            displayStatus = 'redeemed';
+          } else if (isPartiallyRedeemed) {
+            displayStatus = 'partial';
+          }
 
           // Determine if non-monthly perk expires this month or next month
           let expiresThisMonth = false;
@@ -234,11 +262,13 @@ export const generateDummyInsightsData = async (
             period: perk.period,
             expiresThisMonth,
             expiresNextMonth,
+            partialValue: displayStatus === 'partial' ? (redemptionStatus?.value_redeemed || 0) : undefined,
             reset_date: perk.reset_date || undefined
           } as PerkDetail);
 
           if (displayStatus === 'redeemed') {
-            monthTotalRedeemed += perk.value;
+            const redeemedValue = redemptionStatus?.value_redeemed || perk.value;
+            monthTotalRedeemed += redeemedValue;
             monthPerksRedeemed++;
             if (perk.period === 'monthly') {
               allMonthlyPerksRedeemedThisMonthCount++;
@@ -249,7 +279,21 @@ export const generateDummyInsightsData = async (
               cardActivity[cardData.card.id] = { redemptions: 0, totalValue: 0 };
             }
             cardActivity[cardData.card.id].redemptions++;
-            cardActivity[cardData.card.id].totalValue += perk.value;
+            cardActivity[cardData.card.id].totalValue += redeemedValue;
+          } else if (displayStatus === 'partial') {
+            const partialValue = redemptionStatus?.value_redeemed || 0;
+            monthTotalRedeemed += partialValue;
+            monthPerksRedeemed++;
+            if (perk.period === 'monthly') {
+              allMonthlyPerksRedeemedThisMonthCount += 0.5; // Partial weight
+            }
+            
+            // Track card-specific activity
+            if (!cardActivity[cardData.card.id]) {
+              cardActivity[cardData.card.id] = { redemptions: 0, totalValue: 0 };
+            }
+            cardActivity[cardData.card.id].redemptions++;
+            cardActivity[cardData.card.id].totalValue += partialValue;
           } else {
             monthPerksMissed++;
           }
@@ -272,20 +316,27 @@ export const generateDummyInsightsData = async (
           const perkDetailId = `${card.id}_${perk.definition_id}_${monthKey}`;
           
           // Check if this perk was redeemed in this month
-          const wasRedeemed = historicalRedemptions.some(r => 
+          const redemptionStatus = historicalRedemptions.find(r => 
             r.perk_id === perk.definition_id &&
             new Date(r.redemption_date) >= monthStart &&
             new Date(r.redemption_date) <= monthEnd
           );
 
           // For current month, show as 'available' instead of 'missed' if not redeemed
-          const displayStatus = wasRedeemed ? 'redeemed' : 
-                              isCurrentMonth ? 'available' : 'missed';
+          let displayStatus: 'redeemed' | 'partial' | 'available' | 'missed' = isCurrentMonth ? 'available' : 'missed';
+          if (redemptionStatus) {
+            if (redemptionStatus.status === 'redeemed') {
+              displayStatus = 'redeemed';
+            } else if (redemptionStatus.status === 'partially_redeemed') {
+              displayStatus = 'partial';
+            }
+          }
+          
 
           // Determine if non-monthly perk expires this month or next month
           let expiresThisMonth = false;
           let expiresNextMonth = false;
-          if (perk.period !== 'monthly' && !wasRedeemed) {
+          if (perk.period !== 'monthly' && !redemptionStatus) {
             if (perk.period === 'semi_annual') {
               // For semi-annual perks, they expire at the end of June and December
               const isJune = monthEnd.getMonth() === 5; // June is 5 (0-based)
@@ -322,11 +373,13 @@ export const generateDummyInsightsData = async (
             period: perk.period,
             expiresThisMonth,
             expiresNextMonth,
+            partialValue: displayStatus === 'partial' ? (redemptionStatus?.value_redeemed || 0) : undefined,
             reset_date: undefined
           } as PerkDetail);
 
           if (displayStatus === 'redeemed') {
-            monthTotalRedeemed += perk.value;
+            const redeemedValue = redemptionStatus?.value_redeemed || perk.value;
+            monthTotalRedeemed += redeemedValue;
             monthPerksRedeemed++;
             if (perk.period === 'monthly') {
               allMonthlyPerksRedeemedThisMonthCount++;
@@ -337,7 +390,21 @@ export const generateDummyInsightsData = async (
               cardActivity[card.id] = { redemptions: 0, totalValue: 0 };
             }
             cardActivity[card.id].redemptions++;
-            cardActivity[card.id].totalValue += perk.value;
+            cardActivity[card.id].totalValue += redeemedValue;
+          } else if (displayStatus === 'partial') {
+            const partialValue = redemptionStatus?.value_redeemed || 0;
+            monthTotalRedeemed += partialValue;
+            monthPerksRedeemed++;
+            if (perk.period === 'monthly') {
+              allMonthlyPerksRedeemedThisMonthCount += 0.5; // Partial weight
+            }
+            perkRedemptionStreaks[perk.definition_id] = (perkRedemptionStreaks[perk.definition_id] || 0) + 0.5;
+            
+            if (!cardActivity[card.id]) {
+              cardActivity[card.id] = { redemptions: 0, totalValue: 0 };
+            }
+            cardActivity[card.id].redemptions++;
+            cardActivity[card.id].totalValue += partialValue;
           } else {
             monthPerksMissed++;
             perkRedemptionStreaks[perk.definition_id] = 0;

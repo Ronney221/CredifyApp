@@ -189,6 +189,13 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       .reduce((sum, perk) => sum + perk.value, 0);
   }, [relevantPerks]);
 
+  // Calculate partial redemption value
+  const partialRedeemedValue = useMemo(() => {
+    return relevantPerks
+      .filter(perk => perk.status === 'partial')
+      .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
+  }, [relevantPerks]);
+
   // Update the bar segments calculation to handle empty current month and partial redemptions
   const getBarSegments = () => {
     // If it's current month and we have no perks, show one "available" segment
@@ -403,7 +410,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   )}
                 </View>
                 <Text style={styles.totalValue}>
-                  ${summary.totalRedeemedValue.toFixed(0)}
+                  ${(summary.totalRedeemedValue + partialRedeemedValue).toFixed(0)}
                   {isCurrentMonth && ' Saved So Far'}
                 </Text>
               </View>
@@ -421,7 +428,9 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                     {partialPerks > 0 && (
                       <View style={styles.statItem}>
                         <Ionicons name="checkmark-circle-outline" size={16} color={PARTIAL_ORANGE} />
-                        <Text style={styles.statText}>{partialPerks} Partial</Text>
+                        <Text style={styles.statText}>
+                          {partialPerks} Partial (${partialRedeemedValue.toFixed(0)})
+                        </Text>
                       </View>
                     )}
                     {isCurrentMonth ? (
