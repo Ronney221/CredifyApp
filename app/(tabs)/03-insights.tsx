@@ -477,12 +477,20 @@ export default function InsightsScreen() {
 
       const result = await generateDummyInsightsData(selectedCardIds, processedCards, user?.id);
 
-      // Filter out months with no activity (no redeemed perks)
+      // Helper function to determine if a month is the current month
+      const isCurrentMonth = (monthYear: string) => {
+        const now = new Date();
+        const currentMonthYear = `${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}`;
+        return monthYear === currentMonthYear;
+      };
+
+      // Filter out months with no activity (no redeemed perks), but always include current month
       const filteredYearSections = result.yearSections.map(yearSection => {
-        // Filter months where there is at least one redeemed perk
+        // Filter months: include if it has at least one redeemed perk OR if it's the current month
         const filteredData = yearSection.data.filter(month => {
           const hasRedeemedPerks = month.perkDetails.some(perk => perk.status === 'redeemed');
-          return hasRedeemedPerks;
+          const isCurrentMonthData = isCurrentMonth(month.monthYear);
+          return hasRedeemedPerks || isCurrentMonthData;
         });
 
         // Recalculate the total redeemed value for the year based on filtered months
