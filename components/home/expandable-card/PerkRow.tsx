@@ -1,5 +1,5 @@
 //perk-row.tsx
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -72,6 +72,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
 }) => {
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
+  const touchableRef = useRef<TouchableOpacity | null>(null);
   
   const shouldShowRedeemHintOnThisPerk = showSwipeHint && isFirstAvailablePerk;
   const shouldShowUndoHintOnThisPerk = showUndoHint && isFirstRedeemedPerk;
@@ -131,13 +132,18 @@ const PerkRow: React.FC<PerkRowProps> = ({
         overshootFriction={8}
       >
         <TouchableOpacity
+          ref={touchableRef}
           activeOpacity={0.8}
           onPress={onTapPerk}
           onLongPress={onLongPressPerk}
           style={containerStyle}
-          onLayout={onLayout ? (event) => {
-            const { x, y, width, height } = event.nativeEvent.layout;
-            onLayout({ x, y, width, height });
+          onLayout={onLayout ? () => {
+            // Use measure to get absolute screen coordinates
+            setTimeout(() => {
+              touchableRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                onLayout({ x: pageX, y: pageY, width, height });
+              });
+            }, 100);
           } : undefined}
         >
             <View style={styles.perkIconContainer}>

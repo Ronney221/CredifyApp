@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform, Modal } from 'react-native';
 import { MotiView, MotiText } from 'moti';
-import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -24,7 +23,6 @@ interface OnboardingOverlayProps {
 }
 
 const screenWidth = Dimensions.get('window').width;
-const screenHeight = Dimensions.get('window').height;
 
 export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
   visible,
@@ -69,100 +67,118 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
     return null;
   }
 
+  // Now we have absolute screen coordinates from measure()
   const { x, y, width, height } = highlightedElementLayout;
-
+  
   // Calculate tooltip position
-  const tooltipY = y + height + 20; // Position below the highlighted element
-  const tooltipX = Math.max(16, Math.min(screenWidth - 280, x)); // Keep within screen bounds
+  const tooltipY = y + height + 20;
+  const tooltipX = Math.max(16, Math.min(screenWidth - 296, x));
 
   return (
-    <View style={styles.overlay}>
-      {/* Semi-transparent background with cutout */}
-      <View style={styles.overlayBackground}>
-        {/* Top section */}
-        <View style={[styles.overlaySection, { height: y }]} />
-        
-        {/* Middle section with horizontal parts */}
-        <View style={[styles.overlaySection, { height: height }]}>
-          {/* Left part */}
-          <View style={[styles.overlaySection, { width: x }]} />
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      statusBarTranslucent={true}
+      onRequestClose={onDismiss}
+    >
+      <View style={styles.modalContainer} pointerEvents="box-only">
+        {/* Full screen overlay that blocks all interactions */}
+        <TouchableOpacity 
+          style={styles.fullScreenOverlay} 
+          activeOpacity={1}
+          onPress={onDismiss}
+        >
+          {/* Top section */}
+          <View style={[styles.overlaySection, { height: y }]} />
           
-          {/* Cutout (transparent area) */}
-          <View style={{ width: width, height: height }} />
+          {/* Middle section with cutout */}
+          <View style={{ flexDirection: 'row', height: height }}>
+            {/* Left part */}
+            <View style={[styles.overlaySection, { width: x }]} />
+            
+            {/* Cutout (transparent area) - block touch events */}
+            <TouchableOpacity 
+              activeOpacity={1} 
+              style={{ width: width, height: height }}
+              onPress={(e) => e.stopPropagation()}
+            />
+            
+            {/* Right part */}
+            <View style={[styles.overlaySection, { flex: 1 }]} />
+          </View>
           
-          {/* Right part */}
-          <View style={[styles.overlaySection, { width: screenWidth - x - width }]} />
-        </View>
-        
-        {/* Bottom section */}
-        <View style={[styles.overlaySection, { height: screenHeight - y - height }]} />
+          {/* Bottom section */}
+          <View style={[styles.overlaySection, { flex: 1 }]} />
+        </TouchableOpacity>
+
+        {/* Animated glow effect around the highlighted element */}
+        <Animated.View
+          style={[
+            styles.glowEffect,
+            {
+              position: 'absolute',
+              left: x - 4,
+              top: y - 4,
+              width: width + 8,
+              height: height + 8,
+            },
+            glowStyle,
+          ]}
+          pointerEvents="none"
+        />
+
+        {/* Tooltip */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 300, delay: 200 }}
+          style={[
+            styles.tooltip,
+            {
+              position: 'absolute',
+              left: tooltipX,
+              top: tooltipY,
+            },
+          ]}
+          pointerEvents="box-none"
+        >
+          <View style={styles.tooltipContent}>
+            <MotiText
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: 'timing', duration: 300, delay: 400 }}
+              style={styles.tooltipTitle}
+            >
+              Tap any perk to see redemption tips and a shortcut to the app.
+            </MotiText>
+            
+            <TouchableOpacity
+              style={styles.gotItButton}
+              onPress={onDismiss}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.gotItButtonText}>Got it!</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Tooltip arrow */}
+          <View style={styles.tooltipArrow} />
+        </MotiView>
       </View>
-
-      {/* Animated glow effect around the highlighted element */}
-      <Animated.View
-        style={[
-          styles.glowEffect,
-          {
-            left: x - 4,
-            top: y - 4,
-            width: width + 8,
-            height: height + 8,
-          },
-          glowStyle,
-        ]}
-      />
-
-      {/* Tooltip */}
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 300, delay: 200 }}
-        style={[
-          styles.tooltip,
-          {
-            left: tooltipX,
-            top: tooltipY,
-          },
-        ]}
-      >
-        <View style={styles.tooltipContent}>
-          <MotiText
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ type: 'timing', duration: 300, delay: 400 }}
-            style={styles.tooltipTitle}
-          >
-            Tap any perk to see redemption tips and a shortcut to the app.
-          </MotiText>
-          
-          <TouchableOpacity
-            style={styles.gotItButton}
-            onPress={onDismiss}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.gotItButtonText}>Got it!</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Tooltip arrow */}
-        <View style={styles.tooltipArrow} />
-      </MotiView>
-    </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1000,
-  },
-  overlayBackground: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  fullScreenOverlay: {
+    flex: 1,
   },
   overlaySection: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)', // Consistent darker overlay
   },
   glowEffect: {
     position: 'absolute',
