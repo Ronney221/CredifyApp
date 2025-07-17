@@ -53,6 +53,7 @@ import OnboardingSheetContent from '../(onboarding)/welcome';
 import UserCardItem from '../../components/home/UserCardItem';
 import SwipeCoachMark from '../../components/home/SwipeCoachMark';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
+import UsernameRequirementModal from '../../components/profile/UsernameRequirementModal';
 
 // Import notification functions
 import {
@@ -255,6 +256,7 @@ export default function Dashboard() {
   const [retryAttempt, setRetryAttempt] = useState(0);
   const maxRetries = 5; // Maximum number of retry attempts
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
 
   // Move all useEffects to the top level, right after state declarations
   useEffect(() => {
@@ -1188,6 +1190,22 @@ export default function Dashboard() {
     }
   }, [userCardsWithPerks.length, isUserCardsInitialLoading, retryAttempt, refreshUserCards]);
 
+  // Check if user needs to set display name
+  useEffect(() => {
+    if (user && !isUserCardsInitialLoading) {
+      const fullName = user?.user_metadata?.full_name;
+      const emailPrefix = user?.email?.split('@')[0] || '';    
+      // Show modal if no display name is set (empty or just whitespace)
+      if (!fullName || fullName.trim().length === 0) {
+        setShowUsernameModal(true);
+      }
+    }
+  }, [user, isUserCardsInitialLoading]);
+
+  const handleUsernameModalComplete = () => {
+    setShowUsernameModal(false);
+  };
+
   if (isUserCardsInitialLoading || (userCardsWithPerks.length === 0 && retryAttempt < maxRetries)) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -1387,6 +1405,13 @@ export default function Dashboard() {
             <ActivityIndicator size="large" color="#FFFFFF" />
           </View>
         )}
+
+        {/* Username Requirement Modal */}
+        <UsernameRequirementModal
+          visible={showUsernameModal}
+          onComplete={handleUsernameModalComplete}
+          currentEmail={user?.email}
+        />
       </View>
     </SafeAreaView>
   );

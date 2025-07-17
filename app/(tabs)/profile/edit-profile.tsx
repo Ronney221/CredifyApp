@@ -38,19 +38,21 @@ export default function EditProfileScreen() {
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [isLoading, setIsLoading] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.user_metadata?.avatar_url || null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(fullName);
+  const [isSavingName, setIsSavingName] = useState(false);
 
   // Track original values for comparison
   const originalFullName = useRef(user?.user_metadata?.full_name || '');
   const originalAvatarUrl = useRef(user?.user_metadata?.avatar_url || null);
 
   const hasChanges = useMemo(() => {
-    const nameChanged = fullName.trim() !== originalFullName.current.trim();
+    // Only check for avatar changes since name changes are saved immediately
     const avatarChanged = avatarUri !== originalAvatarUrl.current;
-    console.log('Change detection:', { nameChanged, avatarChanged, fullName, originalFullName: originalFullName.current, avatarUri, originalAvatarUrl: originalAvatarUrl.current });
-    return nameChanged || avatarChanged;
-  }, [fullName, avatarUri]);
+    return avatarChanged;
+  }, [avatarUri]);
 
-  // Configure header (back title and Save button)
+  // Configure header
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft: () => <BackButton label="Profile" />, 
@@ -58,13 +60,22 @@ export default function EditProfileScreen() {
         <TouchableOpacity
           onPress={handleSaveChanges}
           disabled={!hasChanges || isLoading}
-          style={{ marginRight: 15, opacity: !hasChanges || isLoading ? 0.3 : 1 }}
+          style={{ 
+            marginRight: 15, 
+            opacity: !hasChanges || isLoading ? 0.3: 1 
+          }}
           hitSlop={10}
         >
           {isLoading ? (
             <ActivityIndicator size="small" color={Colors.light.tint} />
           ) : (
-            <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>Save</Text>
+            <Text style={{ 
+              color: Colors.light.tint, 
+              fontSize: 17,
+              fontWeight: '600'
+            }}>
+              Save
+            </Text>
           )}
         </TouchableOpacity>
       ),
@@ -74,11 +85,6 @@ export default function EditProfileScreen() {
 
   const handleSaveChanges = async () => {
     if (!hasChanges || isLoading) return;
-
-    if (!fullName.trim()) {
-      Alert.alert('Validation Error', 'Full name cannot be empty.');
-      return;
-    }
 
     setIsLoading(true);
     try {
@@ -124,6 +130,60 @@ export default function EditProfileScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEditName = () => {
+    setTempName(fullName);
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!tempName.trim()) {
+      Alert.alert('Validation Error', 'Full name cannot be empty.');
+      return;
+    }
+
+    setIsSavingName(true);
+    try {
+      const { error } = await updateUserProfile({
+        full_name: tempName.trim(),
+        avatar_url: avatarUri || undefined,
+      });
+
+      if (error) throw error;
+
+      // Update local state
+      setFullName(tempName.trim());
+      originalFullName.current = tempName.trim();
+
+      // Force a refresh of the auth context
+      if (updateUserMetadata) {
+        await updateUserMetadata({
+          full_name: tempName.trim(),
+        });
+      }
+
+      setIsEditingName(false);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Toast.show('Name updated!', { 
+        position: Toast.positions.BOTTOM,
+        backgroundColor: Colors.light.accent,
+        textColor: Colors.light.textOnAccent,
+        shadow: false,
+        duration: Toast.durations.SHORT,
+      });
+    } catch (error) {
+      console.error('[EditProfileScreen] Error updating name:', error);
+      Alert.alert('Error', 'Failed to update name. Please try again.');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleCancelName = () => {
+    setTempName(fullName);
+    setIsEditingName(false);
   };
 
   const handlePickImage = async () => {
@@ -316,23 +376,58 @@ export default function EditProfileScreen() {
           <View style={styles.section}>
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Name</Text>
-              <TextInput
-                style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Enter your full name"
-                autoCapitalize="words"
-                autoCorrect={false}
-                returnKeyType="done"
-              />
+              {isEditingName ? (
+                <View style={styles.editNameContainer}>
+                  <TextInput
+                    style={styles.editNameInput}
+                    value={tempName}
+                    onChangeText={setTempName}
+                    placeholder="Enter your full name"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveName}
+                    autoFocus={true}
+                  />
+                  <View style={styles.editNameButtons}>
+                    <TouchableOpacity
+                      style={styles.editNameButton}
+                      onPress={handleCancelName}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.editNameButton, styles.saveNameButton]}
+                      onPress={handleSaveName}
+                      disabled={!tempName.trim() || isSavingName}
+                    >
+                      {isSavingName ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.saveNameButtonText}>Save</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.nameDisplayContainer}>
+                  <Text style={styles.nameDisplayText}>
+                    {fullName || 'No name set'}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={handleEditName}
+                  >
+                    <Ionicons name="pencil" size={16} color={Colors.light.tint} />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
             <View style={styles.fieldContainerNoBorder}>
               <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={[styles.input, styles.disabledInput]}
-                value={user?.email || ''}
-                editable={false}
-              />
+              <Text style={styles.emailText}>
+                {user?.email || 'No email'}
+              </Text>
             </View>
           </View>
 
@@ -438,22 +533,67 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     letterSpacing: 0.1,
   },
-  input: {
+  nameDisplayContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  nameDisplayText: {
     fontSize: 17,
     color: Colors.light.text,
+    flex: 1,
   },
-  disabledInput: {
+  editButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  editNameContainer: {
+    marginTop: 8,
+  },
+  editNameInput: {
+    fontSize: 17,
+    color: Colors.light.text,
+    backgroundColor: Colors.light.systemGroupedBackground,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  editNameButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  editNameButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: Colors.light.systemGroupedBackground,
+  },
+  saveNameButton: {
+    backgroundColor: Colors.light.tint,
+  },
+  cancelButtonText: {
+    color: Colors.light.secondaryLabel,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  saveNameButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  emailText: {
+    fontSize: 17,
     color: Colors.light.secondaryLabel,
   },
-  // Footer styles removed — Save action now lives in the navigation bar
-
   spacer: {
     flex: 1,
     minHeight: 40,
   },
   deleteSection: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 148 : 124, // Account for bottom safe area
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24, // Account for bottom safe area
     alignItems: 'center',
   },
   deleteButton: {
