@@ -249,7 +249,6 @@ export default function PerkActionModal({
   const [showDescription, setShowDescription] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Animated values
@@ -394,23 +393,8 @@ export default function PerkActionModal({
       }
     });
 
-  const toggleDescription = useCallback(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsDescriptionExpanded(prev => !prev);
-    Haptics.selectionAsync().catch(console.error);
-  }, []);
 
-  // Animate chevron rotation
-  useEffect(() => {
-    rotation.value = withTiming(isDescriptionExpanded ? 180 : 0);
-  }, [isDescriptionExpanded]);
 
-  // Reset description state when modal closes
-  useEffect(() => {
-    if (!visible || !perk) {
-      setIsDescriptionExpanded(false);
-    }
-  }, [visible, perk]);
 
   useEffect(() => {
     const keyboardWillShow = (e: RNKeyboardEvent) => {
@@ -751,21 +735,11 @@ export default function PerkActionModal({
 
                 <View style={styles.divider} />
 
-                <TouchableOpacity onPress={toggleDescription} style={styles.expandableHeader}>
-                  <Text style={styles.expandableTitle}>How it Works</Text>
-                  <Animated.View style={animatedChevronStyle}>
-                    <Ionicons name="chevron-down" size={24} color="#666666" />
-                  </Animated.View>
-                </TouchableOpacity>
+                <View style={styles.sectionHeaderContainer}>
+                  <Text style={styles.sectionTitle}>How it Works</Text>
+                </View>
 
-                <View
-                  style={[
-                    styles.descriptionContainer,
-                    {
-                      maxHeight: isDescriptionExpanded ? undefined : 0,
-                    },
-                  ]}
-                >
+                <View style={styles.descriptionContainer}>
                   <Text style={styles.description}>{perk.description}</Text>
                   {perk.redemptionInstructions && (
                     <>
@@ -867,7 +841,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   descriptionContainer: {
-    overflow: 'hidden',
     paddingHorizontal: 8,
     paddingBottom: 8,
   },
@@ -909,20 +882,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5EA',
     marginVertical: 16,
   },
-  expandableHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  expandableTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    letterSpacing: -0.41,
-  },
   sectionHeader: {
     marginBottom: 16,
+  },
+  sectionHeaderContainer: {
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 17,

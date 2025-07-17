@@ -56,7 +56,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
 
       maskScale.value = withRepeat(
         withSequence(
-          withTiming(1.02, animationConfig), // Slightly less scale for mask
+          withTiming(1.05, animationConfig), // Match the glow scale exactly
           withTiming(1, animationConfig)
         ),
         -1,
@@ -83,25 +83,41 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
     opacity: glowOpacity.value,
   }));
 
+  // Animated props for the SVG mask cutout - must be called on every render
+  const animatedMaskProps = useAnimatedProps(() => {
+    if (!highlightedElementLayout) {
+      return {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+      };
+    }
+    
+    const scale = maskScale.value;
+    // Calculate the expansion from center
+    const widthExpansion = (highlightedElementLayout.width * (scale - 1)) / 2;
+    const heightExpansion = (highlightedElementLayout.height * (scale - 1)) / 2;
+    
+    // Add a small offset to compensate for any measurement discrepancies
+    const y = highlightedElementLayout.y - 2;
+    
+    return {
+      x: highlightedElementLayout.x - widthExpansion,
+      y: y - heightExpansion,
+      width: highlightedElementLayout.width * scale,
+      height: highlightedElementLayout.height * scale,
+    };
+  });
+
   if (!visible || !highlightedElementLayout) {
     return null;
   }
 
   // Now we have absolute screen coordinates from measure()
-  const { x, y, width, height } = highlightedElementLayout;
-  
-  // Animated props for the SVG mask cutout
-  const animatedMaskProps = useAnimatedProps(() => {
-    const scale = maskScale.value;
-    const offset = (1 - scale) / 2; // Center the scaling
-    
-    return {
-      x: x - (width * offset),
-      y: y - (height * offset),
-      width: width * scale,
-      height: height * scale,
-    };
-  });
+  // Add a small offset to compensate for any measurement discrepancies
+  const { x, y: rawY, width, height } = highlightedElementLayout;
+  const y = rawY - 2; // Slight upward adjustment to compensate for positioning
   
   console.log('[OnboardingOverlay] Received layout:', { x, y, width, height });
   
@@ -133,8 +149,8 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
               {/* Cut out the highlighted area with rounded corners - animated */}
               <AnimatedRect
                 animatedProps={animatedMaskProps}
-                rx="16"
-                ry="16"
+                rx={16}
+                ry={16}
                 fill="black"
               />
             </Mask>
@@ -164,7 +180,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
             {
               position: 'absolute',
               left: x - 2,
-              top: y - 2,
+              top: y - 2, // This y already includes the -2 adjustment
               width: width + 4,
               height: height + 4,
             },
