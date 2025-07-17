@@ -122,10 +122,11 @@ const PerkDonutDisplayManagerInner = (
 
   useEffect(() => {
     if (uniquePerkPeriods && uniquePerkPeriods.length > 0) {
-      if (!uniquePerkPeriods.includes(activeSegmentKey)) {
+      // Don't reset if we're on the 'All' tab (activeSegmentKey === -1)
+      if (activeSegmentKey !== -1 && !uniquePerkPeriods.includes(activeSegmentKey)) {
         setActiveSegmentKey(uniquePerkPeriods[0]);
       }
-    } else if (activeSegmentKey !== 1) { // Only set if not already the default
+    } else if (activeSegmentKey !== 1 && activeSegmentKey !== -1) { // Only set if not already the default or 'All'
       setActiveSegmentKey(1);
     }
   }, [uniquePerkPeriods, activeSegmentKey]);
@@ -151,12 +152,18 @@ const PerkDonutDisplayManagerInner = (
       key: period.toString(),
       title: getPeriodDisplayName(period),
     }));
+    // Add 'All' tab at the end
+    segments.push({ key: 'all', title: 'All' });
     console.log('PDM: Generated segments:', segments);
     return segments;
   }, [uniquePerkPeriods]);
   
   const handleModeChange = useCallback((key: string) => {
-    setActiveSegmentKey(Number(key));
+    if (key === 'all') {
+      setActiveSegmentKey(-1); // Use -1 to represent 'all' internally
+    } else {
+      setActiveSegmentKey(Number(key));
+    }
   }, []); // No dependencies, as setActiveSegmentKey is stable
 
   // Helper function to calculate days until reset - MOVED BEFORE activeData useMemo
@@ -187,7 +194,7 @@ const PerkDonutDisplayManagerInner = (
 
   const activeData = useMemo(() => {
     if (!periodAggregates || typeof periodAggregates !== 'object' || Object.keys(periodAggregates).length === 0) {
-      const defaultDisplayName = getDonutDisplayName(activeSegmentKey || 1);
+      const defaultDisplayName = activeSegmentKey === -1 ? 'All Perks' : getDonutDisplayName(activeSegmentKey || 1);
       return {
         value: 0,
         total: 0,
@@ -201,13 +208,32 @@ const PerkDonutDisplayManagerInner = (
       };
     }
 
-    const currentAggregates = periodAggregates[activeSegmentKey] || { 
-      redeemedValue: 0, 
-      possibleValue: 0, 
-      redeemedCount: 0, 
-      totalCount: 0,
-      partiallyRedeemedCount: 0
-    };
+    let currentAggregates;
+    
+    if (activeSegmentKey === -1) {
+      // Calculate combined aggregates for 'All' tab
+      currentAggregates = Object.values(periodAggregates).reduce((combined, aggregate) => ({
+        redeemedValue: combined.redeemedValue + aggregate.redeemedValue,
+        possibleValue: combined.possibleValue + aggregate.possibleValue,
+        redeemedCount: combined.redeemedCount + aggregate.redeemedCount,
+        totalCount: combined.totalCount + aggregate.totalCount,
+        partiallyRedeemedCount: combined.partiallyRedeemedCount + aggregate.partiallyRedeemedCount
+      }), {
+        redeemedValue: 0,
+        possibleValue: 0,
+        redeemedCount: 0,
+        totalCount: 0,
+        partiallyRedeemedCount: 0
+      });
+    } else {
+      currentAggregates = periodAggregates[activeSegmentKey] || { 
+        redeemedValue: 0, 
+        possibleValue: 0, 
+        redeemedCount: 0, 
+        totalCount: 0,
+        partiallyRedeemedCount: 0
+      };
+    }
 
     // Calculate progress based on monetary values, ensuring we don't exceed 100%
     const progress = Math.min(
@@ -225,7 +251,7 @@ const PerkDonutDisplayManagerInner = (
       100 // Cap at 100%
     );
     
-    const displayName = getDonutDisplayName(activeSegmentKey);
+    const displayName = activeSegmentKey === -1 ? 'All Perks' : getDonutDisplayName(activeSegmentKey);
 
     // Format currency values
     const redeemedValueFormatted = currentAggregates.redeemedValue.toLocaleString('en-US', {
@@ -243,13 +269,15 @@ const PerkDonutDisplayManagerInner = (
     });
 
     // Calculate days until reset based on period
-    const daysUntilReset = calculateDaysUntilReset(activeSegmentKey);
+    const daysUntilReset = activeSegmentKey === -1 ? 0 : calculateDaysUntilReset(activeSegmentKey);
 
     // Only count fully redeemed perks in the X of Y count
     const fullyRedeemedCount = currentAggregates.redeemedCount;
 
     // Format the combined stats text with proper currency formatting
-    const combinedStatsText = `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks • Resets in ${daysUntilReset} days`;
+    const combinedStatsText = activeSegmentKey === -1 
+      ? `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks • All time periods`
+      : `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks • Resets in ${daysUntilReset} days`;
 
     return {
       value: currentAggregates.redeemedValue,
@@ -259,7 +287,7 @@ const PerkDonutDisplayManagerInner = (
       label: String(displayName).toUpperCase(),
       combinedStatsText,
       progressPercentageText: `${percentageUsed}% Used`,
-      color: activeSegmentKey === 1 ? '#007A7F' : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3')),
+      color: activeSegmentKey === -1 ? '#8A2BE2' : (activeSegmentKey === 1 ? '#007A7F' : (activeSegmentKey === 12 ? '#FFC107' : (activeSegmentKey === 6 ? '#4CAF50' : '#2196F3'))),
       displayName: String(displayName)
     };
   }, [activeSegmentKey, periodAggregates, calculateDaysUntilReset]);
@@ -287,7 +315,7 @@ const PerkDonutDisplayManagerInner = (
     <View style={[styles.metricsContainer, { backgroundColor /* opacity: isRefreshing ? 0.6 : 1 <- removed */ }]}>
       <PerksToggle
         segments={toggleSegments}
-        selectedMode={activeSegmentKey.toString()}
+        selectedMode={activeSegmentKey === -1 ? 'all' : activeSegmentKey.toString()}
         onModeChange={handleModeChange}
       />
 
