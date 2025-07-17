@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { 
@@ -17,6 +17,24 @@ import { FeeCoverageMeterChip } from './FeeCoverageMeterChip';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+
+// Constants
+const SUCCESS_GREEN = '#34C759';
+const NEUTRAL_GRAY_COLOR = '#8A8A8E';
+const SUBTLE_GRAY_TEXT = Colors.light.icon;
+const SEPARATOR_COLOR = '#E0E0E0';
+const TIMELINE_DOT_SIZE = 12;
+const TIMELINE_LINE_WIDTH = 2;
+
+interface PerkDetail {
+  id: string;
+  name: string;
+  value: number;
+  status: 'redeemed' | 'missed' | 'available';
+  period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
+  expiresThisMonth?: boolean;
+  expiresNextMonth?: boolean;
+}
 
 interface MonthSummaryCardProps {
   summary: MonthlyRedemptionSummary;
@@ -47,8 +65,6 @@ const getPeriodBadgeColor = (period: string): string => {
   }
 };
 
-const TIMELINE_DOT_SIZE = 12;
-const TIMELINE_LINE_WIDTH = 2;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
@@ -64,19 +80,32 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   const rotation = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
 
-  // Calculate fee coverage based on only monthly perks
-  const monthlyPerks = summary.perkDetails.filter(perk => perk.period === 'monthly');
-  const monthlyRedeemedValue = monthlyPerks.reduce((sum, perk) => 
-    perk.status === 'redeemed' ? sum + perk.value : sum, 0
+  // Calculate fee coverage based on only monthly perks (memoized)
+  const monthlyPerks = useMemo(() => 
+    summary.perkDetails.filter(perk => perk.period === 'monthly'), 
+    [summary.perkDetails]
   );
-  const monthlyPotentialValue = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
   
-  const feeCoveragePercentage = monthlyPotentialValue > 0 
-    ? (monthlyRedeemedValue / monthlyPotentialValue) * 100 
-    : 0;
+  const monthlyRedeemedValue = useMemo(() => 
+    monthlyPerks.reduce((sum, perk) => 
+      perk.status === 'redeemed' ? sum + perk.value : sum, 0
+    ), [monthlyPerks]
+  );
+  
+  const monthlyPotentialValue = useMemo(() => 
+    monthlyPerks.reduce((sum, perk) => sum + perk.value, 0), 
+    [monthlyPerks]
+  );
+  
+  const feeCoveragePercentage = useMemo(() => 
+    monthlyPotentialValue > 0 
+      ? (monthlyRedeemedValue / monthlyPotentialValue) * 100 
+      : 0,
+    [monthlyRedeemedValue, monthlyPotentialValue]
+  );
 
   // Helper function to determine if a perk is relevant to this month
-  const isPerkRelevantToMonth = (perk: any) => {
+  const isPerkRelevantToMonth = (perk: PerkDetail) => {
     // Always include redeemed perks
     if (perk.status === 'redeemed') return true;
     
@@ -91,22 +120,34 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     return false;
   };
 
-  // Update calculations for the summary view
-  const relevantPerks = summary.perkDetails.filter(isPerkRelevantToMonth);
+  // Update calculations for the summary view (memoized)
+  const relevantPerks = useMemo(() => 
+    summary.perkDetails.filter(isPerkRelevantToMonth), 
+    [summary.perkDetails]
+  );
   
-  const totalPerks = relevantPerks.length;
+  const totalPerks = useMemo(() => relevantPerks.length, [relevantPerks]);
   
-  const redeemedPerks = relevantPerks.filter(perk => perk.status === 'redeemed').length;
+  const redeemedPerks = useMemo(() => 
+    relevantPerks.filter(perk => perk.status === 'redeemed').length, 
+    [relevantPerks]
+  );
   
-  const missedPerks = relevantPerks.filter(perk => 
-    perk.status === 'missed' && 
-    (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
-  ).length;
+  const missedPerks = useMemo(() => 
+    relevantPerks.filter(perk => 
+      perk.status === 'missed' && 
+      (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
+    ).length, 
+    [relevantPerks]
+  );
   
-  const availablePerks = relevantPerks.filter(perk => 
-    perk.status === 'available' && 
-    (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
-  ).length;
+  const availablePerks = useMemo(() => 
+    relevantPerks.filter(perk => 
+      perk.status === 'available' && 
+      (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
+    ).length, 
+    [relevantPerks]
+  );
 
   // Update performance score calculation
   const performanceScore = totalPerks > 0 
@@ -164,9 +205,8 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   const barSegments = getBarSegments();
 
   useEffect(() => {
-    rotation.value = withSpring(isExpanded ? 180 : 0, {
-      damping: 15,
-      stiffness: 120
+    rotation.value = withTiming(isExpanded ? 90 : 0, {
+      duration: 200
     });
   }, [isExpanded, rotation]);
 
@@ -221,13 +261,13 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   };
 
   // Add a helper function to get expiration status text
-  const getExpirationStatus = (perk: any) => {
+  const getExpirationStatus = (perk: PerkDetail) => {
     if (perk.expiresNextMonth) return 'Expires Next Month';
     if (perk.expiresThisMonth) return 'Expires This Month';
     return '';
   };
 
-  const renderPerkItem = (perk: any, isMonthly: boolean) => (
+  const renderPerkItem = (perk: PerkDetail, isMonthly: boolean) => (
     <View key={perk.id} style={[
       styles.perkDetailItem,
       perk.status === 'missed' && styles.missedPerkItem
@@ -300,6 +340,10 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       hitSlop={{top:8,left:8,right:8,bottom:8}}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={`${summary.monthYear} insights ${isExpanded ? 'expanded' : 'collapsed'}`}
+      accessibilityHint={`${isExpanded ? 'Collapse' : 'Expand'} to ${isExpanded ? 'hide' : 'show'} perk details`}
     >
       <Animated.View style={[
         styles.monthCard,
@@ -342,16 +386,10 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                         </Text>
                       </View>
                       {hasAnyPerks ? (
-                        <>
-                          <View style={styles.statItem}>
-                            <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
-                            <Text style={styles.statText}>{missedPerks} Missed</Text>
-                          </View>
-                          <View style={styles.statItem}>
-                            <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
-                            <Text style={styles.statText}>{availablePerks} Available</Text>
-                          </View>
-                        </>
+                        <View style={styles.statItem}>
+                          <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
+                          <Text style={styles.statText}>{availablePerks} Available</Text>
+                        </View>
                       ) : (
                         <View style={styles.statItem}>
                           <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
@@ -367,8 +405,18 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
               ) : (
                 // Past Month View
                 <View style={styles.pastMonthStats}>
-                  <View style={styles.pastMonthMeter}>
+                  <View style={styles.pastMonthContent}>
                     {renderVisualMeter()}
+                    <View style={styles.pastMonthStatsRow}>
+                      <View style={styles.statItem}>
+                        <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
+                        <Text style={styles.statText}>{redeemedPerks} Redeemed</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
+                        <Text style={styles.statText}>{missedPerks} Missed</Text>
+                      </View>
+                    </View>
                   </View>
                   <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
                     <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
@@ -381,15 +429,14 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           {/* Expanded Detail View */}
           {isExpanded && (
             <Animated.View 
-              layout={Layout.springify()} 
-              entering={FadeIn.duration(200)} 
-              exiting={FadeOut.duration(200)} 
+              entering={FadeIn.duration(150)} 
+              exiting={FadeOut.duration(150)} 
               style={styles.perkDetailsContainer}
             >
               <View style={styles.detailedHeader}>
                 <Text style={styles.detailedTitle}>Perk Details</Text>
                 <Text style={styles.detailedSubtitle}>
-                  ${summary.totalRedeemedValue.toFixed(0)} of ${summary.totalPotentialValue.toFixed(0)} Redeemed
+                  ${summary.totalRedeemedValue.toFixed(0)} of ${relevantPerks.reduce((sum, perk) => sum + perk.value, 0).toFixed(0)} Redeemed
                 </Text>
               </View>
 
@@ -446,12 +493,6 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     </Pressable>
   );
 };
-
-const SUCCESS_GREEN = '#34C759';
-const NEUTRAL_GRAY_COLOR = '#8A8A8E';
-const SUBTLE_GRAY_TEXT = Colors.light.icon;
-const SEPARATOR_COLOR = '#E0E0E0';
-
 
 export default MonthSummaryCard;
 
@@ -573,6 +614,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  pastMonthContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  pastMonthStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+    gap: 8,
   },
   pastMonthMeter: {
     flex: 1,

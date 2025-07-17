@@ -31,6 +31,9 @@ import LottieView from 'lottie-react-native';
 
 import { BlurView } from 'expo-blur';
 import InsightsHelpModal from '../../components/insights/InsightsHelpModal';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import InsightsEmptyState from '../../components/insights/InsightsEmptyState';
+import InsightsLoadingState from '../../components/insights/InsightsLoadingState';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -218,60 +221,6 @@ const rightPad = <T,>(arr: T[] = [], size = 6, fillValue: T): T[] => {
   return res;
 };
 
-// Add LoadingAnimation component at the top level
-const LoadingAnimation: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
-  const [retryCount, setRetryCount] = useState(0);
-  const [showRetryButton, setShowRetryButton] = useState(false);
-  const lottieRef = useRef<LottieView>(null);
-  const maxRetries = 3;
-  const baseDelay = 2000; // 2 seconds
-
-  useEffect(() => {
-    if (lottieRef.current) {
-      lottieRef.current.play();
-    }
-
-    // Exponential backoff logic
-    if (retryCount < maxRetries) {
-      const delay = Math.min(baseDelay * Math.pow(2, retryCount), 10000); // Cap at 10 seconds
-      const timer = setTimeout(() => {
-        onRetry();
-        setRetryCount(prev => prev + 1);
-      }, delay);
-
-      return () => clearTimeout(timer);
-    } else {
-      setShowRetryButton(true);
-    }
-  }, [retryCount, onRetry]);
-
-  const handleManualRetry = () => {
-    setRetryCount(0);
-    setShowRetryButton(false);
-    onRetry();
-  };
-
-  return (
-    <View style={styles.loadingContainer}>
-      <LottieView
-        ref={lottieRef}
-        source={require('../../assets/animations/credit_card_animation.json')}
-        autoPlay
-        loop
-        style={styles.lottieAnimation}
-      />
-      <Text style={styles.loadingText}>Loading your insights...</Text>
-      {showRetryButton && (
-        <TouchableOpacity 
-          style={styles.retryButton} 
-          onPress={handleManualRetry}
-        >
-          <Text style={styles.retryButtonText}>Retry Loading</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-};
 
 export default function InsightsScreen() {
   const { user } = useAuth();
@@ -624,7 +573,7 @@ export default function InsightsScreen() {
   if (isLoadingUserCards || !isDataLoaded) {
     return (
       <View style={styles.container}>
-        <LoadingAnimation onRetry={refreshUserCards} />
+        <InsightsLoadingState onRetry={refreshUserCards} />
       </View>
     );
   }
@@ -851,54 +800,23 @@ export default function InsightsScreen() {
 
             {/* Monthly History List */}
             {currentYearSection?.data.map((month, index) => (
-              <MonthSummaryCard
-                key={month.monthKey}
-                summary={month}
-                isExpanded={expandedMonthKey === month.monthKey}
-                onToggleExpand={() => handleToggleMonth(month.monthKey)}
-                perkStatusFilter={perkStatusFilter}
-                isFirstOverallCard={index === 0}
-                isEven={index % 2 === 0}
-              />
+              <ErrorBoundary key={month.monthKey}>
+                <MonthSummaryCard
+                  summary={month}
+                  isExpanded={expandedMonthKey === month.monthKey}
+                  onToggleExpand={() => handleToggleMonth(month.monthKey)}
+                  perkStatusFilter={perkStatusFilter}
+                  isFirstOverallCard={index === 0}
+                  isEven={index % 2 === 0}
+                />
+              </ErrorBoundary>
             ))}
           </Animated.ScrollView>
         ) : (
-          <View style={styles.emptyStateContainer}>
-            <View style={styles.emptyStateContent}>
-              <Ionicons name="bar-chart-outline" size={64} color={Colors.light.icon} style={styles.emptyStateIcon} />
-              <Text style={styles.emptyStateTitle}>No Insights Yet</Text>
-              <Text style={styles.emptyStateText}>
-                Track your credit card perks and rewards to see valuable insights about your redemptions.
-              </Text>
-              {(selectedCardIds.length === 0 || activeFilterCount > 0) ? (
-                <Text style={styles.emptyStateSubText}>Try adjusting your filters or selecting cards.</Text>
-              ) : (
-                <>
-                  <View style={styles.emptyStateBulletPoints}>
-                    <View style={styles.bulletPoint}>
-                      <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
-                      <Text style={styles.bulletText}>See monthly redemption trends</Text>
-                    </View>
-                    <View style={styles.bulletPoint}>
-                      <Ionicons name="trending-up" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
-                      <Text style={styles.bulletText}>Track your card ROI</Text>
-                    </View>
-                    <View style={styles.bulletPoint}>
-                      <Ionicons name="notifications-outline" size={20} color={Colors.light.tint} style={styles.bulletIcon} />
-                      <Text style={styles.bulletText}>Get reminders for upcoming perks</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.ctaButton}
-                    onPress={() => router.push("/(tabs)/01-dashboard")}
-                  >
-                    <Text style={styles.ctaButtonText}>Start Tracking Perks</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaButtonIcon} />
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </View>
+          <InsightsEmptyState
+            selectedCardCount={selectedCardIds.length}
+            activeFilterCount={activeFilterCount}
+          />
         )}
 
         {renderFilterModal()}
@@ -921,114 +839,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     zIndex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.light.background,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#8e8e93',
-    textAlign: 'center',
-  },
-  lottieAnimation: {
-    width: 200,
-    height: 200,
-  },
-  retryButton: {
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: Colors.light.tint,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  historySection: { 
-    paddingBottom: 80,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: Colors.light.background,
-  },
-  emptyStateContent: {
-    maxWidth: 320,
-    alignItems: 'center',
-  },
-  emptyStateIcon: {
-    marginBottom: 20,
-  },
-  emptyStateTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.light.text,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: Colors.light.text,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  emptyStateSubText: {
-    fontSize: 14,
-    color: Colors.light.icon,
-    textAlign: 'center',
-  },
-  emptyStateBulletPoints: {
-    alignSelf: 'stretch',
-    marginBottom: 32,
-  },
-  bulletPoint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  bulletIcon: {
-    marginRight: 12,
-  },
-  bulletText: {
-    fontSize: 16,
-    color: Colors.light.text,
-    flex: 1,
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    width: '100%',
-  },
-  ctaButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  ctaButtonIcon: {
-    marginLeft: 4,
   },
   modalOverlay: {
     flex: 1,
