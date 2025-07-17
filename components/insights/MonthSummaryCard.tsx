@@ -333,30 +333,35 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                 // Current Month View
                 <View style={styles.currentMonthStats}>
                   {renderVisualMeter()}
-                  <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
-                      <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
-                      <Text style={styles.statText}>
-                        {hasAnyPerks ? `${redeemedPerks} Redeemed` : 'No perks redeemed yet'}
-                      </Text>
-                    </View>
-                    {hasAnyPerks ? (
-                      <>
-                        <View style={styles.statItem}>
-                          <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
-                          <Text style={styles.statText}>{missedPerks} Missed</Text>
-                        </View>
+                  <View style={styles.currentMonthStatsRow}>
+                    <View style={styles.statsRow}>
+                      <View style={styles.statItem}>
+                        <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
+                        <Text style={styles.statText}>
+                          {hasAnyPerks ? `${redeemedPerks} Redeemed` : 'No perks redeemed yet'}
+                        </Text>
+                      </View>
+                      {hasAnyPerks ? (
+                        <>
+                          <View style={styles.statItem}>
+                            <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
+                            <Text style={styles.statText}>{missedPerks} Missed</Text>
+                          </View>
+                          <View style={styles.statItem}>
+                            <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
+                            <Text style={styles.statText}>{availablePerks} Available</Text>
+                          </View>
+                        </>
+                      ) : (
                         <View style={styles.statItem}>
                           <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
-                          <Text style={styles.statText}>{availablePerks} Available</Text>
+                          <Text style={styles.statText}>Start tracking your perks</Text>
                         </View>
-                      </>
-                    ) : (
-                      <View style={styles.statItem}>
-                        <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
-                        <Text style={styles.statText}>Start tracking your perks</Text>
-                      </View>
-                    )}
+                      )}
+                    </View>
+                    <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
+                      <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
+                    </Animated.View>
                   </View>
                 </View>
               ) : (
@@ -382,27 +387,10 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
               style={styles.perkDetailsContainer}
             >
               <View style={styles.detailedHeader}>
-                <View style={styles.detailedHeaderTop}>
-                  <Text style={styles.detailedTitle}>{summary.monthYear} Summary</Text>
-                  <Text style={styles.detailedSubtitle}>
-                    ${summary.totalRedeemedValue.toFixed(0)} of ${summary.totalPotentialValue.toFixed(0)} Redeemed
-                  </Text>
-                </View>
-                
-                <View style={styles.detailedStats}>
-                  <View style={styles.detailedStat}>
-                    <Text style={styles.detailedStatValue}>{redeemedPerks}</Text>
-                    <Text style={styles.detailedStatLabel}>Redeemed</Text>
-                  </View>
-                  <View style={styles.detailedStat}>
-                    <Text style={styles.detailedStatValue}>{missedPerks}</Text>
-                    <Text style={styles.detailedStatLabel}>Missed</Text>
-                  </View>
-                  <View style={styles.detailedStat}>
-                    <Text style={styles.detailedStatValue}>{availablePerks}</Text>
-                    <Text style={styles.detailedStatLabel}>Available</Text>
-                  </View>
-                </View>
+                <Text style={styles.detailedTitle}>Perk Details</Text>
+                <Text style={styles.detailedSubtitle}>
+                  ${summary.totalRedeemedValue.toFixed(0)} of ${summary.totalPotentialValue.toFixed(0)} Redeemed
+                </Text>
               </View>
 
               {showCelebratoryEmptyState ? (
@@ -548,6 +536,11 @@ const styles = StyleSheet.create({
   currentMonthStats: {
     marginTop: 8,
   },
+  currentMonthStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   visualMeter: {
     flexDirection: 'row',
     height: 8,
@@ -561,12 +554,15 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    minWidth: 80,
   },
   statText: {
     fontSize: 13,
@@ -597,11 +593,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  detailedHeaderTop: {
-    marginBottom: 12,
-  },
   detailedTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: Colors.light.text,
     marginBottom: 4,
@@ -610,27 +603,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.light.text,
     opacity: 0.7,
-  },
-  detailedStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: 12,
-    padding: 12,
-  },
-  detailedStat: {
-    alignItems: 'center',
-  },
-  detailedStatValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  detailedStatLabel: {
-    fontSize: 12,
-    color: Colors.light.text,
-    opacity: 0.7,
-    marginTop: 2,
   },
   perkSection: {
     marginBottom: 20,
