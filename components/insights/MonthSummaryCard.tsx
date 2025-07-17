@@ -232,15 +232,25 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     }
     
     // For current month, calculate available percentage as remaining potential
-    const availablePercentage = isCurrentMonth 
+    const calculatedAvailablePercentage = isCurrentMonth 
       ? (totalPotentialValue - redeemedValue - partialValue) / totalPotentialValue
       : availableValue / totalValue;
     
+    // Calculate percentages and cap them to prevent overflow
+    const redeemedPercentage = Math.min(1, redeemedValue / totalValue);
+    const partialPercentage = Math.min(1, partialValue / totalValue);
+    const availablePercentage = Math.max(0, Math.min(1, calculatedAvailablePercentage));
+    const missedPercentage = Math.min(1, missedValue / totalValue);
+    
+    // Normalize percentages to ensure they don't exceed 100% total
+    const totalPercentage = redeemedPercentage + partialPercentage + availablePercentage + missedPercentage;
+    const normalizeFactor = totalPercentage > 1 ? 1 / totalPercentage : 1;
+    
     return {
-      redeemedPercentage: redeemedValue / totalValue,
-      partialPercentage: partialValue / totalValue,
-      availablePercentage: Math.max(0, availablePercentage),
-      missedPercentage: missedValue / totalValue
+      redeemedPercentage: redeemedPercentage * normalizeFactor,
+      partialPercentage: partialPercentage * normalizeFactor,
+      availablePercentage: availablePercentage * normalizeFactor,
+      missedPercentage: missedPercentage * normalizeFactor
     };
   };
 
@@ -424,6 +434,25 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   ]}
                 />
               )}
+              
+              {/* Show additional gray segments for unredeemed monthly perks even when over 100% */}
+              {progressData.redeemedPercentage + progressData.partialPercentage >= 1 && (
+                // Calculate how many unredeemed monthly perks we have
+                monthlyPerkDetails
+                  .filter(perk => perk.status === 'available')
+                  .map((perk, index) => (
+                    <View
+                      key={`unredeemed-${index}`}
+                      style={[
+                        styles.meterSegment,
+                        { 
+                          backgroundColor: NEUTRAL_GRAY_COLOR,
+                          flex: 0.1 // Small segment for each unredeemed perk
+                        }
+                      ]}
+                    />
+                  ))
+              )}
             </>
           ) : (
             /* Show empty state if no perks redeemed yet */
@@ -535,7 +564,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                     <View style={styles.statItem}>
                       <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
                       <Text style={styles.statText}>
-                        {hasAnyPerks ? `${redeemedPerks} Redeemed` : 'No perks redeemed yet'}
+                        {hasAnyPerks ? (
+                          progressData.redeemedPercentage + progressData.partialPercentage >= 1 
+                            ? `${redeemedPerks} Redeemed (Goal Exceeded!)`
+                            : `${redeemedPerks} Redeemed`
+                        ) : 'No perks redeemed yet'}
                       </Text>
                     </View>
                     {partialPerks > 0 && (
