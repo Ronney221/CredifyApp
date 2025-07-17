@@ -1,5 +1,5 @@
 //expandable-card.tsx
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,8 +26,8 @@ import { useRouter , useNavigation } from 'expo-router';
 
 import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
-import OnboardingSheet from './OnboardingSheet';
-import { useOnboardingContext } from '../../app/(onboarding)/_context/OnboardingContext';
+import { useOnboardingContext, useOnboarding } from '../../app/(onboarding)/_context/OnboardingContext';
+import OnboardingOverlay from './OnboardingOverlay';
 
 // Add showToast function
 const showToast = (message: string, onUndo?: () => void) => {
@@ -138,12 +138,24 @@ const ExpandableCardComponent = ({
   const [isRedeemedExpanded, setIsRedeemedExpanded] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [showUndoHint, setShowUndoHint] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [interactedPerkIdsThisSession, setInteractedPerkIdsThisSession] = useState<Set<string>>(new Set());
   const [autoRedeemUpdateKey, setAutoRedeemUpdateKey] = useState(0);
   const { user } = useAuth();
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
+  const { hasSeenTapOnboarding, hasSeenSwipeOnboarding, markTapOnboardingAsSeen, markSwipeOnboardingAsSeen, isOnboardingFlagsReady } = useOnboarding();
+  const [firstPerkLayout, setFirstPerkLayout] = useState<{x: number; y: number; width: number; height: number} | null>(null);
+  
+  // Callback for receiving layout information from the first perk
+  const handleFirstPerkLayout = useCallback((layout: {x: number; y: number; width: number; height: number}) => {
+    setFirstPerkLayout(layout);
+  }, []);
+  
+  // Callback to dismiss the tap onboarding
+  const handleDismissTapOnboarding = useCallback(() => {
+    markTapOnboardingAsSeen();
+    setFirstPerkLayout(null);
+  }, [markTapOnboardingAsSeen]);
   const router = useRouter();
   const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
   
@@ -252,6 +264,11 @@ const ExpandableCardComponent = ({
         withTiming(1, { duration: 0 }), // Appear
         withDelay(10000, withTiming(0, { duration: 1000 })) // 10s display + 1s fade
       );
+
+      // Mark swipe onboarding as seen after the hint has been shown for 10 seconds
+      setTimeout(() => {
+        markSwipeOnboardingAsSeen();
+      }, 10000);
     } else {
       // Stop any pending animations when the hint is hidden (e.g., on collapse)
       cancelAnimation(nudgeAnimation);
@@ -259,7 +276,7 @@ const ExpandableCardComponent = ({
       nudgeAnimation.value = 0;
       redeemHintOpacity.value = 0;
     }
-  }, [showSwipeHint, nudgeAnimation, redeemHintOpacity]);
+  }, [showSwipeHint, nudgeAnimation, redeemHintOpacity, markSwipeOnboardingAsSeen]);
 
   useEffect(() => {
     // This effect creates a three-time haptic/visual nudge for the undo hint.
@@ -304,15 +321,13 @@ const ExpandableCardComponent = ({
       // and to reveal the "swipe to undo" hint.
       setIsRedeemedExpanded(true);
 
-      // Show the undo hint, unless the main onboarding popup is about to appear.
-      if (!showOnboarding) {
-        setShowUndoHint(true);
-      }
+      // Show the undo hint
+      setShowUndoHint(true);
     }
     
     // Update the ref for the next render
     hadRedeemedPerks.current = nowHasRedeemedPerks;
-  }, [validPerks, isExpanded, showOnboarding]);
+  }, [validPerks, isExpanded]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: nudgeAnimation.value }],
@@ -349,9 +364,9 @@ const ExpandableCardComponent = ({
       setIsRedeemedExpanded(false);
     }
     
-    // Show swipe hint only if there are available perks
+    // Show swipe hint only if there are available perks and user has seen tap onboarding
     const hasAvailablePerks = validPerks.some(p => p.status === 'available');
-    if (newExpandedState && !userHasSeenSwipeHint && hasAvailablePerks) {
+    if (newExpandedState && hasSeenTapOnboarding && !hasSeenSwipeOnboarding && hasAvailablePerks) {
       setShowSwipeHint(true);
     } else {
       setShowSwipeHint(false);
@@ -616,7 +631,7 @@ const ExpandableCardComponent = ({
     );
   };
 
-  const renderPerkRow = (perk: CardPerk, isAvailable: boolean) => {
+  const renderPerkRow = (perk: CardPerk, isAvailable: boolean, isFirstPerk: boolean = false) => {
     const isAutoRedeemed = perk.periodMonths === 1 && !!getAutoRedemptionByPerkName(perk.name);
     return (
     <PerkRow
@@ -645,6 +660,12 @@ const ExpandableCardComponent = ({
             swipeableRef.close();
           }
         });
+        
+        // Mark swipe onboarding as seen when user performs first swipe action
+        if (!hasSeenSwipeOnboarding) {
+          markSwipeOnboardingAsSeen();
+        }
+        
         if (direction === 'left') { // Left panel was revealed by a right-swipe
           executePerkAction(perk, 'redeemed');
         } else { // Right panel was revealed by a left-swipe
@@ -653,6 +674,7 @@ const ExpandableCardComponent = ({
       }}
       renderLeftActions={isAvailable ? () => renderLeftActions(perk) : undefined}
       renderRightActions={!isAvailable ? () => renderRightActions(perk) : undefined}
+      onLayout={isFirstPerk ? handleFirstPerkLayout : undefined}
     />
     );
   };
@@ -697,7 +719,7 @@ const ExpandableCardComponent = ({
               {availablePerks.length > 0 && (
                 <>
                   <Text style={styles.sectionLabel}>Available Perks</Text>
-                  {availablePerks.map(p => renderPerkRow(p, true))}
+                  {availablePerks.map((p, index) => renderPerkRow(p, true, index === 0))}
                 </>
               )}
               {redeemedPerks.length > 0 && (
@@ -751,10 +773,13 @@ const ExpandableCardComponent = ({
         )}
       </Reanimated.View>
 
-      <OnboardingSheet
-        visible={showOnboarding}
-        onDismiss={() => setShowOnboarding(false)}
+      {/* Tap Onboarding Overlay */}
+      <OnboardingOverlay
+        visible={isExpanded && isOnboardingFlagsReady && !hasSeenTapOnboarding && !!firstPerkLayout}
+        onDismiss={handleDismissTapOnboarding}
+        highlightedElementLayout={firstPerkLayout || undefined}
       />
+
     </>
   );
 };

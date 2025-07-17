@@ -25,7 +25,7 @@ import { NotificationPreferences } from '../../types/notification-types';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import * as Sentry from '@sentry/react-native';
-import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY } from '../(onboarding)/_context/OnboardingContext';
+import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY, HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY } from '../(onboarding)/_context/OnboardingContext';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -135,6 +135,24 @@ const ProfileScreen = () => {
     } catch (error) {
       console.error('[Profile] Error resetting first redemption state:', error);
       Alert.alert('Error', 'Failed to reset first redemption state.');
+    }
+  };
+
+  const handleResetTapOnboarding = async () => {
+    try {
+      console.log('[Profile] Resetting tap onboarding state');
+      
+      // Remove both tap and swipe onboarding keys to reset the full flow
+      await AsyncStorage.multiRemove([HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY]);
+      
+      Alert.alert(
+        "Success",
+        "Tap onboarding has been reset. The tap tutorial will show when you next expand a card with perks.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('[Profile] Error resetting tap onboarding state:', error);
+      Alert.alert('Error', 'Failed to reset tap onboarding state.');
     }
   };
 
@@ -364,6 +382,12 @@ const ProfileScreen = () => {
           title: 'Reset First Redemption',
           icon: 'refresh-outline',
           onPress: handleResetFirstRedemption
+        },
+        {
+          id: 'reset-tap-onboarding',
+          title: 'Reset Tap Onboarding',
+          icon: 'hand-left-outline',
+          onPress: handleResetTapOnboarding
         },
         {
           id: 'clear-chat',

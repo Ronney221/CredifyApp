@@ -49,6 +49,7 @@ interface PerkRowProps {
   setSwipeableRef: (ref: Swipeable | null) => void;
   renderLeftActions?: () => React.ReactNode;
   renderRightActions?: () => React.ReactNode;
+  onLayout?: (layout: {x: number; y: number; width: number; height: number}) => void;
 }
 
 const PerkRow: React.FC<PerkRowProps> = ({
@@ -67,6 +68,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
   setSwipeableRef,
   renderLeftActions,
   renderRightActions,
+  onLayout,
 }) => {
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
@@ -133,6 +135,10 @@ const PerkRow: React.FC<PerkRowProps> = ({
           onPress={onTapPerk}
           onLongPress={onLongPressPerk}
           style={containerStyle}
+          onLayout={onLayout ? (event) => {
+            const { x, y, width, height } = event.nativeEvent.layout;
+            onLayout({ x, y, width, height });
+          } : undefined}
         >
             <View style={styles.perkIconContainer}>
               <Ionicons 

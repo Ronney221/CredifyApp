@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
 export const HAS_SEEN_ONBOARDING_SHEET_KEY = '@has_seen_onboarding_sheet';
+export const HAS_SEEN_TAP_ONBOARDING_KEY = '@has_seen_tap_onboarding';
+export const HAS_SEEN_SWIPE_ONBOARDING_KEY = '@has_seen_swipe_onboarding';
 
 interface OnboardingContextType {
   // Card Management
@@ -30,6 +32,12 @@ interface OnboardingContextType {
   hasSeenOnboardingSheet: boolean;
   markOnboardingSheetSeen: () => Promise<void>;
   isOnboardingFlagsReady: boolean;
+  
+  // New Contextual Onboarding State
+  hasSeenTapOnboarding: boolean;
+  hasSeenSwipeOnboarding: boolean;
+  markTapOnboardingAsSeen: () => Promise<void>;
+  markSwipeOnboardingAsSeen: () => Promise<void>;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -52,22 +60,32 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   const [hasRedeemedFirstPerk, setHasRedeemedFirstPerk] = useState(false);
   const [hasSeenOnboardingSheet, setHasSeenOnboardingSheet] = useState(false);
   const [isOnboardingFlagsReady, setIsOnboardingFlagsReady] = useState(false);
+  
+  // New Contextual Onboarding State
+  const [hasSeenTapOnboarding, setHasSeenTapOnboarding] = useState(false);
+  const [hasSeenSwipeOnboarding, setHasSeenSwipeOnboarding] = useState(false);
 
   // Load initial state
   useEffect(() => {
     const loadFlags = async () => {
       try {
         console.log('[OnboardingContext] Loading onboarding flags');
-        const [[, redeemedVal], [, seenVal]] = await AsyncStorage.multiGet([
+        const [[, redeemedVal], [, seenVal], [, tapVal], [, swipeVal]] = await AsyncStorage.multiGet([
           HAS_REDEEMED_FIRST_PERK_KEY,
           HAS_SEEN_ONBOARDING_SHEET_KEY,
+          HAS_SEEN_TAP_ONBOARDING_KEY,
+          HAS_SEEN_SWIPE_ONBOARDING_KEY,
         ]);
 
         const redeemedBool = redeemedVal === 'true';
         const seenBool = seenVal === 'true';
+        const tapBool = tapVal === 'true';
+        const swipeBool = swipeVal === 'true';
 
         setHasRedeemedFirstPerk(redeemedBool);
         setHasSeenOnboardingSheet(seenBool);
+        setHasSeenTapOnboarding(tapBool);
+        setHasSeenSwipeOnboarding(swipeBool);
       } catch (err) {
         console.error('[OnboardingContext] Failed to load onboarding flags', err);
       } finally {
@@ -105,6 +123,30 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
       console.error('[OnboardingContext] Failed to persist sheet seen flag', err);
     }
   }, [hasSeenOnboardingSheet]);
+
+  const markTapOnboardingAsSeen = useCallback(async () => {
+    try {
+      if (!hasSeenTapOnboarding) {
+        await AsyncStorage.setItem(HAS_SEEN_TAP_ONBOARDING_KEY, 'true');
+        setHasSeenTapOnboarding(true);
+        console.log('[OnboardingContext] Marked tap onboarding as seen');
+      }
+    } catch (err) {
+      console.error('[OnboardingContext] Failed to persist tap onboarding flag', err);
+    }
+  }, [hasSeenTapOnboarding]);
+
+  const markSwipeOnboardingAsSeen = useCallback(async () => {
+    try {
+      if (!hasSeenSwipeOnboarding) {
+        await AsyncStorage.setItem(HAS_SEEN_SWIPE_ONBOARDING_KEY, 'true');
+        setHasSeenSwipeOnboarding(true);
+        console.log('[OnboardingContext] Marked swipe onboarding as seen');
+      }
+    } catch (err) {
+      console.error('[OnboardingContext] Failed to persist swipe onboarding flag', err);
+    }
+  }, [hasSeenSwipeOnboarding]);
 
   const resetFirstPerkRedemption = useCallback(async () => {
     console.log('[OnboardingContext] Resetting first perk redemption state');
@@ -186,6 +228,12 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     hasSeenOnboardingSheet,
     markOnboardingSheetSeen,
     isOnboardingFlagsReady,
+    
+    // New Contextual Onboarding State
+    hasSeenTapOnboarding,
+    hasSeenSwipeOnboarding,
+    markTapOnboardingAsSeen,
+    markSwipeOnboardingAsSeen,
   };
 
   return (
@@ -201,6 +249,17 @@ export function useOnboardingContext() {
     throw new Error('useOnboardingContext must be used within an OnboardingProvider');
   }
   return context;
+}
+
+export function useOnboarding() {
+  const context = useOnboardingContext();
+  return {
+    hasSeenTapOnboarding: context.hasSeenTapOnboarding,
+    hasSeenSwipeOnboarding: context.hasSeenSwipeOnboarding,
+    markTapOnboardingAsSeen: context.markTapOnboardingAsSeen,
+    markSwipeOnboardingAsSeen: context.markSwipeOnboardingAsSeen,
+    isOnboardingFlagsReady: context.isOnboardingFlagsReady,
+  };
 }
 
 export default function OnboardingContextScreen() {

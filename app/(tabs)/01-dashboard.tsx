@@ -46,10 +46,8 @@ import ActionHintPill from '../../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext';
-import OnboardingSheet from '../../components/home/OnboardingSheet';
 import AIChatButton from '../../components/home/AIChatButton';
 import { useSharedValue, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
-import OnboardingSheetContent from '../(onboarding)/welcome';
 import UserCardItem from '../../components/home/UserCardItem';
 import SwipeCoachMark from '../../components/home/SwipeCoachMark';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
@@ -313,7 +311,6 @@ export default function Dashboard() {
   } = usePerkStatus(userCardsWithPerks);
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
   const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
-  const [showOnboardingSheet, setShowOnboardingSheet] = useState(false);
 
   const checkNotificationStatus = async () => {
     const chatNotificationStatus = await AsyncStorage.getItem(CHAT_NOTIFICATION_KEY);
@@ -833,7 +830,6 @@ export default function Dashboard() {
                       // Check if this is the first perk redemption
                       if (!hasRedeemedFirstPerk) {
                         await markFirstPerkRedeemed();
-                        setShowOnboardingSheet(true);
                         setShowAiChatNotification(true);
                         await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
                       }
@@ -903,7 +899,6 @@ export default function Dashboard() {
         
         if (!hasRedeemedFirstPerk) {
             await markFirstPerkRedeemed();
-            setShowOnboardingSheet(true);
             setShowAiChatNotification(true);
             await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
         }
@@ -1393,11 +1388,6 @@ export default function Dashboard() {
           setPendingToast={setPendingToast}
         />
 
-        {/* Add OnboardingSheet */}
-        <OnboardingSheet
-          visible={showOnboardingSheet}
-          onDismiss={() => setShowOnboardingSheet(false)}
-        />
 
         {/* Loading overlay */}
         {isUpdatingPerk && (
