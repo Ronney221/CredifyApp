@@ -536,22 +536,28 @@ export default function InsightsScreen() {
       return null;
     }
 
-    // Calculate trend data using only monthly perks
+    // Calculate trend data using only monthly perks - include partial redemptions
     const trendData = section.data.map(month => {
       const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
       const monthlyRedeemed = monthlyPerks.reduce((sum, perk) => 
         perk.status === 'redeemed' ? sum + perk.value : sum, 0
       );
+      const monthlyPartial = monthlyPerks.reduce((sum, perk) => 
+        perk.status === 'partial' ? sum + (perk.partialValue || 0) : sum, 0
+      );
       const monthlyPotential = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
-      return monthlyPotential > 0 ? (monthlyRedeemed / monthlyPotential) * 100 : 0;
+      return monthlyPotential > 0 ? ((monthlyRedeemed + monthlyPartial) / monthlyPotential) * 100 : 0;
     }).slice(0, 6).reverse();
 
-    // Monthly data for the chart should also only include monthly perks
+    // Monthly data for the chart should also only include monthly perks - include partial redemptions
     const monthlyData = section.data.map(month => {
       const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
       return {
         redeemed: monthlyPerks.reduce((sum, perk) => 
           perk.status === 'redeemed' ? sum + perk.value : sum, 0
+        ),
+        partial: monthlyPerks.reduce((sum, perk) => 
+          perk.status === 'partial' ? sum + (perk.partialValue || 0) : sum, 0
         ),
         potential: monthlyPerks.reduce((sum, perk) => sum + perk.value, 0)
       };
@@ -779,15 +785,24 @@ export default function InsightsScreen() {
                     const monthsChrono = [...currentYearSection.data]
                       .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
 
-                    // Calculate percentage and raw data arrays
-                    const pct = monthsChrono.map(m => 
-                      (m.totalRedeemedValue / m.totalPotentialValue) * 100
-                    );
-                    const raw = monthsChrono.map(m => ({
-                      redeemed: m.totalRedeemedValue,
-                      potential: m.totalPotentialValue,
-                      monthKey: m.monthKey // Add monthKey to raw data
-                    }));
+                    // Calculate percentage and raw data arrays - include partial redemptions
+                    const pct = monthsChrono.map(m => {
+                      const totalSaved = m.totalRedeemedValue + m.perkDetails
+                        .filter(perk => perk.status === 'partial')
+                        .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
+                      return (totalSaved / m.totalPotentialValue) * 100;
+                    });
+                    const raw = monthsChrono.map(m => {
+                      const partialValue = m.perkDetails
+                        .filter(perk => perk.status === 'partial')
+                        .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
+                      return {
+                        redeemed: m.totalRedeemedValue,
+                        partial: partialValue,
+                        potential: m.totalPotentialValue,
+                        monthKey: m.monthKey
+                      };
+                    });
 
                     return (
                       <MiniBarChart

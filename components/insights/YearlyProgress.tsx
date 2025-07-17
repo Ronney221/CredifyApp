@@ -14,7 +14,7 @@ interface YearlyProgressProps {
   totalRedeemed: number;
   totalAnnualFees: number;
   trendData: number[];
-  monthlyData?: { redeemed: number; potential: number }[];
+  monthlyData?: { redeemed: number; partial: number; potential: number }[];
   scrollProgress?: Animated.SharedValue<number>; // 0 = expanded, 1 = collapsed
   isSticky?: boolean;
 }

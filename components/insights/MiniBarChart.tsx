@@ -5,7 +5,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 
 interface MiniBarChartProps {
   data: number[]; // Now represents dollar amounts saved
-  rawData?: { redeemed: number; potential: number; monthKey?: string }[]; // Added monthKey
+  rawData?: { redeemed: number; partial: number; potential: number; monthKey?: string }[]; // Added partial field
   height?: number;
   barColor?: string;
   barWidth?: number;
@@ -67,11 +67,11 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const alignedData = monthLabels.map(month => {
     // Find matching data point by monthKey
     const matchingData = rawData.find(d => d.monthKey === month.key);
-    return matchingData || { redeemed: 0, potential: 0 };
+    return matchingData || { redeemed: 0, partial: 0, potential: 0 };
   });
 
-  // Now using the aligned data for our normalized values
-  const normalizedData = alignedData.map(d => d.redeemed);
+  // Now using the aligned data for our normalized values - include partial redemptions in saved amount
+  const normalizedData = alignedData.map(d => d.redeemed + d.partial);
   const normalizedRaw = alignedData;
 
   // Debug logging to help verify month alignment
@@ -187,7 +187,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
             const isLastBar = index === normalizedData.length - 1;
             const hasData = value > 0;
             const percentage = normalizedRaw[index].potential > 0 
-              ? (normalizedRaw[index].redeemed / normalizedRaw[index].potential) * 100 
+              ? ((normalizedRaw[index].redeemed + normalizedRaw[index].partial) / normalizedRaw[index].potential) * 100 
               : 0;
 
             return (
@@ -231,7 +231,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                   <View style={getTooltipStyle(index)}>
                     <Text style={styles.tooltipTitle}>{monthLabels[index].label} Details</Text>
                     <Text style={styles.tooltipText}>
-                      Saved: {formatCurrency(normalizedRaw[index].redeemed)}
+                      Saved: {formatCurrency(normalizedRaw[index].redeemed + normalizedRaw[index].partial)}
                     </Text>
                     <Text style={styles.tooltipText}>
                       Available: {formatCurrency(normalizedRaw[index].potential)}
@@ -264,7 +264,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
         </View>
       </View>
       <View style={styles.legendContainer}>
-        <Text style={styles.legendText}>Monthly savings from redeemed perks</Text>
+        <Text style={styles.legendText}>Monthly savings from redeemed and partially redeemed perks</Text>
         {showSparseDataMessage && (
           <Text style={styles.encouragementText}>
             Keep tracking your perks to see your progress over time!
