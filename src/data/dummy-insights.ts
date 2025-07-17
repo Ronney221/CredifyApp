@@ -365,6 +365,11 @@ export const generateDummyInsightsData = async (
             }
           }
           
+          // Add non-monthly perks that expire this month to potential value
+          if (perk.period !== 'monthly' && expiresThisMonth && !redemptionStatus) {
+            monthTotalPotential += perk.value;
+          }
+          
           currentMonthPerkDetails.push({
             id: perkDetailId,
             name: perk.name,

@@ -264,7 +264,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
         </View>
       </View>
       <View style={styles.legendContainer}>
-        <Text style={styles.legendText}>Monthly savings from redeemed and partially redeemed perks</Text>
+        <Text style={styles.legendText}>Monthly savings including expiring perks</Text>
         {showSparseDataMessage && (
           <Text style={styles.encouragementText}>
             Keep tracking your perks to see your progress over time!
