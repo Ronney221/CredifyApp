@@ -20,6 +20,7 @@ import { BlurView } from 'expo-blur';
 
 // Constants
 const SUCCESS_GREEN = '#34C759';
+const PARTIAL_ORANGE = '#FF9500';
 const NEUTRAL_GRAY_COLOR = '#8A8A8E';
 const SUBTLE_GRAY_TEXT = Colors.light.icon;
 const SEPARATOR_COLOR = '#E0E0E0';
@@ -30,10 +31,11 @@ interface PerkDetail {
   id: string;
   name: string;
   value: number;
-  status: 'redeemed' | 'missed' | 'available';
+  status: 'redeemed' | 'missed' | 'available' | 'partial';
   period: 'monthly' | 'quarterly' | 'semi_annual' | 'annual';
   expiresThisMonth?: boolean;
   expiresNextMonth?: boolean;
+  partialValue?: number; // For partial redemptions
 }
 
 interface MonthSummaryCardProps {
@@ -106,15 +108,21 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
 
   // Helper function to determine if a perk is relevant to this month
   const isPerkRelevantToMonth = (perk: PerkDetail) => {
-    // Always include redeemed perks
-    if (perk.status === 'redeemed') return true;
+    // Always include redeemed and partial perks
+    if (perk.status === 'redeemed' || perk.status === 'partial') return true;
     
     // For monthly perks, they're always relevant
     if (perk.period === 'monthly') return true;
     
-    // For non-monthly perks, they're relevant if they expire this month OR next month
+    // For non-monthly perks, logic depends on current vs historical month
     if (perk.status === 'missed' || perk.status === 'available') {
-      return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+      if (isCurrentMonth) {
+        // Current month: include if expires this month OR next month
+        return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+      } else {
+        // Historical month: only include if expired in that specific month
+        return perk.expiresThisMonth === true;
+      }
     }
     
     return false;
@@ -132,26 +140,25 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     relevantPerks.filter(perk => perk.status === 'redeemed').length, 
     [relevantPerks]
   );
+
+  const partialPerks = useMemo(() => 
+    relevantPerks.filter(perk => perk.status === 'partial').length, 
+    [relevantPerks]
+  );
   
   const missedPerks = useMemo(() => 
-    relevantPerks.filter(perk => 
-      perk.status === 'missed' && 
-      (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
-    ).length, 
+    relevantPerks.filter(perk => perk.status === 'missed').length, 
     [relevantPerks]
   );
   
   const availablePerks = useMemo(() => 
-    relevantPerks.filter(perk => 
-      perk.status === 'available' && 
-      (perk.period === 'monthly' || perk.expiresThisMonth || perk.expiresNextMonth)
-    ).length, 
+    relevantPerks.filter(perk => perk.status === 'available').length, 
     [relevantPerks]
   );
 
-  // Update performance score calculation
+  // Update performance score calculation (include partial as 50% weight)
   const performanceScore = totalPerks > 0 
-    ? Math.round((redeemedPerks / totalPerks) * 100)
+    ? Math.round(((redeemedPerks + (partialPerks * 0.5)) / totalPerks) * 100)
     : 0;
 
   // Get performance status and color
@@ -175,7 +182,14 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   // Add this helper function to determine if we have any perks at all
   const hasAnyPerks = summary.perkDetails.length > 0;
 
-  // Update the bar segments calculation to handle empty current month
+  // Calculate missed out value
+  const missedOutValue = useMemo(() => {
+    return relevantPerks
+      .filter(perk => perk.status === 'missed')
+      .reduce((sum, perk) => sum + perk.value, 0);
+  }, [relevantPerks]);
+
+  // Update the bar segments calculation to handle empty current month and partial redemptions
   const getBarSegments = () => {
     // If it's current month and we have no perks, show one "available" segment
     if (isCurrentMonth && !hasAnyPerks) {
@@ -187,6 +201,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     // Add redeemed segments
     for (let i = 0; i < redeemedPerks; i++) {
       segments.push({ type: 'redeemed', color: SUCCESS_GREEN });
+    }
+
+    // Add partial segments
+    for (let i = 0; i < partialPerks; i++) {
+      segments.push({ type: 'partial', color: PARTIAL_ORANGE });
     }
     
     // Add missed segments
@@ -239,11 +258,15 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   const nonMonthlyPerkDetails = summary.perkDetails
     .filter(perk => perk.period !== 'monthly')
     .filter(perk => {
-      // Always show redeemed perks
-      if (perk.status === 'redeemed') return true;
-      // For missed/available perks, show if they expire this month OR next month
+      // Always show redeemed and partial perks
+      if (perk.status === 'redeemed' || perk.status === 'partial') return true;
+      // For missed/available perks, logic depends on current vs historical month
       if (perk.status === 'missed' || perk.status === 'available') {
-        return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+        if (isCurrentMonth) {
+          return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
+        } else {
+          return perk.expiresThisMonth === true;
+        }
       }
       return false;
     })
@@ -276,6 +299,8 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
         name={
           perk.status === 'redeemed' 
             ? 'checkmark-circle' 
+            : perk.status === 'partial'
+            ? 'checkmark-circle-outline'
             : perk.status === 'available'
             ? 'time-outline'
             : 'close-circle'
@@ -284,6 +309,8 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
         color={
           perk.status === 'redeemed' 
             ? SUCCESS_GREEN 
+            : perk.status === 'partial'
+            ? PARTIAL_ORANGE
             : perk.status === 'available'
             ? Colors.light.tint
             : NEUTRAL_GRAY_COLOR
@@ -296,12 +323,20 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
             styles.perkName,
             perk.status === 'missed' && styles.missedPerkText
           ]}>{perk.name}</Text>
-          <Text style={[
-            styles.perkValue,
-            perk.status === 'missed' && styles.missedPerkText
-          ]}>${perk.value.toFixed(0)}</Text>
+          <View style={styles.perkValueContainer}>
+            {perk.status === 'partial' && perk.partialValue ? (
+              <Text style={styles.perkValue}>
+                ${perk.partialValue.toFixed(0)} / ${perk.value.toFixed(0)}
+              </Text>
+            ) : (
+              <Text style={[
+                styles.perkValue,
+                perk.status === 'missed' && styles.missedPerkText
+              ]}>${perk.value.toFixed(0)}</Text>
+            )}
+          </View>
         </View>
-        {!isMonthly && (perk.expiresThisMonth || perk.expiresNextMonth) && (
+        {!isMonthly && (perk.expiresThisMonth || (perk.expiresNextMonth && isCurrentMonth)) && (
           <Text style={styles.expirationText}>
             {getExpirationStatus(perk)}
           </Text>
@@ -373,19 +408,24 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                 </Text>
               </View>
 
-              {isCurrentMonth ? (
-                // Current Month View
-                <View style={styles.currentMonthStats}>
+              <View style={styles.monthStats}>
+                <View style={styles.monthContent}>
                   {renderVisualMeter()}
-                  <View style={styles.currentMonthStatsRow}>
-                    <View style={styles.statsRow}>
+                  <View style={styles.monthStatsRow}>
+                    <View style={styles.statItem}>
+                      <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
+                      <Text style={styles.statText}>
+                        {hasAnyPerks ? `${redeemedPerks} Redeemed` : 'No perks redeemed yet'}
+                      </Text>
+                    </View>
+                    {partialPerks > 0 && (
                       <View style={styles.statItem}>
-                        <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
-                        <Text style={styles.statText}>
-                          {hasAnyPerks ? `${redeemedPerks} Redeemed` : 'No perks redeemed yet'}
-                        </Text>
+                        <Ionicons name="checkmark-circle-outline" size={16} color={PARTIAL_ORANGE} />
+                        <Text style={styles.statText}>{partialPerks} Partial</Text>
                       </View>
-                      {hasAnyPerks ? (
+                    )}
+                    {isCurrentMonth ? (
+                      hasAnyPerks ? (
                         <View style={styles.statItem}>
                           <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
                           <Text style={styles.statText}>{availablePerks} Available</Text>
@@ -395,34 +435,19 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                           <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
                           <Text style={styles.statText}>Start tracking your perks</Text>
                         </View>
-                      )}
-                    </View>
-                    <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
-                      <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
-                    </Animated.View>
-                  </View>
-                </View>
-              ) : (
-                // Past Month View
-                <View style={styles.pastMonthStats}>
-                  <View style={styles.pastMonthContent}>
-                    {renderVisualMeter()}
-                    <View style={styles.pastMonthStatsRow}>
-                      <View style={styles.statItem}>
-                        <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
-                        <Text style={styles.statText}>{redeemedPerks} Redeemed</Text>
-                      </View>
+                      )
+                    ) : (
                       <View style={styles.statItem}>
                         <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
                         <Text style={styles.statText}>{missedPerks} Missed</Text>
                       </View>
-                    </View>
+                    )}
                   </View>
-                  <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
-                    <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
-                  </Animated.View>
                 </View>
-              )}
+                <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
+                </Animated.View>
+              </View>
             </View>
           </View>
 
@@ -435,9 +460,15 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
             >
               <View style={styles.detailedHeader}>
                 <Text style={styles.detailedTitle}>Perk Details</Text>
-                <Text style={styles.detailedSubtitle}>
-                  ${summary.totalRedeemedValue.toFixed(0)} of ${relevantPerks.reduce((sum, perk) => sum + perk.value, 0).toFixed(0)} Redeemed
-                </Text>
+                {missedOutValue > 0 ? (
+                  <Text style={styles.detailedSubtitle}>
+                    Missed out on ${missedOutValue.toFixed(0)} this month
+                  </Text>
+                ) : (
+                  <Text style={styles.detailedSubtitle}>
+                    Great! No missed perks this month
+                  </Text>
+                )}
               </View>
 
               {showCelebratoryEmptyState ? (
@@ -449,7 +480,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                 </View>
               ) : (monthlyPerkDetails.length > 0 || nonMonthlyPerkDetails.length > 0) ? (
                 <>
-                  {[...monthlyPerkDetails, ...nonMonthlyPerkDetails].some(perk => perk.status !== 'redeemed') && (
+                  {[...monthlyPerkDetails, ...nonMonthlyPerkDetails].some(perk => perk.status === 'missed' || perk.status === 'available') && (
                     <TouchableOpacity 
                       onPress={() => handleRemindMe('')}
                       style={styles.monthRemindButton}
@@ -574,14 +605,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.light.tint,
   },
-  currentMonthStats: {
-    marginTop: 8,
-  },
-  currentMonthStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   visualMeter: {
     flexDirection: 'row',
     height: 8,
@@ -593,11 +616,22 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 1,
   },
-  statsRow: {
+  monthStats: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  monthContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  monthStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 8,
   },
   statItem: {
     flexDirection: 'row',
@@ -609,26 +643,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.text,
     opacity: 0.8,
-  },
-  pastMonthStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pastMonthContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  pastMonthStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 8,
-    gap: 8,
-  },
-  pastMonthMeter: {
-    flex: 1,
-    height: 6,
-    marginRight: 12,
   },
   chevronWrapper: {
     marginLeft: 'auto',
@@ -700,6 +714,9 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     flex: 1,
     marginRight: 8,
+  },
+  perkValueContainer: {
+    alignItems: 'flex-end',
   },
   perkValue: {
     fontSize: 16,
