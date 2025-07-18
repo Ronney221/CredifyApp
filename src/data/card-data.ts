@@ -127,8 +127,94 @@ const TARGET_PERK_TO_APP_SCHEME_MAP: Record<string, string> = {
   'Uber Rideshare Credit': 'uber',
   'Curb Credit': 'curb',
   'Revel Credit': 'revel',
-  'Alto Credit': 'alto'
+  'Alto Credit': 'alto',
+  'Dunkin\' Credit': 'dunkin',
+  'Saks Fifth Avenue Credit': 'saks',
+  'Walmart+ Membership Credit': 'walmart',
+  'CLEAR Plus Credit': 'clear',
+  'Capital One Travel Credit': 'capitalOne',
+  'Hilton Resort Credit': 'hilton',
+  'Marriott Bonvoy Credit': 'marriott',
+  'Chase Travel Credit': 'chase',
+  'Delta Stays Credit': 'delta',
+  'Airline Fee Credit': 'amex',
+  'The Edit by Chase Travel Credit': 'chase',
+  'StubHub / viagogo Credit': 'stubhub',
+  'Exclusive Tables Dining Credit': 'opentable',
+  'DoorDash Restaurant Credit': 'doordash',
+  'DoorDash Non-Restaurant Credit #1': 'doordash',
+  'DoorDash Non-Restaurant Credit #2': 'doordash',
+  'DoorDash Grocery Credit': 'doordash'
 };
+
+// Helper function to check if an app is installed (similar to original)
+async function isAppInstalled(appScheme: any): Promise<boolean> {
+  try {
+    if (Platform.OS === 'ios') {
+      const schemes = Array.isArray(appScheme.ios) ? appScheme.ios : [appScheme.ios];
+      for (const scheme of schemes) {
+        if (scheme) {
+          try {
+            // For HTTPS URLs, they can always be opened
+            if (scheme.startsWith('https://') || scheme.startsWith('http://')) {
+              return true;
+            }
+            // For custom schemes, check if they can be opened
+            if (await Linking.canOpenURL(scheme)) {
+              return true;
+            }
+          } catch (error) {
+            // If canOpenURL throws (scheme not in LSApplicationQueriesSchemes), continue
+            console.log(`Cannot check URL ${scheme}:`, error);
+          }
+        }
+      }
+      
+      // Try fallback URL
+      if (appScheme.fallbackUrl) {
+        try {
+          if (await Linking.canOpenURL(appScheme.fallbackUrl)) {
+            return true;
+          }
+        } catch {
+          // Fallback URLs (HTTPS) should always work
+          return true;
+        }
+      }
+      
+      return false;
+    } else {
+      // On Android, check if the package is installed
+      if (appScheme.androidPackage) {
+        try {
+          const isPackageInstalled = await Linking.canOpenURL(`${appScheme.androidPackage}://`);
+          if (isPackageInstalled) return true;
+        } catch {
+          // Continue to other checks
+        }
+      }
+      
+      // Check Android schemes
+      const schemes = Array.isArray(appScheme.android) ? appScheme.android : [appScheme.android];
+      for (const scheme of schemes) {
+        if (scheme) {
+          try {
+            if (await Linking.canOpenURL(scheme)) {
+              return true;
+            }
+          } catch {
+            // Continue
+          }
+        }
+      }
+      
+      return false;
+    }
+  } catch (error) {
+    console.log('Error checking if app is installed:', error);
+    return false;
+  }
+}
 
 // Helper function to open an app using app scheme key
 async function openAppWithScheme(appSchemeKey: string, perkName: string): Promise<boolean> {
@@ -156,69 +242,95 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
     }
 
     console.log('Found app scheme:', appScheme);
-
-    // Select the appropriate scheme based on platform
-    let targetUrl: string | undefined;
     
-    if (Platform.OS === 'ios' && appScheme.ios) {
-      targetUrl = Array.isArray(appScheme.ios) ? appScheme.ios[0] : appScheme.ios;
-    } else if (Platform.OS === 'android' && appScheme.android) {
-      targetUrl = Array.isArray(appScheme.android) ? appScheme.android[0] : appScheme.android;
-    }
+    // Check if app is installed using similar logic to original
+    const isInstalled = await isAppInstalled(appScheme);
+    console.log(`App installed check for ${appSchemeKey}:`, isInstalled);
 
-    if (!targetUrl) {
-      // Fallback to web URL if no app scheme available
-      if (appScheme.fallbackUrl) {
-        console.log('Opening fallback URL:', appScheme.fallbackUrl);
-        await WebBrowser.openBrowserAsync(appScheme.fallbackUrl);
-        return true;
-      }
-      console.log('No target URL available for app scheme:', appSchemeKey);
-      return false;
-    }
-
-    console.log(`Opening ${Platform.OS} app with URL:`, targetUrl);
-    
-    // Try to open the app
-    const canOpen = await Linking.canOpenURL(targetUrl);
-    if (canOpen) {
-      await Linking.openURL(targetUrl);
-      return true;
-    } else {
-      console.log('Cannot open URL, trying fallback options...');
+    if (Platform.OS === 'ios') {
+      const schemes = Array.isArray(appScheme.ios) ? appScheme.ios : [appScheme.ios];
       
-      // For Android, try intent URL with package
-      if (Platform.OS === 'android' && appScheme.androidPackage) {
-        const intentUrl = `intent://#Intent;package=${appScheme.androidPackage};end`;
-        try {
-          await Linking.openURL(intentUrl);
-          return true;
-        } catch (error) {
-          console.log('Intent URL failed:', error);
+      // If app is installed or we have HTTPS URLs, try to open them
+      if (isInstalled) {
+        for (const scheme of schemes) {
+          if (scheme) {
+            try {
+              console.log('Trying to open iOS URL:', scheme);
+              
+              // For HTTPS URLs, use WebBrowser for better handling
+              if (scheme.startsWith('https://') || scheme.startsWith('http://')) {
+                await WebBrowser.openBrowserAsync(scheme);
+                return true;
+              } else {
+                // For custom schemes, use Linking
+                await Linking.openURL(scheme);
+                return true;
+              }
+            } catch (error) {
+              console.log('Failed to open scheme:', scheme, error);
+              // Continue to next scheme
+            }
+          }
         }
       }
       
-      // Try fallback URL
+      // Try fallback
       if (appScheme.fallbackUrl) {
         console.log('Opening fallback URL:', appScheme.fallbackUrl);
         await WebBrowser.openBrowserAsync(appScheme.fallbackUrl);
         return true;
       }
+    } else {
+      // Android logic
+      const schemes = Array.isArray(appScheme.android) ? appScheme.android : [appScheme.android];
       
-      // Finally, try app store
-      const storeUrl = Platform.select({
-        ios: appScheme.appStoreUrl?.ios,
-        android: appScheme.appStoreUrl?.android,
-      });
-      
-      if (storeUrl) {
-        console.log('Opening app store:', storeUrl);
-        await WebBrowser.openBrowserAsync(storeUrl);
-        return true;
+      if (isInstalled && appScheme.androidPackage) {
+        // Try intent URL first
+        try {
+          const scheme = schemes[0]?.replace('://', '') || appSchemeKey;
+          const intentUrl = `intent://#Intent;package=${appScheme.androidPackage};scheme=${scheme};end`;
+          console.log('Trying Android intent:', intentUrl);
+          await Linking.openURL(intentUrl);
+          return true;
+        } catch (error) {
+          console.log('Intent failed:', error);
+        }
       }
       
-      return false;
+      // Try direct schemes
+      for (const scheme of schemes) {
+        if (scheme) {
+          try {
+            console.log('Trying Android scheme:', scheme);
+            await Linking.openURL(scheme);
+            return true;
+          } catch (error) {
+            console.log('Failed to open scheme:', scheme, error);
+          }
+        }
+      }
+      
+      // Fallback
+      if (appScheme.fallbackUrl) {
+        console.log('Opening fallback URL:', appScheme.fallbackUrl);
+        await WebBrowser.openBrowserAsync(appScheme.fallbackUrl);
+        return true;
+      }
     }
+    
+    // Last resort: try app store
+    const storeUrl = Platform.select({
+      ios: appScheme.appStoreUrl?.ios,
+      android: appScheme.appStoreUrl?.android,
+    });
+    
+    if (storeUrl) {
+      console.log('Opening app store:', storeUrl);
+      await WebBrowser.openBrowserAsync(storeUrl);
+      return true;
+    }
+    
+    return false;
   } catch (error) {
     console.error('Error opening app with scheme:', error);
     return false;
@@ -248,14 +360,14 @@ export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
               text: choice.label,
               onPress: async () => {
                 // Map the target perk name to app scheme key
-                const appSchemeKey = TARGET_PERK_TO_APP_SCHEME_MAP[choice.target_perk_name];
+                const appSchemeKey = TARGET_PERK_TO_APP_SCHEME_MAP[choice.targetPerkName];
                 if (appSchemeKey) {
-                  const success = await openAppWithScheme(appSchemeKey, choice.target_perk_name);
+                  const success = await openAppWithScheme(appSchemeKey, choice.targetPerkName);
                   resolve(success);
                 } else {
-                  console.log('No app scheme mapping found for:', choice.target_perk_name);
+                  console.log('No app scheme mapping found for:', choice.targetPerkName);
                   // Fallback to web search
-                  const searchTerm = encodeURIComponent(choice.target_perk_name);
+                  const searchTerm = encodeURIComponent(choice.targetPerkName);
                   const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
                   try {
                     await WebBrowser.openBrowserAsync(googleSearchUrl);
