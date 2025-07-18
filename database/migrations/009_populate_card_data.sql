@@ -21,18 +21,18 @@ INSERT INTO app_schemes (scheme_key, ios_scheme, android_scheme, fallback_url, a
 ('saks', 'https://www.saksfifthavenue.com/', 'https://www.saksfifthavenue.com/', 'https://www.saksfifthavenue.com/', 'com.saks.android', 'https://apps.apple.com/us/app/saks-fifth-avenue/id491507258', 'https://play.google.com/store/apps/details?id=com.saks.android'),
 ('equinox', 'equinoxplus://action?id=open.equinox.com', 'https://www.equinoxplus.com/', 'https://www.equinoxplus.com/', 'com.equinox.android', 'https://apps.apple.com/us/app/equinox/id318815572', 'https://play.google.com/store/apps/details?id=com.equinox.android'),
 ('wallstreetjournal', 'wsj://', 'wsj://', 'https://www.wsj.com/', 'wsj.reader_sp', 'https://apps.apple.com/us/app/the-wall-street-journal/id364387007', 'https://play.google.com/store/apps/details?id=wsj.reader_sp'),
-('clear', NULL, NULL, 'https://www.clearme.com/', NULL, NULL, NULL),
-('chase', NULL, NULL, 'https://travel.chase.com/', NULL, NULL, NULL),
-('marriott', NULL, NULL, 'https://www.marriott.com/', NULL, NULL, NULL),
-('hilton', NULL, NULL, 'https://www.hilton.com/', NULL, NULL, NULL),
-('delta', NULL, NULL, 'https://www.delta.com/', NULL, NULL, NULL),
-('opentable', NULL, NULL, 'https://www.opentable.com/', NULL, NULL, NULL),
-('peloton', NULL, NULL, 'https://www.onepeloton.com/', NULL, NULL, NULL),
-('stubhub', NULL, NULL, 'https://www.stubhub.com/', NULL, NULL, NULL),
-('netflix', NULL, NULL, 'https://www.netflix.com/', NULL, NULL, NULL),
-('appletv', NULL, NULL, 'https://tv.apple.com/', NULL, NULL, NULL),
-('applemusic', NULL, NULL, 'https://music.apple.com/', NULL, NULL, NULL),
-('amex', NULL, NULL, 'https://www.americanexpress.com/', NULL, NULL, NULL),
+('clear', 'clear://action?id=open.clearme.com', 'https://clearme.com/', 'https://www.clearme.com/', 'com.clearme.clear', 'https://apps.apple.com/us/app/clear/id1485522816', 'https://play.google.com/store/apps/details?id=com.clearme.clear'),
+('chase', 'chase://', 'chase://', 'https://travel.chase.com/', 'com.chase.sig.android', 'https://apps.apple.com/us/app/chase-mobile/id298867247', 'https://play.google.com/store/apps/details?id=com.chase.sig.android'),
+('marriott', 'marriott://', 'marriott://', 'https://www.marriott.com/', 'com.marriott.mrt', 'https://apps.apple.com/us/app/marriott-bonvoy/id1026035061', 'https://play.google.com/store/apps/details?id=com.marriott.mrt'),
+('hilton', 'hiltonhonors://action?id=open.hilton.com', 'hiltonhonors://book', 'https://www.hilton.com/', 'com.hilton.android.hhonors', 'https://apps.apple.com/us/app/hilton-honors/id635150066', 'https://play.google.com/store/apps/details?id=com.hilton.android.hhonors'),
+('delta', 'https://www.delta.com/stays', 'https://www.delta.com/stays', 'https://www.delta.com/', 'com.delta.mobile.android', 'https://apps.apple.com/us/app/fly-delta/id388491656', 'https://play.google.com/store/apps/details?id=com.delta.mobile.android'),
+('opentable', 'opentable://', 'opentable://', 'https://www.opentable.com/', 'com.opentable', 'https://apps.apple.com/us/app/opentable/id296581815', 'https://play.google.com/store/apps/details?id=com.opentable'),
+('peloton', 'https://members.onepeloton.com/classes', 'https://members.onepeloton.com/classes', 'https://www.onepeloton.com/', 'com.onepeloton.callisto', 'https://apps.apple.com/us/app/peloton-at-home-fitness/id792750948', 'https://play.google.com/store/apps/details?id=com.onepeloton.callisto'),
+('stubhub', 'stubhub://', 'stubhub://', 'https://www.stubhub.com/', 'com.stubhub.mobile.android.platform', 'https://apps.apple.com/us/app/stubhub/id354425048', 'https://play.google.com/store/apps/details?id=com.stubhub.mobile.android.platform'),
+('netflix', 'nflx://', 'nflx://', 'https://www.netflix.com/', 'com.netflix.mediaclient', 'https://apps.apple.com/us/app/netflix/id363590051', 'https://play.google.com/store/apps/details?id=com.netflix.mediaclient'),
+('appletv', 'videos://', 'https://tv.apple.com/', 'https://tv.apple.com/', 'com.apple.atve.androidtv.appletv', 'https://apps.apple.com/us/app/apple-tv/id1174078549', 'https://play.google.com/store/apps/details?id=com.apple.atve.androidtv.appletv'),
+('applemusic', 'music://', 'https://music.apple.com/', 'https://music.apple.com/', 'com.apple.android.music', 'https://apps.apple.com/us/app/apple-music/id1108187390', 'https://play.google.com/store/apps/details?id=com.apple.android.music'),
+('amex', 'amex://', 'amex://', 'https://www.americanexpress.com/', 'com.americanexpress.android.acctsvcs.us', 'https://apps.apple.com/us/app/amex/id362348516', 'https://play.google.com/store/apps/details?id=com.americanexpress.android.acctsvcs.us'),
 ('curb', 'curb://', 'curb://', 'https://gocurb.com/', 'com.ridecharge.curb', 'https://apps.apple.com/us/app/curb-request-pay-taxi-rides/id299226386', 'https://play.google.com/store/apps/details?id=com.ridecharge.curb'),
 ('revel', 'revel://', 'revel://', 'https://gorevel.com/', 'com.revel.ride', 'https://apps.apple.com/us/app/revel-electric-moped-sharing/id1468872087', 'https://play.google.com/store/apps/details?id=com.revel.ride'),
 ('alto', 'alto://', 'alto://', 'https://ridealto.com/', 'com.ridealto.passenger', 'https://apps.apple.com/us/app/alto/id1484131955', 'https://play.google.com/store/apps/details?id=com.ridealto.passenger'),
@@ -90,7 +90,7 @@ SELECT
     'calendar',
     'Up to $20 per month (totaling $240 per year) in statement credits for eligible digital subscriptions. Covered services include Audible, Disney+, The Disney Bundle, ESPN+, Hulu, Peacock, The New York Times, and The Wall Street Journal.',
     'You must enroll in this benefit first via your Amex account. Then, simply use your Platinum Card to pay for the eligible subscriptions. The credit is automatically applied as a statement credit.',
-    NULL,
+    'disneyPlus',
     ARRAY['Bills & Utilities', 'Entertainment']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -155,7 +155,7 @@ SELECT
     'calendar',
     'Up to $200 in statement credits annually for incidental fees with one selected airline.',
     'Select your qualifying airline in your Amex account. Use your card for eligible incidental fees like checked bags, seat selection, and in-flight purchases. Does not cover airfare.',
-    NULL,
+    'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -373,8 +373,8 @@ SELECT
     1,
     'calendar',
     '$25 dining statement credit each month (up to $300 per year) at restaurants worldwide.',
-    NULL,
-    NULL,
+    'Use your Marriott Bonvoy Brilliant card for dining purchases worldwide. Credits are applied automatically to your statement.',
+    'marriott',
     ARRAY['Dining']
 FROM card_definitions cd WHERE cd.card_id = 'marriott_bonvoy_brilliant'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -406,8 +406,8 @@ SELECT
     3,
     'calendar',
     'Up to $50 back in statement credits each quarter on eligible flight purchases (total $200 yr).',
-    NULL,
-    NULL,
+    'Use your Hilton Honors Aspire card to purchase flights directly from airlines or through authorized travel agencies. Credits are applied automatically to your statement.',
+    'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'hilton_aspire'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -475,7 +475,7 @@ SELECT
     'calendar',
     'Get a $7 statement credit each month after you spend $9.99 or more on an eligible subscription to The Disney Bundle. This can reduce the cost of subscriptions that include Disney+, Hulu, and ESPN+.',
     'You must first enroll in the benefit through your American Express online account. Then, use your Blue Cash Preferred card to pay for your monthly Disney Bundle subscription of $9.99 or more. The statement credit will be applied automatically. Unused credits do not roll over.',
-    NULL,
+    'disneyPlus',
     ARRAY['Bills & Utilities', 'Entertainment']
 FROM card_definitions cd WHERE cd.card_id = 'blue_cash_preferred'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -508,7 +508,7 @@ SELECT
     'calendar',
     'Get up to $10 in statement credits each month on U.S. rideshare purchases with select providers, totaling up to $120 per year.',
     'Enrollment is required via your Amex account. Use your card to pay for eligible U.S. rideshare services like Uber, Lyft, Curb, Revel, and Alto. The credit is applied automatically. Unused monthly credits are forfeited.',
-    NULL,
+    'uber',
     ARRAY['Transportation']
 FROM card_definitions cd WHERE cd.card_id = 'delta_reserve'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -558,7 +558,7 @@ SELECT
     'calendar',
     'Receive up to $100 in statement credits annually for qualifying airline incidental fees. This helps to significantly offset the annual fee.',
     'The credit is automatically applied to your statement when you use your card for qualifying fees. Qualifying charges include seat upgrades, checked baggage fees, in-flight food and entertainment, and airline lounge access fees. It does not cover tickets, award fees, mileage purchases, or gift cards. It is also important to note that charges from some airlines, like Spirit and Allegiant, may not qualify. The credit resets every calendar year.',
-    NULL,
+    'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'boa_premium_rewards'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -575,7 +575,7 @@ SELECT
     'calendar',
     'Up to $300 annually in statement credits for qualifying airline incidental fees. This credit helps substantially offset the annual fee.',
     'The credit is automatically applied to your statement for qualifying charges. Qualifying fees include seat upgrades, checked baggage, in-flight food and entertainment, and airline lounge day passes. It does not cover the cost of airfare, mileage purchases, or gift cards. The credit resets each calendar year.',
-    NULL,
+    'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'boa_premium_rewards_elite'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -591,7 +591,7 @@ SELECT
     'calendar',
     'Up to $150 annually in statement credits for lifestyle purchases. This flexible credit applies to a wide range of everyday services.',
     'Credits post automatically when you use your card for eligible purchases. Confirmed eligible services include food delivery (DoorDash, Grubhub), ride-hailing (Uber, Lyft), streaming (Netflix, Hulu, Disney+), and fitness subscriptions. Some services like YouTube TV and Audible have been reported by users as not qualifying. The credit resets each calendar year.',
-    NULL,
+    'uber',
     ARRAY['Shopping', 'Dining', 'Transportation', 'Fitness']
 FROM card_definitions cd WHERE cd.card_id = 'boa_premium_rewards_elite'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -608,7 +608,7 @@ SELECT
     'calendar',
     'Receive up to $325 in automatic statement credits for purchases made directly from airlines, hotels, car rental companies, taxis, limousines, passenger trains, cruise lines, restaurants, takeout, and food delivery services.',
     'This is one of the easiest credits to use. Simply use your Altitude Reserve card for any eligible travel or dining purchase and the credits will be applied automatically until you reach the $325 maximum for your cardmember year. This benefit effectively reduces the annual fee to $75 if fully utilized.',
-    NULL,
+    'amex',
     ARRAY['Travel', 'Dining']
 FROM card_definitions cd WHERE cd.card_id = 'usb_altitude_reserve'
 ON CONFLICT (benefit_id) DO NOTHING;
@@ -625,7 +625,7 @@ SELECT
     'calendar',
     'Up to $250 in statement credits for travel purchases each year. This is a highly flexible credit that applies to a wide range of purchases coding as travel. IMPORTANT: The Citi Prestige card is no longer available to new applicants; this benefit is for existing cardholders.',
     'No activation is needed. Simply use your card for travel purchases, including airfare, hotels, car rentals, cruise lines, travel agencies, taxis, ride-hailing services, tolls, and parking. The credit is automatically applied to your statement until you have received the full $250. The benefit resets on January 1st each year.',
-    NULL,
+    'amex',
     ARRAY['Travel']
 FROM card_definitions cd WHERE cd.card_id = 'citi_prestige'
 ON CONFLICT (benefit_id) DO NOTHING;
