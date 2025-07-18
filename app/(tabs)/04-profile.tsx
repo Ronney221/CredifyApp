@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import * as Sentry from '@sentry/react-native';
 import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY, HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY } from '../(onboarding)/_context/OnboardingContext';
+import { DatabaseTester } from '../../components/debug/DatabaseTester';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -52,6 +53,7 @@ const ProfileScreen = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
   const { setHasRedeemedFirstPerk } = useOnboardingContext();
+  const [showTester, setShowTester] = useState(false);
 
   const handleTestPerkExpiryNotifications = async () => {
     if (!user?.id) {
@@ -425,6 +427,12 @@ const ProfileScreen = () => {
           icon: 'timer-outline',
           onPress: handleTestPerkExpiryNotifications
         },
+        {
+          id: 'test-database',
+          title: 'Test Database',
+          icon: 'server-outline',
+          onPress: () => setShowTester(true)
+        },
       ],
       footer: 'Development tools and testing options.',
     },
@@ -520,6 +528,10 @@ const ProfileScreen = () => {
         alwaysBounceVertical
         overScrollMode="never"
       />
+      
+      {showTester && (
+        <DatabaseTester onClose={() => setShowTester(false)} />
+      )}
     </SafeAreaView>
   );
 };

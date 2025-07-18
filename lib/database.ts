@@ -917,12 +917,15 @@ export async function updateCardOrder(userId: string, cardIds: string[]) {
     if (fetchError) throw fetchError;
 
     // Create a map of card names to their new order
-    const cardNameToOrder = new Map(
-      cardIds.map((cardId, index) => [
-        (await findCardByIdData(cardId))?.name || '',
-        index
-      ])
-    );
+    const cardNameToOrder = new Map();
+    
+    // Process cardIds sequentially to handle async lookups
+    for (let index = 0; index < cardIds.length; index++) {
+      const cardId = cardIds[index];
+      const cardData = await findCardByIdData(cardId);
+      const cardName = cardData?.name || '';
+      cardNameToOrder.set(cardName, index);
+    }
 
     // Update each card's display order one by one
     for (const card of existingCards) {

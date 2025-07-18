@@ -14,20 +14,20 @@ import type { Card, Benefit } from '../src/data/card-data';
  * Maps database image_url paths to React Native require() statements
  */
 const IMAGE_MAP: Record<string, any> = {
-  '../../assets/images/amex_plat.avif': require('../../assets/images/amex_plat.avif'),
-  '../../assets/images/amex_gold.avif': require('../../assets/images/amex_gold.avif'),
-  '../../assets/images/chase_sapphire_reserve.png': require('../../assets/images/chase_sapphire_reserve.png'),
-  '../../assets/images/chase_sapphire_preferred.png': require('../../assets/images/chase_sapphire_preferred.png'),
-  '../../assets/images/marriott_bonvoy_brilliant.avif': require('../../assets/images/marriott_bonvoy_brilliant.avif'),
-  '../../assets/images/hilton_aspire.avif': require('../../assets/images/hilton_aspire.avif'),
-  '../../assets/images/venture_x.avif': require('../../assets/images/venture_x.avif'),
-  '../../assets/images/blue_cash_preferred.avif': require('../../assets/images/blue_cash_preferred.avif'),
-  '../../assets/images/delta_reserve.avif': require('../../assets/images/delta_reserve.avif'),
-  '../../assets/images/amex_green.avif': require('../../assets/images/amex_green.avif'),
-  '../../assets/images/boa_premium_rewards.png': require('../../assets/images/boa_premium_rewards.png'),
-  '../../assets/images/boa_premium_rewards_elite.png': require('../../assets/images/boa_premium_rewards_elite.png'),
-  '../../assets/images/usb_altitude_reserve.png': require('../../assets/images/usb_altitude_reserve.png'),
-  '../../assets/images/citi_prestige.jpeg': require('../../assets/images/citi_prestige.jpeg'),
+  '../../assets/images/amex_plat.avif': require('../assets/images/amex_plat.avif'),
+  '../../assets/images/amex_gold.avif': require('../assets/images/amex_gold.avif'),
+  '../../assets/images/chase_sapphire_reserve.png': require('../assets/images/chase_sapphire_reserve.png'),
+  '../../assets/images/chase_sapphire_preferred.png': require('../assets/images/chase_sapphire_preferred.png'),
+  '../../assets/images/marriott_bonvoy_brilliant.avif': require('../assets/images/marriott_bonvoy_brilliant.avif'),
+  '../../assets/images/hilton_aspire.avif': require('../assets/images/hilton_aspire.avif'),
+  '../../assets/images/venture_x.avif': require('../assets/images/venture_x.avif'),
+  '../../assets/images/blue_cash_preferred.avif': require('../assets/images/blue_cash_preferred.avif'),
+  '../../assets/images/delta_reserve.avif': require('../assets/images/delta_reserve.avif'),
+  '../../assets/images/amex_green.avif': require('../assets/images/amex_green.avif'),
+  '../../assets/images/boa_premium_rewards.png': require('../assets/images/boa_premium_rewards.png'),
+  '../../assets/images/boa_premium_rewards_elite.png': require('../assets/images/boa_premium_rewards_elite.png'),
+  '../../assets/images/usb_altitude_reserve.png': require('../assets/images/usb_altitude_reserve.png'),
+  '../../assets/images/citi_prestige.jpeg': require('../assets/images/citi_prestige.jpeg'),
 };
 
 /**
