@@ -13,9 +13,10 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/$1',
     '^react-native$': '<rootDir>/__mocks__/react-native.js',
     '^src/data/card-data$': '<rootDir>/__mocks__/src/data/card-data.ts',
+    '^expo-web-browser$': '<rootDir>/__mocks__/expo-web-browser.js',
     '\\.(jpg|jpeg|png|gif|webp|avif|svg)$': '<rootDir>/__mocks__/fileMock.js'
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@expo|expo|react-navigation|@react-navigation/.*)/)'
+    'node_modules/(?!(react-native|@react-native|@expo|expo|expo-web-browser|react-navigation|@react-navigation/.*)/)'
   ]
 }; 

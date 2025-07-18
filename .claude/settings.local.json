@@ -4,7 +4,10 @@
       "Bash(npx eslint:*)",
       "Bash(npx tsc:*)",
       "Bash(npx expo start:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm start)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

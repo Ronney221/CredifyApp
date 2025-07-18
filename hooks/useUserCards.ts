@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Card, allCards, CardPerk } from '../src/data/card-data';
-import { getUserActiveCards } from '../lib/database';
+import { Card, CardPerk } from '../src/data/card-data';
+import { getUserActiveCards, getAllCardsData } from '../lib/database';
 
 interface UserCard {
   id: string;
@@ -57,6 +57,9 @@ export function useUserCards(): UserCardsHookResult {
 
       let finalCards: { card: Card; perks: CardPerk[] }[] = [];
       if (userCardsFromDb && userCardsFromDb.length > 0) {
+        // Get all cards from database instead of hard-coded data
+        const allCardsFromDb = await getAllCardsData();
+        
         // Create a map of card names to their database records (which include display_order)
         const cardNameToDbRecord = new Map(
           userCardsFromDb.map(dbCard => [dbCard.card_name, dbCard])
@@ -68,8 +71,8 @@ export function useUserCards(): UserCardsHookResult {
           status: card.status
         })));
 
-        // Filter and map allCards to match the database records
-        const matchedCards = allCards
+        // Filter and map database cards to match the user's selected cards
+        const matchedCards = allCardsFromDb
           .filter(card => cardNameToDbRecord.has(card.name))
           .map(card => ({
             card,

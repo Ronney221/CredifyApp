@@ -17,6 +17,7 @@ describe('Perk Redemption Logic', () => {
     period: 'monthly',
     periodMonths: 1,
     resetType: 'calendar',
+    categories: ['Testing'], // Add required categories field
     // CardPerk properties
     cardId: 'test-card-1',
     status: 'partially_redeemed',

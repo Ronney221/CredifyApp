@@ -6,6 +6,7 @@ export interface Benefit {
   period: string;
   periodMonths?: number;
   resetType?: string;
+  categories: string[];
 }
 
 export interface CardPerk {

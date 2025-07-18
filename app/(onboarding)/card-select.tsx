@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useRoute } from '@react-navigation/native';
-import { Card, allCards } from '../../src/data/card-data';
+import { Card } from '../../src/data/card-data';
+import { getAllCardsData } from '../../lib/database';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
@@ -63,6 +64,23 @@ export default function OnboardingCardSelectScreen() {
   const { setStep, setIsHeaderGloballyHidden, selectedCards, toggleCard, hasCard } = useOnboardingContext();
   const route = useRoute();
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
+  const [allCards, setAllCards] = useState<Card[]>([]);
+  const [isLoadingCards, setIsLoadingCards] = useState(true);
+
+  useEffect(() => {
+    const loadCards = async () => {
+      try {
+        const cards = await getAllCardsData();
+        setAllCards(cards);
+      } catch (error) {
+        console.error('Error loading cards:', error);
+      } finally {
+        setIsLoadingCards(false);
+      }
+    };
+    
+    loadCards();
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -127,6 +145,9 @@ export default function OnboardingCardSelectScreen() {
 
 
   const groupedCards = useMemo(() => {
+    if (isLoadingCards || allCards.length === 0) {
+      return { frequentlyOwned: [], allCardsByIssuer: {} };
+    }
     const frequentlyOwnedIdsSet = new Set(FREQUENTLY_OWNED_IDS);
     
     const frequentlyOwned = FREQUENTLY_OWNED_IDS
@@ -176,10 +197,21 @@ export default function OnboardingCardSelectScreen() {
     }
     
     return { frequentlyOwned, allCardsByIssuer };
-  }, []);
+  }, [allCards, isLoadingCards]);
 
   const subtitleAnimationDelay = 50;
   const listAnimationDelay = subtitleAnimationDelay + 100;
+
+  if (isLoadingCards) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={styles.subtitle}>Loading cards...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

@@ -83,13 +83,13 @@ export class CardService {
 
       // Handle errors
       if (cardsResult.error) {
-        throw new Error(`Failed to fetch cards: ${cardsResult.error.message}`);
+        throw new Error(`Failed to fetch cards: ${cardsResult.error}`);
       }
       if (appSchemesResult.error) {
-        throw new Error(`Failed to fetch app schemes: ${appSchemesResult.error.message}`);
+        throw new Error(`Failed to fetch app schemes: ${appSchemesResult.error}`);
       }
       if (multiChoiceResult.error) {
-        throw new Error(`Failed to fetch multi-choice configs: ${multiChoiceResult.error.message}`);
+        throw new Error(`Failed to fetch multi-choice configs: ${multiChoiceResult.error}`);
       }
 
       // Transform and validate data

@@ -3,7 +3,7 @@ import { Card, Benefit, allCards } from '../src/data/card-data';
 import { cardService } from './card-service';
 
 // Feature flag to switch between hard-coded data and database
-const USE_DATABASE_CARDS = false; // Set to true to use database instead of hard-coded data
+const USE_DATABASE_CARDS = true; // Set to true to use database instead of hard-coded data
 
 export { supabase };
 
