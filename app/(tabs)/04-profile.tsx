@@ -11,6 +11,7 @@ import {
   ViewStyle,
   Pressable,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -431,7 +432,10 @@ const ProfileScreen = () => {
           id: 'test-database',
           title: 'Test Database',
           icon: 'server-outline',
-          onPress: () => setShowTester(true)
+          onPress: () => {
+            console.log('Test Database button tapped!');
+            setShowTester(true);
+          }
         },
       ],
       footer: 'Development tools and testing options.',
@@ -529,9 +533,18 @@ const ProfileScreen = () => {
         overScrollMode="never"
       />
       
-      {showTester && (
-        <DatabaseTester onClose={() => setShowTester(false)} />
-      )}
+      <Modal
+        visible={showTester}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <SafeAreaView style={{ flex: 1 }}>
+          <DatabaseTester onClose={() => {
+            console.log('DatabaseTester closing...');
+            setShowTester(false);
+          }} />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };

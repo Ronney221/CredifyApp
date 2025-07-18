@@ -164,7 +164,7 @@ INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, pe
 SELECT 
     'platinum_hotel_credit',
     cd.id,
-    'Fine Hotels + Resorts Credit',
+    'Prepaid Hotel Credit',
     200.00,
     'annual',
     12,

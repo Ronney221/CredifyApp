@@ -21,6 +21,7 @@ export class CardService {
   private _appSchemes: Record<string, any> | null = null;
   private _multiChoiceConfig: Record<string, any> | null = null;
   private _isLoading = false;
+  private _initPromise: Promise<{ success: boolean; error?: any }> | null = null;
   
   public static getInstance(): CardService {
     if (!CardService._instance) {
@@ -33,9 +34,10 @@ export class CardService {
    * Initialize the service by loading all data from database
    */
   public async initialize(forceRefresh = false): Promise<{ success: boolean; error?: any }> {
-    if (this._isLoading) {
-      console.log('CardService already initializing, waiting...');
-      return { success: false, error: new Error('Service is already initializing') };
+    // If already initializing, wait for the existing initialization to complete
+    if (this._isLoading && this._initPromise) {
+      console.log('CardService already initializing, waiting for completion...');
+      return await this._initPromise;
     }
 
     if (!forceRefresh && this._cards && this._appSchemes && this._multiChoiceConfig) {
@@ -45,6 +47,22 @@ export class CardService {
 
     this._isLoading = true;
     
+    // Create and store the initialization promise
+    this._initPromise = this._performInitialization(forceRefresh);
+    
+    try {
+      const result = await this._initPromise;
+      return result;
+    } finally {
+      this._isLoading = false;
+      this._initPromise = null;
+    }
+  }
+
+  /**
+   * Internal method to perform the actual initialization
+   */
+  private async _performInitialization(forceRefresh: boolean): Promise<{ success: boolean; error?: any }> {
     try {
       console.log('Initializing CardService from database...');
       
@@ -101,8 +119,6 @@ export class CardService {
     } catch (error) {
       console.error('Failed to initialize CardService:', error);
       return { success: false, error };
-    } finally {
-      this._isLoading = false;
     }
   }
 
@@ -267,6 +283,8 @@ export class CardService {
     this._cards = null;
     this._appSchemes = null;
     this._multiChoiceConfig = null;
+    this._isLoading = false;
+    this._initPromise = null;
   }
 }
 
