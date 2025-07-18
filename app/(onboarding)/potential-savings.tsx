@@ -18,7 +18,8 @@ import { MotiView } from 'moti';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { CardPerks } from '../../components/onboarding/CardPerks';
-import { allCards, Card, Benefit } from '../../src/data/card-data';
+import { Card, Benefit } from '../../src/data/card-data';
+import { getAllCardsData } from '../../lib/database';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
@@ -34,6 +35,20 @@ export default function PotentialSavingsScreen() {
   const [isCountingComplete, setIsCountingComplete] = useState(false);
   const hasAnimated = useRef(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [allCards, setAllCards] = useState<Card[]>([]);
+
+  useEffect(() => {
+    const loadCards = async () => {
+      try {
+        const cards = await getAllCardsData();
+        setAllCards(cards);
+      } catch (error) {
+        console.error('Error loading cards:', error);
+      }
+    };
+    
+    loadCards();
+  }, []);
 
   // Get the selected card objects with proper typing
   const selectedCardObjects = useMemo(() => {
@@ -48,7 +63,7 @@ export default function PotentialSavingsScreen() {
           return annualValueB - annualValueA; // Sort in descending order
         })
       }));
-  }, [selectedCards]);
+  }, [selectedCards, allCards]);
 
   // Calculate total value with proper typing
   const totalValue = useMemo(() => {

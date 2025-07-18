@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Animated, Easing, Platform , Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { Card, allCards } from '../../../src/data/card-data';
-import { getUserCards, saveUserCards } from '../../../lib/database';
+import { Card } from '../../../src/data/card-data';
+import { getUserCards, saveUserCards, getAllCardsData } from '../../../lib/database';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -20,6 +20,7 @@ export const useCardManagement = (userId: string | undefined) => {
   const [isSaving, setIsSaving] = useState(false);
   const [deletedCard, setDeletedCard] = useState<{card: Card, renewalDate?: Date} | null>(null);
   const [flashingCardId, setFlashingCardId] = useState<string | null>(null);
+  const [allCards, setAllCards] = useState<Card[]>([]);
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
 
   const getScaleValue = (cardId: string) => {
@@ -84,7 +85,7 @@ export const useCardManagement = (userId: string | undefined) => {
 
   const selectedCardObjects = useMemo(() => 
     selectedCards.map(id => allCards.find(card => card.id === id)).filter(card => card !== undefined) as Card[],
-    [selectedCards]
+    [selectedCards, allCards]
   );
 
   const anyRenewalDateSet = useMemo(() => {
@@ -152,18 +153,30 @@ export const useCardManagement = (userId: string | undefined) => {
     
     // Save changes if needed
     if (userId) {
+      console.log('🎯 [handleDoneAddCardModal] Saving cards:', {
+        updatedSelectedCards,
+        allCardsCount: allCards.length,
+        userId
+      });
+      
       const updatedCards = updatedSelectedCards
         .map(id => allCards.find(c => c.id === id))
         .filter(Boolean) as Card[];
       
+      console.log('🎯 [handleDoneAddCardModal] Found cards to save:', updatedCards.length);
+      
       const { error } = await saveUserCards(userId, updatedCards, updatedRenewalDates);
       if (error) {
-        console.error('Error saving new cards:', error);
+        console.error('❌ Error saving new cards:', error);
         Alert.alert(
           "Error",
           "Failed to save new cards. Please try again.",
           [{ text: "OK" }]
         );
+      } else {
+        console.log('✅ Successfully saved new cards to database');
+        setInitialSelectedCards(updatedSelectedCards);
+        setInitialRenewalDates(updatedRenewalDates);
       }
     }
   };
@@ -244,9 +257,14 @@ export const useCardManagement = (userId: string | undefined) => {
         router.replace('/(auth)/login');
         return;
       }
+
+      // Load all cards from database first
+      const allCardsFromDb = await getAllCardsData();
+      setAllCards(allCardsFromDb);
+
       const { data: userCards, error } = await getUserCards(userId);
       if (!error && userCards) {
-        const cardIds = allCards
+        const cardIds = allCardsFromDb
           .filter(card => userCards.some(uc => uc.card_name === card.name))
           .map(card => card.id);
         setSelectedCards(cardIds);
@@ -254,7 +272,7 @@ export const useCardManagement = (userId: string | undefined) => {
         const dates: Record<string, Date> = {};
         userCards.forEach(uc => {
           if (uc.renewal_date) {
-            const card = allCards.find(c => c.name === uc.card_name);
+            const card = allCardsFromDb.find(c => c.name === uc.card_name);
             if (card) {
               dates[card.id] = new Date(uc.renewal_date);
             }
@@ -262,6 +280,9 @@ export const useCardManagement = (userId: string | undefined) => {
         });
         setRenewalDates(dates);
         setInitialRenewalDates(dates);
+      } else {
+        // If no user cards, still set allCards
+        setAllCards(allCardsFromDb);
       }
       setIsLoading(false);
     } catch (error) {

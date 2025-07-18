@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { Card, allCards } from '../../../src/data/card-data';
+import { Card } from '../../../src/data/card-data';
 import { useRouter, useFocusEffect, useNavigation, Stack, useLocalSearchParams, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -30,6 +30,7 @@ import {
   useCardManagement,
 } from '../../../components/cards';
 import { MotiView } from 'moti';
+import { UserDebugInfo } from '../../../components/debug/UserDebugInfo';
 import DraggableFlatList, { 
   ScaleDecorator,
   RenderItemParams,
@@ -58,6 +59,7 @@ export default function ManageCardsScreen() {
   const [removingCardId, setRemovingCardId] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   const ESTIMATED_CARD_ROW_HEIGHT = 80;
 
@@ -371,6 +373,9 @@ export default function ManageCardsScreen() {
           <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
             <Ionicons name="add" size={28} color={Colors.light.tint} />
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowDebugInfo(true)} style={{ marginRight: 15 }}>
+            <Ionicons name="bug" size={24} color={Colors.light.tint} />
+          </TouchableOpacity>
         </View>
       ),
       headerShown: true,
@@ -437,6 +442,10 @@ export default function ManageCardsScreen() {
           onCancel={hideDatePicker}
           date={renewalDates[currentEditingCardId] || new Date()}
         />
+      )}
+
+      {showDebugInfo && (
+        <UserDebugInfo onClose={() => setShowDebugInfo(false)} />
       )}
     </>
   );

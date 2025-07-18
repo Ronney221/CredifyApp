@@ -49,7 +49,7 @@ export function useUserCards(): UserCardsHookResult {
         return;
       }
 
-      console.log('[useUserCards] Authenticated user, fetching from DB for user:', user.id);
+      // console.log('[useUserCards] Authenticated user, fetching from DB for user:', user.id);
       const { data: userCardsFromDb, error: dbError } = await getUserActiveCards(user.id);
       if (dbError) {
         throw dbError;
@@ -65,11 +65,11 @@ export function useUserCards(): UserCardsHookResult {
           userCardsFromDb.map(dbCard => [dbCard.card_name, dbCard])
         );
 
-        console.log('[useUserCards] Database records:', userCardsFromDb.map(card => ({
-          name: card.card_name,
-          renewal_date: card.renewal_date,
-          status: card.status
-        })));
+        // console.log('[useUserCards] Database records:', userCardsFromDb.map(card => ({
+        //   name: card.card_name,
+        //   renewal_date: card.renewal_date,
+        //   status: card.status
+        // })));
 
         // Filter and map database cards to match the user's selected cards
         const matchedCards = allCardsFromDb
@@ -87,12 +87,12 @@ export function useUserCards(): UserCardsHookResult {
         // Transform to final format with proper perk transformation
         finalCards = matchedCards.map(({ card, dbRecord }) => {
           const renewalDate = dbRecord.renewal_date ? new Date(dbRecord.renewal_date) : null;
-          console.log('[useUserCards] Processing card:', {
-            name: card.name,
-            dbRenewalDate: dbRecord.renewal_date,
-            parsedRenewalDate: renewalDate,
-            status: dbRecord.status
-          });
+          // console.log('[useUserCards] Processing card:', {
+          //   name: card.name,
+          //   dbRenewalDate: dbRecord.renewal_date,
+          //   parsedRenewalDate: renewalDate,
+          //   status: dbRecord.status
+          // });
 
           return {
             card: {

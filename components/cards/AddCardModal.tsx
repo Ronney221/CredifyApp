@@ -1,7 +1,9 @@
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Platform , Animated } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Platform , Animated, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, allCards } from '../../src/data/card-data';
+import { Card } from '../../src/data/card-data';
+import { getAllCardsData } from '../../lib/database';
 import { CardRow } from '../manage/CardRow';
 import { Colors } from '../../constants/Colors';
 
@@ -27,6 +29,26 @@ export function AddCardModal({
   onCardPress,
   getScaleValue,
 }: AddCardModalProps) {
+  const [allCards, setAllCards] = useState<Card[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCards = async () => {
+      try {
+        const cards = await getAllCardsData();
+        setAllCards(cards);
+      } catch (error) {
+        console.error('Error loading cards for AddCardModal:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (visible) {
+      loadCards();
+    }
+  }, [visible]);
+
   const filteredCards = allCards.filter(card => 
     !selectedCardIds.includes(card.id) || tempSelectedCardIds.has(card.id)
   ).filter(card =>
@@ -65,10 +87,16 @@ export function AddCardModal({
           </View>
         </View>
 
-        <FlatList
-          data={filteredCards}
-          keyExtractor={(card) => card.id}
-          renderItem={({ item: card }) => (
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.light.tint} />
+            <Text style={styles.loadingText}>Loading cards...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredCards}
+            keyExtractor={(card) => card.id}
+            renderItem={({ item: card }) => (
             <CardRow
               key={card.id}
               card={card}
@@ -81,6 +109,7 @@ export function AddCardModal({
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -145,5 +174,16 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 16,
     paddingBottom: 32,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: Colors.light.secondaryLabel,
   },
 }); 
