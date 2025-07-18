@@ -63,8 +63,9 @@ INSERT INTO card_definitions (card_id, name, image_url, annual_fee, statement_cr
 ON CONFLICT (card_id) DO NOTHING;
 
 -- Insert benefit definitions for American Express Platinum
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '207067ca-6933-40cf-ab7b-1d2d36bf067f'::uuid,
     'platinum_uber_cash',
     cd.id,
     'Uber Cash',
@@ -77,10 +78,11 @@ SELECT
     'uber',
     ARRAY['Transportation', 'Dining']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '7e10ad1b-792e-4c34-8d36-bd0ebbca8591'::uuid,
     'platinum_digital_ent',
     cd.id,
     'Digital Entertainment Credit',
@@ -93,10 +95,11 @@ SELECT
     'disneyPlus',
     ARRAY['Bills & Utilities', 'Entertainment']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'b4ca65e4-a537-4688-b46a-63326bd72f36'::uuid,
     'platinum_walmart_plus',
     cd.id,
     'Walmart+ Membership Credit',
@@ -109,10 +112,11 @@ SELECT
     'walmart',
     ARRAY['Shopping', 'Grocery', 'Entertainment']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '360e8050-d55d-46e4-a604-a3006dc39724'::uuid,
     'platinum_equinox',
     cd.id,
     'Equinox Credit',
@@ -125,11 +129,12 @@ SELECT
     'equinox',
     ARRAY['Fitness', 'Wellness']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Additional Platinum benefits
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '008f140c-56fe-48f1-9e89-6c39391e3def'::uuid,
     'platinum_saks',
     cd.id,
     'Saks Fifth Avenue Credit',
@@ -137,15 +142,16 @@ SELECT
     'semi_annual',
     6,
     'calendar',
-    'Receive up to $50 in statement credits semi-annually (Jan-Jun and Jul-Dec) for purchases at Saks Fifth Avenue.',
-    'Enrollment required. Use your Platinum Card at Saks Fifth Avenue stores or saks.com. The credit is automatically applied. Unused credits do not roll over.',
+    'Receive up to $50 in statement credits twice per year for purchases at Saks Fifth Avenue. This provides up to $100 in total value annually.',
+    'Enrollment is required. The credit is split into two periods: January through June, and July through December. Use your Platinum Card at Saks in-store or online. A popular strategy is to purchase a $50 gift card in-store to use later if you don''t have an immediate purchase to make. The credit does not apply to purchases at Saks OFF 5TH.',
     'saks',
     ARRAY['Shopping']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'd8158b44-a979-40a5-ab13-1042577b5263'::uuid,
     'platinum_airline_fee',
     cd.id,
     'Airline Fee Credit',
@@ -153,15 +159,16 @@ SELECT
     'annual',
     12,
     'calendar',
-    'Up to $200 in statement credits annually for incidental fees with one selected airline.',
-    'Select your qualifying airline in your Amex account. Use your card for eligible incidental fees like checked bags, seat selection, and in-flight purchases. Does not cover airfare.',
+    'Up to $200 in statement credits per calendar year for incidental fees with one selected qualifying airline.',
+    'You must enroll and select one airline from the Amex website each year. This credit applies to incidental fees like checked bags, seat selection, and in-flight refreshments, but not directly to ticket purchases. Some users have found that certain charges under $100 or purchases for airline travel banks (e.g., United TravelBank) may trigger the credit, but these methods are not guaranteed. Plan to use it for standard fees to ensure reimbursement.',
     'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '37eeb419-2110-4ca2-ac70-0eebbd587530'::uuid,
     'platinum_hotel_credit',
     cd.id,
     'Prepaid Hotel Credit',
@@ -169,16 +176,34 @@ SELECT
     'annual',
     12,
     'calendar',
-    'Up to $200 in statement credits each year for prepaid Fine Hotels + Resorts or The Hotel Collection bookings through Amex Travel.',
-    'Book a prepaid stay of at least 2 consecutive nights through American Express Travel. The credit is applied automatically. Bookings also include perks like room upgrades, late checkout, and property credits.',
+    'Receive up to $200 back in statement credits each calendar year on prepaid bookings with Fine Hotels + Resorts® or The Hotel Collection made through American Express Travel.',
+    'Book a prepaid stay through amextravel.com. For The Hotel Collection, a minimum two-night stay is required. The credit is automatically applied. This is in addition to the valuable on-site benefits (like room upgrades and property credits) that come with FHR and THC bookings.',
     'amex',
     ARRAY['Travel', 'Lodging']
 FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    '7d9d198c-5fd4-4d3e-b095-8059e89273d2'::uuid,
+    'platinum_clear',
+    cd.id,
+    'CLEAR Plus Credit Platinum',
+    189.00,
+    'annual',
+    12,
+    'calendar',
+    'Receive up to $189 in statement credits per calendar year for a CLEAR Plus membership, which provides expedited security screening at select airports and stadiums.',
+    'Enroll in CLEAR Plus and pay with your Platinum Card. The credit covers one annual CLEAR membership.',
+    'clear',
+    ARRAY['Travel', 'Flights']
+FROM card_definitions cd WHERE cd.card_id = 'amex_platinum'
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for American Express Gold
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '86836d3c-6573-43ec-9b42-33493bec5765'::uuid,
     'amex_gold_uber',
     cd.id,
     'Uber Cash',
@@ -191,10 +216,11 @@ SELECT
     'uber',
     ARRAY['Transportation', 'Dining']
 FROM card_definitions cd WHERE cd.card_id = 'amex_gold'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '8c57ee72-0b5b-4d93-aeee-150c15539514'::uuid,
     'amex_gold_grubhub',
     cd.id,
     'Grubhub Credit',
@@ -207,10 +233,11 @@ SELECT
     'grubhub',
     ARRAY['Dining']
 FROM card_definitions cd WHERE cd.card_id = 'amex_gold'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '38f28a7f-49cf-4a5f-9bde-f3be87b33291'::uuid,
     'amex_gold_resy',
     cd.id,
     'Resy Dining Credit',
@@ -223,10 +250,11 @@ SELECT
     'resy',
     ARRAY['Dining']
 FROM card_definitions cd WHERE cd.card_id = 'amex_gold'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '1aab4bed-a106-47a2-a7e5-0ae17b1fde02'::uuid,
     'amex_gold_dunkin',
     cd.id,
     'Dunkin'' Credit',
@@ -234,16 +262,17 @@ SELECT
     'monthly',
     1,
     'calendar',
-    'Up to $7 in statement credits each month for Dunkin'' Donuts purchases in the U.S. when you spend $7 or more.',
-    'Enroll your card and use it at Dunkin'' Donuts. Credit appears on statement after qualifying purchase.',
+    'Up to $7 in statement credits each month for Dunkin'' purchases. Simply spend $7 or more each month at Dunkin''.',
+    'Use your enrolled Gold Card at any participating Dunkin'' store location in the U.S. The credit applies to enrolled Cards only. Enrollment may be required.',
     'dunkin',
     ARRAY['Dining', 'Coffee']
 FROM card_definitions cd WHERE cd.card_id = 'amex_gold'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Chase Sapphire Reserve
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'c2a1b459-e527-45c6-8321-59666524784e'::uuid,
     'csr_the_edit_credit_h1',
     cd.id,
     'The Edit by Chase Travel Credit',
@@ -256,10 +285,11 @@ SELECT
     'chase',
     ARRAY['Travel', 'Lodging']
 FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'ae2ab1a1-3aad-4377-97eb-542ea733d905'::uuid,
     'csr_dining_credit_h1',
     cd.id,
     'Exclusive Tables Dining Credit',
@@ -272,7 +302,126 @@ SELECT
     'opentable',
     ARRAY['Dining']
 FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    '8250b448-86d1-49c1-b37d-40c0039a5a0c'::uuid,
+    'csr_stubhub_credit_h1',
+    cd.id,
+    'StubHub / viagogo Credit',
+    150.00,
+    'semi_annual',
+    6,
+    'calendar',
+    '$150 statement credit for concert and event tickets purchased through StubHub or viagogo. Valid from January 1 to June 30.',
+    'Benefit requires activation before use.',
+    'stubhub',
+    ARRAY['Entertainment']
+FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    '8726f459-c527-45c6-8321-59666524784e'::uuid,
+    'csr_doordash_restaurant',
+    cd.id,
+    'DoorDash Restaurant Credit',
+    5.00,
+    'monthly',
+    1,
+    'calendar',
+    '$5 monthly promo credit for an eligible DoorDash restaurant order. Part of the up to $300 annual DoorDash credit benefit. Requires complimentary DashPass enrollment (valid through Dec 31, 2027).',
+    'Enroll in complimentary DashPass. The $5 promo credit is available in your DoorDash account each month and must be applied at checkout.',
+    'doordash',
+    ARRAY['Dining']
+FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    '38ca9405-eafc-4f95-aac0-c436d050c0d0'::uuid,
+    'csr_doordash_non_restaurant_1',
+    cd.id,
+    'DoorDash Non-Restaurant Credit #1',
+    10.00,
+    'monthly',
+    1,
+    'calendar',
+    '$10 monthly promo credit for an eligible non-restaurant order (e.g., grocery, retail). Part of the up to $300 annual DoorDash credit benefit. Requires DashPass enrollment (valid through Dec 31, 2027).',
+    'Use your Reserve card with active DashPass membership. The $10 promo credit appears in your DoorDash account and must be applied at checkout.',
+    'doordash',
+    ARRAY['Grocery']
+FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    'ed2aa3a3-8ad3-4739-bf34-55eb1dd741c5'::uuid,
+    'csr_doordash_non_restaurant_2',
+    cd.id,
+    'DoorDash Non-Restaurant Credit #2',
+    10.00,
+    'monthly',
+    1,
+    'calendar',
+    'Second $10 monthly promo credit for an eligible non-restaurant order. Part of the up to $300 annual DoorDash credit benefit. Requires DashPass enrollment (valid through Dec 31, 2027).',
+    'Use your Reserve card with active DashPass membership. The second $10 promo credit appears in your DoorDash account after the first is used.',
+    'doordash',
+    ARRAY['Grocery']
+FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    '66ca3bae-2feb-40ee-b907-b07c845163fd'::uuid,
+    'csr_peloton_credit',
+    cd.id,
+    'Peloton Membership Credit',
+    10.00,
+    'monthly',
+    1,
+    'calendar',
+    'Up to $10 in monthly statement credits toward a Peloton All-Access, App+, or App One membership. Valid through December 31, 2027.',
+    'Credits are automatically applied to your statement for eligible Peloton membership charges.',
+    'peloton',
+    ARRAY['Lifestyle', 'Fitness', 'Wellness']
+FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    'f79316d4-5ddd-4591-830b-6e897a3dd0f5'::uuid,
+    'csr_lyft',
+    cd.id,
+    'Lyft Credit',
+    10.00,
+    'monthly',
+    1,
+    'calendar',
+    '$10 in-app Lyft ride credit each month. Plus earn 5x points on Lyft rides through September 30, 2027.',
+    'Add your Sapphire Reserve as the payment method in the Lyft app. Credit appears automatically and applies to your next ride(s).',
+    'lyft',
+    ARRAY['Transportation']
+FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    'be07d25c-2f76-4a09-8bfd-78c3c047163b'::uuid,
+    'csr_apple_subscriptions',
+    cd.id,
+    'Apple Services Credit',
+    250.00,
+    'annual',
+    12,
+    'calendar',
+    'Complimentary subscriptions to Apple TV+ and Apple Music, positioned as a $250 annual value.',
+    'Requires a one-time activation for each service through chase.com or the Chase Mobile app.',
+    'apple',
+    ARRAY['Lifestyle', 'Entertainment']
+FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
+ON CONFLICT (id) DO NOTHING;
 
 -- Chase Sapphire Reserve H2 benefits
 INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories, start_date, end_date) 
@@ -330,24 +479,26 @@ FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
 ON CONFLICT (benefit_id) DO NOTHING;
 
 -- Insert benefit definitions for Chase Sapphire Preferred
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '32a15587-31ef-473a-a73b-b40c68026419'::uuid,
     'csp_hotel',
     cd.id,
     'Hotel Credit',
     50.00,
     'annual',
     12,
-    'calendar',
-    'Up to $50 statement credit each account anniversary year for hotel stays booked via the Chase Ultimate Rewards travel portal.',
-    'Book a hotel through Chase Travel using your Sapphire Preferred; the first $50 of hotel charges will be automatically refunded. Credit resets every account anniversary.',
+    'anniversary',
+    'Up to $50 statement credit each account anniversary year for eligible hotel bookings made through Chase Ultimate Rewards®.',
+    'Book your hotel stay through the Chase Travel portal using your card. The credit is automatically applied to the first $50 in hotel charges. The credit resets on your account anniversary date each year. Bookings must be paid in full at the time of booking through Chase Travel to be eligible.',
     'chase',
     ARRAY['Travel', 'Lodging']
 FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_preferred'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'a30da18a-b7f8-4d52-bb8a-80200f62e2b5'::uuid,
     'csp_doordash_grocery',
     cd.id,
     'DoorDash Grocery Credit',
@@ -360,11 +511,12 @@ SELECT
     'doordash',
     ARRAY['Grocery']
 FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_preferred'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Marriott Bonvoy Brilliant
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '041c3ce2-db24-4f74-a319-b8bb5e239aa2'::uuid,
     'brilliant_dining',
     cd.id,
     'Dining Credit',
@@ -377,10 +529,11 @@ SELECT
     'marriott',
     ARRAY['Dining']
 FROM card_definitions cd WHERE cd.card_id = 'marriott_bonvoy_brilliant'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'a2e8f7d1-5b7a-4b0e-8b1a-9f8d7c6b5a4d'::uuid,
     'brilliant_free_night_award',
     cd.id,
     'Annual Free Night Award',
@@ -393,11 +546,12 @@ SELECT
     'marriott',
     ARRAY['Travel', 'Lodging']
 FROM card_definitions cd WHERE cd.card_id = 'marriott_bonvoy_brilliant'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Hilton Honors Aspire
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '0c1d3305-e06a-4c00-99f2-053158a446a9'::uuid,
     'aspire_flight_credit',
     cd.id,
     'Airline Flight Credit',
@@ -410,10 +564,11 @@ SELECT
     'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'hilton_aspire'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '7bd0e404-3ca4-409f-9827-a78d4f51584f'::uuid,
     'aspire_hilton_resort_credit',
     cd.id,
     'Hilton Resort Credit',
@@ -426,10 +581,11 @@ SELECT
     'hilton',
     ARRAY['Travel']
 FROM card_definitions cd WHERE cd.card_id = 'hilton_aspire'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories, is_anniversary_benefit, estimated_value) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories, is_anniversary_benefit, estimated_value) 
 SELECT 
+    '5d03a560-8609-4aea-898f-61f6305d7a8a'::uuid,
     'aspire_free_night',
     cd.id,
     'Annual Free Night Reward',
@@ -444,28 +600,47 @@ SELECT
     true,
     1000.00
 FROM card_definitions cd WHERE cd.card_id = 'hilton_aspire'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    'ffc46725-85ed-47a8-8454-b4df2107020f'::uuid,
+    'aspire_clear_plus_credit',
+    cd.id,
+    'CLEAR Plus Credit Aspire',
+    189.00,
+    'annual',
+    12,
+    'calendar',
+    'Receive up to $189 in statement credits per calendar year for a CLEAR Plus membership, which provides expedited security screening at select airports and stadiums.',
+    'Pay for your CLEAR Plus membership using your Hilton Honors Aspire card, and the statement credit will be automatically applied. This benefit covers the full cost of an individual CLEAR Plus membership.',
+    'clear',
+    ARRAY['Travel']
+FROM card_definitions cd WHERE cd.card_id = 'hilton_aspire'
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Capital One Venture X
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '0faeed05-234e-4110-a710-b8cb41bb0f72'::uuid,
     'venturex_travel_credit',
     cd.id,
     'Capital One Travel Credit',
     300.00,
     'annual',
     12,
-    'calendar',
+    'anniversary',
     'Receive a $300 statement credit annually for travel bookings made through the Capital One Travel portal. This credit is flexible and can be applied to flights, hotels, and rental cars.',
     'Simply use your Venture X card to pay for a booking on the Capital One Travel portal. The credit is automatically applied as a statement credit to your account. The credit can be used in one go or across multiple bookings. Unused credit does not roll over past your card anniversary date. To maximize value, compare prices, as the portal offers price matching within 24 hours of booking.',
     'capitalOne',
     ARRAY['Travel']
 FROM card_definitions cd WHERE cd.card_id = 'capital_one_venture_x'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Blue Cash Preferred
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '55fec7a1-de50-40c9-b5a2-0f456161def0'::uuid,
     'bcp_disney_bundle',
     cd.id,
     'Disney Bundle Credit',
@@ -478,11 +653,12 @@ SELECT
     'disneyPlus',
     ARRAY['Bills & Utilities', 'Entertainment']
 FROM card_definitions cd WHERE cd.card_id = 'blue_cash_preferred'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Delta SkyMiles Reserve
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'd538f219-3595-4a96-85da-508054a9b36d'::uuid,
     'delta_resy',
     cd.id,
     'Resy Dining Credit',
@@ -495,10 +671,11 @@ SELECT
     'resy',
     ARRAY['Dining']
 FROM card_definitions cd WHERE cd.card_id = 'delta_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '41d07f5e-808f-4946-97f0-dc6cd2b43d2d'::uuid,
     'delta_rideshare',
     cd.id,
     'Rideshare Credit',
@@ -511,10 +688,11 @@ SELECT
     'uber',
     ARRAY['Transportation']
 FROM card_definitions cd WHERE cd.card_id = 'delta_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '1bf778c0-badd-4047-a0ff-be894e6327c6'::uuid,
     'delta_stays_credit',
     cd.id,
     'Delta Stays Credit',
@@ -527,11 +705,29 @@ SELECT
     'delta',
     ARRAY['Travel', 'Lodging']
 FROM card_definitions cd WHERE cd.card_id = 'delta_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+SELECT 
+    '90ec407b-6efc-4b7a-b071-3aa51e68af2c'::uuid,
+    'delta_clear_credit',
+    cd.id,
+    'CLEAR Plus Credit',
+    189.00,
+    'annual',
+    12,
+    'calendar',
+    'Up to $189 in statement credits per calendar year toward a CLEAR Plus membership. CLEAR Plus provides expedited security at 50+ airports nationwide.',
+    'Pay for your CLEAR Plus membership with your Delta Reserve card. Statement credit posts automatically. Must activate benefit via the "Benefits" tab at www.delta.com/amexreservebenefit.',
+    'clear',
+    ARRAY['Travel', 'Flights']
+FROM card_definitions cd WHERE cd.card_id = 'delta_reserve'
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for American Express Green
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '7829f4fe-8428-492e-948c-746d474fa7f5'::uuid,
     'green_clear',
     cd.id,
     'CLEAR Plus Credit Green',
@@ -544,11 +740,12 @@ SELECT
     'clear',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'amex_green'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Bank of America Premium Rewards
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '0325f1de-9ef4-45a1-9c13-9cd312709bdb'::uuid,
     'boa_pr_airline_incidental',
     cd.id,
     'Airline Incidental Credit',
@@ -561,11 +758,12 @@ SELECT
     'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'boa_premium_rewards'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Bank of America Premium Rewards Elite
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '25930ec5-f49c-4ea0-96a7-0ca51c6ff4d7'::uuid,
     'boa_pre_airline_incidental',
     cd.id,
     'Airline Incidental Credits',
@@ -578,10 +776,11 @@ SELECT
     'amex',
     ARRAY['Travel', 'Flights']
 FROM card_definitions cd WHERE cd.card_id = 'boa_premium_rewards_elite'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'd8158b44-a979-40a5-ab13-1042577b5261'::uuid,
     'boa_pre_lifestyle',
     cd.id,
     'Lifestyle Convenience Credits',
@@ -594,28 +793,30 @@ SELECT
     'uber',
     ARRAY['Shopping', 'Dining', 'Transportation', 'Fitness']
 FROM card_definitions cd WHERE cd.card_id = 'boa_premium_rewards_elite'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for U.S. Bank Altitude Reserve
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    '5413d47b-1c0b-4c29-97db-6bf586e327cc'::uuid,
     'usb_ar_travel_dining',
     cd.id,
     'Travel & Dining Credit',
     325.00,
     'annual',
     12,
-    'calendar',
+    'anniversary',
     'Receive up to $325 in automatic statement credits for purchases made directly from airlines, hotels, car rental companies, taxis, limousines, passenger trains, cruise lines, restaurants, takeout, and food delivery services.',
     'This is one of the easiest credits to use. Simply use your Altitude Reserve card for any eligible travel or dining purchase and the credits will be applied automatically until you reach the $325 maximum for your cardmember year. This benefit effectively reduces the annual fee to $75 if fully utilized.',
     'amex',
     ARRAY['Travel', 'Dining']
 FROM card_definitions cd WHERE cd.card_id = 'usb_altitude_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert benefit definitions for Citi Prestige
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
+INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
 SELECT 
+    'e1c07060-3c13-4387-be74-066ecc30b60f'::uuid,
     'citi_prestige_travel',
     cd.id,
     'Annual Travel Credit',
@@ -628,7 +829,7 @@ SELECT
     'amex',
     ARRAY['Travel']
 FROM card_definitions cd WHERE cd.card_id = 'citi_prestige'
-ON CONFLICT (benefit_id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert multi-choice perk configurations
 INSERT INTO multi_choice_perk_configs (parent_perk_name, label, target_perk_name) VALUES
