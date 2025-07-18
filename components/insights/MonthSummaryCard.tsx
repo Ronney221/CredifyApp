@@ -14,6 +14,7 @@ import Animated, {
 import { Colors } from '../../constants/Colors';
 import { MonthlyRedemptionSummary, PerkStatusFilter } from '../../src/data/dummy-insights';
 import { FeeCoverageMeterChip } from './FeeCoverageMeterChip';
+import { MonthStats } from './MonthStats';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -131,7 +132,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   // Update calculations for the summary view (memoized)
   const relevantPerks = useMemo(() => 
     summary.perkDetails.filter(isPerkRelevantToMonth), 
-    [summary.perkDetails]
+    [summary.perkDetails, isPerkRelevantToMonth]
   );
   
   const totalPerks = useMemo(() => relevantPerks.length, [relevantPerks]);
@@ -189,6 +190,20 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       .reduce((sum, perk) => sum + perk.value, 0);
   }, [relevantPerks]);
 
+  // Calculate redeemed value
+  const redeemedValue = useMemo(() => {
+    return relevantPerks
+      .filter(perk => perk.status === 'redeemed')
+      .reduce((sum, perk) => sum + perk.value, 0);
+  }, [relevantPerks]);
+
+  // Calculate available value
+  const availableValue = useMemo(() => {
+    return relevantPerks
+      .filter(perk => perk.status === 'available')
+      .reduce((sum, perk) => sum + perk.value, 0);
+  }, [relevantPerks]);
+
   // Calculate partial redemption value
   const partialRedeemedValue = useMemo(() => {
     return relevantPerks
@@ -203,22 +218,9 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       return { redeemedPercentage: 0, partialPercentage: 0, availablePercentage: 1 };
     }
 
-    // Calculate total values for each status from relevant perks
-    const redeemedValue = relevantPerks
-      .filter(perk => perk.status === 'redeemed')
-      .reduce((sum, perk) => sum + perk.value, 0);
-    
-    const partialValue = relevantPerks
-      .filter(perk => perk.status === 'partial')
-      .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
-    
-    const availableValue = relevantPerks
-      .filter(perk => perk.status === 'available')
-      .reduce((sum, perk) => sum + perk.value, 0);
-    
-    const missedValue = relevantPerks
-      .filter(perk => perk.status === 'missed')
-      .reduce((sum, perk) => sum + perk.value, 0);
+    // Use the already calculated values
+    const partialValue = partialRedeemedValue;
+    const missedValue = missedOutValue;
     
     // Calculate total potential value for the month (all perks that could have been redeemed)
     const totalPotentialValue = summary.totalPotentialValue;
@@ -364,7 +366,8 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           ) : (
               <Text style={[
                 styles.perkValue,
-                perk.status === 'missed' && styles.missedPerkText
+                perk.status === 'missed' && styles.missedPerkText,
+                perk.status === 'redeemed' && { color: SUCCESS_GREEN }
               ]}>${perk.value.toFixed(0)}</Text>
             )}
           </View>
@@ -550,9 +553,9 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                 </View>
                 <Text style={styles.totalValue}>
                   {isCurrentMonth ? (
-                    `$${(summary.totalRedeemedValue + partialRedeemedValue).toFixed(0)} Saved So Far`
+                    `$${summary.totalRedeemedValue.toFixed(0)} Saved So Far`
                   ) : (
-                    `You Saved $${(summary.totalRedeemedValue + partialRedeemedValue).toFixed(0)}`
+                    `You Saved $${summary.totalRedeemedValue.toFixed(0)}`
                   )}
                 </Text>
               </View>
@@ -560,44 +563,18 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
               <View style={styles.monthStats}>
                 <View style={styles.monthContent}>
                   {renderVisualMeter()}
-                  <View style={styles.monthStatsRow}>
-                    <View style={styles.statItem}>
-                      <Ionicons name="checkmark-circle" size={16} color={SUCCESS_GREEN} />
-                      <Text style={styles.statText}>
-                        {hasAnyPerks ? (
-                          progressData.redeemedPercentage + progressData.partialPercentage >= 1 
-                            ? `${redeemedPerks} Redeemed (Goal Exceeded!)`
-                            : `${redeemedPerks} Redeemed`
-                        ) : 'No perks redeemed yet'}
-                      </Text>
-                    </View>
-                    {partialPerks > 0 && (
-                                          <View style={styles.statItem}>
-                      <Ionicons name="checkmark-circle-outline" size={16} color={PARTIAL_GREEN} />
-                      <Text style={styles.statText}>
-                        {partialPerks} Partial (${partialRedeemedValue.toFixed(0)})
-                      </Text>
-                    </View>
-                    )}
-                    {isCurrentMonth ? (
-                      hasAnyPerks ? (
-                        <View style={styles.statItem}>
-                          <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
-                          <Text style={styles.statText}>{availablePerks} Available</Text>
-                        </View>
-                      ) : (
-                        <View style={styles.statItem}>
-                          <Ionicons name="time-outline" size={16} color={Colors.light.tint} />
-                          <Text style={styles.statText}>Start tracking your perks</Text>
-                        </View>
-                      )
-                    ) : (
-                      <View style={styles.statItem}>
-                        <Ionicons name="alert-circle-outline" size={16} color={NEUTRAL_GRAY_COLOR} />
-                        <Text style={styles.statText}>{missedPerks} Missed</Text>
-                      </View>
-                    )}
-                  </View>
+                  <MonthStats 
+                    data={{
+                      redeemedCount: redeemedPerks,
+                      redeemedValue: redeemedValue,
+                      missedCount: isCurrentMonth ? availablePerks : missedPerks,
+                      missedValue: isCurrentMonth ? availableValue : missedOutValue,
+                      ...(partialPerks > 0 && {
+                        partialCount: partialPerks,
+                        partialValue: partialRedeemedValue
+                      })
+                    }}
+                  />
                 </View>
                 <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
                   <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
@@ -781,24 +758,6 @@ const styles = StyleSheet.create({
   monthContent: {
     flex: 1,
     marginRight: 12,
-  },
-  monthStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minWidth: 80,
-  },
-  statText: {
-    fontSize: 13,
-    color: Colors.light.text,
-    opacity: 0.8,
   },
   chevronWrapper: {
     marginLeft: 'auto',
