@@ -1,5 +1,6 @@
 import { Platform, Linking, Alert , ImageSourcePropType } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { CardService } from '../../lib/card-service';
 
 // Keep all the type definitions
 export interface Benefit {
@@ -103,39 +104,195 @@ export const APP_SCHEMES = {
 export const allCards: Card[] = [];
 export const multiChoicePerksConfig: Record<string, MultiChoicePerkConfig[]> = {};
 
+// Mapping from multi-choice target perk names to app scheme keys
+const TARGET_PERK_TO_APP_SCHEME_MAP: Record<string, string> = {
+  'Apple TV+ Credit': 'appletv',
+  'Apple Music Credit': 'applemusic',
+  'Disney+ Credit': 'disneyPlus',
+  'Hulu Credit': 'hulu',
+  'ESPN+ Credit': 'espn',
+  'Peacock Credit': 'peacock',
+  'NYTimes Credit': 'nytimes',
+  'WSJ Credit': 'wallstreetjournal',
+  'Uber Ride Credit': 'uber',
+  'Uber Eats Credit': 'uberEats',
+  'Grubhub Credit': 'grubhub',
+  'Resy Credit': 'resy',
+  'Uber Credit': 'uber',
+  'Lyft Credit': 'lyft',
+  'DoorDash Credit': 'doordash',
+  'Netflix Credit': 'netflix',
+  'Peloton Credit': 'peloton',
+  'Equinox Credit': 'equinox',
+  'Uber Rideshare Credit': 'uber',
+  'Curb Credit': 'curb',
+  'Revel Credit': 'revel',
+  'Alto Credit': 'alto'
+};
+
+// Helper function to open an app using app scheme key
+async function openAppWithScheme(appSchemeKey: string, perkName: string): Promise<boolean> {
+  try {
+    console.log('Opening app with scheme key:', appSchemeKey);
+
+    // Get database-loaded app schemes
+    const cardService = CardService.getInstance();
+    const appSchemes = await cardService.getAppSchemes();
+    
+    const appScheme = appSchemes[appSchemeKey];
+    if (!appScheme) {
+      console.log('App scheme not found for key:', appSchemeKey);
+      // Fallback: try to open a web search for the perk
+      const searchTerm = encodeURIComponent(perkName);
+      const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
+      try {
+        console.log('Opening fallback web search:', googleSearchUrl);
+        await WebBrowser.openBrowserAsync(googleSearchUrl);
+        return true;
+      } catch (error) {
+        console.error('Failed to open fallback search:', error);
+        return false;
+      }
+    }
+
+    console.log('Found app scheme:', appScheme);
+
+    // Select the appropriate scheme based on platform
+    let targetUrl: string | undefined;
+    
+    if (Platform.OS === 'ios' && appScheme.ios) {
+      targetUrl = Array.isArray(appScheme.ios) ? appScheme.ios[0] : appScheme.ios;
+    } else if (Platform.OS === 'android' && appScheme.android) {
+      targetUrl = Array.isArray(appScheme.android) ? appScheme.android[0] : appScheme.android;
+    }
+
+    if (!targetUrl) {
+      // Fallback to web URL if no app scheme available
+      if (appScheme.fallbackUrl) {
+        console.log('Opening fallback URL:', appScheme.fallbackUrl);
+        await WebBrowser.openBrowserAsync(appScheme.fallbackUrl);
+        return true;
+      }
+      console.log('No target URL available for app scheme:', appSchemeKey);
+      return false;
+    }
+
+    console.log(`Opening ${Platform.OS} app with URL:`, targetUrl);
+    
+    // Try to open the app
+    const canOpen = await Linking.canOpenURL(targetUrl);
+    if (canOpen) {
+      await Linking.openURL(targetUrl);
+      return true;
+    } else {
+      console.log('Cannot open URL, trying fallback options...');
+      
+      // For Android, try intent URL with package
+      if (Platform.OS === 'android' && appScheme.androidPackage) {
+        const intentUrl = `intent://#Intent;package=${appScheme.androidPackage};end`;
+        try {
+          await Linking.openURL(intentUrl);
+          return true;
+        } catch (error) {
+          console.log('Intent URL failed:', error);
+        }
+      }
+      
+      // Try fallback URL
+      if (appScheme.fallbackUrl) {
+        console.log('Opening fallback URL:', appScheme.fallbackUrl);
+        await WebBrowser.openBrowserAsync(appScheme.fallbackUrl);
+        return true;
+      }
+      
+      // Finally, try app store
+      const storeUrl = Platform.select({
+        ios: appScheme.appStoreUrl?.ios,
+        android: appScheme.appStoreUrl?.android,
+      });
+      
+      if (storeUrl) {
+        console.log('Opening app store:', storeUrl);
+        await WebBrowser.openBrowserAsync(storeUrl);
+        return true;
+      }
+      
+      return false;
+    }
+  } catch (error) {
+    console.error('Error opening app with scheme:', error);
+    return false;
+  }
+}
+
 // Keep all utility functions as components still need them
 export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
-  const handleOpen = async (targetName: string): Promise<boolean> => {
-    // Implementation depends on perk name and app scheme
-    console.log('Opening perk target:', targetName);
-    return true;
-  };
-
-  // For multi-choice perks, show alert
-  if (perk.eligibleServices && perk.eligibleServices.length > 1) {
-    return new Promise((resolve) => {
-      Alert.alert(
-        'Choose redemption method',
-        `How would you like to redeem "${perk.name}"?`,
-        [
-          ...perk.eligibleServices!.map(service => ({
-            text: service,
-            onPress: () => handleOpen(service).then(resolve)
-          })),
+  try {
+    // Get multi-choice configurations from database
+    const cardService = CardService.getInstance();
+    const multiChoiceConfigs = await cardService.getMultiChoiceConfig();
+    
+    // Check if this is a multi-choice perk
+    const choices = multiChoiceConfigs[perk.name];
+    
+    if (choices && choices.length > 0) {
+      console.log('Multi-choice perk detected:', perk.name, 'with choices:', choices);
+      
+      // Show choice dialog for multi-choice perks
+      return new Promise((resolve) => {
+        Alert.alert(
+          `Redeem ${perk.name}`,
+          "Choose an option to open:",
+          [
+            ...choices.map((choice: any) => ({
+              text: choice.label,
+              onPress: async () => {
+                // Map the target perk name to app scheme key
+                const appSchemeKey = TARGET_PERK_TO_APP_SCHEME_MAP[choice.target_perk_name];
+                if (appSchemeKey) {
+                  const success = await openAppWithScheme(appSchemeKey, choice.target_perk_name);
+                  resolve(success);
+                } else {
+                  console.log('No app scheme mapping found for:', choice.target_perk_name);
+                  // Fallback to web search
+                  const searchTerm = encodeURIComponent(choice.target_perk_name);
+                  const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
+                  try {
+                    await WebBrowser.openBrowserAsync(googleSearchUrl);
+                    resolve(true);
+                  } catch (error) {
+                    console.error('Failed to open fallback search:', error);
+                    resolve(false);
+                  }
+                }
+              },
+            })),
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => resolve(false)
+            },
+          ],
           {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => resolve(false)
+            cancelable: true,
+            onDismiss: () => resolve(false)
           }
-        ],
-        {
-          cancelable: true,
-          onDismiss: () => resolve(false)
-        }
-      );
-    });
-  } else {
-    return handleOpen(perk.name);
+        );
+      });
+    } else {
+      // Single-choice perk: use the app scheme directly
+      const appSchemeKey = perk.appScheme;
+      
+      if (!appSchemeKey) {
+        console.log('No app scheme found for perk:', perk.name);
+        return false;
+      }
+
+      return openAppWithScheme(appSchemeKey, perk.name);
+    }
+  } catch (error) {
+    console.error('Error opening perk target:', error);
+    return false;
   }
 }
 

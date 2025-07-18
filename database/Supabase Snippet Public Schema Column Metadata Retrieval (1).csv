@@ -1,0 +1,101 @@
+table_schema,table_name,column_name,data_type
+public,app_schemes,id,uuid
+public,app_schemes,scheme_key,text
+public,app_schemes,ios_scheme,text
+public,app_schemes,android_scheme,text
+public,app_schemes,fallback_url,text
+public,app_schemes,android_package,text
+public,app_schemes,app_store_url_ios,text
+public,app_schemes,app_store_url_android,text
+public,app_schemes,created_at,timestamp with time zone
+public,app_schemes,updated_at,timestamp with time zone
+public,benefit_definitions,id,uuid
+public,benefit_definitions,benefit_id,text
+public,benefit_definitions,card_definition_id,uuid
+public,benefit_definitions,name,text
+public,benefit_definitions,value,numeric
+public,benefit_definitions,period,text
+public,benefit_definitions,period_months,integer
+public,benefit_definitions,reset_type,text
+public,benefit_definitions,description,text
+public,benefit_definitions,redemption_instructions,text
+public,benefit_definitions,app_scheme,text
+public,benefit_definitions,categories,ARRAY
+public,benefit_definitions,is_active,boolean
+public,benefit_definitions,start_date,date
+public,benefit_definitions,end_date,date
+public,benefit_definitions,terms,text
+public,benefit_definitions,redemption_url,text
+public,benefit_definitions,image_url,text
+public,benefit_definitions,merchant_name,text
+public,benefit_definitions,merchant_logo,text
+public,benefit_definitions,is_anniversary_benefit,boolean
+public,benefit_definitions,estimated_value,numeric
+public,benefit_definitions,created_at,timestamp with time zone
+public,benefit_definitions,updated_at,timestamp with time zone
+public,benefit_eligible_services,id,uuid
+public,benefit_eligible_services,benefit_definition_id,uuid
+public,benefit_eligible_services,service_name,text
+public,benefit_eligible_services,service_url,text
+public,benefit_eligible_services,app_deep_link,text
+public,benefit_eligible_services,created_at,timestamp with time zone
+public,benefit_eligible_services,updated_at,timestamp with time zone
+public,card_definitions,id,uuid
+public,card_definitions,card_id,text
+public,card_definitions,name,text
+public,card_definitions,image_url,text
+public,card_definitions,annual_fee,numeric
+public,card_definitions,statement_credit,numeric
+public,card_definitions,rewards_currency,text
+public,card_definitions,network,text
+public,card_definitions,is_active,boolean
+public,card_definitions,created_at,timestamp with time zone
+public,card_definitions,updated_at,timestamp with time zone
+public,feedback,id,uuid
+public,feedback,created_at,timestamp with time zone
+public,feedback,type,text
+public,feedback,title,text
+public,feedback,description,text
+public,feedback,email,text
+public,feedback,status,text
+public,feedback,resolution_notes,text
+public,feedback,screenshots,ARRAY
+public,multi_choice_perk_configs,id,uuid
+public,multi_choice_perk_configs,parent_perk_name,text
+public,multi_choice_perk_configs,label,text
+public,multi_choice_perk_configs,target_perk_name,text
+public,multi_choice_perk_configs,created_at,timestamp with time zone
+public,multi_choice_perk_configs,updated_at,timestamp with time zone
+public,perk_auto_redemptions,id,uuid
+public,perk_auto_redemptions,user_id,uuid
+public,perk_auto_redemptions,perk_id,uuid
+public,perk_auto_redemptions,user_card_id,uuid
+public,perk_auto_redemptions,is_enabled,boolean
+public,perk_auto_redemptions,created_at,timestamp with time zone
+public,perk_auto_redemptions,updated_at,timestamp with time zone
+public,perk_definitions,id,uuid
+public,perk_definitions,name,text
+public,perk_definitions,description,text
+public,perk_definitions,value,numeric
+public,perk_definitions,period_months,integer
+public,perk_definitions,reset_type,USER-DEFINED
+public,perk_definitions,created_at,timestamp with time zone
+public,perk_definitions,updated_at,timestamp with time zone
+public,perk_definitions,categories,ARRAY
+public,perk_definitions,redemptionInstructions,text
+public,perk_definitions,notification_emoji,text
+public,perk_definitions,notification_combo_start,text
+public,perk_definitions,notification_combo_end,text
+public,perk_eligible_services,id,uuid
+public,perk_eligible_services,perk_id,uuid
+public,perk_eligible_services,service_name,text
+public,perk_eligible_services,service_url,text
+public,perk_eligible_services,app_deep_link,text
+public,perk_eligible_services,created_at,timestamp with time zone
+public,perk_eligible_services,updated_at,timestamp with time zone
+public,perk_notifications,id,uuid
+public,perk_notifications,perk_id,uuid
+public,perk_notifications,base_message,text
+public,perk_notifications,reminder_schedule,jsonb
+public,perk_notifications,created_at,timestamp with time zone
+public,perk_notifications,updated_at,timestamp with time zone
