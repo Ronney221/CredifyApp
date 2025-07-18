@@ -1,7 +1,43 @@
 import { supabase } from './supabase';
 import { Card, Benefit, allCards } from '../src/data/card-data';
+import { cardService } from './card-service';
+
+// Feature flag to switch between hard-coded data and database
+const USE_DATABASE_CARDS = false; // Set to true to use database instead of hard-coded data
 
 export { supabase };
+
+/**
+ * Get all cards - switches between hard-coded data and database based on feature flag
+ */
+export async function getAllCardsData(): Promise<Card[]> {
+  if (USE_DATABASE_CARDS) {
+    try {
+      console.log('📊 Loading cards from database...');
+      return await cardService.getAllCards();
+    } catch (error) {
+      console.error('❌ Database fallback: Using hard-coded cards due to error:', error);
+      return allCards;
+    }
+  }
+  return allCards;
+}
+
+/**
+ * Find a card by ID - switches between hard-coded data and database
+ */
+export async function findCardByIdData(cardId: string): Promise<Card | undefined> {
+  if (USE_DATABASE_CARDS) {
+    try {
+      const card = await cardService.getCardById(cardId);
+      return card || undefined;
+    } catch (error) {
+      console.error('❌ Database fallback: Using hard-coded cards due to error:', error);
+      return allCards.find(c => c.id === cardId);
+    }
+  }
+  return allCards.find(c => c.id === cardId);
+}
 
 interface UserCard {
   id: string;
@@ -324,7 +360,7 @@ export async function trackPerkRedemption(
       .select('id, card_name, card_brand')
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
-      .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
+      .eq('card_name', (await findCardByIdData(cardId))?.name || '')
       .eq('status', 'active');
 
     if (cardError || !userCardsResult || userCardsResult.length === 0) {
@@ -623,7 +659,7 @@ export async function setAutoRedemption(
       .select('id, card_name, card_brand')
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
-      .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
+      .eq('card_name', (await findCardByIdData(cardId))?.name || '')
       .eq('status', 'active');
 
     if (cardError) {
@@ -801,7 +837,7 @@ export async function checkAutoRedemptionByCardId(
       .select('id')
       .eq('user_id', userId)
       .eq('card_brand', cardId.split('_')[0])
-      .eq('card_name', allCards.find(c => c.id === cardId)?.name || '')
+      .eq('card_name', (await findCardByIdData(cardId))?.name || '')
       .eq('status', 'active')
       .single();
 
@@ -883,7 +919,7 @@ export async function updateCardOrder(userId: string, cardIds: string[]) {
     // Create a map of card names to their new order
     const cardNameToOrder = new Map(
       cardIds.map((cardId, index) => [
-        allCards.find(c => c.id === cardId)?.name || '',
+        (await findCardByIdData(cardId))?.name || '',
         index
       ])
     );

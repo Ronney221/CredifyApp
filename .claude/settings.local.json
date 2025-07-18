@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx eslint:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx expo start:*)"
+      "Bash(npx expo start:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }
