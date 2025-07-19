@@ -52,7 +52,6 @@ import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext
 import AIChatButton from '../../components/home/AIChatButton';
 import { useSharedValue, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
 import UserCardItem from '../../components/home/UserCardItem';
-import SwipeCoachMark from '../../components/home/SwipeCoachMark';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
 import UsernameRequirementModal from '../../components/profile/UsernameRequirementModal';
 
