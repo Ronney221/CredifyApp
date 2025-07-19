@@ -115,10 +115,19 @@ const ForecastDialPlaceholder: React.FC = () => {
   const strokeWidth = 5;
   const radius = (size - strokeWidth) / 2;
   const progress = 0.6; // Static progress
-  const angle = 135 + progress * 270; 
   const circumference = radius * Math.PI * 2;
 
-  const arcPath = `M ${size / 2 - radius * Math.cos(45 * Math.PI/180)} ${size / 2 + radius * Math.sin(45 * Math.PI/180)} A ${radius} ${radius} 0 1 1 ${size/2 + radius * Math.cos(45*Math.PI/180)} ${size/2 + radius * Math.sin(45*Math.PI/180)}`;
+  // Calculate arc path coordinates more safely
+  const angleToRadians = (angle: number) => (angle * Math.PI) / 180;
+  const startAngle = angleToRadians(45);
+  const endAngle = angleToRadians(315);
+  
+  const startX = size / 2 - radius * Math.cos(startAngle);
+  const startY = size / 2 + radius * Math.sin(startAngle);
+  const endX = size / 2 + radius * Math.cos(startAngle);
+  const endY = size / 2 + radius * Math.sin(startAngle);
+
+  const arcPath = `M ${startX.toFixed(2)} ${startY.toFixed(2)} A ${radius} ${radius} 0 1 1 ${endX.toFixed(2)} ${endY.toFixed(2)}`;
 
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -126,7 +135,7 @@ const ForecastDialPlaceholder: React.FC = () => {
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <G transform={`rotate(-225 ${size/2} ${size/2})`}>
             <Path d={arcPath} stroke={Colors.light.icon} strokeWidth={strokeWidth} strokeOpacity={0.3} fill="none" />
-            <Path d={arcPath} stroke={Colors.light.tint} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={circumference * (1 - progress * (4/3))} fill="none" strokeLinecap="round"/>
+            <Path d={arcPath} stroke={Colors.light.tint} strokeWidth={strokeWidth} strokeDasharray={`${circumference}`} strokeDashoffset={`${circumference * (1 - progress * (4/3))}`} fill="none" strokeLinecap="round"/>
           </G>
           <SvgText x={size/2} y={(size/2) + 4} fill={Colors.light.tint} fontSize="10" fontWeight="bold" textAnchor="middle">
             {`${Math.round(progress * 100)}%`}

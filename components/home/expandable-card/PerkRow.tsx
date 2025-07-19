@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { CardPerk, calculatePerkExpiryDate } from '../../../src/data/card-data';
 import PerkUrgencyIndicator from '../PerkUrgencyIndicator';
 import PartialRedemptionProgress from '../PartialRedemptionProgress';
+import MerchantLogo from '../MerchantLogo';
 import { Spacing, ComponentSpacing, BorderRadius } from '../../../constants/Spacing';
 import { PerkDesign, ComponentColors } from '../../../constants/DesignSystem';
 
@@ -199,23 +200,20 @@ const PerkRow: React.FC<PerkRowProps> = ({
           } : undefined}
         >
             <View style={styles.perkIconContainer}>
-              <Ionicons 
-                name={
-                  isRedeemed 
-                    ? (isAutoRedeemed ? 'sync-circle-outline' : 'checkmark-circle-outline')
-                    : isPartiallyRedeemed
-                    ? 'hourglass-outline'
-                    : 'pricetag-outline'
-                }
-                size={26} 
-                color={
-                  isRedeemed 
-                    ? (isAutoRedeemed ? PerkDesign.autoRedeemed.icon : PerkDesign.redeemed.icon)
-                    : isPartiallyRedeemed
-                    ? PerkDesign.partiallyRedeemed.icon
-                    : PerkDesign.available.icon
-                }
-              />
+              {isRedeemed ? (
+                <View style={styles.redeemedIconContainer}>
+                  <Ionicons 
+                    name={isAutoRedeemed ? 'sync-circle-outline' : 'checkmark-circle-outline'}
+                    size={26} 
+                    color={isAutoRedeemed ? PerkDesign.autoRedeemed.icon : PerkDesign.redeemed.icon}
+                  />
+                </View>
+              ) : (
+                <MerchantLogo 
+                  perkName={perk.name}
+                  size="medium"
+                />
+              )}
             </View>
             <View style={styles.perkTextContainerInsideItem}> 
               <Text style={[
@@ -373,8 +371,17 @@ const styles = StyleSheet.create({
   },
   perkIconContainer: {
     marginRight: ComponentSpacing.iconMargin, // 12pt
-    width: 30,
+    width: 48, // Increased to accommodate logos
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  redeemedIconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ComponentColors.background.tertiary,
+    borderRadius: 12,
   },
   perkTextContainerInsideItem: {
     flex: 1,
