@@ -20,9 +20,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { calculateRedemptionValues, calculateMonthlyPerksOnly } from '../../utils/insights-calculations';
 
-// Constants
-const SUCCESS_GREEN = '#34C759';
-const PARTIAL_GREEN = '#4CAF50'; // A slightly different green to show partial but still successful
+// Constants - Updated color scheme for better meaning
+const SUCCESS_GREEN = '#34C759';        // Fully redeemed
+const WARNING_ORANGE = '#FF9500';       // Partially redeemed (incomplete)
+const AVAILABLE_BLUE = '#007AFF';       // Available to redeem
+const MISSED_RED = '#FF3B30';           // Missed/expired
 const NEUTRAL_GRAY_COLOR = '#8A8A8E';
 const SUBTLE_GRAY_TEXT = Colors.light.icon;
 const SEPARATOR_COLOR = '#E0E0E0';
@@ -263,29 +265,58 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     })
     .sort((a, b) => b.value - a.value);
 
-  const nonMonthlyPerkDetails = summary.perkDetails
-    .filter(perk => perk.period !== 'monthly')
-    .filter(perk => {
-      // Always show redeemed and partial perks
-      if (perk.status === 'redeemed' || perk.status === 'partial') return true;
-      // For missed/available perks, logic depends on current vs historical month
-      if (perk.status === 'missed' || perk.status === 'available') {
-        if (isCurrentMonth) {
-          return perk.expiresThisMonth === true || perk.expiresNextMonth === true;
-        } else {
-          return perk.expiresThisMonth === true;
-        }
-      }
-      return false;
-    })
+  // Split non-monthly perks into meaningful categories
+  const nonMonthlyPerks = summary.perkDetails.filter(perk => perk.period !== 'monthly');
+  
+  // Perks that expire in this specific month
+  const expiringThisMonthPerks = nonMonthlyPerks
+    .filter(perk => perk.expiresThisMonth === true)
     .filter(perk => {
       if (perkStatusFilter === 'all') return true;
       return perk.status === perkStatusFilter;
     })
     .sort((a, b) => b.value - a.value);
+  
+  // Perks that expire next month (only show for current month)
+  const expiringNextMonthPerks = isCurrentMonth ? nonMonthlyPerks
+    .filter(perk => perk.expiresNextMonth === true && !perk.expiresThisMonth)
+    .filter(perk => {
+      if (perkStatusFilter === 'all') return true;
+      return perk.status === perkStatusFilter;
+    })
+    .sort((a, b) => b.value - a.value) : [];
+  
+  // Early redemptions (only show for current month - proactive redemptions)
+  const earlyRedemptionPerks = isCurrentMonth ? nonMonthlyPerks
+    .filter(perk => 
+      (perk.status === 'redeemed' || perk.status === 'partial') && 
+      !perk.expiresThisMonth && 
+      !perk.expiresNextMonth
+    )
+    .filter(perk => {
+      if (perkStatusFilter === 'all') return true;
+      return perk.status === perkStatusFilter;
+    })
+    .sort((a, b) => b.value - a.value) : [];
+
+  // For historical months: redeemed perks that were successfully used before expiring
+  const successfulRedemptionsPerks = !isCurrentMonth ? nonMonthlyPerks
+    .filter(perk => 
+      (perk.status === 'redeemed' || perk.status === 'partial') && 
+      perk.expiresThisMonth === true
+    )
+    .filter(perk => {
+      if (perkStatusFilter === 'all') return true;
+      return perk.status === perkStatusFilter;
+    })
+    .sort((a, b) => b.value - a.value) : [];
 
   const showCelebratoryEmptyState = perkStatusFilter === 'redeemed' && 
-    monthlyPerkDetails.length === 0 && nonMonthlyPerkDetails.length === 0;
+    monthlyPerkDetails.length === 0 && 
+    expiringThisMonthPerks.length === 0 && 
+    expiringNextMonthPerks.length === 0 && 
+    earlyRedemptionPerks.length === 0 &&
+    successfulRedemptionsPerks.length === 0;
 
   const handleRemindMe = (perkId: string) => {
     router.push('/profile/notifications');
@@ -307,28 +338,33 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       styles.perkDetailItem,
       perk.status === 'missed' && styles.missedPerkItem
     ]}>
-      <Ionicons 
-        name={
-          perk.status === 'redeemed' 
-            ? 'checkmark-circle' 
-            : perk.status === 'partial'
-            ? 'checkmark-circle-outline'
-            : perk.status === 'available'
-            ? 'time-outline'
-            : 'close-circle'
+      <View style={[
+        styles.statusIndicator,
+        {
+          backgroundColor: 
+            perk.status === 'redeemed' 
+              ? SUCCESS_GREEN 
+              : perk.status === 'partial'
+              ? WARNING_ORANGE
+              : perk.status === 'available'
+              ? AVAILABLE_BLUE
+              : MISSED_RED
         }
-        size={20} 
-        color={
-          perk.status === 'redeemed' 
-            ? SUCCESS_GREEN 
-            : perk.status === 'partial'
-            ? PARTIAL_GREEN
-            : perk.status === 'available'
-            ? Colors.light.tint
-            : NEUTRAL_GRAY_COLOR
-        }
-        style={styles.perkStatusIcon}
-      />
+      ]}>
+        <Ionicons 
+          name={
+            perk.status === 'redeemed' 
+              ? 'checkmark' 
+              : perk.status === 'partial'
+              ? 'remove'
+              : perk.status === 'available'
+              ? 'ellipse'
+              : 'close'
+          }
+          size={12} 
+          color="#FFFFFF"
+        />
+      </View>
       <View style={styles.perkContentContainer}>
         <View style={styles.perkNameRow}>
           <View style={styles.perkNameAndBadgeContainer}>
@@ -349,14 +385,21 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           </View>
           <View style={styles.perkValueContainer}>
             {perk.status === 'partial' && perk.partialValue ? (
-              <Text style={[styles.perkValue, { color: PARTIAL_GREEN }]}>
+              <Text style={[styles.perkValue, { color: WARNING_ORANGE }]}>
                 ${perk.partialValue.toFixed(0)} / ${perk.value.toFixed(0)}
               </Text>
             ) : (
               <Text style={[
                 styles.perkValue,
-                perk.status === 'missed' && styles.missedPerkText,
-                perk.status === 'redeemed' && { color: SUCCESS_GREEN }
+                { color: 
+                  perk.status === 'redeemed' 
+                    ? SUCCESS_GREEN 
+                    : perk.status === 'available'
+                    ? AVAILABLE_BLUE
+                    : perk.status === 'missed'
+                    ? MISSED_RED
+                    : Colors.light.text
+                }
               ]}>${perk.value.toFixed(0)}</Text>
             )}
           </View>
@@ -407,7 +450,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   style={[
                     styles.meterSegment,
                     { 
-                      backgroundColor: PARTIAL_GREEN,
+                      backgroundColor: WARNING_ORANGE,
                       flex: progressData.partialPercentage
                     }
                   ]}
@@ -484,7 +527,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
             style={[
               styles.meterSegment,
               { 
-                backgroundColor: PARTIAL_GREEN,
+                backgroundColor: WARNING_ORANGE,
                 flex: progressData.partialPercentage
               }
             ]}
@@ -563,6 +606,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                         partialValue: partialRedeemedValue
                       })
                     }}
+                    isCurrentMonth={isCurrentMonth}
                   />
                 </View>
                 <Animated.View style={[animatedChevronStyle, styles.chevronWrapper]}>
@@ -592,12 +636,18 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
 
               {showCelebratoryEmptyState ? (
                 <View style={styles.celebratoryEmptyState}>
-                  <Text style={styles.celebratoryEmoji}>🎉</Text>
+                  <View style={[styles.statusIndicator, { backgroundColor: SUCCESS_GREEN, marginBottom: 12 }]}>
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                  </View>
                   <Text style={styles.celebratoryText}>
                     Nice! You did not miss any perks for this filter.
                   </Text>
                 </View>
-              ) : (monthlyPerkDetails.length > 0 || nonMonthlyPerkDetails.length > 0) ? (
+              ) : (monthlyPerkDetails.length > 0 || 
+                   expiringThisMonthPerks.length > 0 || 
+                   expiringNextMonthPerks.length > 0 || 
+                   earlyRedemptionPerks.length > 0 ||
+                   successfulRedemptionsPerks.length > 0) ? (
                 <>
                   {!isCurrentMonth && missedOutValue > 0 && (
                     <TouchableOpacity 
@@ -617,25 +667,58 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
                   
                   {monthlyPerkDetails.length > 0 && (
                     <View style={styles.perkSection}>
-                      {isCurrentMonth && (
-                        <View style={styles.perkSectionHeader}>
+                      <View style={styles.perkSectionHeader}>
+                        <View style={styles.sectionTitleContainer}>
                           <Text style={styles.perkSectionTitle}>Monthly Perks</Text>
                           <Text style={styles.perkSectionCount}>({monthlyPerkDetails.length})</Text>
                         </View>
-                      )}
+                        <View style={styles.sectionDivider} />
+                      </View>
                       {monthlyPerkDetails.map(perk => renderPerkItem(perk, true))}
                     </View>
                   )}
 
-                  {nonMonthlyPerkDetails.length > 0 && (
+                  {/* Perks expiring this month */}
+                  {expiringThisMonthPerks.length > 0 && (
                     <View style={styles.perkSection}>
-                      {isCurrentMonth && (
-                        <View style={styles.perkSectionHeader}>
-                          <Text style={styles.perkSectionTitle}>Additional Perks</Text>
-                          <Text style={styles.perkSectionCount}>({nonMonthlyPerkDetails.length})</Text>
+                      <View style={styles.perkSectionHeader}>
+                        <View style={styles.sectionTitleContainer}>
+                          <Text style={styles.perkSectionTitle}>
+                            {isCurrentMonth ? 'Expiring This Month' : 'Expired This Month'}
+                          </Text>
+                          <Text style={styles.perkSectionCount}>({expiringThisMonthPerks.length})</Text>
                         </View>
-                      )}
-                      {nonMonthlyPerkDetails.map(perk => renderPerkItem(perk, false))}
+                        <View style={styles.sectionDivider} />
+                      </View>
+                      {expiringThisMonthPerks.map(perk => renderPerkItem(perk, false))}
+                    </View>
+                  )}
+
+                  {/* Perks expiring next month (only for current month) */}
+                  {expiringNextMonthPerks.length > 0 && (
+                    <View style={styles.perkSection}>
+                      <View style={styles.perkSectionHeader}>
+                        <View style={styles.sectionTitleContainer}>
+                          <Text style={styles.perkSectionTitle}>Expiring Next Month</Text>
+                          <Text style={styles.perkSectionCount}>({expiringNextMonthPerks.length})</Text>
+                        </View>
+                        <View style={styles.sectionDivider} />
+                      </View>
+                      {expiringNextMonthPerks.map(perk => renderPerkItem(perk, false))}
+                    </View>
+                  )}
+
+                  {/* Early redemptions */}
+                  {earlyRedemptionPerks.length > 0 && (
+                    <View style={styles.perkSection}>
+                      <View style={styles.perkSectionHeader}>
+                        <View style={styles.sectionTitleContainer}>
+                          <Text style={styles.perkSectionTitle}>Early Redemptions</Text>
+                          <Text style={styles.perkSectionCount}>({earlyRedemptionPerks.length})</Text>
+                        </View>
+                        <View style={styles.sectionDivider} />
+                      </View>
+                      {earlyRedemptionPerks.map(perk => renderPerkItem(perk, false))}
                     </View>
                   )}
                 </>
@@ -801,9 +884,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   perkSectionHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
     marginBottom: 8,
   },
   perkSectionTitle: {
@@ -817,6 +903,19 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginLeft: 4,
   },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: SEPARATOR_COLOR,
+    opacity: 0.6,
+  },
+  statusIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   perkDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -825,9 +924,6 @@ const styles = StyleSheet.create({
   },
   missedPerkItem: {
     opacity: 0.6,
-  },
-  perkStatusIcon: {
-    marginRight: 12,
   },
   perkContentContainer: {
     flex: 1,
@@ -880,10 +976,6 @@ const styles = StyleSheet.create({
   celebratoryEmptyState: {
     alignItems: 'center',
     paddingVertical: 24,
-  },
-  celebratoryEmoji: {
-    fontSize: 32,
-    marginBottom: 12,
   },
   celebratoryText: {
     fontSize: 15,
