@@ -94,7 +94,8 @@ export interface ExpandableCardProps {
   onOpenLoggingModal?: (perk: CardPerk) => void;
 }
 
-const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
+// Use our design system's success green - more professional than iOS systemGreen
+const systemGreen = '#34C759'; // iOS system green but less bright
 
 // Add sorting function
 const sortPerks = (perks: CardPerk[]): CardPerk[] => {
@@ -912,10 +913,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow dimensions exactly
-    height: 72, // Match PerkRow height
-    marginVertical: 4, // Match PerkRow outer margin
-    marginRight: 0, // No overlap - let borders handle seamless connection
+    // Match PerkRow total height including margins: 72px + 8px margins = 80px
+    height: 80, // Include the 4pt top + 4pt bottom margins from PerkRow
+    marginVertical: 0, // No additional margins - align with PerkRow's outer container
+    marginRight: 0, // No overlap - perfect edge alignment
     // iOS Messages style: only round the exposed LEFT edge
     borderTopLeftRadius: 16,
     borderBottomLeftRadius: 16,
@@ -926,16 +927,16 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   rightAction: {
-    backgroundColor: '#007aff',
+    backgroundColor: '#007aff', // Keep iOS blue for consistency
     width: 120, // Fixed width to match swipe limit
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow dimensions exactly
-    height: 72, // Match PerkRow height
-    marginVertical: 4, // Match PerkRow outer margin
-    marginLeft: 0, // No overlap - let borders handle seamless connection
+    // Match PerkRow total height including margins: 72px + 8px margins = 80px
+    height: 80, // Include the 4pt top + 4pt bottom margins from PerkRow
+    marginVertical: 0, // No additional margins - align with PerkRow's outer container
+    marginLeft: 0, // No overlap - perfect edge alignment
     // iOS Messages style: only round the exposed RIGHT edge
     borderTopRightRadius: 16,
     borderBottomRightRadius: 16,

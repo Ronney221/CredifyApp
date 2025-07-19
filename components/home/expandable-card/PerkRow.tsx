@@ -97,12 +97,13 @@ const PerkRow: React.FC<PerkRowProps> = ({
         rightOpenValue={-120} // Limit right swipe (Available button) to 120px
         onSwipeableWillOpen={onSwipeableWillOpen}
         onSwipeableOpen={onSwipeableOpen}
-        friction={1.5}
-        overshootFriction={8}
+        friction={2} // Slightly higher friction for smoother reveal
+        overshootFriction={10} // Higher overshoot friction to prevent bounce
+        useNativeAnimations={true} // Use native animations for better performance
       >
         <TouchableOpacity
           ref={touchableRef}
-          activeOpacity={0.8}
+          activeOpacity={1} // Prevent opacity change during swipe
           onPress={onTapPerk}
           onLongPress={onLongPressPerk}
           style={containerStyle}
@@ -221,8 +222,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: ComponentSpacing.listItemPadding, // 16pt
     position: 'relative',
     overflow: 'hidden',
-    // Ensure this stays on top of swipe actions for iOS Messages style
-    zIndex: 2,
+    // Ensure this stays on top of swipe actions and maintains opacity
+    zIndex: 10, // Higher z-index to stay above actions
+    opacity: 1, // Force full opacity during swipe
   },
   perkContainerAvailable: {
     backgroundColor: PerkDesign.available.background,
