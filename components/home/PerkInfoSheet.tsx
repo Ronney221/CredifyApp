@@ -29,6 +29,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { CardPerk } from '../../src/data/card-data';
+import MerchantLogo from './MerchantLogo';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -107,6 +108,68 @@ const getAppName = (perk: CardPerk): string => {
   return 'App';
 };
 
+// Get merchant brand color (reuse logic from MerchantLogo)
+const getMerchantColor = (perkName: string): string => {
+  const lowerName = perkName.toLowerCase();
+  
+  if (lowerName.includes('uber')) return '#000000';
+  if (lowerName.includes('lyft')) return '#FF00BF';
+  if (lowerName.includes('doordash')) return '#FF3008';
+  if (lowerName.includes('grubhub')) return '#FF8000';
+  if (lowerName.includes('netflix')) return '#E50914';
+  if (lowerName.includes('walmart')) return '#0071CE';
+  if (lowerName.includes('instacart')) return '#43B02A';
+  if (lowerName.includes('capital one travel')) return '#004879';
+  if (lowerName.includes('chase travel')) return '#117ACA';
+  if (lowerName.includes('disney')) return '#0066CC';
+  if (lowerName.includes('delta')) return '#003366';
+  if (lowerName.includes('marriott')) return '#003366';
+  if (lowerName.includes('hilton')) return '#104C97';
+  if (lowerName.includes('clear')) return '#003087';
+  if (lowerName.includes('dunkin')) return '#FF671F';
+  if (lowerName.includes('starbucks')) return '#00704A';
+  if (lowerName.includes('opentable')) return '#DA3743';
+  if (lowerName.includes('stubhub')) return '#3B5998';
+  
+  // Category-based colors
+  if (lowerName.includes('travel')) return '#6366F1';
+  if (lowerName.includes('dining')) return '#DC2626';
+  if (lowerName.includes('hotel')) return '#7C3AED';
+  if (lowerName.includes('entertainment')) return '#7C3AED';
+  
+  return '#007AFF'; // Default iOS blue
+};
+
+// Get merchant icon for button (white color for visibility on colored backgrounds)
+const getMerchantButtonIcon = (perkName: string): string => {
+  const lowerName = perkName.toLowerCase();
+  
+  if (lowerName.includes('uber')) return 'car';
+  if (lowerName.includes('lyft')) return 'car-outline';
+  if (lowerName.includes('doordash')) return 'fast-food';
+  if (lowerName.includes('grubhub')) return 'fast-food-outline';
+  if (lowerName.includes('netflix')) return 'tv';
+  if (lowerName.includes('walmart')) return 'cart';
+  if (lowerName.includes('instacart')) return 'cart-outline';
+  if (lowerName.includes('capital one travel')) return 'map';
+  if (lowerName.includes('chase travel')) return 'compass';
+  if (lowerName.includes('disney')) return 'film';
+  if (lowerName.includes('delta')) return 'airplane';
+  if (lowerName.includes('marriott')) return 'bed';
+  if (lowerName.includes('hilton')) return 'bed-outline';
+  if (lowerName.includes('hotel')) return 'business';
+  if (lowerName.includes('clear')) return 'shield-checkmark';
+  if (lowerName.includes('dunkin')) return 'cafe';
+  if (lowerName.includes('starbucks')) return 'cafe-outline';
+  if (lowerName.includes('opentable')) return 'restaurant-outline';
+  if (lowerName.includes('stubhub')) return 'ticket';
+  if (lowerName.includes('dining')) return 'restaurant';
+  if (lowerName.includes('travel')) return 'airplane';
+  if (lowerName.includes('entertainment')) return 'play-circle';
+  
+  return 'open-outline'; // Default
+};
+
 export default function PerkInfoSheet({
   visible,
   perk,
@@ -123,6 +186,8 @@ export default function PerkInfoSheet({
 
   const appName = useMemo(() => perk ? getAppName(perk) : '', [perk]);
   const yearlyTotal = useMemo(() => calculateYearlyTotal(perk), [perk]);
+  const merchantColor = useMemo(() => perk ? getMerchantColor(perk.name) : '#007AFF', [perk]);
+  const merchantIcon = useMemo(() => perk ? getMerchantButtonIcon(perk.name) : 'open-outline', [perk]);
 
   // Parse redemption instructions into pro tips for carousel
   const proTips = useMemo(() => {
@@ -320,7 +385,11 @@ export default function PerkInfoSheet({
       }) 
     : formattedValue;
 
-  const currentTip = proTips[currentTipIndex];
+  const currentTip = proTips[currentTipIndex] || { 
+    icon: 'bulb-outline', 
+    title: 'Pro Tip', 
+    description: 'No tips available for this perk.' 
+  };
 
   return (
     <Modal
@@ -365,10 +434,17 @@ export default function PerkInfoSheet({
             </View>
 
             {/* Primary CTA Button */}
-            <TouchableOpacity style={styles.primaryButton} onPress={handleOpenApp}>
-              <Text style={styles.primaryButtonText}>
-                Open {appName} <Ionicons name="open-outline" size={18} color="#FFFFFF" />
-              </Text>
+            <TouchableOpacity 
+              style={[styles.primaryButton, { backgroundColor: merchantColor }]} 
+              onPress={handleOpenApp}
+            >
+              <View style={styles.buttonContent}>
+                <Ionicons name={merchantIcon as any} size={20} color="#FFFFFF" />
+                <Text style={styles.primaryButtonText}>
+                  Open {appName}
+                </Text>
+                <Ionicons name="open-outline" size={18} color="#FFFFFF" />
+              </View>
             </TouchableOpacity>
 
             {/* Pro Tips Carousel */}
@@ -379,30 +455,38 @@ export default function PerkInfoSheet({
                   <Ionicons name={currentTip.icon as any} size={24} color="#007AFF" />
                   <Text style={styles.tipTitle}>{currentTip.title}</Text>
                 </View>
-                <Text style={styles.tipDescription}>{currentTip.description}</Text>
+                <ScrollView 
+                  style={styles.tipDescriptionScroll}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                >
+                  <Text style={styles.tipDescription}>{currentTip.description}</Text>
+                </ScrollView>
                 
-                {/* Carousel Controls */}
-                <View style={styles.carouselControls}>
-                  <TouchableOpacity onPress={prevTip} style={styles.carouselButton}>
-                    <Ionicons name="chevron-back" size={20} color="#007AFF" />
-                  </TouchableOpacity>
-                  
-                  <View style={styles.carouselDots}>
-                    {proTips.map((_, index) => (
-                      <View 
-                        key={index} 
-                        style={[
-                          styles.dot, 
-                          index === currentTipIndex && styles.activeDot
-                        ]} 
-                      />
-                    ))}
+                {/* Carousel Controls - Only show if more than 1 tip */}
+                {proTips.length > 1 && (
+                  <View style={styles.carouselControls}>
+                    <TouchableOpacity onPress={prevTip} style={styles.carouselButton}>
+                      <Ionicons name="chevron-back" size={20} color="#007AFF" />
+                    </TouchableOpacity>
+                    
+                    <View style={styles.carouselDots}>
+                      {proTips.map((_, index) => (
+                        <View 
+                          key={index} 
+                          style={[
+                            styles.dot, 
+                            index === currentTipIndex && styles.activeDot
+                          ]} 
+                        />
+                      ))}
+                    </View>
+                    
+                    <TouchableOpacity onPress={nextTip} style={styles.carouselButton}>
+                      <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+                    </TouchableOpacity>
                   </View>
-                  
-                  <TouchableOpacity onPress={nextTip} style={styles.carouselButton}>
-                    <Ionicons name="chevron-forward" size={20} color="#007AFF" />
-                  </TouchableOpacity>
-                </View>
+                )}
               </View>
             </View>
 
@@ -422,12 +506,6 @@ export default function PerkInfoSheet({
                   style={styles.howItWorksContent}
                 >
                   <Text style={styles.description}>{perk.description}</Text>
-                  {perk.redemptionInstructions && (
-                    <>
-                      <Text style={styles.redemptionTitle}>How to Redeem:</Text>
-                      <Text style={styles.description}>{perk.redemptionInstructions}</Text>
-                    </>
-                  )}
                 </Animated.View>
               )}
             </View>
@@ -529,14 +607,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 32,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   primaryButtonText: {
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: -0.41,
+    flex: 1,
+    textAlign: 'center',
   },
   proTipsSection: {
-    marginBottom: 24,
+    marginBottom: 16, // Reduced from 24 to give more space for How it Works
   },
   sectionTitle: {
     fontSize: 20,
@@ -549,6 +634,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     borderRadius: 12,
     padding: 16,
+    maxHeight: 240, // Increased for more tip content space
   },
   tipHeader: {
     flexDirection: 'row',
@@ -562,34 +648,44 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     letterSpacing: -0.32,
   },
+  tipDescriptionScroll: {
+    maxHeight: 160, // Much more space for tip content
+    marginBottom: 8, // Keep tight margin before controls
+  },
   tipDescription: {
     fontSize: 15,
     fontWeight: '400',
     color: '#666666',
-    lineHeight: 22,
-    marginBottom: 16,
+    lineHeight: 20, // Reduced from 22 for more compact text
     letterSpacing: -0.24,
   },
   carouselControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Center everything
+    marginTop: 4, // Small top margin
+    height: 32, // Fixed height to prevent expansion
   },
   carouselButton: {
-    padding: 8,
+    padding: 4, // Reduced from 8
+    marginHorizontal: 8, // Space from dots
   },
   carouselDots: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4, // Reduced from 6
+    alignItems: 'center',
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5, // Reduced from 6
+    height: 5, // Reduced from 6
+    borderRadius: 2.5,
     backgroundColor: '#C7C7CC',
   },
   activeDot: {
     backgroundColor: '#007AFF',
+    width: 6, // Slightly larger for active state
+    height: 6,
+    borderRadius: 3,
   },
   howItWorksSection: {
     marginBottom: 24,
