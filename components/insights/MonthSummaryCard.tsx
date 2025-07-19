@@ -291,10 +291,14 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     router.push('/profile/notifications');
   };
 
-  // Add a helper function to get expiration status text
+  // Add a helper function to get expiration status text with correct tense
   const getExpirationStatus = (perk: PerkDetail) => {
-    if (perk.expiresNextMonth) return 'Expires Next Month';
-    if (perk.expiresThisMonth) return 'Expires This Month';
+    if (perk.expiresNextMonth) {
+      return isCurrentMonth ? 'Expires Next Month' : 'Was Set to Expire Next Month';
+    }
+    if (perk.expiresThisMonth) {
+      return isCurrentMonth ? 'Expires This Month' : 'Expired This Month';
+    }
     return '';
   };
 
@@ -327,16 +331,28 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
       />
       <View style={styles.perkContentContainer}>
         <View style={styles.perkNameRow}>
-          <Text style={[
-            styles.perkName,
-            perk.status === 'missed' && styles.missedPerkText
-          ]}>{perk.name}</Text>
+          <View style={styles.perkNameAndBadgeContainer}>
+            <Text style={[
+              styles.perkName,
+              perk.status === 'missed' && styles.missedPerkText
+            ]}>{perk.name}</Text>
+            {!isMonthly && (
+              <View style={[
+                styles.periodBadge,
+                { backgroundColor: getPeriodBadgeColor(perk.period) }
+              ]}>
+                <Text style={styles.periodBadgeText}>
+                  {getPeriodBadgeText(perk.period)}
+                </Text>
+              </View>
+            )}
+          </View>
           <View style={styles.perkValueContainer}>
-                      {perk.status === 'partial' && perk.partialValue ? (
-            <Text style={[styles.perkValue, { color: PARTIAL_GREEN }]}>
-              ${perk.partialValue.toFixed(0)} / ${perk.value.toFixed(0)}
-            </Text>
-          ) : (
+            {perk.status === 'partial' && perk.partialValue ? (
+              <Text style={[styles.perkValue, { color: PARTIAL_GREEN }]}>
+                ${perk.partialValue.toFixed(0)} / ${perk.value.toFixed(0)}
+              </Text>
+            ) : (
               <Text style={[
                 styles.perkValue,
                 perk.status === 'missed' && styles.missedPerkText,
@@ -345,7 +361,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
             )}
           </View>
         </View>
-        {!isMonthly && (perk.expiresThisMonth || (perk.expiresNextMonth && isCurrentMonth)) && (
+        {!isMonthly && (perk.expiresThisMonth || perk.expiresNextMonth) && (
           <Text style={styles.expirationText}>
             {getExpirationStatus(perk)}
           </Text>
@@ -819,13 +835,30 @@ const styles = StyleSheet.create({
   perkNameRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  perkNameAndBadgeContainer: {
+    flex: 1,
+    marginRight: 8,
   },
   perkName: {
     fontSize: 16,
     color: Colors.light.text,
-    flex: 1,
-    marginRight: 8,
+    marginBottom: 4,
+  },
+  periodBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  periodBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   perkValueContainer: {
     alignItems: 'flex-end',
