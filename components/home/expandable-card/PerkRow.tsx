@@ -142,7 +142,10 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 styles.perkName, 
                 isRedeemed && !isAutoRedeemed && styles.perkNameRedeemed,
                 isRedeemed && isAutoRedeemed && styles.perkNameAutoRedeemed
-              ]}>
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              >
                 {perk.name}
               </Text>
               <Text style={[
@@ -222,6 +225,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: ComponentSpacing.listItemPadding, // 16pt
     position: 'relative',
     overflow: 'hidden',
+    minHeight: 72, // Ensure consistent height for swipe action alignment
     // Ensure this stays on top of swipe actions and maintains opacity
     zIndex: 10, // Higher z-index to stay above actions
     opacity: 1, // Force full opacity during swipe
