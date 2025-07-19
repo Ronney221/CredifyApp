@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
+import { MotiView } from 'moti';
 import {
   View,
   Text,
@@ -349,14 +350,22 @@ export default function EditProfileScreen() {
           alwaysBounceVertical
           overScrollMode="never"
         >
-          <View style={styles.avatarSection}>
+          <MotiView
+            from={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 150 }}
+            style={styles.avatarSection}
+          >
             <Pressable 
               onPress={handlePickImage}
-              hitSlop={16}
+              hitSlop={24}
               style={({ pressed }) => [
                 styles.avatarContainer,
-                pressed && { opacity: 0.8 }
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
               ]}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+              accessibilityHint="Opens photo picker to select a new profile picture"
             >
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatar} />
@@ -368,16 +377,27 @@ export default function EditProfileScreen() {
                 </View>
               )}
               <View style={styles.cameraButton}>
-                <Ionicons name="camera" size={16} color={Colors.light.textOnAccent} />
+                <Ionicons name="camera" size={18} color={Colors.light.textOnAccent} />
               </View>
             </Pressable>
-          </View>
+            <Text style={styles.avatarHint}>Tap to change your profile photo</Text>
+          </MotiView>
 
-          <View style={styles.section}>
+          <MotiView
+            from={{ opacity: 0, translateY: 20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400, delay: 200 }}
+            style={styles.section}
+          >
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Name</Text>
               {isEditingName ? (
-                <View style={styles.editNameContainer}>
+                <MotiView
+                  from={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'timing', duration: 200 }}
+                  style={styles.editNameContainer}
+                >
                   <TextInput
                     style={styles.editNameInput}
                     value={tempName}
@@ -408,7 +428,7 @@ export default function EditProfileScreen() {
                       )}
                     </TouchableOpacity>
                   </View>
-                </View>
+                </MotiView>
               ) : (
                 <View style={styles.nameDisplayContainer}>
                   <Text style={styles.nameDisplayText}>
@@ -417,6 +437,10 @@ export default function EditProfileScreen() {
                   <TouchableOpacity
                     style={styles.editButton}
                     onPress={handleEditName}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit name"
+                    accessibilityHint="Edit your display name"
+                    hitSlop={12}
                   >
                     <Ionicons name="pencil" size={16} color={Colors.light.tint} />
                   </TouchableOpacity>
@@ -429,7 +453,7 @@ export default function EditProfileScreen() {
                 {user?.email || 'No email'}
               </Text>
             </View>
-          </View>
+          </MotiView>
 
           <View style={styles.spacer} />
 
@@ -467,71 +491,88 @@ const styles = StyleSheet.create({
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 52,
+    paddingTop: 8,
   },
   avatarContainer: {
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 5,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 4,
+    borderColor: Colors.light.background,
   },
   placeholderAvatar: {
-    backgroundColor: Colors.light.secondaryAccent,
+    backgroundColor: Colors.light.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   initialsText: {
-    color: Colors.light.textOnPrimary,
-    fontSize: 48,
-    fontWeight: '600',
+    color: Colors.light.textOnAccent,
+    fontSize: 56,
+    fontWeight: '700',
   },
   cameraButton: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: Colors.light.accent,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: 4,
+    right: 4,
+    backgroundColor: Colors.light.tint,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: Colors.light.background,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  avatarHint: {
+    fontSize: 14,
+    color: Colors.light.tertiaryLabel,
+    marginTop: 16,
+    fontWeight: '500',
   },
   section: {
     backgroundColor: Colors.light.background,
-    borderRadius: 13,
+    borderRadius: 16,
     marginHorizontal: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.light.separator + '40',
   },
   fieldContainer: {
-    minHeight: 52,
-    padding: 16,
+    minHeight: 64,
+    padding: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.light.separator,
+    borderBottomColor: Colors.light.separator + '60',
   },
   fieldContainerNoBorder: {
-    minHeight: 52,
-    padding: 16,
+    minHeight: 64,
+    padding: 20,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: Colors.light.secondaryLabel,
-    marginBottom: 6,
-    letterSpacing: 0.1,
+    marginBottom: 8,
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   nameDisplayContainer: {
     flexDirection: 'row',
@@ -539,13 +580,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   nameDisplayText: {
-    fontSize: 17,
+    fontSize: 18,
+    fontWeight: '600',
     color: Colors.light.text,
     flex: 1,
+    letterSpacing: -0.2,
   },
   editButton: {
-    padding: 8,
+    padding: 12,
     marginLeft: 8,
+    backgroundColor: Colors.light.systemGroupedBackground,
+    borderRadius: 8,
   },
   editNameContainer: {
     marginTop: 8,
@@ -585,7 +630,9 @@ const styles = StyleSheet.create({
   },
   emailText: {
     fontSize: 17,
+    fontWeight: '500',
     color: Colors.light.secondaryLabel,
+    letterSpacing: -0.1,
   },
   spacer: {
     flex: 1,
@@ -597,17 +644,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.light.error + '40', // 25% opacity
+    borderWidth: 1.5,
+    borderColor: Colors.light.error + '30',
   },
   deleteButtonText: {
-    color: Colors.light.error + '80', // 50% opacity
-    fontSize: 15,
-    fontWeight: '500',
+    color: Colors.light.error + '90',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   deleteSectionDescription: {
     fontSize: 13,
