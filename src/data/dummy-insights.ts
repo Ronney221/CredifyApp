@@ -100,9 +100,12 @@ export const generateDummyInsightsData = async (
   availableCardsForFilter: { id: string; name: string; activityCount: number }[];
   cardRois: CardROI[];
 }> => {
-  const insightsCards = allCards.filter(
-    card => selectedCards.includes(card.id)
-  );
+  // Use processedCardsWithPerks if available (database mode), otherwise fall back to allCards
+  const insightsCards = processedCardsWithPerks 
+    ? processedCardsWithPerks
+        .filter(cardData => selectedCards.includes(cardData.card.id))
+        .map(cardData => cardData.card)
+    : allCards.filter(card => selectedCards.includes(card.id));
 
   const monthlyDataByYear: Record<string, { شهرs: MonthlyRedemptionSummary[], yearTotalRedeemed: number, yearTotalPotential: number }> = {};
   const achievements: Achievement[] = [];
