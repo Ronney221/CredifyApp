@@ -28,14 +28,6 @@ jest.mock('react-native/Libraries/Components/Touchable/TouchableOpacity', () => 
   return TouchableOpacity;
 });
 
-// Mock PerkActionModal and add a testID for easier access in tests
-jest.mock('../../components/home/PerkActionModal', () => {
-  const ActualComponent = jest.requireActual('../../components/home/PerkActionModal').default;
-  const MockedComponent = (props: Record<string, unknown>) => {
-    return React.createElement(ActualComponent, { ...props, testID: "perk-action-modal" });
-  };
-  return MockedComponent;
-});
 
 // Mock supabase client
 jest.mock('../lib/supabase', () => ({
