@@ -18,6 +18,7 @@ import { MonthStats } from './MonthStats';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { calculateRedemptionValues, calculateMonthlyPerksOnly } from '../../utils/insights-calculations';
 
 // Constants
 const SUCCESS_GREEN = '#34C759';
@@ -84,27 +85,16 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   const cardOpacity = useSharedValue(1);
 
   // Calculate fee coverage based on only monthly perks (memoized)
-  const monthlyPerks = useMemo(() => 
-    summary.perkDetails.filter(perk => perk.period === 'monthly'), 
-    [summary.perkDetails]
-  );
-  
-  const monthlyRedeemedValue = useMemo(() => 
-    monthlyPerks.reduce((sum, perk) => 
-      perk.status === 'redeemed' ? sum + perk.value : sum, 0
-    ), [monthlyPerks]
-  );
-  
-  const monthlyPotentialValue = useMemo(() => 
-    monthlyPerks.reduce((sum, perk) => sum + perk.value, 0), 
-    [monthlyPerks]
+  const monthlyCalculations = useMemo(() => 
+    calculateMonthlyPerksOnly(summary), 
+    [summary]
   );
   
   const feeCoveragePercentage = useMemo(() => 
-    monthlyPotentialValue > 0 
-      ? (monthlyRedeemedValue / monthlyPotentialValue) * 100 
+    monthlyCalculations.potentialValue > 0 
+      ? (monthlyCalculations.totalRedeemedValue / monthlyCalculations.potentialValue) * 100 
       : 0,
-    [monthlyRedeemedValue, monthlyPotentialValue]
+    [monthlyCalculations.totalRedeemedValue, monthlyCalculations.potentialValue]
   );
 
   // Helper function to determine if a perk is relevant to this month
@@ -129,7 +119,12 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     return false;
   };
 
-  // Update calculations for the summary view (memoized)
+  // Update calculations for the summary view using shared calculation function
+  const relevantCalculations = useMemo(() => 
+    calculateRedemptionValues(summary, true, isCurrentMonth), 
+    [summary, isCurrentMonth]
+  );
+  
   const relevantPerks = useMemo(() => 
     summary.perkDetails.filter(isPerkRelevantToMonth), 
     [summary.perkDetails, isPerkRelevantToMonth]
@@ -183,33 +178,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   // Add this helper function to determine if we have any perks at all
   const hasAnyPerks = summary.perkDetails.length > 0;
 
-  // Calculate missed out value
-  const missedOutValue = useMemo(() => {
-    return relevantPerks
-      .filter(perk => perk.status === 'missed')
-      .reduce((sum, perk) => sum + perk.value, 0);
-  }, [relevantPerks]);
-
-  // Calculate redeemed value
-  const redeemedValue = useMemo(() => {
-    return relevantPerks
-      .filter(perk => perk.status === 'redeemed')
-      .reduce((sum, perk) => sum + perk.value, 0);
-  }, [relevantPerks]);
-
-  // Calculate available value
-  const availableValue = useMemo(() => {
-    return relevantPerks
-      .filter(perk => perk.status === 'available')
-      .reduce((sum, perk) => sum + perk.value, 0);
-  }, [relevantPerks]);
-
-  // Calculate partial redemption value
-  const partialRedeemedValue = useMemo(() => {
-    return relevantPerks
-      .filter(perk => perk.status === 'partial')
-      .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
-  }, [relevantPerks]);
+  // Use values from shared calculation function
+  const missedOutValue = relevantCalculations.missedValue;
+  const redeemedValue = relevantCalculations.redeemedValue;
+  const availableValue = relevantCalculations.availableValue;
+  const partialRedeemedValue = relevantCalculations.partialValue;
 
   // Calculate value-weighted progress bar
   const getValueWeightedProgress = () => {
