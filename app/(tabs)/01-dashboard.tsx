@@ -35,10 +35,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import PerkDonutDisplayManager from '../../components/home/PerkDonutDisplayManager';
 import ExpandableCard from '../../components/home/ExpandableCard';
-import PerkActionModal from '../../components/home/PerkActionModal';
+import PerkInfoSheet from '../../components/home/PerkInfoSheet';
+import PerkLoggingModal from '../../components/home/PerkLoggingModal';
+import WelcomeBackSnackbar from '../../components/home/WelcomeBackSnackbar';
 import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
+import { usePerkRedemption } from '../../hooks/usePerkRedemption';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
@@ -213,6 +216,7 @@ interface CardListItem {
   setPendingToast: (toast: { message: string; onUndo?: (() => void) | null } | null) => void;
   renewalDate?: Date | null;
   onRenewalDatePress?: () => void;
+  onOpenLoggingModal: (perk: CardPerk) => void;
 }
 
 // Add default notification preferences
@@ -250,7 +254,11 @@ export default function Dashboard() {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [showPerkActionModal, setShowPerkActionModal] = useState(false);
+  const [showInfoSheet, setShowInfoSheet] = useState(false);
+  const [showLoggingModal, setShowLoggingModal] = useState(false);
+  const [loggingPerk, setLoggingPerk] = useState<CardPerk | null>(null);
+  const [showWelcomeBackSnackbar, setShowWelcomeBackSnackbar] = useState(false);
+  const [welcomeBackPerk, setWelcomeBackPerk] = useState<CardPerk | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const maxRetries = 5; // Maximum number of retry attempts
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -284,8 +292,7 @@ export default function Dashboard() {
   const [showDatePickerForDev, setShowDatePickerForDev] = useState(false);
   const [devSelectedDate, setDevSelectedDate] = useState<Date>(new Date());
 
-  // Modal state for perk action
-  const [modalVisible, setModalVisible] = useState(false);
+  // Modal state for perk action (removed - now using separate states for info sheet and logging modal)
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
   const [showAiChatNotification, setShowAiChatNotification] = useState(false);
   const [isUpdatingPerk, setIsUpdatingPerk] = useState(false);
@@ -310,6 +317,14 @@ export default function Dashboard() {
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
+  
+  // Initialize perk redemption hook (will set onPerkStatusChange later)
+  const { handleMarkRedeemed: perkRedemptionMarkRedeemed, handleMarkAvailable: perkRedemptionMarkAvailable } = usePerkRedemption({
+    userId: user?.id || '',
+    setPerkStatus,
+    onPerkStatusChange: () => {}, // Will be set properly in a later refactor
+    refreshAutoRedemptions,
+  });
   const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
 
   const checkNotificationStatus = async () => {
@@ -586,9 +601,9 @@ export default function Dashboard() {
     if (perkToActivate) {
       setSelectedPerk(perkToActivate);
       setSelectedCardId(perkToActivate.cardId);
-      setModalVisible(true);
+      setShowInfoSheet(true);
     }
-  }, [setSelectedPerk, setSelectedCardId, setModalVisible]);
+  }, [setSelectedPerk, setSelectedCardId, setShowInfoSheet]);
 
   // Refresh data when navigating back to dashboard
   useFocusEffect(
@@ -709,17 +724,61 @@ export default function Dashboard() {
       return;
     }
 
-    // Show the modal instead of immediately opening the app
+    // Show the Information Sheet instead of the old modal
     setSelectedPerk(perk);
     setSelectedCardId(cardId);
-    setModalVisible(true);
+    setShowInfoSheet(true);
   }, [user, router]);
 
-  const handleModalDismiss = () => {
-    setModalVisible(false);
+  const handleInfoSheetDismiss = () => {
+    setShowInfoSheet(false);
     setSelectedPerk(null);
     setSelectedCardId(null);
   };
+
+  const handleLoggingModalDismiss = () => {
+    setShowLoggingModal(false);
+    setLoggingPerk(null);
+  };
+
+  const handleOpenLoggingModal = useCallback((perk: CardPerk) => {
+    setLoggingPerk(perk);
+    setShowLoggingModal(true);
+  }, []);
+
+  const handleWelcomeBackDismiss = () => {
+    setShowWelcomeBackSnackbar(false);
+    setWelcomeBackPerk(null);
+  };
+
+  const handleSaveLog = useCallback(async (amount: number) => {
+    if (!loggingPerk || !user) return;
+
+    setIsUpdatingPerk(true);
+    handleLoggingModalDismiss();
+
+    try {
+      // Find the card ID for this perk
+      const cardWithPerk = userCardsWithPerks.find(card => 
+        card.perks.some(p => p.id === loggingPerk.id)
+      );
+      
+      if (!cardWithPerk) {
+        Alert.alert('Error', 'Could not find card for this perk.');
+        setIsUpdatingPerk(false);
+        return;
+      }
+
+      // Use the perk redemption hook
+      await perkRedemptionMarkRedeemed(cardWithPerk.card.id, loggingPerk, amount);
+      
+    } catch (error) {
+      console.error('Error saving log:', error);
+      Alert.alert('Error', 'Failed to save usage log.');
+    } finally {
+      setIsUpdatingPerk(false);
+    }
+  }, [loggingPerk, user, userCardsWithPerks, perkRedemptionMarkRedeemed]);
 
   const handleOpenApp = async (targetPerkName?: string) => {
     if (!selectedPerk || !selectedCardId || !user) return;
@@ -738,8 +797,8 @@ export default function Dashboard() {
       remaining_value: selectedPerk.remaining_value
     };
 
-    // Close modal first
-    handleModalDismiss();
+    // Close info sheet first
+    handleInfoSheetDismiss();
 
     try {
       // Always attempt to open the app target
@@ -748,11 +807,11 @@ export default function Dashboard() {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      // Only track redemption if the perk is currently available or partially redeemed
+      // Only show welcome back for available or partially redeemed perks
       if (selectedPerk.status === 'available' || selectedPerk.status === 'partially_redeemed') {
         console.log('Setting up AppState listener for perk:', perkInfo.name);
         
-        let hasShownAlert = false;
+        let hasShownWelcomeBack = false;
         let wasInBackground = false;
 
         // Set up a one-time AppState change listener
@@ -761,7 +820,7 @@ export default function Dashboard() {
             current: appState.current, 
             next: nextAppState,
             perkName: perkInfo.name,
-            hasShownAlert,
+            hasShownWelcomeBack,
             wasInBackground 
           });
 
@@ -771,73 +830,17 @@ export default function Dashboard() {
             return;
           }
 
-          // Show alert when coming back to active state
-          if (nextAppState === 'active' && wasInBackground && !hasShownAlert) {
-            console.log('Showing confirmation for:', perkInfo.name);
-            hasShownAlert = true;
+          // Show welcome back snackbar when coming back to active state
+          if (nextAppState === 'active' && wasInBackground && !hasShownWelcomeBack) {
+            console.log('Showing welcome back for:', perkInfo.name);
+            hasShownWelcomeBack = true;
             
             // Remove the listener since we only want to handle the first return to the app
             subscription.remove();
 
-            // Show confirmation dialog
-            Alert.alert(
-              'Confirm Usage',
-              perkInfo.status === 'partially_redeemed'
-                ? `Did you use more of your ${perkInfo.name} credit?`
-                : `Did you use your ${perkInfo.name} credit?`,
-              [
-                {
-                  text: 'No',
-                  style: 'cancel'
-                },
-                {
-                  text: 'Yes',
-                  onPress: async () => {
-                    console.log('User confirmed usage for:', perkInfo.name);
-                    
-                    // For partially redeemed perks, show the modal again to select amount
-                    if (perkInfo.status === 'partially_redeemed') {
-                      setSelectedPerk({ ...selectedPerk, id: perkInfo.perkId });
-                      setSelectedCardId(perkInfo.cardId);
-                      setModalVisible(true);
-                    } else {
-                      // For regular perks, mark as fully redeemed
-                      console.log('Marking perk as redeemed:', perkInfo.name);
-                      
-                      // Optimistic update for redemption
-                      setPerkStatus(perkInfo.cardId, perkInfo.perkId, 'redeemed');
-                        
-                      // Background database operation
-                      const { error } = await trackPerkRedemption(user.id, perkInfo.cardId, selectedPerk, perkInfo.value);
-                        
-                      if (error) {
-                        console.error('Error tracking redemption in DB:', error);
-                        // Revert optimistic update on error
-                        setPerkStatus(perkInfo.cardId, perkInfo.perkId, perkInfo.status);
-                        handlePerkStatusChange();
-                          
-                        if (typeof error === 'object' && error !== null && 'message' in error && (error as any).message === 'Perk already redeemed this period') {
-                          Alert.alert('Already Redeemed', 'This perk was already marked as redeemed.');
-                        } else {
-                          Alert.alert('Error', 'Failed to mark perk as redeemed in the database.');
-                        }
-                        return;
-                      }
-
-                      // DB operation successful
-                      handlePerkStatusChange();
-
-                      // Check if this is the first perk redemption
-                      if (!hasRedeemedFirstPerk) {
-                        await markFirstPerkRedeemed();
-                        setShowAiChatNotification(true);
-                        await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
-                      }
-                    }
-                  }
-                }
-              ]
-            );
+            // Show welcome back snackbar
+            setWelcomeBackPerk(selectedPerk);
+            setShowWelcomeBackSnackbar(true);
           }
           appState.current = nextAppState;
         };
@@ -846,8 +849,8 @@ export default function Dashboard() {
       }
     } catch (openErrorOrDbError) {
       console.error('Error in perk action flow:', openErrorOrDbError);
-      handleModalDismiss();
-      Alert.alert('Operation Failed', 'An error occurred while processing the perk. Please check its status.');
+      handleInfoSheetDismiss();
+      Alert.alert('Operation Failed', 'An error occurred while opening the app.');
     }
   };
 
@@ -856,7 +859,7 @@ export default function Dashboard() {
 
     // --- Start loading state ---
     setIsUpdatingPerk(true);
-    handleModalDismiss();
+    handleInfoSheetDismiss();
 
     try {
         const isPartiallyRedeemed = selectedPerk.status === 'partially_redeemed';
@@ -918,7 +921,7 @@ export default function Dashboard() {
 
     // --- Start loading state ---
     setIsUpdatingPerk(true);
-    handleModalDismiss();
+    handleInfoSheetDismiss();
 
     try {
         // NOTE: We no longer call setPerkStatus() here.
@@ -1055,7 +1058,8 @@ export default function Dashboard() {
       onHintDismissed: handleHintDismissed,
       setPendingToast,
       renewalDate: cardData.card.renewalDate,
-      onRenewalDatePress: () => handleRenewalDatePress(cardData.card.id)
+      onRenewalDatePress: () => handleRenewalDatePress(cardData.card.id),
+      onOpenLoggingModal: handleOpenLoggingModal
     };
   }), [
     cardsListData,
@@ -1068,7 +1072,8 @@ export default function Dashboard() {
     handlePerkStatusChange,
     setPerkStatus,
     setPendingToast,
-    handleRenewalDatePress
+    handleRenewalDatePress,
+    handleOpenLoggingModal
   ]);
 
   // renderItem function for the FlatList
@@ -1089,6 +1094,7 @@ export default function Dashboard() {
       setPendingToast={item.setPendingToast}
       renewalDate={item.renewalDate}
       onRenewalDatePress={item.onRenewalDatePress}
+      onOpenLoggingModal={item.onOpenLoggingModal}
     />
   );
 
@@ -1376,16 +1382,33 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Perk Action Modal */}
-        <PerkActionModal
-          key={selectedPerk ? selectedPerk.name : null}
-          visible={modalVisible}
+        {/* Perk Information Sheet */}
+        <PerkInfoSheet
+          visible={showInfoSheet}
           perk={selectedPerk}
-          onDismiss={handleModalDismiss}
+          onDismiss={handleInfoSheetDismiss}
           onOpenApp={handleOpenApp}
-          onMarkRedeemed={handleMarkRedeemed}
-          onMarkAvailable={handleMarkAvailable}
-          setPendingToast={setPendingToast}
+        />
+
+        {/* Perk Logging Modal */}
+        <PerkLoggingModal
+          visible={showLoggingModal}
+          perk={loggingPerk}
+          onDismiss={handleLoggingModalDismiss}
+          onSaveLog={handleSaveLog}
+        />
+
+        {/* Welcome Back Snackbar */}
+        <WelcomeBackSnackbar
+          visible={showWelcomeBackSnackbar}
+          perk={welcomeBackPerk}
+          onLogUsage={() => {
+            handleWelcomeBackDismiss();
+            if (welcomeBackPerk) {
+              handleOpenLoggingModal(welcomeBackPerk);
+            }
+          }}
+          onDismiss={handleWelcomeBackDismiss}
         />
 
 

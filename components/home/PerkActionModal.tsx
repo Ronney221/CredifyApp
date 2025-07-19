@@ -59,6 +59,22 @@ interface PerkActionModalProps {
 
 const AnimatedSlider = Animated.createAnimatedComponent(Slider);
 
+// Progress bar component for partially redeemed perks
+const ProgressBar = ({ used, remaining, total }: { used: number; remaining: number; total: number }) => {
+  const usedPercentage = (used / total) * 100;
+  
+  return (
+    <View style={styles.progressContainer}>
+      <View style={styles.progressBarTrack}>
+        <View style={[styles.progressBarFill, { width: `${usedPercentage}%` }]} />
+      </View>
+      <Text style={styles.progressText}>
+        Used: ${used.toFixed(2)} • Remaining: ${remaining.toFixed(2)}
+      </Text>
+    </View>
+  );
+};
+
 // Add a new Tooltip component with smooth animation
 const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number }) => {
   const animatedStyle = useAnimatedStyle(() => {
@@ -212,6 +228,12 @@ export default function PerkActionModal({
   const yearlyTotal = useMemo(() => calculateYearlyTotal(perk), [perk]);
   const maxValue = useMemo(() => perk?.value || 0, [perk]);
   const appName = useMemo(() => perk ? getAppName(perk) : '', [perk]);
+  
+  // Enhanced slider visual feedback
+  const sliderMaxValue = useMemo(() => 
+    perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0), 
+    [perk]
+  );
 
   // Safe calculation of remaining value
   const remainingValueDisplay = useMemo(() => {
@@ -428,7 +450,7 @@ export default function PerkActionModal({
     }
 
     // Handle custom amount input
-    if (selectedPreset === 'custom') {
+    if (showCustomAmount) {
       const amount = parseFloat(partialAmount);
       // If amount is 0 or invalid, and perk is partially redeemed, show "Mark as Available"
       if ((isNaN(amount) || amount === 0) && perk.status === 'partially_redeemed') {
@@ -615,6 +637,13 @@ export default function PerkActionModal({
                 <Text style={styles.remainingValue}>
                   Remaining: {formattedRemainingValue}
                 </Text>
+                {isPartiallyRedeemed && (
+                  <ProgressBar 
+                    used={getCurrentRedeemedAmount()}
+                    remaining={perk.remaining_value || 0}
+                    total={perk.value}
+                  />
+                )}
                 <Text style={styles.maxValue}>
                   {perk.period === 'monthly'
                     ? 'Monthly'
@@ -653,10 +682,10 @@ export default function PerkActionModal({
                           : '$0'}
                       </Text>
                       <View style={styles.sliderWrapper}>
-                        <SliderTooltip value={sliderValue} maxValue={perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0)} />
+                        <SliderTooltip value={sliderValue} maxValue={sliderMaxValue} />
                         <AnimatedSlider
                           minimumValue={0}
-                          maximumValue={perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0)}
+                          maximumValue={sliderMaxValue}
                           minimumTrackTintColor="#007AFF"
                           maximumTrackTintColor="#E5E5EA"
                           thumbTintColor="#007AFF"
@@ -667,7 +696,7 @@ export default function PerkActionModal({
                         />
                       </View>
                       <Text style={styles.sliderValue}>
-                        {formatExactCurrency(perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0))}
+                        {formatExactCurrency(sliderMaxValue)}
                       </Text>
                     </View>
                   </View>
@@ -937,60 +966,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     marginBottom: 16,
   },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: '#F2F2F7',
-    borderRadius: 8,
-    padding: 2,
-    marginBottom: 32,
-    height: 44, // Fixed height for consistency
-  },
-  segment: {
-    flex: 1,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
-  },
-  segmentSelected: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 2,
-  },
-  segmentFirst: {
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-  },
-  segmentLast: {
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666666',
-    letterSpacing: -0.08,
-    textAlign: 'center',
-  },
-  segmentSubtext: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#666666',
-    letterSpacing: -0.08,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  segmentTextSelected: {
-    color: '#007AFF',
-  },
   customAmountContainer: {
     gap: 16,
     marginBottom: 32,
@@ -1027,5 +1002,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
     letterSpacing: -0.41,
+  },
+  progressContainer: {
+    marginVertical: 8,
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: '#E5E5EA',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#34C759',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 4,
+    letterSpacing: -0.08,
   },
 }); 

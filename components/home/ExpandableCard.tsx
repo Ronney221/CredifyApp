@@ -91,6 +91,7 @@ export interface ExpandableCardProps {
   setPendingToast: (toast: { message: string; onUndo?: (() => void) | null } | null) => void;
   renewalDate?: Date | null;
   onRenewalDatePress?: () => void;
+  onOpenLoggingModal?: (perk: CardPerk) => void;
 }
 
 const systemGreen = Platform.OS === 'ios' ? PlatformColor('systemGreen') : '#34C759';
@@ -126,6 +127,7 @@ const ExpandableCardComponent = ({
   setPendingToast,
   renewalDate,
   onRenewalDatePress,
+  onOpenLoggingModal,
 }: ExpandableCardProps) => {
   console.log('[ExpandableCard] Rendering card:', {
     cardName: card.name,
@@ -606,14 +608,19 @@ const ExpandableCardComponent = ({
   };
 
   const renderLeftActions = (perk: CardPerk) => {
-    // Left side action = revealed when swiping RIGHT = GREEN "Redeem" action
+    // Left side action = revealed when swiping RIGHT = "Log Usage" action
     return (
       <TouchableOpacity
         style={styles.leftAction}
-        onPress={() => executePerkAction(perk, 'redeemed')}
+        onPress={() => {
+          // Close the swipeable first
+          swipeableRefs.current[perk.id]?.close();
+          // Open the logging modal
+          onOpenLoggingModal?.(perk);
+        }}
       >
-        <Ionicons name="checkmark-circle-outline" size={24} color="#fff" />
-        <Text style={styles.actionText}>Redeem</Text>
+        <Ionicons name="add-circle-outline" size={24} color="#fff" />
+        <Text style={styles.actionText}>Log Usage</Text>
       </TouchableOpacity>
     );
   };
@@ -666,11 +673,8 @@ const ExpandableCardComponent = ({
           markSwipeOnboardingAsSeen();
         }
         
-        if (direction === 'left') { // Left panel was revealed by a right-swipe
-          executePerkAction(perk, 'redeemed');
-        } else { // Right panel was revealed by a left-swipe
-          executePerkAction(perk, 'available');
-        }
+        // Note: We no longer execute actions immediately on swipe open
+        // Actions are now handled by button presses in the revealed panels
       }}
       renderLeftActions={isAvailable ? () => renderLeftActions(perk) : undefined}
       renderRightActions={!isAvailable ? () => renderRightActions(perk) : undefined}
@@ -896,27 +900,27 @@ const styles = StyleSheet.create({
   },
   leftAction: {
     backgroundColor: systemGreen,
-    flex: 1,
+    width: 120, // Fixed width to match swipe limit
     borderRadius: 16,
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16, // Reduced padding for better fit
   },
   rightAction: {
     backgroundColor: '#007aff',
-    flex: 1,
+    width: 120, // Fixed width to match swipe limit
     borderRadius: 16,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16, // Reduced padding for better fit
   },
   actionText: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 15,
-    marginLeft: 8,
+    marginLeft: 6, // Reduced margin for centered layout
     opacity: 1,
   },
   actionContentView: {

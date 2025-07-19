@@ -64,38 +64,46 @@ export function usePerkRedemption({
       perk.value - previousValue : 0;
 
     try {
-      // For partially redeemed perks, delete the existing partial redemption first
+      // Calculate the total amount that would be redeemed (existing + new)
+      const newPartialAmount = partialAmount ?? perk.value;
+      let totalRedeemedAmount = newPartialAmount;
+      
+      // If perk is already partially redeemed, add to existing amount
+      if (isPartiallyRedeemed && perk.remaining_value !== undefined) {
+        const alreadyRedeemedAmount = perk.value - perk.remaining_value;
+        totalRedeemedAmount = alreadyRedeemedAmount + newPartialAmount;
+      }
+
+      // Determine the final status and remaining value
+      const newStatus = totalRedeemedAmount >= perk.value ? 'redeemed' : 'partially_redeemed';
+      const remainingValue = totalRedeemedAmount >= perk.value ? undefined : perk.value - totalRedeemedAmount;
+
+      // For partially redeemed perks, delete existing redemptions first to replace with accumulated total
       if (isPartiallyRedeemed) {
-        const { error: deleteError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
+        const { error: deleteError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.definition_id);
         if (deleteError) {
           console.error('Error deleting partial redemption:', deleteError);
           Alert.alert('Error', 'Failed to update perk redemption.');
           return;
         }
-        
-        // Update UI to reflect deletion of partial redemption
-        setPerkStatus(cardId, perk.id, 'available');
-        await onPerkStatusChange?.();
       }
-
-      // Determine the redemption amount and status
-      const amountToRedeem = partialAmount ?? perk.value;
-      const newStatus = partialAmount && partialAmount < perk.value ? 'partially_redeemed' : 'redeemed';
-      const remainingValue = partialAmount && partialAmount < perk.value ? perk.value - partialAmount : undefined;
 
       // Optimistic update
       setPerkStatus(cardId, perk.id, newStatus, remainingValue);
 
-      // Track the redemption
+      // Track the redemption with the total accumulated amount
       const { error } = await supabase.from('perk_redemptions').insert([
         {
           user_id: userId,
-          card_id: cardId,
-          perk_id: perk.id,
-          amount: amountToRedeem,
+          user_card_id: cardId,
+          perk_id: perk.definition_id,
+          value_redeemed: totalRedeemedAmount,
+          total_value: perk.value,
           status: newStatus,
-          remaining_value: remainingValue,
+          remaining_value: remainingValue || 0,
           parent_redemption_id: perk.parent_redemption_id,
+          redemption_date: new Date().toISOString(),
+          reset_date: new Date(new Date().getFullYear() + 1, 0, 1).toISOString(), // Default to next year
         },
       ]).select().single();
 
@@ -139,7 +147,7 @@ export function usePerkRedemption({
                 {
                   user_id: userId,
                   card_id: cardId,
-                  perk_id: perk.id,
+                  perk_id: perk.definition_id,
                   amount: partiallyRedeemedAmount,
                   status: originalStatus,
                   remaining_value: remainingValue,
@@ -182,7 +190,7 @@ export function usePerkRedemption({
       setPerkStatus(cardId, perk.id, 'available', perk.value);
 
       // Delete the redemption
-      const { error } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
+      const { error } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.definition_id);
 
       if (error) {
         // Revert optimistic update on error
@@ -209,7 +217,7 @@ export function usePerkRedemption({
               {
                 user_id: userId,
                 card_id: cardId,
-                perk_id: perk.id,
+                perk_id: perk.definition_id,
                 amount: previousRedeemedAmount,
                 status: originalStatus,
                 remaining_value: previousValue,
