@@ -157,7 +157,13 @@ const ExpandableCardComponent = ({
   const handleDismissTapOnboarding = useCallback(() => {
     markTapOnboardingAsSeen();
     setFirstPerkLayout(null);
-  }, [markTapOnboardingAsSeen]);
+    
+    // Show swipe hints after tap onboarding is dismissed
+    const hasAvailablePerks = validPerks.some(p => p.status === 'available');
+    if (isExpanded && !hasSeenSwipeOnboarding && hasAvailablePerks) {
+      setShowSwipeHint(true);
+    }
+  }, [markTapOnboardingAsSeen, validPerks, isExpanded, hasSeenSwipeOnboarding]);
   const router = useRouter();
   const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
   
