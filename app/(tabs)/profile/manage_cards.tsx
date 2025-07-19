@@ -30,7 +30,6 @@ import {
   useCardManagement,
 } from '../../../components/cards';
 import { MotiView } from 'moti';
-import { UserDebugInfo } from '../../../components/debug/UserDebugInfo';
 import DraggableFlatList, { 
   ScaleDecorator,
   RenderItemParams,
@@ -59,7 +58,7 @@ export default function ManageCardsScreen() {
   const [removingCardId, setRemovingCardId] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
-  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [selectedForDeletion, setSelectedForDeletion] = useState<Set<string>>(new Set());
 
   const ESTIMATED_CARD_ROW_HEIGHT = 80;
 
@@ -82,6 +81,12 @@ export default function ManageCardsScreen() {
       setIsEditMode(false);
     }
   }, [isEditMode, selectedCards.length]);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      setSelectedForDeletion(new Set());
+    }
+  }, [isEditMode]);
 
   useEffect(() => {
     if (params.highlightCardId && selectedCards.includes(params.highlightCardId)) {
@@ -107,6 +112,67 @@ export default function ManageCardsScreen() {
     }
     setIsEditMode(!isEditMode);
   }, [isEditMode]);
+
+  const handleCardSelectionToggle = useCallback((cardId: string) => {
+    setSelectedForDeletion(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
+      } else {
+        newSet.add(cardId);
+      }
+      return newSet;
+    });
+    if (Platform.OS === 'ios') {
+      Haptics.selectionAsync();
+    }
+  }, []);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedForDeletion.size === 0) return;
+
+    const cardNames = Array.from(selectedForDeletion)
+      .map(id => selectedCardObjects.find(c => c.id === id)?.name)
+      .filter(Boolean)
+      .join(', ');
+
+    Alert.alert(
+      "Remove Cards",
+      `Are you sure you want to remove ${selectedForDeletion.size} card(s)?\n\n${cardNames}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove All",
+          style: "destructive",
+          onPress: async () => {
+            if (Platform.OS === 'ios') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }
+            
+            // Remove cards from state
+            const cardsToRemove = Array.from(selectedForDeletion);
+            cardsToRemove.forEach(cardId => handleRemoveCard(cardId));
+            
+            // Save to database
+            if (user?.id) {
+              const updatedCards = selectedCardObjects.filter(c => !selectedForDeletion.has(c.id));
+              const updatedRenewalDates = { ...renewalDates };
+              cardsToRemove.forEach(cardId => delete updatedRenewalDates[cardId]);
+              
+              const { error } = await saveUserCards(user.id, updatedCards, updatedRenewalDates);
+              if (error) {
+                console.error('Error saving cards after bulk removal:', error);
+                Alert.alert("Error", "Failed to save changes. Please try again.");
+              }
+            }
+            
+            setSelectedForDeletion(new Set());
+            setIsEditMode(false);
+          }
+        }
+      ]
+    );
+  }, [selectedForDeletion, selectedCardObjects, handleRemoveCard, user?.id, renewalDates]);
 
   const animateCardRemoval = useCallback((onComplete: () => void) => {
     Animated.parallel([
@@ -344,11 +410,13 @@ export default function ManageCardsScreen() {
             isEditMode={isEditMode}
             isActive={isActive}
             drag={drag}
+            isSelectedForDeletion={selectedForDeletion.has(card.id)}
+            onSelectionToggle={handleCardSelectionToggle}
           />
         </Animated.View>
       </ScaleDecorator>
     );
-  }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation, removingCardId, fadeAnim, translateX]);
+  }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation, removingCardId, fadeAnim, translateX, selectedForDeletion, handleCardSelectionToggle]);
 
   const isFromDashboard = params.backRoute === '/(tabs)/01-dashboard' || pathname.includes('01-dashboard');
   
@@ -362,25 +430,31 @@ export default function ManageCardsScreen() {
       ),
       headerTitle: 'Manage Cards',
       headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+          {isEditMode && selectedForDeletion.size > 0 && (
+            <TouchableOpacity onPress={handleBulkDelete} style={{ marginLeft: 8 }}>
+              <Text style={{ color: '#FF3B30', fontSize: 16, fontWeight: '600' }}>
+                Delete ({selectedForDeletion.size})
+              </Text>
+            </TouchableOpacity>
+          )}
           {selectedCards.length > 0 && (
-            <TouchableOpacity onPress={handleEditModeToggle} style={{ marginRight: 15 }}>
+            <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
               <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
                 {isEditMode ? 'Done' : 'Edit'}
               </Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginRight: 15 }}>
-            <Ionicons name="add" size={28} color={Colors.light.tint} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowDebugInfo(true)} style={{ marginRight: 15 }}>
-            <Ionicons name="bug" size={24} color={Colors.light.tint} />
-          </TouchableOpacity>
+          {!isEditMode && (
+            <TouchableOpacity onPress={handleOpenAddCardModal} style={{ marginLeft: 15 }}>
+              <Ionicons name="add" size={28} color={Colors.light.tint} />
+            </TouchableOpacity>
+          )}
         </View>
       ),
       headerShown: true,
     });
-  }, [navigation, isEditMode, selectedCards.length, handleEditModeToggle, handleOpenAddCardModal, isFromDashboard]);
+  }, [navigation, isEditMode, selectedCards.length, selectedForDeletion.size, handleEditModeToggle, handleOpenAddCardModal, handleBulkDelete, isFromDashboard]);
 
   if (isLoading) {
     return (
@@ -444,9 +518,6 @@ export default function ManageCardsScreen() {
         />
       )}
 
-      {showDebugInfo && (
-        <UserDebugInfo onClose={() => setShowDebugInfo(false)} />
-      )}
     </>
   );
 }
