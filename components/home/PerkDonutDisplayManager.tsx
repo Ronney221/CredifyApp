@@ -333,7 +333,7 @@ const PerkDonutDisplayManagerInner = (
       <View style={styles.feesContainer}>
         <Ionicons name="card" size={14} color="#6B7280" style={styles.feesIcon} />
         <Text style={styles.annualFeesText}>
-          Annual Fees: ${totalAnnualFees.toFixed(0)} • ROI: {totalAnnualFees > 0 ? `${(activeData.value / totalAnnualFees * 100).toFixed(0)}%` : 'N/A'}
+          Annual Fees: ${totalAnnualFees.toFixed(0)}
         </Text>
       </View>
     </View>
