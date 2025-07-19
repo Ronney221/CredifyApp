@@ -211,7 +211,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
 const styles = StyleSheet.create({
   perkContainerOuter: {
     marginVertical: Spacing.xs, // 4pt
-    borderRadius: BorderRadius.xl, // 16pt
+    borderRadius: BorderRadius.xl, // 16pt - restore for proper iOS Messages style
     overflow: 'hidden',
   },
   perkContainer: {
@@ -220,13 +220,18 @@ const styles = StyleSheet.create({
     paddingVertical: ComponentSpacing.listItemPadding, // 16pt
     paddingHorizontal: ComponentSpacing.listItemPadding, // 16pt
     position: 'relative',
-    borderRadius: BorderRadius.xl, // 16pt
     overflow: 'hidden',
+    // Ensure this stays on top of swipe actions for iOS Messages style
+    zIndex: 2,
   },
   perkContainerAvailable: {
     backgroundColor: PerkDesign.available.background,
-    borderWidth: 1,
-    borderColor: PerkDesign.available.border,
+    // Remove border to prevent border radius conflicts
+    // iOS Messages style: remove LEFT corners where green action connects
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderTopRightRadius: BorderRadius.xl, // 16pt
+    borderBottomRightRadius: BorderRadius.xl, // 16pt
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -241,14 +246,28 @@ const styles = StyleSheet.create({
   },
   perkContainerRedeemed: {
     backgroundColor: PerkDesign.redeemed.background,
+    // iOS Messages style: remove RIGHT corners where blue action connects
+    borderTopLeftRadius: BorderRadius.xl, // 16pt
+    borderBottomLeftRadius: BorderRadius.xl, // 16pt
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
   },
   perkContainerAutoRedeemed: {
     backgroundColor: PerkDesign.autoRedeemed.background,
+    // iOS Messages style: remove RIGHT corners where blue action connects
+    borderTopLeftRadius: BorderRadius.xl, // 16pt
+    borderBottomLeftRadius: BorderRadius.xl, // 16pt
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
   },
   perkContainerPartiallyRedeemed: {
     backgroundColor: PerkDesign.partiallyRedeemed.background,
-    borderWidth: 1,
-    borderColor: PerkDesign.partiallyRedeemed.border,
+    // Remove border to prevent border radius conflicts
+    // iOS Messages style: remove LEFT corners where green action connects
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderTopRightRadius: BorderRadius.xl, // 16pt
+    borderBottomRightRadius: BorderRadius.xl, // 16pt
     ...Platform.select({
       ios: {
         shadowColor: PerkDesign.partiallyRedeemed.progress,

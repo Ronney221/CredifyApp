@@ -908,20 +908,42 @@ const styles = StyleSheet.create({
   leftAction: {
     backgroundColor: systemGreen,
     width: 120, // Fixed width to match swipe limit
-    borderRadius: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16, // Reduced padding for better fit
+    paddingHorizontal: 16,
+    // Match PerkRow dimensions exactly
+    height: 72, // Match PerkRow height
+    marginVertical: 4, // Match PerkRow outer margin
+    marginRight: 0, // No overlap - let borders handle seamless connection
+    // iOS Messages style: only round the exposed LEFT edge
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    // RIGHT edge completely square for seamless connection
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    // Layer behind the PerkRow
+    zIndex: 1,
   },
   rightAction: {
     backgroundColor: '#007aff',
     width: 120, // Fixed width to match swipe limit
-    borderRadius: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16, // Reduced padding for better fit
+    paddingHorizontal: 16,
+    // Match PerkRow dimensions exactly
+    height: 72, // Match PerkRow height
+    marginVertical: 4, // Match PerkRow outer margin
+    marginLeft: 0, // No overlap - let borders handle seamless connection
+    // iOS Messages style: only round the exposed RIGHT edge
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+    // LEFT edge completely square for seamless connection
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    // Layer behind the PerkRow
+    zIndex: 1,
   },
   actionText: {
     color: '#fff',
