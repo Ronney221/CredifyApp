@@ -118,73 +118,6 @@ const toTitleCase = (str: string) => {
   ).join(' ');
 };
 
-// Segmented control option type
-type AmountOption = 'full' | 'half' | 'custom';
-
-// Segmented control component
-const SegmentedControl = ({ 
-  value, 
-  onChange,
-  perk,
-}: { 
-  value: AmountOption; 
-  onChange: (value: AmountOption) => void;
-  perk: CardPerk | null;
-}) => {
-  const segments: { value: AmountOption; topLabel: string; bottomLabel?: string }[] = [
-    { 
-      value: 'full', 
-      topLabel: formatCurrency(perk?.value || 0),
-      bottomLabel: 'Full'
-    },
-    { 
-      value: 'half', 
-      topLabel: formatCurrency((perk?.value || 0) / 2),
-      bottomLabel: 'Half'
-    },
-    { 
-      value: 'custom', 
-      topLabel: 'Custom'
-    },
-  ];
-
-  return (
-    <View style={styles.segmentedControl}>
-      {segments.map((segment, index) => (
-        <TouchableOpacity
-          key={segment.value}
-          style={[
-            styles.segment,
-            value === segment.value && styles.segmentSelected,
-            index === 0 && styles.segmentFirst,
-            index === segments.length - 1 && styles.segmentLast,
-          ]}
-          onPress={() => {
-            Haptics.selectionAsync();
-            onChange(segment.value);
-          }}
-        >
-          <View style={styles.segmentContent}>
-            <Text style={[
-              styles.segmentText,
-              value === segment.value && styles.segmentTextSelected
-            ]}>
-              {segment.topLabel}
-            </Text>
-            {segment.bottomLabel && (
-              <Text style={[
-                styles.segmentSubtext,
-                value === segment.value && styles.segmentTextSelected
-              ]}>
-                {segment.bottomLabel}
-              </Text>
-            )}
-          </View>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
 
 // Input accessory view ID
 const INPUT_ACCESSORY_ID = 'amountInputAccessory';
@@ -241,7 +174,6 @@ export default function PerkActionModal({
   setPendingToast,
 }: PerkActionModalProps) {
   // State hooks must be at the top, before any conditional returns
-  const [selectedPreset, setSelectedPreset] = useState<AmountOption>('full');
   const [sliderValue, setSliderValue] = useState(0);
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
@@ -440,7 +372,6 @@ export default function PerkActionModal({
       setPartialAmount('0.00');
       
       // Set UI state
-      setSelectedPreset('custom');
       setShowCustomAmount(true);
     } else {
       // For available perks, set to max value
@@ -450,7 +381,6 @@ export default function PerkActionModal({
       setSliderValue(maxValue);
       setPartialAmount(formatExactCurrency(maxValue).replace(/[^0-9.]/g, ''));
       
-      setSelectedPreset('full');
       setShowCustomAmount(false);
     }
     setIsEditingNumber(false);
@@ -578,7 +508,7 @@ export default function PerkActionModal({
     Keyboard.dismiss();
 
     // For custom amount input
-    if (showCustomAmount && selectedPreset === 'custom') {
+    if (showCustomAmount) {
       const amount = parseFloat(partialAmount);
       
       // Special case: marking a partially redeemed perk as available
@@ -718,7 +648,9 @@ export default function PerkActionModal({
                   <View style={styles.amountSelectorContainer}>
                     <View style={styles.sliderContainer}>
                       <Text style={styles.sliderValue}>
-                        {perk?.status === 'partially_redeemed' ? '$0' : '$0'}
+                        {perk?.status === 'partially_redeemed' 
+                          ? `$${getCurrentRedeemedAmount().toFixed(2)} used` 
+                          : '$0'}
                       </Text>
                       <View style={styles.sliderWrapper}>
                         <SliderTooltip value={sliderValue} maxValue={perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0)} />

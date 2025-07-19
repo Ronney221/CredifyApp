@@ -526,76 +526,38 @@ export async function getAnnualRedemptions(userId: string) {
 
 export async function deletePerkRedemption(userId: string, perkDefinitionId: string) {
   try {
-    console.log('[DB] Attempting to delete perk redemption:', { userId, perkDefinitionId });
+    console.log('[DB] Attempting to delete ALL perk redemptions:', { userId, perkDefinitionId });
 
-    // First, check if this is a partial redemption with children
-    const { data: redemptionToDelete, error: findError } = await supabase
+    // Get all redemption records for this perk to understand what we're deleting
+    const { data: allRedemptions, error: findError } = await supabase
       .from('perk_redemptions')
-      .select('id, parent_redemption_id, value_redeemed')
+      .select('id, parent_redemption_id, value_redeemed, status')
       .eq('user_id', userId)
       .eq('perk_id', perkDefinitionId)
-      .order('redemption_date', { ascending: false })
-      .limit(1)
-      .single();
+      .order('redemption_date', { ascending: false });
 
     if (findError) {
-      console.error('Database error finding perk redemption:', findError);
+      console.error('Database error finding perk redemptions:', findError);
       return { error: findError };
     }
 
-    // If this is a child redemption, update the parent's remaining value
-    if (redemptionToDelete?.parent_redemption_id) {
-      // First get the current parent redemption
-      const { data: parentRedemption, error: getParentError } = await supabase
-        .from('perk_redemptions')
-        .select('remaining_value')
-        .eq('id', redemptionToDelete.parent_redemption_id)
-        .single();
-
-      if (getParentError) {
-        console.error('Error getting parent redemption:', getParentError);
-        return { error: getParentError };
-      }
-
-      const newRemainingValue = (parentRedemption?.remaining_value || 0) + redemptionToDelete.value_redeemed;
-
-      const { error: updateParentError } = await supabase
-        .from('perk_redemptions')
-        .update({
-          remaining_value: newRemainingValue,
-          status: 'partially_redeemed'
-        })
-        .eq('id', redemptionToDelete.parent_redemption_id);
-
-      if (updateParentError) {
-        console.error('Error updating parent redemption:', updateParentError);
-        return { error: updateParentError };
-      }
+    if (!allRedemptions || allRedemptions.length === 0) {
+      console.log('No redemption records found to delete');
+      return { error: null };
     }
 
-    // Delete any child redemptions if this is a parent
-    if (redemptionToDelete?.id) {
-      const { error: deleteChildrenError } = await supabase
-        .from('perk_redemptions')
-        .delete()
-        .eq('parent_redemption_id', redemptionToDelete.id);
+    console.log(`[DB] Found ${allRedemptions.length} redemption records to delete:`, allRedemptions);
 
-      if (deleteChildrenError) {
-        console.error('Error deleting child redemptions:', deleteChildrenError);
-        return { error: deleteChildrenError };
-      }
-    }
-
-    // Delete the redemption itself
+    // Delete ALL redemption records for this perk at once
+    // This handles both parent and child redemptions, and multiple partial redemptions
     const { error: deleteError } = await supabase
       .from('perk_redemptions')
       .delete()
       .eq('user_id', userId)
-      .eq('perk_id', perkDefinitionId)
-      .eq('id', redemptionToDelete?.id);
+      .eq('perk_id', perkDefinitionId);
 
     if (deleteError) {
-      console.error('Database error deleting perk redemption:', { 
+      console.error('Database error deleting all perk redemptions:', { 
         error: deleteError,
         userId,
         perkDefinitionId
@@ -603,10 +565,10 @@ export async function deletePerkRedemption(userId: string, perkDefinitionId: str
       return { error: deleteError };
     }
 
-    console.log('Successfully deleted perk redemption:', { userId, perkDefinitionId });
+    console.log(`Successfully deleted all ${allRedemptions.length} perk redemption(s):`, { userId, perkDefinitionId });
     return { error: null };
   } catch (error) {
-    console.error('Unexpected error deleting perk redemption:', { 
+    console.error('Unexpected error deleting perk redemptions:', { 
       error,
       userId,
       perkDefinitionId
