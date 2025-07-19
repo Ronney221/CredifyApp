@@ -800,52 +800,69 @@ export default function Dashboard() {
     // Close info sheet first
     handleInfoSheetDismiss();
 
+    // Only show welcome back for available or partially redeemed perks
+    if (selectedPerk.status === 'available' || selectedPerk.status === 'partially_redeemed') {
+      console.log('🎯 Setting up AppState listener for perk:', perkInfo.name, 'Current AppState:', appState.current);
+      
+      let hasShownWelcomeBack = false;
+      let wasInBackground = false;
+
+      // Set up a one-time AppState change listener
+      const handleAppStateChange = (nextAppState: AppStateStatus) => {
+        console.log('🔄 AppState changed:', { 
+          current: appState.current, 
+          next: nextAppState,
+          perkName: perkInfo.name,
+          hasShownWelcomeBack,
+          wasInBackground 
+        });
+
+        // Track when app goes to background or inactive
+        if (nextAppState === 'background' || nextAppState === 'inactive') {
+          console.log('📱 App went to background/inactive, setting wasInBackground = true');
+          wasInBackground = true;
+          return;
+        }
+
+        // Show welcome back snackbar when coming back to active state
+        if (nextAppState === 'active' && wasInBackground && !hasShownWelcomeBack) {
+          console.log('🎉 Showing welcome back for:', perkInfo.name);
+          hasShownWelcomeBack = true;
+          
+          // Remove the listener since we only want to handle the first return to the app
+          subscription.remove();
+
+          // Show welcome back snackbar
+          setWelcomeBackPerk(selectedPerk);
+          setShowWelcomeBackSnackbar(true);
+        } else if (nextAppState === 'active' && wasInBackground && hasShownWelcomeBack) {
+          console.log('🔄 App returned to active but welcome back already shown');
+        } else if (nextAppState === 'active' && !wasInBackground) {
+          console.log('🔄 App became active but was never in background');
+        }
+        appState.current = nextAppState;
+      };
+
+      const subscription = AppState.addEventListener('change', handleAppStateChange);
+      console.log('✅ AppState listener registered successfully');
+    }
+
     try {
       // Always attempt to open the app target
-      const didOpen = await openPerkTarget(perkToOpenAppFor);
-      if (didOpen && Platform.OS === 'ios') {
+      console.log('🚀 About to open perk target:', perkToOpenAppFor.name);
+      const openResult = await openPerkTarget(perkToOpenAppFor);
+      console.log('📱 App opening result:', openResult);
+      
+      if (openResult.success && Platform.OS === 'ios') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      // Only show welcome back for available or partially redeemed perks
-      if (selectedPerk.status === 'available' || selectedPerk.status === 'partially_redeemed') {
-        console.log('Setting up AppState listener for perk:', perkInfo.name);
-        
-        let hasShownWelcomeBack = false;
-        let wasInBackground = false;
-
-        // Set up a one-time AppState change listener
-        const handleAppStateChange = (nextAppState: AppStateStatus) => {
-          console.log('AppState changed:', { 
-            current: appState.current, 
-            next: nextAppState,
-            perkName: perkInfo.name,
-            hasShownWelcomeBack,
-            wasInBackground 
-          });
-
-          // Track when app goes to background
-          if (nextAppState === 'background') {
-            wasInBackground = true;
-            return;
-          }
-
-          // Show welcome back snackbar when coming back to active state
-          if (nextAppState === 'active' && wasInBackground && !hasShownWelcomeBack) {
-            console.log('Showing welcome back for:', perkInfo.name);
-            hasShownWelcomeBack = true;
-            
-            // Remove the listener since we only want to handle the first return to the app
-            subscription.remove();
-
-            // Show welcome back snackbar
-            setWelcomeBackPerk(selectedPerk);
-            setShowWelcomeBackSnackbar(true);
-          }
-          appState.current = nextAppState;
-        };
-
-        const subscription = AppState.addEventListener('change', handleAppStateChange);
+      // If we used a fallback (WebBrowser), show the snackbar immediately
+      // since WebBrowser doesn't trigger AppState transitions
+      if (openResult.success && openResult.usedFallback) {
+        console.log('🌐 Used fallback URL, showing welcome back snackbar immediately');
+        setWelcomeBackPerk(selectedPerk);
+        setShowWelcomeBackSnackbar(true);
       }
     } catch (openErrorOrDbError) {
       console.error('Error in perk action flow:', openErrorOrDbError);
