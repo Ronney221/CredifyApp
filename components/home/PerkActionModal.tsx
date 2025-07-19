@@ -311,7 +311,7 @@ export default function PerkActionModal({
     if (!perk) return;
     
     const roundedValue = roundToNearestDime(value);
-    const maxValue = perk.value;
+    const maxValue = perk.status === 'partially_redeemed' ? (perk.remaining_value || 0) : perk.value;
     
     // Ensure value doesn't exceed max
     const validatedValue = Math.min(roundedValue, maxValue);
@@ -335,11 +335,12 @@ export default function PerkActionModal({
     
     // Parse the value
     const parsedValue = parseDecimalInput(cleanedText);
+    const maxValue = perk.status === 'partially_redeemed' ? (perk.remaining_value || 0) : perk.value;
     
     // Validate the value
-    if (parsedValue > perk.value) {
-      setPartialAmount(perk.value.toFixed(2));
-      sliderAnimation.value = withSpring(perk.value);
+    if (parsedValue > maxValue) {
+      setPartialAmount(maxValue.toFixed(2));
+      sliderAnimation.value = withSpring(maxValue);
     } else {
       setPartialAmount(cleanedText);
       if (!isNaN(parsedValue)) {
@@ -360,7 +361,7 @@ export default function PerkActionModal({
       return;
     }
     
-    const maxValue = perk.value;
+    const maxValue = perk.status === 'partially_redeemed' ? (perk.remaining_value || 0) : perk.value;
     const validatedValue = Math.min(roundToNearestDime(numValue), maxValue);
     
     setPartialAmount(validatedValue.toFixed(2));
@@ -430,22 +431,19 @@ export default function PerkActionModal({
   useEffect(() => {
     if (!visible || !perk) return;
 
-    // First check if it's partially redeemed and set the correct initial value
+    // For partially redeemed perks, start slider at 0 to log additional usage
     if (perk.status === 'partially_redeemed') {
-      const currentRedeemedAmount = getCurrentRedeemedAmount();
-      const roundedAmount = roundToNearestDime(currentRedeemedAmount);
-      
-      // Set all slider-related values to the current redeemed amount
-      sliderAnimation.value = roundedAmount;
-      sliderPosition.value = roundedAmount;
-      setSliderValue(roundedAmount);
-      setPartialAmount(formatExactCurrency(roundedAmount).replace(/[^0-9.]/g, ''));
+      // Start fresh - user can log additional usage on top of what's already redeemed
+      sliderAnimation.value = 0;
+      sliderPosition.value = 0;
+      setSliderValue(0);
+      setPartialAmount('0.00');
       
       // Set UI state
       setSelectedPreset('custom');
       setShowCustomAmount(true);
     } else {
-      // For non-partially redeemed perks, set to max value
+      // For available perks, set to max value
       const maxValue = perk.value || 0;
       sliderAnimation.value = maxValue;
       sliderPosition.value = maxValue;
@@ -456,7 +454,7 @@ export default function PerkActionModal({
       setShowCustomAmount(false);
     }
     setIsEditingNumber(false);
-  }, [visible, perk, getCurrentRedeemedAmount, sliderAnimation, sliderPosition]);
+  }, [visible, perk, sliderAnimation, sliderPosition]);
 
   useEffect(() => {
     // Log the perk object whenever the modal becomes visible or the perk changes
@@ -489,11 +487,13 @@ export default function PerkActionModal({
 
   const renderActionButton = () => {
     if (!perk) return null;
+    
+    const maxValue = perk.status === 'partially_redeemed' ? (perk.remaining_value || 0) : perk.value;
 
     // Handle slider-based input
     if (!showCustomAmount) {
       if (sliderValue === 0) return 'Mark as Available';
-      if (sliderValue === perk.value) return 'Mark as Redeemed';
+      if (sliderValue === maxValue) return 'Mark as Redeemed';
       return `Log $${sliderValue.toFixed(2)}`;
     }
 
@@ -504,7 +504,7 @@ export default function PerkActionModal({
       if ((isNaN(amount) || amount === 0) && perk.status === 'partially_redeemed') {
         return 'Mark as Available';
       }
-      if (amount === perk.value) return 'Mark as Redeemed';
+      if (amount === maxValue) return 'Mark as Redeemed';
       return `Log $${amount.toFixed(2)}`;
     }
 
@@ -521,8 +521,9 @@ export default function PerkActionModal({
 
       // For partial redemptions, validate the amount
       if (partialAmount !== undefined) {
-        if (partialAmount <= 0 || partialAmount > perk.value) {
-          Alert.alert('Invalid Amount', 'Please enter a valid amount between 0 and the total credit value.');
+        const maxValue = perk.status === 'partially_redeemed' ? (perk.remaining_value || 0) : perk.value;
+        if (partialAmount <= 0 || partialAmount > maxValue) {
+          Alert.alert('Invalid Amount', `Please enter a valid amount between 0 and the ${perk.status === 'partially_redeemed' ? 'remaining' : 'total'} credit value.`);
           return;
         }
       }
@@ -592,8 +593,9 @@ export default function PerkActionModal({
         Alert.alert('Invalid Amount', 'Please enter a valid amount.');
         return;
       }
-      if (amount < 0 || amount > perk.value) {
-        Alert.alert('Invalid Amount', 'Amount cannot exceed the total credit value.');
+      const maxValue = perk.status === 'partially_redeemed' ? (perk.remaining_value || 0) : perk.value;
+      if (amount < 0 || amount > maxValue) {
+        Alert.alert('Invalid Amount', `Amount cannot exceed the ${perk.status === 'partially_redeemed' ? 'remaining' : 'total'} credit value.`);
         return;
       }
 
@@ -719,10 +721,10 @@ export default function PerkActionModal({
                         {perk?.status === 'partially_redeemed' ? '$0' : '$0'}
                       </Text>
                       <View style={styles.sliderWrapper}>
-                        <SliderTooltip value={sliderValue} maxValue={perk?.value || 0} />
+                        <SliderTooltip value={sliderValue} maxValue={perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0)} />
                         <AnimatedSlider
-                          minimumValue={perk?.status === 'partially_redeemed' ? 0 : 0.1}
-                          maximumValue={perk?.value || 0}
+                          minimumValue={0}
+                          maximumValue={perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0)}
                           minimumTrackTintColor="#007AFF"
                           maximumTrackTintColor="#E5E5EA"
                           thumbTintColor="#007AFF"
@@ -732,7 +734,9 @@ export default function PerkActionModal({
                           style={styles.slider}
                         />
                       </View>
-                      <Text style={styles.sliderValue}>{formatExactCurrency(perk?.value || 0)}</Text>
+                      <Text style={styles.sliderValue}>
+                        {formatExactCurrency(perk?.status === 'partially_redeemed' ? (perk?.remaining_value || 0) : (perk?.value || 0))}
+                      </Text>
                     </View>
                   </View>
 

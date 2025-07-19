@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { 
   FadeIn, 
@@ -85,6 +85,9 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   const scale = useSharedValue(1);
   const rotation = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
+  
+  // Track touch start position to detect scroll vs tap
+  const [touchStart, setTouchStart] = React.useState<{x: number, y: number} | null>(null);
 
   // Calculate fee coverage based on only monthly perks (memoized)
   const monthlyCalculations = useMemo(() => 
@@ -248,12 +251,32 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
     opacity: cardOpacity.value
   }));
 
-  const handlePressIn = () => {
+  const handlePressIn = (event: GestureResponderEvent) => {
+    const { pageX, pageY } = event.nativeEvent;
+    setTouchStart({ x: pageX, y: pageY });
     scale.value = withSpring(0.98, { damping: 15, stiffness: 120 });
   };
 
-  const handlePressOut = () => {
+  const handlePressOut = (event: GestureResponderEvent) => {
+    // Always reset scale regardless of movement
     scale.value = withSpring(1, { damping: 15, stiffness: 120 });
+    setTouchStart(null);
+  };
+
+  const handlePress = (event: GestureResponderEvent) => {
+    if (!touchStart) {
+      onToggleExpand();
+      return;
+    }
+
+    const { pageX, pageY } = event.nativeEvent;
+    const deltaX = Math.abs(pageX - touchStart.x);
+    const deltaY = Math.abs(pageY - touchStart.y);
+    
+    // Only trigger toggle if touch didn't move much (not a scroll)
+    if (deltaX < 10 && deltaY < 10) {
+      onToggleExpand();
+    }
   };
 
   // Update the perk details filtering
@@ -551,11 +574,11 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
   };
 
   return (
-    <Pressable 
-      onPress={onToggleExpand} 
+    <TouchableOpacity 
+      onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      hitSlop={{top:8,left:8,right:8,bottom:8}}
+      activeOpacity={1}
       accessible={true}
       accessibilityRole="button"
       accessibilityLabel={`${summary.monthYear} insights ${isExpanded ? 'expanded' : 'collapsed'}`}
@@ -745,7 +768,7 @@ export const MonthSummaryCard: React.FC<MonthSummaryCardProps> = ({
           )}
         </LinearGradient>
       </Animated.View>
-    </Pressable>
+    </TouchableOpacity>
   );
 };
 
