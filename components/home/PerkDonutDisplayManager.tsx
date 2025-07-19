@@ -47,15 +47,15 @@ interface PerkDonutDisplayManagerProps {
 const getPeriodDisplayName = (periodMonths: number): string => {
   switch (periodMonths) {
     case 1:
-      return '1 M';
+      return 'Month';
     case 3:
-      return '3 M';
+      return 'Quarter';
     case 6:
-      return '6 M';
+      return '6 Month';
     case 12:
-      return '1 Y';
+      return 'Year';
     default:
-      return `${periodMonths} M`;
+      return `${periodMonths}M`;
   }
 };
 
@@ -63,15 +63,15 @@ const getPeriodDisplayName = (periodMonths: number): string => {
 const getDonutDisplayName = (periodMonths: number): string => {
   switch (periodMonths) {
     case 1:
-      return 'Monthly Redeemed';
+      return 'This Month';
     case 3:
-      return 'Quarterly Redeemed';
+      return 'This Quarter';
     case 6:
-      return 'Semi-Annual Redeemed';
+      return 'This Half-Year';
     case 12:
-      return 'Annual Redeemed';
+      return 'This Year';
     default:
-      return `${periodMonths}-Month Redeemed`;
+      return `This ${periodMonths}-Month Period`;
   }
 };
 
@@ -321,12 +321,13 @@ const PerkDonutDisplayManagerInner = (
       />
 
       <ProgressDonut
-        size={150}
-        strokeWidth={10}
+        size={160}
+        strokeWidth={12}
         progress={activeData.progress}
         amount={activeData.amount}
         label={activeData.label}
         combinedStatsText={activeData.combinedStatsText}
+        color={activeData.color}
       />
       
       {/* Enhanced Annual Fees with better styling */}
@@ -367,36 +368,45 @@ const styles = StyleSheet.create({
   metricsContainer: {
     alignItems: 'center',
     width: '100%',
-    paddingTop: 12,
-    paddingBottom: 8,
-    paddingHorizontal: 16,
-    // backgroundColor: '#ffffff', // Removed as per Task 4
-    borderRadius: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingTop: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   // Enhanced Annual Fees styling
   feesContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(107, 114, 128, 0.1)',
-    borderRadius: 12,
+    marginTop: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(107, 114, 128, 0.08)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 114, 128, 0.15)',
   },
   feesIcon: {
-    marginRight: 6,
+    marginRight: 8,
+    opacity: 0.8,
   },
   annualFeesText: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-    letterSpacing: -0.1,
+    fontSize: 14,
+    color: '#4B5563',
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    lineHeight: 18,
   },
 });
 
