@@ -885,6 +885,7 @@ const styles = StyleSheet.create({
   perksListContainer: {
     paddingHorizontal: 0,
     paddingBottom: 8,
+    backgroundColor: '#F7F7F7',
   },
   perksGroupContainer: {
     backgroundColor: '#F7F7F7',
@@ -973,8 +974,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    backgroundColor: '#F7F7F7',
+    borderBottomWidth: 0,
     borderBottomColor: '#E5E5EA',
     position: 'relative',
     borderRadius: 16,

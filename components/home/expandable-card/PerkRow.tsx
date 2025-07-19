@@ -260,8 +260,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   perkContainerAvailable: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    backgroundColor: '#F7F7F7',
+    borderWidth: 0,
     borderColor: '#E0E0E0',
     ...Platform.select({
       ios: {
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   perkContainerPartiallyRedeemed: {
     backgroundColor: PARTIAL_REDEEM_BACKGROUND,
-    borderWidth: 1,
+    borderWidth: 0,
     borderColor: '#E0E0E0',
     ...Platform.select({
       ios: {
