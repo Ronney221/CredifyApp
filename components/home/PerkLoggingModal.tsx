@@ -243,7 +243,10 @@ export default function PerkLoggingModal({
                 disabled={!inputValue}
               >
                 <Text style={[styles.saveButtonText, !inputValue && styles.saveButtonTextDisabled]}>
-                  Save Log
+                  {inputValue && parseDecimalInput(inputValue) > 0 
+                    ? `Save Log (${formatCurrency(parseDecimalInput(inputValue))})`
+                    : 'Save Log'
+                  }
                 </Text>
               </TouchableOpacity>
             </View>
