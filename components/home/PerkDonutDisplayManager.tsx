@@ -6,6 +6,7 @@ import ProgressDonut from './ProgressDonut';
 import { Card, CardPerk } from '../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { Colors } from '../../constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
 
 type SegmentKey = number;
 type ImperativeHandle = { refresh: () => void };
@@ -327,9 +328,14 @@ const PerkDonutDisplayManagerInner = (
         label={activeData.label}
         combinedStatsText={activeData.combinedStatsText}
       />
-      <Text style={styles.annualFeesText}>
-        {`Total Annual Card Fees: $${totalAnnualFees.toFixed(0)}`}
-      </Text>
+      
+      {/* Enhanced Annual Fees with better styling */}
+      <View style={styles.feesContainer}>
+        <Ionicons name="card" size={14} color="#6B7280" style={styles.feesIcon} />
+        <Text style={styles.annualFeesText}>
+          Annual Fees: ${totalAnnualFees.toFixed(0)} • ROI: {totalAnnualFees > 0 ? `${(activeData.value / totalAnnualFees * 100).toFixed(0)}%` : 'N/A'}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -373,12 +379,25 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
+  // Enhanced Annual Fees styling
+  feesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+    borderRadius: 12,
+  },
+  feesIcon: {
+    marginRight: 6,
+  },
   annualFeesText: {
-    marginTop: 10,
     fontSize: 13,
-    color: '#4A4A4A',
+    color: '#6B7280',
     fontWeight: '500',
+    letterSpacing: -0.1,
   },
 });
 
-export default PerkDonutDisplayManager; 
+export default PerkDonutDisplayManager;
