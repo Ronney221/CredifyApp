@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { calculateRedemptionValues } from '../../utils/insights-calculations';
 
 interface MiniBarChartProps {
   data: number[]; // Now represents dollar amounts saved
