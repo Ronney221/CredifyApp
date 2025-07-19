@@ -8,7 +8,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { BlurView } from 'expo-blur';
-import { useProtectedRoute } from '../../hooks/useProtectedRoute';
 import { HapticTab } from '../../components/HapticTab';
 import TabBarBackground from '../../components/ui/TabBarBackground';
 
@@ -32,9 +31,6 @@ const InsightsHeaderRight = () => {
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
-
-  // Protect all routes in this group
-  useProtectedRoute();
 
   // Define iOS pill-style tab bar
   const iosPillTabBarStyle = {

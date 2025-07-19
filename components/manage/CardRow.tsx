@@ -41,6 +41,8 @@ interface CardRowProps {
   isEditMode?: boolean;
   isActive?: boolean;
   drag?: () => void;
+  isSelectedForDeletion?: boolean;
+  onSelectionToggle?: (cardId: string) => void;
 }
 
 export const CardRow: React.FC<CardRowProps> = ({
@@ -57,6 +59,8 @@ export const CardRow: React.FC<CardRowProps> = ({
   isEditMode = false,
   isActive = false,
   drag,
+  isSelectedForDeletion = false,
+  onSelectionToggle,
 }) => {
   const networkColor = getCardNetworkColor(card);
 
@@ -84,7 +88,29 @@ export const CardRow: React.FC<CardRowProps> = ({
       );
     }
 
-    if (mode === 'manage' && showRemoveButton) {
+    if (mode === 'manage' && isEditMode && onSelectionToggle) {
+      return (
+        <View style={styles.checkboxContainer}>
+          <TouchableOpacity onPress={() => onSelectionToggle(card.id)} style={styles.selectionButton}>
+            {isSelectedForDeletion ? (
+              <Ionicons
+                name="checkmark-circle"
+                size={26}
+                color={Colors.light.tint}
+              />
+            ) : (
+              <Ionicons
+                name="circle-outline"
+                size={26}
+                color={Colors.light.icon}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (mode === 'manage' && showRemoveButton && !isEditMode) {
       return (
         <View style={styles.manageControls}>
           {onRemove && (
@@ -138,13 +164,21 @@ export const CardRow: React.FC<CardRowProps> = ({
       style={[
         styles.cardRow,
         isSelected && mode === 'onboard' && styles.cardRowSelected,
+        isSelectedForDeletion && mode === 'manage' && styles.cardRowSelectedForDeletion,
         disabled && styles.cardRowDisabled,
         isEditMode && styles.cardRowEditMode,
         isActive && styles.cardRowActive,
       ]}
-      onPress={() => !disabled && onPress(card.id)}
+      onPress={() => {
+        if (disabled) return;
+        if (isEditMode && onSelectionToggle) {
+          onSelectionToggle(card.id);
+        } else if (!isEditMode) {
+          onPress(card.id);
+        }
+      }}
       activeOpacity={0.7}
-      disabled={disabled || isEditMode}
+      disabled={disabled}
     >
       {isEditMode && showRemoveButton && onRemove && (
         <TouchableOpacity 
@@ -225,6 +259,10 @@ const styles = StyleSheet.create({
   cardRowSelected: {
     backgroundColor: '#eef7ff',
     borderColor: Colors.light.tint,
+  },
+  cardRowSelectedForDeletion: {
+    backgroundColor: '#ffeef0',
+    borderColor: '#FF3B30',
   },
   cardRowDisabled: {
     opacity: 0.5,
@@ -316,6 +354,11 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     paddingRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionButton: {
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },

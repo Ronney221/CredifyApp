@@ -17,31 +17,29 @@ export default function BackButton({ label, fallbackRoute }: BackButtonProps) {
   const params = useLocalSearchParams<{ backRoute?: string }>();
 
   const handlePress = () => {
-    // If we have a backRoute parameter, always use it first
-    if (params.backRoute) {
-      router.replace(params.backRoute as any);
+    // For profile-related screens, always go back to profile
+    if (pathname.includes('/profile/')) {
+      router.push('/(tabs)/04-profile' as any);
       return;
     }
 
-    // If we can go back and we're not on a tab route, use native back
-    if (navigation.canGoBack() && !pathname.startsWith('/(tabs)')) {
+    // Try native back navigation first if possible
+    if (navigation.canGoBack()) {
       navigation.goBack();
       return;
     }
 
     // If we have a fallback route, use it
     if (fallbackRoute) {
-      router.replace(fallbackRoute as any);
+      router.push(fallbackRoute as any);
       return;
     }
 
     // Default behavior based on current path
-    if (pathname.includes('/profile/')) {
-      router.replace('/(tabs)/04-profile' as any);
-    } else if (pathname.includes('/01-dashboard/')) {
-      router.replace('/(tabs)/01-dashboard' as any);
+    if (pathname.includes('/01-dashboard/')) {
+      router.push('/(tabs)/01-dashboard' as any);
     } else {
-      router.replace('/(tabs)/04-profile' as any);
+      router.push('/(tabs)/04-profile' as any);
     }
   };
 

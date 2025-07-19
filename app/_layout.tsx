@@ -68,19 +68,22 @@ function AuthStateHandler() {
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
     const inLegalGroup = segments[0] === '(legal)';
+    const inTabsGroup = segments[0] === '(tabs)';
 
     const checkOnboardingStatus = async () => {
       try {
         console.log('🔍 [Layout] Checking auth state...');
         console.log('👤 User:', user ? 'exists' : 'none');
+        console.log('📍 Full segments array:', segments);
         console.log('📍 Current segment:', segments[0]);
+        console.log('🏷️ inAuthGroup:', inAuthGroup, 'inOnboardingGroup:', inOnboardingGroup, 'inTabsGroup:', inTabsGroup, 'inLegalGroup:', inLegalGroup);
         
         const hasCompletedOnboarding = await AsyncStorage.getItem('@hasCompletedOnboarding');
         console.log('🎯 [Layout] hasCompletedOnboarding:', hasCompletedOnboarding);
 
         // If segments is undefined or empty, we're at the root
-        if (!segments[0]) {
-          console.log('➡️ [Layout] At root, determining initial route...');
+        if (!segments || segments.length === 0 || !segments[0]) {
+          console.log('➡️ [Layout] At root (segments empty/undefined), determining initial route...');
           if (!user) {
             if (hasCompletedOnboarding === null) {
               console.log('➡️ [Layout] New user at root, routing to welcome');
@@ -113,9 +116,16 @@ function AuthStateHandler() {
           }
         } else {
           // Signed in
-          console.log('➡️ [Layout] User is logged in, routing to dashboard');
-          if ((inAuthGroup || inOnboardingGroup) && !inLegalGroup) {
+          console.log('✅ [Layout] User is signed in');
+          if (inAuthGroup || inOnboardingGroup) {
+            console.log('➡️ [Layout] User is in auth/onboarding group, routing to dashboard');
             router.replace('/(tabs)/01-dashboard');
+          } else if (inTabsGroup) {
+            console.log('✅ [Layout] User is already in tabs group, no redirect needed');
+          } else if (inLegalGroup) {
+            console.log('✅ [Layout] User is in legal group, no redirect needed');
+          } else {
+            console.log('❓ [Layout] User is in unknown group, segments:', segments);
           }
         }
       } catch (error) {

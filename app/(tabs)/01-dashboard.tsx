@@ -1048,7 +1048,7 @@ export default function Dashboard() {
   const handleRenewalDatePress = useCallback((cardId: string) => {
     router.push({
       pathname: "/(tabs)/profile/manage_cards",
-      params: { highlightCardId: cardId, backRoute: '/(tabs)/01-dashboard' }
+      params: { highlightCardId: cardId }
     });
   }, [router]);
 
@@ -1170,10 +1170,7 @@ export default function Dashboard() {
     <View style={styles.manageCardsContainer}>
       <TouchableOpacity
         style={styles.manageCardsFooter}
-        onPress={() => router.push({
-          pathname: '/profile/manage_cards',
-          params: { backRoute: '/(tabs)/01-dashboard' }
-        })}
+        onPress={() => router.push('/(tabs)/profile/manage_cards')}
         activeOpacity={0.7}
       >
         <Text style={styles.manageCardsText}>Manage & Reorder Cards</Text>
@@ -1253,10 +1250,7 @@ export default function Dashboard() {
           </Text>
           <TouchableOpacity
             style={styles.errorAddCardButton}
-            onPress={() => router.push({
-              pathname: '/profile/manage_cards',
-              params: { backRoute: '/(tabs)/01-dashboard' }
-            })}
+            onPress={() => router.push('/(tabs)/profile/manage_cards')}
           >
             <Text style={styles.addCardButtonText}>Add Cards</Text>
           </TouchableOpacity>
@@ -1377,10 +1371,7 @@ export default function Dashboard() {
               </Text>
               <TouchableOpacity
                 style={styles.addFirstCardButton}
-                onPress={() => router.push({
-                  pathname: '/profile/manage_cards',
-                  params: { backRoute: '/(tabs)/01-dashboard' }
-                })}
+                onPress={() => router.push('/(tabs)/profile/manage_cards')}
               >
                 <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
               </TouchableOpacity>

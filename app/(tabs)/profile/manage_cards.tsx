@@ -418,14 +418,11 @@ export default function ManageCardsScreen() {
     );
   }, [isEditMode, renewalDates, handleCardPress, handleRemoveCardWithConfirmation, removingCardId, fadeAnim, translateX, selectedForDeletion, handleCardSelectionToggle]);
 
-  const isFromDashboard = params.backRoute === '/(tabs)/01-dashboard' || pathname.includes('01-dashboard');
-  
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
         <BackButton 
-          label={isFromDashboard ? 'Dashboard' : 'Profile'} 
-          fallbackRoute={isFromDashboard ? '/(tabs)/01-dashboard' : '/(tabs)/04-profile'} 
+          label="Profile" 
         />
       ),
       headerTitle: 'Manage Cards',
@@ -454,7 +451,7 @@ export default function ManageCardsScreen() {
       ),
       headerShown: true,
     });
-  }, [navigation, isEditMode, selectedCards.length, selectedForDeletion.size, handleEditModeToggle, handleOpenAddCardModal, handleBulkDelete, isFromDashboard]);
+  }, [navigation, isEditMode, selectedCards.length, selectedForDeletion.size, handleEditModeToggle, handleOpenAddCardModal, handleBulkDelete]);
 
   if (isLoading) {
     return (

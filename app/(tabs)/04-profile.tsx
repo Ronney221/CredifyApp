@@ -243,7 +243,10 @@ const ProfileScreen = () => {
           text: "OK",
           onPress: () => {
             // Optionally navigate to the notifications screen to see the changes
-            router.push('/(tabs)/profile/notifications');
+            router.push({
+              pathname: '/(tabs)/profile/notifications',
+              params: { backRoute: '/(tabs)/04-profile' }
+            });
           }
         }]
       );
@@ -322,10 +325,7 @@ const ProfileScreen = () => {
           id: 'manage-cards',
           title: 'Manage Cards',
           icon: 'card-outline',
-          onPress: () => router.push({
-            pathname: '/profile/manage_cards',
-            params: { backRoute: '/(tabs)/04-profile' }
-          }),
+          onPress: () => router.push('/(tabs)/profile/manage_cards'),
         },
         {
           id: 'preferences',
