@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CardPerk, calculatePerkExpiryDate } from '../../../src/data/card-data';
 import PerkUrgencyIndicator from '../PerkUrgencyIndicator';
 import PartialRedemptionProgress from '../PartialRedemptionProgress';
+import { Spacing, ComponentSpacing, BorderRadius } from '../../../constants/Spacing';
 
 const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
 const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
@@ -213,48 +214,51 @@ const PerkRow: React.FC<PerkRowProps> = ({
 
 const styles = StyleSheet.create({
   perkContainerOuter: {
-    marginVertical: 4,
-    borderRadius: 16,
+    marginVertical: Spacing.xs, // 4pt
+    borderRadius: BorderRadius.xl, // 16pt
     overflow: 'hidden',
   },
   perkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: ComponentSpacing.listItemPadding, // 16pt
+    paddingHorizontal: ComponentSpacing.listItemPadding, // 16pt
     position: 'relative',
-    borderRadius: 16,
+    borderRadius: BorderRadius.xl, // 16pt
     overflow: 'hidden',
   },
   perkContainerAvailable: {
-    backgroundColor: '#F7F7F7',
-    borderWidth: 0,
-    borderColor: '#E0E0E0',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    marginVertical: Spacing.xs, // 4pt
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        shadowOpacity: 0.08,
+        shadowRadius: 3,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
   perkContainerRedeemed: {
     backgroundColor: '#F2F2F2',
+    marginVertical: Spacing.xs, // 4pt
   },
   perkContainerAutoRedeemed: {
     backgroundColor: AUTO_REDEEM_BACKGROUND,
   },
   perkContainerPartiallyRedeemed: {
     backgroundColor: PARTIAL_REDEEM_BACKGROUND,
-    borderWidth: 0,
-    borderColor: '#E0E0E0',
+    borderWidth: 1,
+    borderColor: '#FFE4B3',
+    marginVertical: Spacing.xs, // 4pt
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: '#FF9500',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
@@ -265,20 +269,20 @@ const styles = StyleSheet.create({
     }),
   },
   perkIconContainer: {
-    marginRight: 12,
+    marginRight: ComponentSpacing.iconMargin, // 12pt
     width: 30,
     alignItems: 'center',
   },
   perkTextContainerInsideItem: {
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm, // 8pt
     justifyContent: 'center',
   },
   perkName: {
     fontSize: 15,
     fontWeight: '500',
     color: '#1c1c1e',
-    marginBottom: 2,
+    marginBottom: Spacing.xs, // 4pt
   },
   perkNameRedeemed: {
     color: '#8E8E93',
@@ -293,7 +297,7 @@ const styles = StyleSheet.create({
   },
   perkValueContainer: {
     marginLeft: 'auto',
-    paddingLeft: 8,
+    paddingLeft: Spacing.sm, // 8pt
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
   },
@@ -306,7 +310,7 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
   },
   perkChevron: {
-    marginLeft: 8,
+    marginLeft: Spacing.sm, // 8pt
   },
   perkNameAutoRedeemed: { 
     color: '#8E8E93',
@@ -324,10 +328,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 122, 255, 0.05)',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginTop: 8,
+    borderRadius: BorderRadius.md, // 8pt
+    paddingVertical: 6, // Keep as 6pt for visual balance
+    paddingHorizontal: ComponentSpacing.cardInnerSpacing, // 12pt
+    marginTop: Spacing.sm, // 8pt
     alignSelf: 'flex-start',
     overflow: 'hidden',
   },
@@ -342,7 +346,7 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
   },
   urgencyIndicatorContainer: {
-    marginBottom: 4,
+    marginBottom: Spacing.xs, // 4pt
     alignSelf: 'flex-end',
   },
 });

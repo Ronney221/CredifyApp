@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { CardPerk } from '../../src/data/card-data';
+import { Spacing, BorderRadius } from '../../constants/Spacing';
 
 interface PartialRedemptionProgressProps {
   perk: CardPerk;
@@ -54,19 +55,19 @@ const PartialRedemptionProgress: React.FC<PartialRedemptionProgressProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 6,
+    marginTop: 6, // Keep as 6pt for visual balance
   },
   progressContainer: {
-    gap: 4,
+    gap: Spacing.xs, // 4pt
   },
   progressTrack: {
     backgroundColor: '#FFF3E0',
-    borderRadius: 2,
+    borderRadius: BorderRadius.sm, // 4pt
     overflow: 'hidden',
   },
   progressFill: {
     backgroundColor: '#FF9500',
-    borderRadius: 2,
+    borderRadius: BorderRadius.sm, // 4pt
   },
   progressText: {
     fontSize: 11,

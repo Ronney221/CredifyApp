@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CardPerk, calculatePerkExpiryDate } from '../../src/data/card-data';
+import { Spacing, BorderRadius } from '../../constants/Spacing';
 
 interface PerkUrgencyIndicatorProps {
   perk: CardPerk;
@@ -116,17 +117,17 @@ const indicatorStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: Spacing.sm, // 8pt
+    paddingVertical: Spacing.xs, // 4pt
+    borderRadius: BorderRadius.lg, // 12pt
     borderWidth: 1,
-    gap: 4,
+    gap: Spacing.xs, // 4pt
   },
   containerSmall: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 3,
+    paddingHorizontal: 6, // Keep as 6pt for small variant
+    paddingVertical: 3, // Keep as 3pt for small variant
+    borderRadius: 10, // Keep as 10pt for small variant visual balance
+    gap: 3, // Keep as 3pt for small variant
   },
   text: {
     fontWeight: '600',
