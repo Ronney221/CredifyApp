@@ -25,6 +25,8 @@ const FilterChipRow: React.FC<FilterChipRowProps> = ({
         return 'apps-outline';
       case 'redeemed':
         return 'checkmark-circle-outline';
+      case 'partial':
+        return 'remove-circle-outline';
       case 'missed':
         return 'alert-circle-outline';
       default:
@@ -40,7 +42,7 @@ const FilterChipRow: React.FC<FilterChipRowProps> = ({
         contentContainerStyle={styles.scrollContainer}
       >
         {/* Perk Status Filters */}
-        {(['all', 'redeemed', 'missed'] as PerkStatusFilter[]).map(status => (
+        {(['all', 'redeemed', 'partial', 'missed'] as PerkStatusFilter[]).map(status => (
           <TouchableOpacity
             key={status}
             style={[styles.chip, perkStatusFilter === status && styles.chipSelected]}

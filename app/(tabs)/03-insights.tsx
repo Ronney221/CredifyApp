@@ -9,7 +9,6 @@ import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, wi
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 import YearlyProgress from '../../components/insights/YearlyProgress'; // Import the new component
-import FilterChipRow from '../../components/insights/FilterChipRow'; // Import the new component
 import CardRoiLeaderboard from '../../components/insights/CardRoiLeaderboard'; // Import the new component
 import MiniBarChart from '../../components/insights/MiniBarChart';
 import {
@@ -604,6 +603,21 @@ export default function InsightsScreen() {
             </TouchableOpacity>
           </View>
 
+          <Text style={styles.filterSectionTitle}>PERK STATUS</Text>
+          <View style={styles.perkStatusContainer}>
+            {(['all', 'redeemed', 'partial', 'missed'] as PerkStatusFilter[]).map(status => (
+              <TouchableOpacity
+                key={status}
+                style={[styles.perkStatusChip, perkStatusFilter === status && styles.perkStatusChipSelected]}
+                onPress={() => setPerkStatusFilter(status)}
+              >
+                <Text style={[styles.perkStatusChipText, perkStatusFilter === status && styles.perkStatusChipTextSelected]}>
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <Text style={styles.filterSectionTitle}>SHOW CARDS</Text>
           <View style={styles.selectAllRow}>
             <TouchableOpacity 
@@ -795,10 +809,9 @@ export default function InsightsScreen() {
             {/* Monthly History Section */}
             <View style={styles.monthlyHistoryHeader}>
               <Text style={styles.sectionTitle}>Monthly History</Text>
-              <FilterChipRow
-                perkStatusFilter={perkStatusFilter}
-                setPerkStatusFilter={setPerkStatusFilter}
-              />
+              <Text style={styles.filterHintText}>
+                Tap the filter icon above to focus on specific perks or cards
+              </Text>
             </View>
 
             {/* Monthly History List */}
@@ -987,7 +1000,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: Colors.light.text,
+    marginBottom: 8,
+  },
+  filterHintText: {
+    fontSize: 13,
+    color: Colors.light.icon,
     marginBottom: 15,
+    fontStyle: 'italic',
   },
   headerBadge: {
     position: 'absolute',
@@ -1132,5 +1151,32 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     backgroundColor: 'rgba(142, 142, 147, 0.12)',
+  },
+  perkStatusContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+    gap: 8,
+  },
+  perkStatusChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.light.icon,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+  perkStatusChipSelected: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  perkStatusChipText: {
+    fontSize: 14,
+    color: Colors.light.text,
+    fontWeight: '500',
+  },
+  perkStatusChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 }); 
