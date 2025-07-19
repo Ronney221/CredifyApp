@@ -124,28 +124,108 @@ export default function PerkInfoSheet({
   const appName = useMemo(() => perk ? getAppName(perk) : '', [perk]);
   const yearlyTotal = useMemo(() => calculateYearlyTotal(perk), [perk]);
 
-  // Mock pro tips data - in a real app this would come from the perk data
+  // Parse redemption instructions into pro tips for carousel
   const proTips = useMemo(() => {
-    if (!perk) return [];
+    if (!perk || !perk.redemptionInstructions) {
+      // Fallback to generic tips if no redemption instructions
+      return [
+        {
+          icon: 'bulb-outline',
+          title: 'Maximize Value',
+          description: `Use your ${perk?.name || 'credit'} at the beginning of each ${perk?.period || 'period'} to ensure you don't miss out on the benefit.`,
+        },
+      ];
+    }
+
+    const instructions = perk.redemptionInstructions.trim();
     
-    // Default tips that could be customized per perk
-    return [
-      {
-        icon: 'bulb-outline',
-        title: 'Maximize Value',
-        description: `Use your ${perk.name} credit at the beginning of each ${perk.period || 'period'} to ensure you don't miss out on the benefit.`,
-      },
-      {
-        icon: 'calendar-outline',
-        title: 'Set Reminders',
-        description: `Your credit resets ${perk.period === 'monthly' ? 'monthly' : perk.period === 'quarterly' ? 'quarterly' : 'periodically'}. Set a reminder to use it before it expires.`,
-      },
-      {
-        icon: 'gift-outline',
-        title: 'Stack with Offers',
-        description: `Check for additional promotions in the ${appName} app that can be combined with your credit for extra savings.`,
-      },
-    ];
+    // Debug: Log the raw instructions to see the actual format
+    console.log('[PerkInfoSheet] Raw redemption instructions:', JSON.stringify(instructions));
+    
+    // Try multiple line break patterns
+    let tips = [];
+    
+    // Handle potential escaped characters from database
+    let processedInstructions = instructions
+      .replace(/\\n\\n/g, '\n\n')  // Convert escaped \\n\\n to actual \n\n
+      .replace(/\\n/g, '\n')       // Convert escaped \\n to actual \n
+      .replace(/\\'/g, "'");       // Convert escaped quotes
+    
+    // First try double line breaks
+    tips = processedInstructions.split('\n\n').filter(tip => tip.trim().length > 0);
+    console.log('[PerkInfoSheet] After \\n\\n split:', tips);
+    
+    // If that didn't work, try different patterns
+    if (tips.length === 1) {
+      // Try Windows-style line breaks
+      tips = processedInstructions.split('\r\n\r\n').filter(tip => tip.trim().length > 0);
+      console.log('[PerkInfoSheet] After \\r\\n\\r\\n split:', tips);
+    }
+    
+    // If still one tip, try splitting by "Credify Hack" pattern
+    if (tips.length === 1 && processedInstructions.includes('Credify Hack')) {
+      tips = processedInstructions.split(/(?=Credify Hack \d+)/g).filter(tip => tip.trim().length > 0);
+      console.log('[PerkInfoSheet] After Credify Hack split:', tips);
+    }
+    
+    // Fallback: treat as single tip
+    if (tips.length === 0) {
+      tips = [instructions];
+    }
+    
+    console.log('[PerkInfoSheet] Final tips array:', tips);
+
+    // Convert tips to carousel format with appropriate icons
+    return tips.map((tip, index) => {
+      let icon = 'bulb-outline';
+      let title = `Pro Tip ${tips.length > 1 ? index + 1 : ''}`.trim();
+
+      // Check if this is a Credify Hack format
+      const credifyHackMatch = tip.match(/Credify Hack \d+ \(([^)]+)\):/);
+      if (credifyHackMatch) {
+        const hackType = credifyHackMatch[1];
+        title = hackType;
+        
+        // Assign icons based on hack type
+        if (hackType.toLowerCase().includes('takeout') || hackType.toLowerCase().includes('walk')) {
+          icon = 'walk-outline';
+        } else if (hackType.toLowerCase().includes('gift card') || hackType.toLowerCase().includes('conversion')) {
+          icon = 'card-outline';
+        } else if (hackType.toLowerCase().includes('booking') || hackType.toLowerCase().includes('book')) {
+          icon = 'calendar-outline';
+        } else if (hackType.toLowerCase().includes('zero') || hackType.toLowerCase().includes('free')) {
+          icon = 'checkmark-circle-outline';
+        } else if (hackType.toLowerCase().includes('maximize') || hackType.toLowerCase().includes('value')) {
+          icon = 'trending-up-outline';
+        } else {
+          icon = 'bulb-outline';
+        }
+      } else {
+        // Fallback logic for non-Credify format tips
+        if (tip.toLowerCase().includes('enroll') || tip.toLowerCase().includes('activate')) {
+          icon = 'checkmark-circle-outline';
+          title = 'Activation Required';
+        } else if (tip.toLowerCase().includes('gift card') || tip.toLowerCase().includes('strategy')) {
+          icon = 'card-outline';
+          title = 'Smart Strategy';
+        } else if (tip.toLowerCase().includes('expire') || tip.toLowerCase().includes('roll over') || tip.toLowerCase().includes('unused')) {
+          icon = 'time-outline';
+          title = 'Important Timing';
+        } else if (tip.toLowerCase().includes('credit') && tip.toLowerCase().includes('automatic')) {
+          icon = 'refresh-outline';
+          title = 'Auto Credit';
+        } else if (tip.toLowerCase().includes('membership') || tip.toLowerCase().includes('subscription')) {
+          icon = 'card-outline';
+          title = 'Membership Tip';
+        }
+      }
+
+      return {
+        icon,
+        title,
+        description: tip,
+      };
+    });
   }, [perk, appName]);
 
   const animatedStyle = useAnimatedStyle(() => {

@@ -75,6 +75,7 @@ const ProgressBar = ({ used, remaining, total }: { used: number; remaining: numb
   );
 };
 
+
 // Add a new Tooltip component with smooth animation
 const SliderTooltip = ({ value, maxValue }: { value: number; maxValue: number }) => {
   const animatedStyle = useAnimatedStyle(() => {
