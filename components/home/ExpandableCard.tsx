@@ -620,11 +620,22 @@ const ExpandableCardComponent = ({
       <TouchableOpacity
         style={styles.leftAction}
         onPress={() => {
+          // Enhanced haptic feedback for action press
+          if (Platform.OS === 'ios') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
           // Close the swipeable first
           swipeableRefs.current[perk.id]?.close();
           // Open the logging modal
           onOpenLoggingModal?.(perk);
         }}
+        onPressIn={() => {
+          // Light haptic feedback on press start
+          if (Platform.OS === 'ios') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }}
+        activeOpacity={0.85} // Subtle press feedback
       >
         <Ionicons name="add-circle-outline" size={24} color="#fff" />
         <Text style={styles.actionText}>Log Usage</Text>
@@ -637,7 +648,20 @@ const ExpandableCardComponent = ({
     return (
       <TouchableOpacity
         style={styles.rightAction}
-        onPress={() => executePerkAction(perk, 'available')}
+        onPress={() => {
+          // Enhanced haptic feedback for undo action
+          if (Platform.OS === 'ios') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+          executePerkAction(perk, 'available');
+        }}
+        onPressIn={() => {
+          // Light haptic feedback on press start
+          if (Platform.OS === 'ios') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }}
+        activeOpacity={0.85} // Subtle press feedback
       >
         <Ionicons name="refresh-circle-outline" size={24} color="#fff" />
         <Text style={styles.actionText}>Available</Text>
@@ -737,7 +761,7 @@ const ExpandableCardComponent = ({
                 <>
                   {allPerksRedeemed && (
                     <View style={styles.allRedeemedInfo}>
-                      <Ionicons name="information-circle-outline" size={20} color="#666" />
+                      <Ionicons name="checkmark-circle" size={20} color="#34C759" />
                       <Text style={styles.allRedeemedText}>
                         You&apos;ve redeemed all available perks for this card.
                       </Text>
@@ -843,26 +867,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginHorizontal: 16,
-    marginVertical: 6,
+    marginVertical: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.06)',
     overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
   },
   sectionLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#666',
-    marginVertical: 8,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginTop: 8,
+    marginBottom: 12,
     paddingHorizontal: 4,
+    letterSpacing: -0.2,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -871,40 +899,30 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   activeCard: {
+    transform: [{ scale: 1.005 }],
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 4,
+        elevation: 6,
       },
     }),
   },
   perksListContainer: {
     paddingHorizontal: 0,
-    paddingBottom: 8,
-    backgroundColor: '#F7F7F7',
+    paddingBottom: 12,
+    backgroundColor: '#FAFAFA',
   },
   perksGroupContainer: {
-    backgroundColor: '#F7F7F7',
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    padding: 12,
+    backgroundColor: '#FAFAFA',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    padding: 16,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: 'rgba(0,0,0,0.1)',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 1,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   leftAction: {
     backgroundColor: systemGreen,
@@ -913,8 +931,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow total height including margins: 72px + 8px margins = 80px
-    height: 80, // Include the 4pt top + 4pt bottom margins from PerkRow
+    // Match PerkRow minHeight (72px) + margins (8px) = 80px minimum
+    minHeight: 80, // Flexible height to match PerkRow content + margins
     marginVertical: 0, // No additional margins - align with PerkRow's outer container
     marginRight: 0, // No overlap - perfect edge alignment
     // iOS Messages style: only round the exposed LEFT edge
@@ -923,8 +941,19 @@ const styles = StyleSheet.create({
     // RIGHT edge completely square for seamless connection
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
-    // Layer behind the PerkRow
+    // Layer behind the PerkRow with enhanced shadows
     zIndex: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: systemGreen,
+        shadowOffset: { width: -2, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   rightAction: {
     backgroundColor: '#007aff', // Keep iOS blue for consistency
@@ -933,8 +962,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow total height including margins: 72px + 8px margins = 80px
-    height: 80, // Include the 4pt top + 4pt bottom margins from PerkRow
+    // Match PerkRow minHeight (72px) + margins (8px) = 80px minimum
+    minHeight: 80, // Flexible height to match PerkRow content + margins
     marginVertical: 0, // No additional margins - align with PerkRow's outer container
     marginLeft: 0, // No overlap - perfect edge alignment
     // iOS Messages style: only round the exposed RIGHT edge
@@ -943,8 +972,19 @@ const styles = StyleSheet.create({
     // LEFT edge completely square for seamless connection
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
-    // Layer behind the PerkRow
+    // Layer behind the PerkRow with enhanced shadows
     zIndex: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#007aff',
+        shadowOffset: { width: 2, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   actionText: {
     color: '#fff',
@@ -1093,16 +1133,20 @@ const styles = StyleSheet.create({
   allRedeemedInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: 'rgba(52, 199, 89, 0.08)',
     borderRadius: 12,
-    padding: 12,
+    padding: 14,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 199, 89, 0.15)',
   },
   allRedeemedText: {
     fontSize: 14,
-    color: '#666',
-    marginLeft: 8,
+    color: '#1C1C1E',
+    marginLeft: 10,
     flex: 1,
+    fontWeight: '500',
+    letterSpacing: -0.1,
   },
   redeemedSection: {
     marginTop: 8,

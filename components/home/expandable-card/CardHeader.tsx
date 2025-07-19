@@ -107,9 +107,20 @@ const CardHeader: React.FC<CardHeaderProps> = ({
       return (
         <View style={styles.progressContainer}>
           <View style={styles.progressInfo}>
-             <Text style={styles.progressText}>
+            <Text style={styles.progressText}>
               Monthly Perks: {monthlyPerkStats.redeemed} of {monthlyPerkStats.total}
             </Text>
+            <View style={styles.progressDots}>
+              {Array.from({ length: monthlyPerkStats.total }, (_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.progressDot,
+                    i < monthlyPerkStats.redeemed ? styles.progressDotFilled : styles.progressDotEmpty
+                  ]}
+                />
+              ))}
+            </View>
           </View>
           <View style={styles.progressBarContainer}>
             <View 
@@ -169,7 +180,7 @@ const CardHeader: React.FC<CardHeaderProps> = ({
       >
         <Ionicons name="calendar-outline" size={14} color={systemBlue} />
         <Text style={styles.renewalPromptText}>
-          Set renewal date for reminders
+          Never miss an annual fee
         </Text>
       </TouchableOpacity>
     );
@@ -210,10 +221,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: 'rgba(248, 248, 248, 0.7)',
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
   },
   activeCardHeader: {
     backgroundColor: '#f8f9fa',
@@ -224,15 +235,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardImageWrapper: {
-    width: 60,
-    height: 40,
-    borderRadius: 6,
-    marginRight: 12,
+    width: 64,
+    height: 42,
+    borderRadius: 8,
+    marginRight: 16,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.1)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.08)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+    }),
   },
   cardImage: {
     width: '100%',
@@ -244,10 +263,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginBottom: 4,
+    letterSpacing: -0.3,
   },
   cardSubtitle: {
     flexDirection: 'row',
@@ -255,8 +275,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   subtitleText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 15,
+    color: '#8E8E93',
     fontWeight: '500',
     flexShrink: 1,
     marginRight: 4,
@@ -279,37 +299,55 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   progressContainer: {
-    marginTop: 8,
+    marginTop: 12,
   },
   progressBarContainer: {
-    height: 8,
-    backgroundColor: '#E5E5EA',
-    borderRadius: 4,
+    height: 4,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 2,
     overflow: 'hidden',
-    marginTop: 4,
+    marginTop: 8,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#20B2AA',
-    borderRadius: 4,
+    backgroundColor: '#007AFF',
+    borderRadius: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2,
+      },
+    }),
   },
   progressBarSuccess: {
     backgroundColor: systemGreen,
+    ...Platform.select({
+      ios: {
+        shadowColor: systemGreen,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2,
+      },
+    }),
   },
   progressText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   progressTextSuccess: {
     color: systemGreen,
     fontWeight: '600',
   },
   otherPerksText: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#8E8E93',
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: 6,
+    letterSpacing: -0.1,
   },
   placeholderLine: {
     height: 8,
@@ -322,17 +360,49 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  progressDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  progressDotFilled: {
+    backgroundColor: '#007AFF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.25,
+        shadowRadius: 1,
+      },
+    }),
+  },
+  progressDotEmpty: {
+    backgroundColor: '#F2F2F7',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
   renewalPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: 6,
+    marginBottom: 6,
+    backgroundColor: 'rgba(0, 122, 255, 0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   renewalPromptText: {
     fontSize: 13,
     color: systemBlue,
     marginLeft: 6,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
 });
 

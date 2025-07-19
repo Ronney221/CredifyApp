@@ -46,9 +46,6 @@ const PartialRedemptionProgress: React.FC<PartialRedemptionProgressProps> = ({
             ]} 
           />
         </View>
-        <Text style={styles.progressText}>
-          {formattedUsed} of {formattedTotal} used
-        </Text>
       </View>
     </View>
   );
