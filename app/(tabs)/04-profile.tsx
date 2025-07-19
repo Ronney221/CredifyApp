@@ -460,16 +460,24 @@ const ProfileScreen = () => {
         onPress={item.onPress}
         style={({ pressed }) => [
           rowStyle,
-          pressed && { opacity: 0.8 }
+          pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] }
         ]}
+        accessibilityRole="button"
+        accessibilityLabel={item.title}
+        accessibilityHint={item.subtitle || `Navigate to ${item.title}`}
+        hitSlop={8}
       >
         {item.icon && (
-          <Ionicons
-            name={item.icon}
-            size={22}
-            color={item.isDestructive ? Colors.light.error : Colors.light.secondaryLabel}
-            style={styles.icon}
-          />
+          <View style={[
+            styles.icon, 
+            item.isDestructive && { backgroundColor: Colors.light.error + '15', borderRadius: 8 }
+          ]}>
+            <Ionicons
+              name={item.icon}
+              size={20}
+              color={item.isDestructive ? Colors.light.error : Colors.light.tint}
+            />
+          </View>
         )}
         <View style={styles.textContainer}>
           <Text style={[
@@ -485,8 +493,8 @@ const ProfileScreen = () => {
         {!item.isDestructive && (
           <Ionicons
             name="chevron-forward"
-            size={20}
-            color={Colors.light.secondaryLabel}
+            size={18}
+            color={Colors.light.tertiaryLabel}
             style={styles.chevron}
           />
         )}
@@ -552,74 +560,95 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: Colors.light.systemGroupedBackground,
   },
   listContent: {
     paddingHorizontal: 16,
   },
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: Colors.light.secondaryLabel,
     textTransform: 'uppercase',
-    marginTop: 36,
-    marginBottom: 8,
-    marginLeft: 16,
-    letterSpacing: 0.1,
+    marginTop: 40,
+    marginBottom: 12,
+    marginLeft: 20,
+    letterSpacing: 0.5,
   },
   sectionFooter: {
     fontSize: 13,
-    color: Colors.light.secondaryLabel,
-    marginTop: 8,
-    marginBottom: 16,
-    marginLeft: 16,
+    color: Colors.light.tertiaryLabel,
+    marginTop: 12,
+    marginBottom: 20,
+    marginLeft: 20,
+    lineHeight: 18,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.light.background,
-    paddingHorizontal: 16,
-    minHeight: 52,
+    paddingHorizontal: 20,
+    minHeight: 56,
   },
   rowSingle: {
-    borderRadius: 13,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   rowFirst: {
-    borderTopLeftRadius: 13,
-    borderTopRightRadius: 13,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   rowLast: {
-    borderBottomLeftRadius: 13,
-    borderBottomRightRadius: 13,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   icon: {
-    marginRight: 16,
-    width: 24,
+    marginRight: 18,
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textContainer: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   rowText: {
     fontSize: 17,
+    fontWeight: '600',
     color: Colors.light.text,
+    letterSpacing: -0.2,
   },
   subtitleText: {
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.light.secondaryLabel,
-    marginTop: 2,
+    marginTop: 3,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   destructiveText: {
     color: Colors.light.error,
+    fontWeight: '600',
   },
   chevron: {
     marginLeft: 'auto',
-    marginRight: 8,
+    marginRight: 4,
+    opacity: 0.5,
   },
   separator: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.light.separator,
-    marginLeft: 56,
+    marginLeft: 64,
+    opacity: 0.6,
   },
 });
 
