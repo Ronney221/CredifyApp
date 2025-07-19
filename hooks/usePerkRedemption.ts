@@ -95,7 +95,6 @@ export function usePerkRedemption({
       const { error } = await supabase.from('perk_redemptions').insert([
         {
           user_id: userId,
-          user_card_id: cardId,
           perk_id: perk.definition_id,
           value_redeemed: totalRedeemedAmount,
           total_value: perk.value,
@@ -132,7 +131,7 @@ export function usePerkRedemption({
             setPerkStatus(cardId, perk.id, originalStatus, previousValue);
             
             // First delete the new redemption
-            const { error: undoError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.id);
+            const { error: undoError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.definition_id);
             if (undoError) {
               setPerkStatus(cardId, perk.id, newStatus, remainingValue);
               onPerkStatusChange?.();
@@ -146,12 +145,14 @@ export function usePerkRedemption({
               await supabase.from('perk_redemptions').insert([
                 {
                   user_id: userId,
-                  card_id: cardId,
                   perk_id: perk.definition_id,
-                  amount: partiallyRedeemedAmount,
+                  value_redeemed: partiallyRedeemedAmount,
+                  total_value: perk.value,
                   status: originalStatus,
-                  remaining_value: remainingValue,
+                  remaining_value: previousValue,
                   parent_redemption_id: perk.parent_redemption_id,
+                  redemption_date: new Date().toISOString(),
+                  reset_date: new Date(new Date().getFullYear() + 1, 0, 1).toISOString(),
                 },
               ]).select().single();
             }
@@ -216,12 +217,14 @@ export function usePerkRedemption({
             await supabase.from('perk_redemptions').insert([
               {
                 user_id: userId,
-                card_id: cardId,
                 perk_id: perk.definition_id,
-                amount: previousRedeemedAmount,
+                value_redeemed: previousRedeemedAmount,
+                total_value: perk.value,
                 status: originalStatus,
                 remaining_value: previousValue,
                 parent_redemption_id: perk.parent_redemption_id,
+                redemption_date: new Date().toISOString(),
+                reset_date: new Date(new Date().getFullYear() + 1, 0, 1).toISOString(),
               },
             ]).select().single();
 
