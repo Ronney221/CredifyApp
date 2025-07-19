@@ -191,4 +191,4 @@ const styles = StyleSheet.create({
     letterSpacing: -0.24,
     marginTop: 12,
   },
-}); 
+});

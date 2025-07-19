@@ -77,4 +77,4 @@ const styles = StyleSheet.create({
     maxWidth: 320, // Max width to prevent it from becoming too wide on larger screens
     height: Platform.OS === 'ios' ? 32 : 40, // Adjust height based on platform norms
   },
-}); 
+});

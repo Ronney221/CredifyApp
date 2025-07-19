@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CardPerk, calculatePerkExpiryDate } from '../../src/data/card-data';
 import { Spacing, BorderRadius } from '../../constants/Spacing';
+import { PerkDesign } from '../../constants/DesignSystem';
 
 interface PerkUrgencyIndicatorProps {
   perk: CardPerk;
@@ -50,33 +51,33 @@ const PerkUrgencyIndicator: React.FC<PerkUrgencyIndicatorProps> = ({
     switch (level) {
       case 'redeemed':
         return {
-          container: { backgroundColor: '#E5F5E5', borderColor: '#34C759' },
-          text: { color: '#34C759', fontSize: isSmall ? 10 : 11 },
-          icon: { color: '#34C759', size: isSmall ? 12 : 14 }
+          container: { backgroundColor: PerkDesign.urgency.normal.background, borderColor: PerkDesign.urgency.normal.border },
+          text: { color: PerkDesign.urgency.normal.text, fontSize: isSmall ? 10 : 11 },
+          icon: { color: PerkDesign.urgency.normal.icon, size: isSmall ? 12 : 14 }
         };
       case 'expired':
         return {
-          container: { backgroundColor: '#FFE5E5', borderColor: '#FF3B30' },
-          text: { color: '#FF3B30', fontSize: isSmall ? 10 : 11 },
-          icon: { color: '#FF3B30', size: isSmall ? 12 : 14 }
+          container: { backgroundColor: PerkDesign.urgency.urgent.background, borderColor: PerkDesign.urgency.urgent.border },
+          text: { color: PerkDesign.urgency.urgent.text, fontSize: isSmall ? 10 : 11 },
+          icon: { color: PerkDesign.urgency.urgent.icon, size: isSmall ? 12 : 14 }
         };
       case 'urgent':
         return {
-          container: { backgroundColor: '#FFE5E5', borderColor: '#FF3B30' },
-          text: { color: '#FF3B30', fontSize: isSmall ? 10 : 11 },
-          icon: { color: '#FF3B30', size: isSmall ? 12 : 14 }
+          container: { backgroundColor: PerkDesign.urgency.urgent.background, borderColor: PerkDesign.urgency.urgent.border },
+          text: { color: PerkDesign.urgency.urgent.text, fontSize: isSmall ? 10 : 11 },
+          icon: { color: PerkDesign.urgency.urgent.icon, size: isSmall ? 12 : 14 }
         };
       case 'warning':
         return {
-          container: { backgroundColor: '#FFF3E0', borderColor: '#FF9500' },
-          text: { color: '#FF9500', fontSize: isSmall ? 10 : 11 },
-          icon: { color: '#FF9500', size: isSmall ? 12 : 14 }
+          container: { backgroundColor: PerkDesign.urgency.warning.background, borderColor: PerkDesign.urgency.warning.border },
+          text: { color: PerkDesign.urgency.warning.text, fontSize: isSmall ? 10 : 11 },
+          icon: { color: PerkDesign.urgency.warning.icon, size: isSmall ? 12 : 14 }
         };
       case 'monthly':
         return {
-          container: { backgroundColor: '#E3F2FD', borderColor: '#007AFF' },
-          text: { color: '#007AFF', fontSize: isSmall ? 10 : 11 },
-          icon: { color: '#007AFF', size: isSmall ? 12 : 14 }
+          container: { backgroundColor: PerkDesign.urgency.monthly.background, borderColor: PerkDesign.urgency.monthly.border },
+          text: { color: PerkDesign.urgency.monthly.text, fontSize: isSmall ? 10 : 11 },
+          icon: { color: PerkDesign.urgency.monthly.icon, size: isSmall ? 12 : 14 }
         };
       case 'no-expiry':
         return {
@@ -86,9 +87,9 @@ const PerkUrgencyIndicator: React.FC<PerkUrgencyIndicatorProps> = ({
         };
       default: // normal
         return {
-          container: { backgroundColor: '#F0F9F0', borderColor: '#34C759' },
-          text: { color: '#34C759', fontSize: isSmall ? 10 : 11 },
-          icon: { color: '#34C759', size: isSmall ? 12 : 14 }
+          container: { backgroundColor: PerkDesign.urgency.normal.background, borderColor: PerkDesign.urgency.normal.border },
+          text: { color: PerkDesign.urgency.normal.text, fontSize: isSmall ? 10 : 11 },
+          icon: { color: PerkDesign.urgency.normal.icon, size: isSmall ? 12 : 14 }
         };
     }
   };

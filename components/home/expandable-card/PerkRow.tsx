@@ -8,12 +8,8 @@ import { CardPerk, calculatePerkExpiryDate } from '../../../src/data/card-data';
 import PerkUrgencyIndicator from '../PerkUrgencyIndicator';
 import PartialRedemptionProgress from '../PartialRedemptionProgress';
 import { Spacing, ComponentSpacing, BorderRadius } from '../../../constants/Spacing';
+import { PerkDesign, ComponentColors } from '../../../constants/DesignSystem';
 
-const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
-const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
-const AUTO_REDEEM_CHEVRON = '#C4B2DE';   // Lighter purple for chevron
-const PARTIAL_REDEEM_FOREGROUND = '#FF9500'; // Orange for partial redemption
-const PARTIAL_REDEEM_BACKGROUND = '#FFF7E6';
 
 
 interface PerkRowProps {
@@ -133,10 +129,10 @@ const PerkRow: React.FC<PerkRowProps> = ({
                 size={26} 
                 color={
                   isRedeemed 
-                    ? (isAutoRedeemed ? AUTO_REDEEM_FOREGROUND : '#8E8E93')
+                    ? (isAutoRedeemed ? PerkDesign.autoRedeemed.icon : PerkDesign.redeemed.icon)
                     : isPartiallyRedeemed
-                    ? PARTIAL_REDEEM_FOREGROUND
-                    : '#007AFF'
+                    ? PerkDesign.partiallyRedeemed.icon
+                    : PerkDesign.available.icon
                 }
               />
             </View>
@@ -203,7 +199,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
             <Ionicons 
               name="chevron-forward" 
               size={20} 
-              color={isRedeemed ? (isAutoRedeemed ? AUTO_REDEEM_CHEVRON : '#C7C7CC') : '#B0B0B0'} 
+              color={isRedeemed ? (isAutoRedeemed ? PerkDesign.autoRedeemed.border : ComponentColors.text.disabled) : ComponentColors.text.tertiary} 
               style={styles.perkChevron}
             />
         </TouchableOpacity>
@@ -228,10 +224,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   perkContainerAvailable: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: PerkDesign.available.background,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
-    marginVertical: Spacing.xs, // 4pt
+    borderColor: PerkDesign.available.border,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -245,20 +240,18 @@ const styles = StyleSheet.create({
     }),
   },
   perkContainerRedeemed: {
-    backgroundColor: '#F2F2F2',
-    marginVertical: Spacing.xs, // 4pt
+    backgroundColor: PerkDesign.redeemed.background,
   },
   perkContainerAutoRedeemed: {
-    backgroundColor: AUTO_REDEEM_BACKGROUND,
+    backgroundColor: PerkDesign.autoRedeemed.background,
   },
   perkContainerPartiallyRedeemed: {
-    backgroundColor: PARTIAL_REDEEM_BACKGROUND,
+    backgroundColor: PerkDesign.partiallyRedeemed.background,
     borderWidth: 1,
-    borderColor: '#FFE4B3',
-    marginVertical: Spacing.xs, // 4pt
+    borderColor: PerkDesign.partiallyRedeemed.border,
     ...Platform.select({
       ios: {
-        shadowColor: '#FF9500',
+        shadowColor: PerkDesign.partiallyRedeemed.progress,
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
@@ -279,21 +272,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   perkName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1c1c1e',
+    ...PerkDesign.available.typography,
     marginBottom: Spacing.xs, // 4pt
   },
   perkNameRedeemed: {
-    color: '#8E8E93',
+    color: PerkDesign.redeemed.text,
   },
   perkDescription: { 
-    fontSize: 13,
-    color: '#6C6C70',
-    lineHeight: 18,
+    ...PerkDesign.available.descriptionTypography,
+    color: ComponentColors.text.secondary,
   },
   perkDescriptionRedeemed: { 
-    color: '#AEAEB2',
+    color: PerkDesign.redeemed.descriptionTypography.color,
   },
   perkValueContainer: {
     marginLeft: 'auto',
@@ -302,27 +292,25 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   perkValue: {
-    fontSize: 22,
-    fontWeight: '400',
-    color: '#1c1c1e',
+    ...PerkDesign.available.valueTypography,
   },
   perkValueRedeemed: { 
-    color: '#8E8E93',
+    color: PerkDesign.redeemed.valueTypography.color,
   },
   perkChevron: {
     marginLeft: Spacing.sm, // 8pt
   },
   perkNameAutoRedeemed: { 
-    color: '#8E8E93',
+    color: PerkDesign.autoRedeemed.text,
   },
   perkDescriptionAutoRedeemed: { 
-    color: '#AEAEB2',
+    color: PerkDesign.autoRedeemed.descriptionTypography.color,
   },
   perkValueAutoRedeemed: { 
-    color: '#8E8E93',
+    color: PerkDesign.autoRedeemed.valueTypography.color,
   },
   perkValuePartiallyRedeemed: {
-    color: PARTIAL_REDEEM_FOREGROUND,
+    color: PerkDesign.partiallyRedeemed.valueTypography.color,
   },
   inlineHintContainer: {
     flexDirection: 'row',
