@@ -34,6 +34,7 @@ import InsightsHelpModal from '../../components/insights/InsightsHelpModal';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import InsightsEmptyState from '../../components/insights/InsightsEmptyState';
 import InsightsLoadingState from '../../components/insights/InsightsLoadingState';
+import { calculateRedemptionValues } from '../../utils/insights-calculations';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -298,7 +299,6 @@ export default function InsightsScreen() {
   // Focus effect to refresh data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      console.log('[InsightsScreen] Screen focused, refreshing user cards');
       refreshUserCards();
     }, [refreshUserCards])
   );
@@ -311,6 +311,10 @@ export default function InsightsScreen() {
 
   // Transform user cards into the format needed for filtering
   const availableCardsForFilter = useMemo(() => {
+    console.log('[InsightsScreen] Cards loaded:', userCardsWithPerks.length);
+    if (userCardsWithPerks.length > 0) {
+      console.log('[InsightsScreen] Card IDs:', userCardsWithPerks.map(({ card }) => ({ id: card.id, name: card.name })));
+    }
     return userCardsWithPerks.map(({ card, perks }: UserCardWithPerks) => ({
       id: card.id,
       name: card.name,
@@ -320,7 +324,6 @@ export default function InsightsScreen() {
 
   // Set default selected cards to all user cards and reset when cards change
   useEffect(() => {
-    console.log('[InsightsScreen] Cards changed, updating selected cards');
     if (availableCardsForFilter.length > 0) {
       // Select all available cards by default
       setSelectedCardIds(availableCardsForFilter.map(card => card.id));
@@ -392,8 +395,6 @@ export default function InsightsScreen() {
         return;
       }
     
-      console.log('[InsightsScreen] Debug - Raw userCardsWithPerks:', JSON.stringify(userCardsWithPerks, null, 2));
-
       // Transform userCardsWithPerks to match the expected type
       const processedCards = userCardsWithPerks.map(({ card, perks }) => ({
         card: {
@@ -403,39 +404,31 @@ export default function InsightsScreen() {
           annualFee: card.annualFee || 0,
         },
         perks: perks.map(perk => {
-          console.log(`[InsightsScreen] Debug - Processing perk ${perk.name}:`, {
-            originalStatus: perk.status,
-            id: perk.id,
-            definition_id: perk.definition_id,
-            value: perk.value,
-            period: perk.period
-          });
-          
-          // Map database status to expected status format
-          let mappedStatus: 'available' | 'redeemed' | 'partial';
-          if (perk.status === 'partially_redeemed') {
-            mappedStatus = 'partial';
-          } else if (perk.status === 'redeemed') {
-            mappedStatus = 'redeemed';
-          } else {
-            mappedStatus = 'available';
-          }
-          
+          // Don't map status - pass through the database format
           return {
             id: perk.id,
             definition_id: perk.definition_id,
             name: perk.name,
             value: perk.value,
-            status: mappedStatus,
+            status: perk.status, // Use original status from database
             period: perk.period,
             remaining_value: perk.remaining_value,
           };
         }),
       }));
 
-      console.log('[InsightsScreen] Debug - Processed cards:', JSON.stringify(processedCards, null, 2));
-
+      console.log('[InsightsScreen] Generating insights with:', {
+        selectedCardIds,
+        processedCardsCount: processedCards.length,
+        userId: user?.id
+      });
+      
       const result = await generateDummyInsightsData(selectedCardIds, processedCards, user?.id);
+      
+      console.log('[InsightsScreen] Generated insights result:', {
+        yearSectionsCount: result.yearSections.length,
+        hasData: result.yearSections.length > 0
+      });
 
       // Helper function to determine if a month is the current month
       const isCurrentMonth = (monthYear: string) => {
@@ -469,21 +462,9 @@ export default function InsightsScreen() {
         yearSections: filteredYearSections
       };
 
-      // Log the first month's data to verify what's being displayed
-      if (filteredResult.yearSections.length > 0 && filteredResult.yearSections[0].data.length > 0) {
-        const currentMonth = filteredResult.yearSections[0].data[0];
-        console.log('[InsightsScreen] Debug - Current month data:', {
-          monthYear: currentMonth.monthYear,
-          totalRedeemed: currentMonth.totalRedeemedValue,
-          totalPotential: currentMonth.totalPotentialValue,
-          perksRedeemed: currentMonth.perksRedeemedCount,
-          perksMissed: currentMonth.perksMissedCount,
-          perkDetails: currentMonth.perkDetails.map(p => ({
-            name: p.name,
-            status: p.status,
-            value: p.value
-          }))
-        });
+      // Log summary if we have insights data
+      if (filteredResult.yearSections.length > 0) {
+        console.log('[InsightsScreen] Loaded insights for', filteredResult.yearSections.length, 'year(s)');
       }
 
       setInsightsData(filteredResult);
@@ -536,30 +517,28 @@ export default function InsightsScreen() {
       return null;
     }
 
-    // Calculate trend data using only monthly perks - include partial redemptions
+    // Calculate trend data using only monthly perks with shared calculation function
     const trendData = section.data.map(month => {
-      const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
-      const monthlyRedeemed = monthlyPerks.reduce((sum, perk) => 
-        perk.status === 'redeemed' ? sum + perk.value : sum, 0
-      );
-      const monthlyPartial = monthlyPerks.reduce((sum, perk) => 
-        perk.status === 'partial' ? sum + (perk.partialValue || 0) : sum, 0
-      );
-      const monthlyPotential = monthlyPerks.reduce((sum, perk) => sum + perk.value, 0);
-      return monthlyPotential > 0 ? ((monthlyRedeemed + monthlyPartial) / monthlyPotential) * 100 : 0;
+      // Create a temporary summary with only monthly perks for consistent calculation
+      const monthlyOnlySummary = {
+        ...month,
+        perkDetails: month.perkDetails.filter(perk => perk.period === 'monthly')
+      };
+      const calculations = calculateRedemptionValues(monthlyOnlySummary, false, false);
+      return calculations.potentialValue > 0 ? (calculations.totalRedeemedValue / calculations.potentialValue) * 100 : 0;
     }).slice(0, 6).reverse();
 
-    // Monthly data for the chart should also only include monthly perks - include partial redemptions
+    // Monthly data for the chart using shared calculation function
     const monthlyData = section.data.map(month => {
-      const monthlyPerks = month.perkDetails.filter(perk => perk.period === 'monthly');
+      const monthlyOnlySummary = {
+        ...month,
+        perkDetails: month.perkDetails.filter(perk => perk.period === 'monthly')
+      };
+      const calculations = calculateRedemptionValues(monthlyOnlySummary, false, false);
       return {
-        redeemed: monthlyPerks.reduce((sum, perk) => 
-          perk.status === 'redeemed' ? sum + perk.value : sum, 0
-        ),
-        partial: monthlyPerks.reduce((sum, perk) => 
-          perk.status === 'partial' ? sum + (perk.partialValue || 0) : sum, 0
-        ),
-        potential: monthlyPerks.reduce((sum, perk) => sum + perk.value, 0)
+        redeemed: calculations.redeemedValue,
+        partial: calculations.partialValue,
+        potential: calculations.potentialValue
       };
     }).slice(0, 6).reverse();
 
@@ -785,20 +764,18 @@ export default function InsightsScreen() {
                     const monthsChrono = [...currentYearSection.data]
                       .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
 
-                    // Calculate percentage and raw data arrays - include partial redemptions
+                    // Calculate percentage and raw data arrays using shared calculation function
                     const pct = monthsChrono.map(m => {
-                      const totalSaved = m.totalRedeemedValue + m.perkDetails
-                        .filter(perk => perk.status === 'partial')
-                        .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
-                      return (totalSaved / m.totalPotentialValue) * 100;
+                      const calculations = calculateRedemptionValues(m, false, false);
+                      return m.totalPotentialValue > 0 
+                        ? (calculations.totalRedeemedValue / m.totalPotentialValue) * 100 
+                        : 0;
                     });
                     const raw = monthsChrono.map(m => {
-                      const partialValue = m.perkDetails
-                        .filter(perk => perk.status === 'partial')
-                        .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
+                      const calculations = calculateRedemptionValues(m, false, false);
                       return {
-                        redeemed: m.totalRedeemedValue,
-                        partial: partialValue,
+                        redeemed: calculations.redeemedValue,
+                        partial: calculations.partialValue,
                         potential: m.totalPotentialValue,
                         monthKey: m.monthKey
                       };
