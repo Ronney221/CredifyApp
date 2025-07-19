@@ -5,6 +5,8 @@ import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { CardPerk, calculatePerkExpiryDate } from '../../../src/data/card-data';
+import PerkUrgencyIndicator from '../PerkUrgencyIndicator';
+import PartialRedemptionProgress from '../PartialRedemptionProgress';
 
 const AUTO_REDEEM_FOREGROUND = '#6C3DAF'; // Calmer, darker purple for text/icon
 const AUTO_REDEEM_BACKGROUND = '#F3E8FF'; // Pale lavender background
@@ -12,26 +14,6 @@ const AUTO_REDEEM_CHEVRON = '#C4B2DE';   // Lighter purple for chevron
 const PARTIAL_REDEEM_FOREGROUND = '#FF9500'; // Orange for partial redemption
 const PARTIAL_REDEEM_BACKGROUND = '#FFF7E6';
 
-// Function to format the time until expiry
-const getTimeUntilExpiry = (perk: CardPerk): string => {
-  if (!perk.periodMonths) return '';
-  
-  const expiryDate = calculatePerkExpiryDate(perk.periodMonths);
-  const now = new Date();
-  const daysLeft = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const monthsLeft = Math.floor(daysLeft / 30);
-  const remainingDays = daysLeft % 30;
-
-  if (daysLeft <= 0) {
-    return 'Expired';
-  } else if (daysLeft <= 7) {
-    return `${daysLeft}d left`;
-  } else if (monthsLeft > 0) {
-    return remainingDays > 0 ? `${monthsLeft}mo ${remainingDays}d` : `${monthsLeft}mo`;
-  } else {
-    return `${daysLeft}d`;
-  }
-};
 
 interface PerkRowProps {
   perk: CardPerk;
@@ -87,18 +69,6 @@ const PerkRow: React.FC<PerkRowProps> = ({
     currency: 'USD',
   }) : null;
 
-  // Calculate days left for both period text and styling
-  const expiryDate = perk.periodMonths ? calculatePerkExpiryDate(perk.periodMonths) : null;
-  const daysLeft = expiryDate 
-    ? Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  let periodText = '';
-  if (isAutoRedeemed) {
-    periodText = 'Automatic';
-  } else if (!isRedeemed) { // Changed condition to include partially redeemed perks
-    periodText = getTimeUntilExpiry(perk);
-  }
 
   let displayDescription = perk.description
     ? (perk.description.length > 100 ? `${perk.description.substring(0, 97)}...` : perk.description)
@@ -187,6 +157,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
               >
                 {displayDescription}
               </Text>
+              {/* Progress bar for partial redemptions */}
+              <PartialRedemptionProgress perk={perk} height={3} />
               {shouldShowRedeemHintOnThisPerk && (
                 <Reanimated.View 
                   style={[styles.inlineHintContainer, animatedNudgeStyle]}
@@ -207,16 +179,11 @@ const PerkRow: React.FC<PerkRowProps> = ({
               )}
             </View>
             <View style={styles.perkValueContainer}>
-              {periodText && (
-                <Text style={[
-                  styles.perkPeriodTag,
-                  isRedeemed && !isAutoRedeemed && styles.perkPeriodTagRedeemed,
-                  isAutoRedeemed && styles.perkPeriodTagAutoRedeemed,
-                  periodText === 'Expired' && styles.perkPeriodTagExpired,
-                  daysLeft !== null && daysLeft <= 7 && styles.perkPeriodTagUrgent
-                ]}>
-                  {periodText}
-                </Text>
+              {/* Urgency indicator replaces periodText */}
+              {!isRedeemed && (
+                <View style={styles.urgencyIndicatorContainer}>
+                  <PerkUrgencyIndicator perk={perk} size="small" />
+                </View>
               )}
               <Text style={[
                 styles.perkValue, 
@@ -313,24 +280,6 @@ const styles = StyleSheet.create({
     color: '#1c1c1e',
     marginBottom: 2,
   },
-  perkPeriodTag: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#8A8A8E',
-    marginBottom: 2,
-  },
-  perkPeriodTagRedeemed: {
-    color: '#AEAEB2',
-  },
-  perkPeriodTagAutoRedeemed: {
-    color: AUTO_REDEEM_FOREGROUND,
-  },
-  perkPeriodTagExpired: {
-    color: '#FF3B30', // iOS red color for expired status
-  },
-  perkPeriodTagUrgent: {
-    color: '#FF9500', // iOS orange color for urgent (7 days or less)
-  },
   perkNameRedeemed: {
     color: '#8E8E93',
   },
@@ -391,6 +340,10 @@ const styles = StyleSheet.create({
   remainingValueText: {
     fontSize: 14,
     color: '#8E8E93',
+  },
+  urgencyIndicatorContainer: {
+    marginBottom: 4,
+    alignSelf: 'flex-end',
   },
 });
 
