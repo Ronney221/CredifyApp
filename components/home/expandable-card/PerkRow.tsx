@@ -1,9 +1,21 @@
 //perk-row.tsx
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import Reanimated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
+import Reanimated, { 
+  FadeIn, 
+  FadeOut, 
+  Layout, 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withTiming, 
+  interpolate, 
+  runOnJS,
+  withSequence
+} from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { CardPerk, calculatePerkExpiryDate } from '../../../src/data/card-data';
 import PerkUrgencyIndicator from '../PerkUrgencyIndicator';
 import PartialRedemptionProgress from '../PartialRedemptionProgress';
@@ -53,6 +65,72 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
   const touchableRef = useRef<TouchableOpacity | null>(null);
   
+  // Advanced micro-interaction state
+  const [isPressed, setIsPressed] = useState(false);
+  const pressOpacity = useSharedValue(0);
+  
+  // Premium spring configuration for Apple-quality animations
+  const springConfig = {
+    damping: 20,
+    stiffness: 300,
+    mass: 1,
+    restDisplacementThreshold: 0.01,
+    restSpeedThreshold: 0.01,
+  };
+  
+  // Haptic feedback for different interactions
+  const triggerHapticFeedback = (type: 'light' | 'medium' | 'success' | 'warning') => {
+    if (Platform.OS === 'ios') {
+      switch (type) {
+        case 'light':
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          break;
+        case 'medium':
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          break;
+        case 'success':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          break;
+        case 'warning':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          break;
+      }
+    }
+  };
+  
+  // Enhanced press interactions with visible feedback
+  const handlePressIn = () => {
+    setIsPressed(true);
+    pressOpacity.value = withTiming(1, { duration: 100 });
+    triggerHapticFeedback('light');
+  };
+  
+  const handlePressOut = () => {
+    setIsPressed(false);
+    pressOpacity.value = withTiming(0, { duration: 200 });
+  };
+  
+  
+  // Enhanced swipe handlers
+  const enhancedOnSwipeableWillOpen = (direction: 'left' | 'right') => {
+    // Only light haptic when swipe reveals action buttons
+    triggerHapticFeedback('light');
+    onSwipeableWillOpen(direction);
+  };
+  
+  const enhancedOnSwipeableOpen = (direction: 'left' | 'right') => {
+    // No success feedback here - wait for actual action confirmation
+    onSwipeableOpen(direction);
+  };
+  
+  // Animated press overlay style
+  const pressOverlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: pressOpacity.value * 0.08, // Subtle dark overlay
+      backgroundColor: '#000000',
+    };
+  });
+  
   const shouldShowRedeemHintOnThisPerk = showSwipeHint && isFirstAvailablePerk;
   const shouldShowUndoHintOnThisPerk = showUndoHint && isFirstRedeemedPerk;
 
@@ -84,21 +162,21 @@ const PerkRow: React.FC<PerkRowProps> = ({
     <Reanimated.View
       style={styles.perkContainerOuter}
       layout={Layout.springify()}
-      entering={FadeIn.duration(200)}
+      entering={FadeIn.duration(300).springify()}
       exiting={FadeOut.duration(200)}
     >
       <Swipeable
         ref={setSwipeableRef}
         renderLeftActions={renderLeftActions}
         renderRightActions={renderRightActions}
-        leftThreshold={40}
-        rightThreshold={40}
+        leftThreshold={30} // Lower threshold for more responsive interaction
+        rightThreshold={30}
         leftOpenValue={120} // Limit left swipe (Log Usage button) to 120px like iMessage
         rightOpenValue={-120} // Limit right swipe (Available button) to 120px
-        onSwipeableWillOpen={onSwipeableWillOpen}
-        onSwipeableOpen={onSwipeableOpen}
-        friction={2} // Slightly higher friction for smoother reveal
-        overshootFriction={10} // Higher overshoot friction to prevent bounce
+        onSwipeableWillOpen={enhancedOnSwipeableWillOpen}
+        onSwipeableOpen={enhancedOnSwipeableOpen}
+        friction={1.8} // Optimized friction for premium feel
+        overshootFriction={8} // Refined overshoot for better control
         useNativeAnimations={true} // Use native animations for better performance
       >
         <TouchableOpacity
@@ -106,6 +184,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
           activeOpacity={1} // Prevent opacity change during swipe
           onPress={onTapPerk}
           onLongPress={onLongPressPerk}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
           style={containerStyle}
           onLayout={onLayout ? () => {
             // Use measure to get absolute screen coordinates
@@ -205,6 +285,11 @@ const PerkRow: React.FC<PerkRowProps> = ({
               size={20} 
               color={isRedeemed ? (isAutoRedeemed ? PerkDesign.autoRedeemed.border : ComponentColors.text.disabled) : ComponentColors.text.tertiary} 
               style={styles.perkChevron}
+            />
+            {/* Press feedback overlay */}
+            <Reanimated.View 
+              style={[styles.pressOverlay, pressOverlayStyle]}
+              pointerEvents="none"
             />
         </TouchableOpacity>
       </Swipeable>
@@ -361,6 +446,14 @@ const styles = StyleSheet.create({
   urgencyIndicatorContainer: {
     marginBottom: Spacing.xs, // 4pt
     alignSelf: 'flex-end',
+  },
+  pressOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: BorderRadius.xl, // Match container radius
   },
 });
 

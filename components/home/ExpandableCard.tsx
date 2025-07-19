@@ -620,9 +620,9 @@ const ExpandableCardComponent = ({
       <TouchableOpacity
         style={styles.leftAction}
         onPress={() => {
-          // Enhanced haptic feedback for action press
+          // Success haptic feedback when user commits to action
           if (Platform.OS === 'ios') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
           // Close the swipeable first
           swipeableRefs.current[perk.id]?.close();
@@ -649,9 +649,9 @@ const ExpandableCardComponent = ({
       <TouchableOpacity
         style={styles.rightAction}
         onPress={() => {
-          // Enhanced haptic feedback for undo action
+          // Success haptic feedback when user commits to undo
           if (Platform.OS === 'ios') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
           executePerkAction(perk, 'available');
         }}
