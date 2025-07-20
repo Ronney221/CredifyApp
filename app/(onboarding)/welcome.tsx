@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: TOKENS.spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? 44 : 24,
     paddingTop: TOKENS.spacing.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'transparent',
   },
   getStartedButton: {
     backgroundColor: Colors.light.tint,

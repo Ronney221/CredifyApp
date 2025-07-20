@@ -150,7 +150,7 @@ export default function OnboardingCardSelectScreen() {
 
   const handleNext = () => {
     if (selectedCards.length === 0) return;
-    router.push('/(onboarding)/potential-savings');
+    router.push('/(onboarding)/why-this-matters');
   };
 
 
@@ -319,8 +319,12 @@ export default function OnboardingCardSelectScreen() {
           }
         ]}
       >
-        <Text style={styles.valueLabel}>You're Paying Annually</Text>
+        <View style={styles.valueHeader}>
+          <Ionicons name="card" size={20} color={Colors.light.tint} style={styles.valueIcon} />
+          <Text style={styles.valueLabel}>Annual Fees Selected</Text>
+        </View>
         <Text style={styles.valueAmount}>${displayValue.toLocaleString()}</Text>
+        <Text style={styles.valueSubtext}>We'll show you how your perks cover this</Text>
       </Animated.View>
 
       <MotiView
@@ -510,27 +514,42 @@ const styles = StyleSheet.create({
   },
   valueContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     marginHorizontal: 20,
-    marginBottom: 12,
-    backgroundColor: '#FFF5F5',
-    borderRadius: 12,
+    marginBottom: 16,
+    backgroundColor: '#F8F9FF',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#FFE5E5',
+    borderColor: '#E8EBFF',
+  },
+  valueHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  valueIcon: {
+    marginRight: 6,
   },
   valueLabel: {
-    fontSize: 14,
-    color: Colors.light.secondaryLabel,
-    fontWeight: '500',
+    fontSize: 15,
+    color: Colors.light.text,
+    fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 4,
   },
   valueAmount: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#DC3545',
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.light.tint,
     textAlign: 'center',
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  valueSubtext: {
+    fontSize: 13,
+    color: Colors.light.secondaryLabel,
+    textAlign: 'center',
+    opacity: 0.8,
+    lineHeight: 16,
   },
 }); 

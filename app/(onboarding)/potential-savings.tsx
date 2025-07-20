@@ -25,7 +25,6 @@ import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { SocialProof } from '../../components/onboarding/SocialProof';
 
 export default function PotentialSavingsScreen() {
   const router = useRouter();
@@ -249,15 +248,6 @@ export default function PotentialSavingsScreen() {
                 )}
               </Text>
             </MotiView>
-          )}
-          
-          {isCountingComplete && (
-            <SocialProof 
-              variant="savings" 
-              delay={800}
-              selectedCardsCount={selectedCards.length}
-              netValue={netValue}
-            />
           )}
         </MotiView>
 

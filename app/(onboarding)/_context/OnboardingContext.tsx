@@ -228,8 +228,8 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     });
   }, []);
 
-  // --- This is an example, you should determine the total steps for your flow ---
-  const totalSteps = 4; // e.g., Welcome, Card Select, Renewal Dates, Potential Savings
+  // Updated flow without wizard header progress tracking
+  const totalSteps = 4; // Welcome, Card Select, Why This Matters, Potential Savings, Register (but no header shown)
 
   const value: OnboardingContextType = {
     // Card Management

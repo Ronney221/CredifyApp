@@ -4,6 +4,7 @@ import { OnboardingProvider } from './_context/OnboardingContext';
 export const onboardingScreenNames = [
   'welcome',
   'card-select',
+  'why-this-matters',
   'potential-savings',
   'register',
 ] as const;
@@ -25,6 +26,12 @@ export default function OnboardingLayout() {
         />
         <Stack.Screen
           name="card-select"
+          options={{
+            gestureEnabled: true,
+          }}
+        />
+        <Stack.Screen
+          name="why-this-matters"
           options={{
             gestureEnabled: true,
           }}
