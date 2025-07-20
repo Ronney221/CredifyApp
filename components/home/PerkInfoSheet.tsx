@@ -14,6 +14,7 @@ import {
   UIManager,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -249,6 +250,9 @@ export default function PerkInfoSheet({
   const translateY = useSharedValue(screenHeight);
   const context = useSharedValue({ y: 0 });
   const rotation = useSharedValue(0);
+  const buttonScale = useSharedValue(1);
+  const heroCardScale = useSharedValue(0.95);
+  const overlayOpacity = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
   const appName = useMemo(() => perk ? getAppName(perk) : '', [perk]);
@@ -366,6 +370,25 @@ export default function PerkInfoSheet({
     };
   });
 
+  const animatedHeroStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: heroCardScale.value }],
+      opacity: withTiming(visible ? 1 : 0, { duration: 300 }),
+    };
+  });
+
+  const animatedOverlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: overlayOpacity.value,
+    };
+  });
+
+  const animatedButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }],
+    };
+  });
+
   const animatedChevronStyle = useAnimatedStyle(() => {
     return {
       transform: [{ rotate: `${rotation.value}deg` }],
@@ -403,12 +426,18 @@ export default function PerkInfoSheet({
   }, [showHowItWorks, rotation]);
 
   const handleOpenApp = useCallback(async () => {
-    handleDismiss();
-    await onOpenApp();
+    // Button press animation
+    buttonScale.value = withTiming(0.96, { duration: 100 }, () => {
+      buttonScale.value = withTiming(1, { duration: 100 });
+    });
+    
     if (Platform.OS === 'ios') {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  }, [handleDismiss, onOpenApp]);
+    
+    handleDismiss();
+    await onOpenApp();
+  }, [handleDismiss, onOpenApp, buttonScale]);
 
   const nextTip = useCallback(() => {
     setCurrentTipIndex((prev) => (prev + 1) % proTips.length);
@@ -426,15 +455,24 @@ export default function PerkInfoSheet({
 
   React.useEffect(() => {
     if (visible) {
+      // Staggered entrance animation
+      overlayOpacity.value = withTiming(1, { duration: 200 });
       translateY.value = withTiming(0, {
-        duration: 240,
-        easing: Easing.out(Easing.quad),
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+      });
+      heroCardScale.value = withSpring(1, {
+        damping: 20,
+        stiffness: 300,
       });
       setShowHowItWorks(false);
       setCurrentTipIndex(0);
       rotation.value = 0;
+    } else {
+      overlayOpacity.value = withTiming(0, { duration: 200 });
+      heroCardScale.value = withTiming(0.95, { duration: 200 });
     }
-  }, [visible]);
+  }, [visible, overlayOpacity, heroCardScale]);
 
   if (!visible || !perk) {
     return null;
@@ -465,9 +503,9 @@ export default function PerkInfoSheet({
       animationType="none"
       onRequestClose={handleDismiss}
     >
-      <View style={styles.overlay}>
+      <Animated.View style={[styles.overlay, animatedOverlayStyle]}>
         <Pressable style={styles.overlayPress} onPress={handleDismiss} />
-      </View>
+      </Animated.View>
       
       <GestureDetector gesture={panGesture}>
         <Animated.View style={[styles.container, animatedStyle]}>
@@ -487,74 +525,139 @@ export default function PerkInfoSheet({
             contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 24 }]}
             showsVerticalScrollIndicator={false}
           >
-            {/* Remaining Balance */}
-            <View style={styles.balanceContainer}>
-              <Text style={styles.remainingLabel}>Remaining Balance</Text>
-              <Text style={styles.remainingValue}>{formattedRemainingValue}</Text>
-              <Text style={styles.periodInfo}>
-                {perk.period === 'monthly' ? 'Monthly' : 
-                 perk.period === 'quarterly' ? 'Quarterly' :
-                 perk.period === 'semi_annual' ? 'Semi-annual' :
-                 perk.period === 'annual' ? 'Annual' : 'Period'} credit: {formattedValue}
-                {yearlyTotal > 0 && ` • Up to ${formatCurrency(yearlyTotal)}/year`}
-              </Text>
-            </View>
+            {/* Hero Balance Card */}
+            <Animated.View style={[styles.heroCardWrapper, animatedHeroStyle]}>
+              <LinearGradient
+                colors={[
+                  merchantColor + '15', // 15% opacity
+                  merchantColor + '08', // 8% opacity
+                  '#FFFFFF'
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroCard}
+              >
+                <View style={styles.heroCardContent}>
+                  <View style={styles.balanceSection}>
+                    <Text style={styles.remainingLabel}>Available Balance</Text>
+                    <Text style={[styles.remainingValue, { color: merchantColor }]}>
+                      {formattedRemainingValue}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.creditInfoSection}>
+                    <View style={styles.creditInfoRow}>
+                      <View style={styles.creditInfoItem}>
+                        <Text style={styles.creditInfoLabel}>
+                          {perk.period === 'monthly' ? 'Monthly' : 
+                           perk.period === 'quarterly' ? 'Quarterly' :
+                           perk.period === 'semi_annual' ? 'Semi-annual' :
+                           perk.period === 'annual' ? 'Annual' : 'Period'} Credit
+                        </Text>
+                        <Text style={styles.creditInfoValue}>{formattedValue}</Text>
+                      </View>
+                      {yearlyTotal > 0 && (
+                        <View style={styles.creditInfoItem}>
+                          <Text style={styles.creditInfoLabel}>Annual Value</Text>
+                          <Text style={styles.creditInfoValue}>{formatCurrency(yearlyTotal)}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+                
+                {/* Decorative elements */}
+                <View style={styles.heroDecoration}>
+                  <View style={[styles.decorationCircle, { backgroundColor: merchantColor + '20' }]} />
+                  <View style={[styles.decorationCircle, styles.decorationCircleSmall, { backgroundColor: merchantColor + '10' }]} />
+                </View>
+              </LinearGradient>
+            </Animated.View>
 
             {/* Primary CTA Button */}
-            <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: merchantColor }]} 
-              onPress={handleOpenApp}
-            >
-              <View style={styles.buttonContent}>
-                <Ionicons name={merchantIcon as any} size={20} color="#FFFFFF" />
-                <Text style={styles.primaryButtonText}>
-                  Open {appName}
-                </Text>
-                <Ionicons name="open-outline" size={18} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-
-            {/* Pro Tips Carousel */}
-            <View style={styles.proTipsSection}>
-              <Text style={styles.sectionTitle}>Pro Tips</Text>
-              <View style={styles.tipCard}>
-                <View style={styles.tipHeader}>
-                  <Ionicons name={currentTip.icon as any} size={24} color="#007AFF" />
-                  <Text style={styles.tipTitle}>{currentTip.title}</Text>
-                </View>
-                <ScrollView 
-                  style={styles.tipDescriptionScroll}
-                  showsVerticalScrollIndicator={false}
-                  nestedScrollEnabled={true}
+            <View style={styles.ctaSection}>
+              <Animated.View style={animatedButtonStyle}>
+                <TouchableOpacity 
+                  style={[styles.primaryButton, { backgroundColor: merchantColor }]} 
+                  onPress={handleOpenApp}
+                  activeOpacity={0.9}
                 >
-                  <Text style={styles.tipDescription}>{currentTip.description}</Text>
-                </ScrollView>
-                
-                {/* Carousel Controls - Only show if more than 1 tip */}
-                {proTips.length > 1 && (
-                  <View style={styles.carouselControls}>
-                    <TouchableOpacity onPress={prevTip} style={styles.carouselButton}>
-                      <Ionicons name="chevron-back" size={20} color="#007AFF" />
-                    </TouchableOpacity>
-                    
-                    <View style={styles.carouselDots}>
-                      {proTips.map((_, index) => (
-                        <View 
-                          key={index} 
-                          style={[
-                            styles.dot, 
-                            index === currentTipIndex && styles.activeDot
-                          ]} 
-                        />
-                      ))}
+                <LinearGradient
+                  colors={[merchantColor, merchantColor + 'DD']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.buttonGradient}
+                >
+                  <View style={styles.buttonContent}>
+                    <View style={styles.buttonIconContainer}>
+                      <Ionicons name={merchantIcon as any} size={22} color="#FFFFFF" />
                     </View>
-                    
-                    <TouchableOpacity onPress={nextTip} style={styles.carouselButton}>
-                      <Ionicons name="chevron-forward" size={20} color="#007AFF" />
-                    </TouchableOpacity>
+                    <Text style={styles.primaryButtonText}>
+                      Open {appName}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
                   </View>
-                )}
-              </View>
+                </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+
+            {/* Tips Cards Stack */}
+            <View style={styles.tipsSection}>
+              {proTips.slice(0, 3).map((tip, index) => (
+                <Animated.View
+                  key={index}
+                  entering={FadeIn.delay(index * 100).duration(300)}
+                  style={[
+                    styles.tipCard,
+                    index === 0 && styles.primaryTipCard,
+                    index > 0 && styles.secondaryTipCard,
+                  ]}
+                >
+                  <View style={styles.tipCardContent}>
+                    <View style={styles.tipHeader}>
+                      <View style={[
+                        styles.tipIconContainer,
+                        { backgroundColor: index === 0 ? merchantColor + '15' : '#F2F2F7' }
+                      ]}>
+                        <Ionicons 
+                          name={tip.icon as any} 
+                          size={20} 
+                          color={index === 0 ? merchantColor : '#007AFF'} 
+                        />
+                      </View>
+                      <View style={styles.tipTextContent}>
+                        <Text style={[
+                          styles.tipTitle,
+                          index === 0 && styles.primaryTipTitle
+                        ]}>
+                          {tip.title}
+                        </Text>
+                        <Text 
+                          style={[
+                            styles.tipDescription,
+                            index === 0 && styles.primaryTipDescription
+                          ]}
+                          numberOfLines={index === 0 ? 4 : 2}
+                        >
+                          {tip.description}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </Animated.View>
+              ))}
+              
+              {proTips.length > 3 && (
+                <TouchableOpacity style={styles.viewMoreCard}>
+                  <View style={styles.viewMoreContent}>
+                    <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+                    <Text style={styles.viewMoreText}>
+                      View {proTips.length - 3} more tips
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* How it Works Accordion */}
@@ -602,20 +705,20 @@ const styles = StyleSheet.create({
     right: 0,
   },
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#D1D1D6',
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: 12,
+    marginBottom: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5EA',
   },
   title: {
@@ -633,62 +736,148 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  balanceContainer: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 16,
+  heroCardWrapper: {
+    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  heroCard: {
+    borderRadius: 20,
     padding: 20,
-    alignItems: 'center',
-    marginBottom: 24,
+    minHeight: 140,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  remainingLabel: {
-    fontSize: 14,
+  heroCardContent: {
+    flex: 1,
+    zIndex: 2,
+  },
+  balanceSection: {
+    marginBottom: 16,
+  },
+  creditInfoSection: {
+    flex: 1,
+  },
+  creditInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  creditInfoItem: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 10,
+    padding: 10,
+    backdropFilter: 'blur(10px)',
+  },
+  creditInfoLabel: {
+    fontSize: 12,
     fontWeight: '500',
     color: '#8E8E93',
+    marginBottom: 4,
+    letterSpacing: -0.24,
+    textTransform: 'uppercase',
+  },
+  creditInfoValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    letterSpacing: -0.32,
+  },
+  heroDecoration: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    zIndex: 1,
+  },
+  decorationCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    position: 'absolute',
+  },
+  decorationCircleSmall: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    top: 40,
+    right: 40,
+  },
+  remainingLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1C1C1E',
     marginBottom: 8,
     letterSpacing: -0.24,
+    opacity: 0.8,
   },
   remainingValue: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: '800',
-    color: '#007AFF',
-    marginBottom: 8,
-    letterSpacing: -1,
+    marginBottom: 4,
+    letterSpacing: -1.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  periodInfo: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 20,
-    letterSpacing: -0.24,
+  ctaSection: {
+    marginBottom: 40,
+    paddingHorizontal: 4,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  buttonGradient: {
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  buttonIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: -0.41,
-    flex: 1,
-    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  proTipsSection: {
-    marginBottom: 16, // Reduced from 24 to give more space for How it Works
+  tipsSection: {
+    marginBottom: 24,
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 20,
@@ -698,64 +887,90 @@ const styles = StyleSheet.create({
     letterSpacing: -0.41,
   },
   tipCard: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    padding: 16,
-    maxHeight: 240, // Increased for more tip content space
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  primaryTipCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  secondaryTipCard: {
+    backgroundColor: '#F9F9F9',
+  },
+  tipCardContent: {
+    padding: 14,
   },
   tipHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  tipIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  tipTextContent: {
+    flex: 1,
   },
   tipTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1C1C1E',
-    marginLeft: 12,
-    letterSpacing: -0.32,
-  },
-  tipDescriptionScroll: {
-    maxHeight: 160, // Much more space for tip content
-    marginBottom: 8, // Keep tight margin before controls
-  },
-  tipDescription: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#666666',
-    lineHeight: 20, // Reduced from 22 for more compact text
+    marginBottom: 6,
     letterSpacing: -0.24,
   },
-  carouselControls: {
+  primaryTipTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.41,
+  },
+  tipDescription: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#8E8E93',
+    lineHeight: 20,
+    letterSpacing: -0.24,
+  },
+  primaryTipDescription: {
+    fontSize: 15,
+    color: '#666666',
+    lineHeight: 22,
+  },
+  viewMoreCard: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderStyle: 'dashed',
+  },
+  viewMoreContent: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center', // Center everything
-    marginTop: 4, // Small top margin
-    height: 32, // Fixed height to prevent expansion
+    justifyContent: 'center',
+    gap: 12,
   },
-  carouselButton: {
-    padding: 4, // Reduced from 8
-    marginHorizontal: 8, // Space from dots
-  },
-  carouselDots: {
-    flexDirection: 'row',
-    gap: 4, // Reduced from 6
-    alignItems: 'center',
-  },
-  dot: {
-    width: 5, // Reduced from 6
-    height: 5, // Reduced from 6
-    borderRadius: 2.5,
-    backgroundColor: '#C7C7CC',
-  },
-  activeDot: {
-    backgroundColor: '#007AFF',
-    width: 6, // Slightly larger for active state
-    height: 6,
-    borderRadius: 3,
+  viewMoreText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#007AFF',
+    letterSpacing: -0.24,
   },
   howItWorksSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   accordionHeader: {
     flexDirection: 'row',
