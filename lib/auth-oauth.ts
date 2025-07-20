@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { logger } from '../utils/logger';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -17,14 +18,14 @@ const redirectUrl = makeRedirectUri({
 const supabaseUrl = Constants.expoConfig?.extra?.SUPABASE_URL;
 const supabaseAnonKey = Constants.expoConfig?.extra?.SUPABASE_KEY;
 
-console.log('--- Supabase Auth ---');
-console.log('Redirect URL:', redirectUrl);
-console.log('Supabase URL:', supabaseUrl ? 'Loaded' : 'MISSING');
-console.log('Supabase Anon Key:', supabaseAnonKey ? 'Loaded' : 'MISSING');
-console.log('---------------------');
+logger.log('--- Supabase Auth ---');
+logger.log('Redirect URL:', redirectUrl);
+logger.log('Supabase URL:', supabaseUrl ? 'Loaded' : 'MISSING');
+logger.log('Supabase Anon Key:', supabaseAnonKey ? 'Loaded' : 'MISSING');
+logger.log('---------------------');
 
 export const signInWithGoogle = async () => {
-  console.log('[Auth] Attempting Google Sign-In...');
+  logger.log('[Auth] Attempting Google Sign-In...');
   
   try {
     // Kick off OAuth; supabase-js will open the browser for you
@@ -50,16 +51,16 @@ export const signInWithGoogle = async () => {
     }
 
     // Manually handle the browser flow so we can close it on redirect
-    console.log('[Auth] Opening WebBrowser for URL:', data.url);
+    logger.log('[Auth] Opening WebBrowser for URL:', data.url);
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
       redirectUrl
     );
-    console.log('[Auth] WebBrowser Result:', result);
+    logger.log('[Auth] WebBrowser Result:', result);
 
     if (result.type === 'success' && result.url) {
       // The URL contains the callback with tokens in the hash
-      console.log('[Auth] OAuth success, callback URL:', result.url);
+      logger.log('[Auth] OAuth success, callback URL:', result.url);
       
       // Get the hash fragment (remove the leading #)
       const hash = result.url.split('#')[1];
@@ -75,7 +76,7 @@ export const signInWithGoogle = async () => {
       const refresh_token = hashParams.get('refresh_token');
 
       if (access_token) {
-        console.log('[Auth] Found access token. Setting session...');
+        logger.log('[Auth] Found access token. Setting session...');
         const sessionData = {
           access_token,
           ...(refresh_token && { refresh_token }),
@@ -88,14 +89,14 @@ export const signInWithGoogle = async () => {
           return { data: null, error: sessionError };
         }
 
-        console.log('[Auth] Session set successfully. User:', sessionResponse.user?.id);
+        logger.log('[Auth] Session set successfully. User:', sessionResponse.user?.id);
         return { data: sessionResponse, error: null };
       }
       
       console.error('[Auth] No access token found in callback URL.');
       return { data: null, error: { message: 'No access token received' } };
     } else if (result.type === 'cancel' || result.type === 'dismiss') {
-      console.log('[Auth] OAuth flow cancelled or dismissed by user.');
+      logger.log('[Auth] OAuth flow cancelled or dismissed by user.');
       return { data: null, error: { message: 'User cancelled' } };
     }
     
@@ -108,7 +109,7 @@ export const signInWithGoogle = async () => {
 };
 
 export const signInWithApple = async () => {
-  console.log('[Auth] Attempting Apple Sign-In...');
+  logger.log('[Auth] Attempting Apple Sign-In...');
   try {
     const credential = await AppleAuthentication.signInAsync({
       requestedScopes: [
@@ -116,10 +117,10 @@ export const signInWithApple = async () => {
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
     });
-    console.log('[Auth] Apple credential received.');
+    logger.log('[Auth] Apple credential received.');
 
     if (credential.identityToken) {
-      console.log('[Auth] Identity token found, signing in with Supabase...');
+      logger.log('[Auth] Identity token found, signing in with Supabase...');
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
@@ -130,7 +131,7 @@ export const signInWithApple = async () => {
         return { data: null, error };
       }
 
-      console.log('[Auth] Apple Sign In successful. User:', data.user?.id);
+      logger.log('[Auth] Apple Sign In successful. User:', data.user?.id);
       return { data, error: null };
     }
     
@@ -138,7 +139,7 @@ export const signInWithApple = async () => {
     return { data: null, error: { message: 'No identity token received from Apple' } };
   } catch (error: any) {
     if (error.code === 'ERR_REQUEST_CANCELED') {
-      console.log('[Auth] Apple Sign In cancelled by user.');
+      logger.log('[Auth] Apple Sign In cancelled by user.');
       return { data: null, error: { message: 'User cancelled' } };
     }
     console.error('[Auth] Unexpected error during Apple Sign In:', error);
@@ -158,7 +159,7 @@ export const signInWithEmail = async (email: string, password: string) => {
       return { data: null, error };
     }
 
-    console.log('Email Sign In successful');
+    logger.log('Email Sign In successful');
     return { data, error: null };
   } catch (error: any) {
     console.error('Unexpected error during Email Sign In:', error);

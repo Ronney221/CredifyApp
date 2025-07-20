@@ -28,6 +28,7 @@ import { supabase } from '../../lib/supabase';
 import * as Sentry from '@sentry/react-native';
 import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY, HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY, useOnboarding } from '../(onboarding)/_context/OnboardingContext';
 import { DatabaseTester } from '../../components/debug/DatabaseTester';
+import { logger } from '../../utils/logger';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -77,7 +78,7 @@ const ProfileScreen = () => {
     };
 
     try {
-      console.log('[ProfileScreen] Testing all notification types');
+      logger.log('[ProfileScreen] Testing all notification types');
 
       // Test perk expiry notifications
       const perkExpiryPromises = [
@@ -121,15 +122,15 @@ const ProfileScreen = () => {
 
   const handleResetFirstRedemption = async () => {
     try {
-      console.log('[Profile] Resetting first redemption state');
+      logger.log('[Profile] Resetting first redemption state');
       const beforeValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
-      console.log('[Profile] Current value before reset:', beforeValue);
+      logger.log('[Profile] Current value before reset:', beforeValue);
 
       await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
       setHasRedeemedFirstPerk(false);
 
       const afterValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
-      console.log('[Profile] Value after reset:', afterValue);
+      logger.log('[Profile] Value after reset:', afterValue);
 
       Alert.alert(
         "Success",
@@ -144,7 +145,7 @@ const ProfileScreen = () => {
 
   const handleResetTapOnboarding = async () => {
     try {
-      console.log('[Profile] Resetting tap onboarding state');
+      logger.log('[Profile] Resetting tap onboarding state');
       
       // Remove both tap and swipe onboarding keys to reset the full flow
       await AsyncStorage.multiRemove([HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY]);
@@ -238,7 +239,7 @@ const ProfileScreen = () => {
     try {
       const NOTIFICATION_PREFS_KEY = '@notification_preferences';
       await AsyncStorage.removeItem(NOTIFICATION_PREFS_KEY);
-      console.log('[Profile] Successfully cleared notification preferences');
+      logger.log('[Profile] Successfully cleared notification preferences');
 
       Alert.alert(
         "Success",
@@ -444,7 +445,7 @@ const ProfileScreen = () => {
           title: 'Test Database',
           icon: 'server-outline',
           onPress: () => {
-            console.log('Test Database button tapped!');
+            logger.log('Test Database button tapped!');
             setShowTester(true);
           }
         },
@@ -559,7 +560,7 @@ const ProfileScreen = () => {
       >
         <SafeAreaView style={{ flex: 1 }}>
           <DatabaseTester onClose={() => {
-            console.log('DatabaseTester closing...');
+            logger.log('DatabaseTester closing...');
             setShowTester(false);
           }} />
         </SafeAreaView>

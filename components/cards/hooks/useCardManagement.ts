@@ -6,6 +6,7 @@ import { Card } from '../../../src/data/card-data';
 import { getUserCards, saveUserCards, getAllCardsData } from '../../../lib/database';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../../../utils/logger';
 
 const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
 
@@ -153,7 +154,7 @@ export const useCardManagement = (userId: string | undefined) => {
     
     // Save changes if needed
     if (userId) {
-      console.log('🎯 [handleDoneAddCardModal] Saving cards:', {
+      logger.log('🎯 [handleDoneAddCardModal] Saving cards:', {
         updatedSelectedCards,
         allCardsCount: allCards.length,
         userId
@@ -163,7 +164,7 @@ export const useCardManagement = (userId: string | undefined) => {
         .map(id => allCards.find(c => c.id === id))
         .filter(Boolean) as Card[];
       
-      console.log('🎯 [handleDoneAddCardModal] Found cards to save:', updatedCards.length);
+      logger.log('🎯 [handleDoneAddCardModal] Found cards to save:', updatedCards.length);
       
       const { error } = await saveUserCards(userId, updatedCards, updatedRenewalDates);
       if (error) {
@@ -174,7 +175,7 @@ export const useCardManagement = (userId: string | undefined) => {
           [{ text: "OK" }]
         );
       } else {
-        console.log('✅ Successfully saved new cards to database');
+        logger.log('✅ Successfully saved new cards to database');
         setInitialSelectedCards(updatedSelectedCards);
         setInitialRenewalDates(updatedRenewalDates);
       }
@@ -212,13 +213,13 @@ export const useCardManagement = (userId: string | undefined) => {
           card.benefits.forEach(perk => {
             if (perk.periodMonths) {
               uniquePeriodsSet.add(perk.periodMonths);
-              console.log(`[useCardManagement] Adding period ${perk.periodMonths} from perk ${perk.name} in card ${card.name}`);
+              logger.log(`[useCardManagement] Adding period ${perk.periodMonths} from perk ${perk.name} in card ${card.name}`);
             }
           });
         });
         const uniquePeriodsArray = Array.from(uniquePeriodsSet).sort((a, b) => a - b);
-        console.log('[useCardManagement] Saving unique perk periods to AsyncStorage:', uniquePeriodsArray);
-        console.log('[useCardManagement] Selected cards:', selectedCardObjects.map(card => ({
+        logger.log('[useCardManagement] Saving unique perk periods to AsyncStorage:', uniquePeriodsArray);
+        logger.log('[useCardManagement] Selected cards:', selectedCardObjects.map(card => ({
           id: card.id,
           name: card.name,
           benefits: card.benefits.map(b => ({ name: b.name, periodMonths: b.periodMonths }))
@@ -227,7 +228,7 @@ export const useCardManagement = (userId: string | undefined) => {
         // Save to AsyncStorage and verify
         await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(uniquePeriodsArray));
         const savedPeriods = await AsyncStorage.getItem(UNIQUE_PERK_PERIODS_STORAGE_KEY);
-        console.log('[useCardManagement] Verified saved periods:', savedPeriods);
+        logger.log('[useCardManagement] Verified saved periods:', savedPeriods);
         
         if (!savedPeriods || JSON.parse(savedPeriods).length !== uniquePeriodsArray.length) {
           console.error('[useCardManagement] Periods were not saved correctly. Expected:', uniquePeriodsArray, 'Got:', savedPeriods);
@@ -319,7 +320,7 @@ export const useCardManagement = (userId: string | undefined) => {
       if (actualRenewalDatesChanged) {
         const timeoutId = setTimeout(async () => {
           try {
-            console.log('[CardManagement] Auto-saving renewal dates');
+            logger.log('[CardManagement] Auto-saving renewal dates');
             const currentSelectedObjects = selectedCards.map(id => allCards.find(card => card.id === id)).filter(Boolean) as Card[];
             const { error } = await saveUserCards(userId, currentSelectedObjects, renewalDates);
             if (!error) {
@@ -335,14 +336,14 @@ export const useCardManagement = (userId: string | undefined) => {
                   });
                 });
                 const uniquePeriodsArray = Array.from(uniquePeriodsSet).sort((a, b) => a - b);
-                console.log('[useCardManagement] Auto-saving: Updating unique perk periods:', uniquePeriodsArray);
+                logger.log('[useCardManagement] Auto-saving: Updating unique perk periods:', uniquePeriodsArray);
                 await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(uniquePeriodsArray));
               } catch (storageError) {
                 console.error('[useCardManagement] Auto-saving: Failed to update unique perk periods:', storageError);
               }
               // --- END: Logic to store unique perk periods on auto-save ---
             } else {
-              console.warn('[CardManagement] Auto-save for renewal dates failed:', error);
+              logger.warn('[CardManagement] Auto-save for renewal dates failed:', error);
               // Optionally notify user or revert, for now just logging
             }
           } catch (e) {

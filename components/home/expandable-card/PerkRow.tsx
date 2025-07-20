@@ -22,6 +22,7 @@ import PartialRedemptionProgress from '../PartialRedemptionProgress';
 import MerchantLogo from '../MerchantLogo';
 import { Spacing, ComponentSpacing, BorderRadius } from '../../../constants/Spacing';
 import { PerkDesign, ComponentColors } from '../../../constants/DesignSystem';
+import { logger } from '../../../utils/logger';
 
 
 
@@ -193,7 +194,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
             // Delay measurement to ensure card expansion animation is complete
             setTimeout(() => {
               touchableRef.current?.measure((x, y, width, height, pageX, pageY) => {
-                console.log('[PerkRow] Measured layout:', { pageX, pageY, width, height, perkName: perk.name });
+                logger.log('[PerkRow] Measured layout:', { pageX, pageY, width, height, perkName: perk.name });
                 onLayout({ x: pageX, y: pageY, width, height });
               });
             }, 500); // Increased delay to account for expansion animation

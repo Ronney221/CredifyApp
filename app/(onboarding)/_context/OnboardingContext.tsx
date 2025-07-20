@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { Card } from '../../../src/data/card-data';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../../../utils/logger';
 
 export const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
 export const HAS_SEEN_ONBOARDING_SHEET_KEY = '@has_seen_onboarding_sheet';
@@ -70,7 +71,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   useEffect(() => {
     const loadFlags = async () => {
       try {
-        console.log('[OnboardingContext] Loading onboarding flags');
+        logger.log('[OnboardingContext] Loading onboarding flags');
         const [[, redeemedVal], [, seenVal], [, tapVal], [, swipeVal]] = await AsyncStorage.multiGet([
           HAS_REDEEMED_FIRST_PERK_KEY,
           HAS_SEEN_ONBOARDING_SHEET_KEY,
@@ -97,7 +98,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   }, []);
 
   const markFirstPerkRedeemed = useCallback(async () => {
-    console.log('[OnboardingContext] Marking first perk as redeemed');
+    logger.log('[OnboardingContext] Marking first perk as redeemed');
     try {
       // Only set if it hasn't been set before to avoid unnecessary writes
       if (!hasRedeemedFirstPerk) {
@@ -107,7 +108,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
         await AsyncStorage.removeItem(HAS_SEEN_ONBOARDING_SHEET_KEY);
         setHasSeenOnboardingSheet(false);
       } else {
-        console.log('[OnboardingContext] First perk already redeemed, skipping');
+        logger.log('[OnboardingContext] First perk already redeemed, skipping');
       }
     } catch (error) {
       console.error('[OnboardingContext] Error marking first perk redeemed:', error);
@@ -130,7 +131,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
       if (!hasSeenTapOnboarding) {
         await AsyncStorage.setItem(HAS_SEEN_TAP_ONBOARDING_KEY, 'true');
         setHasSeenTapOnboarding(true);
-        console.log('[OnboardingContext] Marked tap onboarding as seen');
+        logger.log('[OnboardingContext] Marked tap onboarding as seen');
       }
     } catch (err) {
       console.error('[OnboardingContext] Failed to persist tap onboarding flag', err);
@@ -142,7 +143,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
       if (!hasSeenSwipeOnboarding) {
         await AsyncStorage.setItem(HAS_SEEN_SWIPE_ONBOARDING_KEY, 'true');
         setHasSeenSwipeOnboarding(true);
-        console.log('[OnboardingContext] Marked swipe onboarding as seen');
+        logger.log('[OnboardingContext] Marked swipe onboarding as seen');
       }
     } catch (err) {
       console.error('[OnboardingContext] Failed to persist swipe onboarding flag', err);
@@ -151,7 +152,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
 
   const reloadOnboardingFlags = useCallback(async () => {
     try {
-      console.log('[OnboardingContext] Reloading onboarding flags');
+      logger.log('[OnboardingContext] Reloading onboarding flags');
       const [[, redeemedVal], [, seenVal], [, tapVal], [, swipeVal]] = await AsyncStorage.multiGet([
         HAS_REDEEMED_FIRST_PERK_KEY,
         HAS_SEEN_ONBOARDING_SHEET_KEY,
@@ -169,19 +170,19 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
       setHasSeenTapOnboarding(tapBool);
       setHasSeenSwipeOnboarding(swipeBool);
       
-      console.log('[OnboardingContext] Flags reloaded:', { tapBool, swipeBool });
+      logger.log('[OnboardingContext] Flags reloaded:', { tapBool, swipeBool });
     } catch (err) {
       console.error('[OnboardingContext] Failed to reload onboarding flags', err);
     }
   }, []);
 
   const resetFirstPerkRedemption = useCallback(async () => {
-    console.log('[OnboardingContext] Resetting first perk redemption state');
+    logger.log('[OnboardingContext] Resetting first perk redemption state');
     try {
       await AsyncStorage.removeItem(HAS_REDEEMED_FIRST_PERK_KEY);
       await AsyncStorage.removeItem(HAS_SEEN_ONBOARDING_SHEET_KEY);
       const verifyValue = await AsyncStorage.getItem(HAS_REDEEMED_FIRST_PERK_KEY);
-      console.log('[OnboardingContext] Verified AsyncStorage value after reset:', verifyValue);
+      logger.log('[OnboardingContext] Verified AsyncStorage value after reset:', verifyValue);
       setHasRedeemedFirstPerk(false);
       setHasSeenOnboardingSheet(false);
     } catch (error) {
@@ -190,7 +191,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   }, []);
 
   useEffect(() => {
-    console.log('[OnboardingContext] State changed:', {
+    logger.log('[OnboardingContext] State changed:', {
       hasRedeemedFirstPerk,
       timestamp: new Date().toISOString()
     });

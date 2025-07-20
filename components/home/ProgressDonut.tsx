@@ -11,6 +11,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { logger } from '../../utils/logger';
 
 interface ProgressDonutProps {
   progress: number; // 0 to 1
@@ -39,7 +40,7 @@ export default function ProgressDonut({
   progressPercentageText,
 }: ProgressDonutProps) {
   // Log all incoming text-related props at the beginning of the function
- // console.log("DEBUG_ProgressDonut_PROPS:", { amount, label, combinedStatsText, progressPercentageText });
+ // logger.log("DEBUG_ProgressDonut_PROPS:", { amount, label, combinedStatsText, progressPercentageText });
 
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;

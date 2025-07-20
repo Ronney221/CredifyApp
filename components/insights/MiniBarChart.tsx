@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, useWindowDimensions, TouchableOpacity } from 'r
 import { Colors } from '../../constants/Colors';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { calculateRedemptionValues } from '../../utils/insights-calculations';
+import { logger } from '../../utils/logger';
 
 interface MiniBarChartProps {
   data: number[]; // Now represents dollar amounts saved
@@ -76,8 +77,8 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const normalizedRaw = alignedData;
 
   // Debug logging to help verify month alignment
-  console.log('Month Labels:', monthLabels);
-  console.log('Aligned Raw Data:', alignedData.map((d, i) => ({
+  logger.log('Month Labels:', monthLabels);
+  logger.log('Aligned Raw Data:', alignedData.map((d, i) => ({
     month: monthLabels[i].key,
     data: d
   })));

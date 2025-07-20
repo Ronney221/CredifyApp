@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logger } from '../utils/logger';
 import type {
   CardDefinition,
   BenefitDefinition,
@@ -17,7 +18,7 @@ import type {
  */
 export async function fetchAllCards(options: CardQueryOptions = {}) {
   try {
-    console.log('Fetching all cards from database...');
+    logger.log('Fetching all cards from database...');
     
     let query = supabase
       .from('card_definitions')
@@ -49,7 +50,7 @@ export async function fetchAllCards(options: CardQueryOptions = {}) {
       return { data: null, error };
     }
 
-    console.log(`Successfully fetched ${data?.length || 0} cards`);
+    logger.log(`Successfully fetched ${data?.length || 0} cards`);
     return { data: data as CardDefinitionWithRelations[], error: null };
   } catch (error) {
     console.error('Unexpected error fetching cards:', error);
@@ -62,7 +63,7 @@ export async function fetchAllCards(options: CardQueryOptions = {}) {
  */
 export async function fetchCardById(cardId: string) {
   try {
-    console.log('Fetching card by ID:', cardId);
+    logger.log('Fetching card by ID:', cardId);
     
     const { data, error } = await supabase
       .from('card_definitions')
@@ -86,7 +87,7 @@ export async function fetchCardById(cardId: string) {
       return { data: null, error };
     }
 
-    console.log('Successfully fetched card:', data?.name);
+    logger.log('Successfully fetched card:', data?.name);
     return { data: data as CardDefinitionWithRelations, error: null };
   } catch (error) {
     console.error('Unexpected error fetching card by ID:', error);
@@ -99,7 +100,7 @@ export async function fetchCardById(cardId: string) {
  */
 export async function fetchBenefitsByCardId(cardId: string, options: BenefitQueryOptions = {}) {
   try {
-    console.log('Fetching benefits for card:', cardId);
+    logger.log('Fetching benefits for card:', cardId);
     
     // First get the card definition ID
     const { data: cardData, error: cardError } = await supabase
@@ -145,7 +146,7 @@ export async function fetchBenefitsByCardId(cardId: string, options: BenefitQuer
       return { data: null, error };
     }
 
-    console.log(`Successfully fetched ${data?.length || 0} benefits for card ${cardId}`);
+    logger.log(`Successfully fetched ${data?.length || 0} benefits for card ${cardId}`);
     return { data: data as BenefitWithServices[], error: null };
   } catch (error) {
     console.error('Unexpected error fetching benefits:', error);
@@ -158,7 +159,7 @@ export async function fetchBenefitsByCardId(cardId: string, options: BenefitQuer
  */
 export async function fetchBenefitById(benefitId: string) {
   try {
-    console.log('Fetching benefit by ID:', benefitId);
+    logger.log('Fetching benefit by ID:', benefitId);
     
     const { data, error } = await supabase
       .from('benefit_definitions')
@@ -179,7 +180,7 @@ export async function fetchBenefitById(benefitId: string) {
       return { data: null, error };
     }
 
-    console.log('Successfully fetched benefit:', data?.name);
+    logger.log('Successfully fetched benefit:', data?.name);
     return { data: data as BenefitWithServices, error: null };
   } catch (error) {
     console.error('Unexpected error fetching benefit by ID:', error);
@@ -192,7 +193,7 @@ export async function fetchBenefitById(benefitId: string) {
  */
 export async function fetchAppSchemes() {
   try {
-    console.log('Fetching app schemes...');
+    logger.log('Fetching app schemes...');
     
     const { data, error } = await supabase
       .from('app_schemes')
@@ -204,7 +205,7 @@ export async function fetchAppSchemes() {
       return { data: null, error };
     }
 
-    console.log(`Successfully fetched ${data?.length || 0} app schemes`);
+    logger.log(`Successfully fetched ${data?.length || 0} app schemes`);
     return { data: data as AppScheme[], error: null };
   } catch (error) {
     console.error('Unexpected error fetching app schemes:', error);
@@ -217,7 +218,7 @@ export async function fetchAppSchemes() {
  */
 export async function fetchAppSchemeByKey(schemeKey: string) {
   try {
-    console.log('Fetching app scheme by key:', schemeKey);
+    logger.log('Fetching app scheme by key:', schemeKey);
     
     const { data, error } = await supabase
       .from('app_schemes')
@@ -230,7 +231,7 @@ export async function fetchAppSchemeByKey(schemeKey: string) {
       return { data: null, error };
     }
 
-    console.log('Successfully fetched app scheme:', data?.scheme_key);
+    logger.log('Successfully fetched app scheme:', data?.scheme_key);
     return { data: data as AppScheme, error: null };
   } catch (error) {
     console.error('Unexpected error fetching app scheme by key:', error);
@@ -243,7 +244,7 @@ export async function fetchAppSchemeByKey(schemeKey: string) {
  */
 export async function fetchMultiChoiceConfigs() {
   try {
-    console.log('Fetching multi-choice perk configurations...');
+    logger.log('Fetching multi-choice perk configurations...');
     
     const { data, error } = await supabase
       .from('multi_choice_perk_configs')
@@ -256,7 +257,7 @@ export async function fetchMultiChoiceConfigs() {
       return { data: null, error };
     }
 
-    console.log(`Successfully fetched ${data?.length || 0} multi-choice configurations`);
+    logger.log(`Successfully fetched ${data?.length || 0} multi-choice configurations`);
     return { data: data as MultiChoicePerkConfig[], error: null };
   } catch (error) {
     console.error('Unexpected error fetching multi-choice configs:', error);
@@ -269,7 +270,7 @@ export async function fetchMultiChoiceConfigs() {
  */
 export async function fetchMultiChoiceConfigsByPerk(parentPerkName: string) {
   try {
-    console.log('Fetching multi-choice configs for perk:', parentPerkName);
+    logger.log('Fetching multi-choice configs for perk:', parentPerkName);
     
     const { data, error } = await supabase
       .from('multi_choice_perk_configs')
@@ -282,7 +283,7 @@ export async function fetchMultiChoiceConfigsByPerk(parentPerkName: string) {
       return { data: null, error };
     }
 
-    console.log(`Successfully fetched ${data?.length || 0} multi-choice configurations for ${parentPerkName}`);
+    logger.log(`Successfully fetched ${data?.length || 0} multi-choice configurations for ${parentPerkName}`);
     return { data: data as MultiChoicePerkConfig[], error: null };
   } catch (error) {
     console.error('Unexpected error fetching multi-choice configs by perk:', error);
@@ -295,7 +296,7 @@ export async function fetchMultiChoiceConfigsByPerk(parentPerkName: string) {
  */
 export async function searchBenefitsByCategory(categories: string[]) {
   try {
-    console.log('Searching benefits by categories:', categories);
+    logger.log('Searching benefits by categories:', categories);
     
     const { data, error } = await supabase
       .from('benefit_definitions')
@@ -320,7 +321,7 @@ export async function searchBenefitsByCategory(categories: string[]) {
       return { data: null, error };
     }
 
-    console.log(`Successfully found ${data?.length || 0} benefits in categories: ${categories.join(', ')}`);
+    logger.log(`Successfully found ${data?.length || 0} benefits in categories: ${categories.join(', ')}`);
     return { data, error: null };
   } catch (error) {
     console.error('Unexpected error searching benefits by category:', error);
@@ -333,7 +334,7 @@ export async function searchBenefitsByCategory(categories: string[]) {
  */
 export async function searchBenefitsByValue(minValue: number, maxValue?: number) {
   try {
-    console.log('Searching benefits by value range:', { minValue, maxValue });
+    logger.log('Searching benefits by value range:', { minValue, maxValue });
     
     let query = supabase
       .from('benefit_definitions')
@@ -359,7 +360,7 @@ export async function searchBenefitsByValue(minValue: number, maxValue?: number)
       return { data: null, error };
     }
 
-    console.log(`Successfully found ${data?.length || 0} benefits in value range`);
+    logger.log(`Successfully found ${data?.length || 0} benefits in value range`);
     return { data, error: null };
   } catch (error) {
     console.error('Unexpected error searching benefits by value:', error);
@@ -372,7 +373,7 @@ export async function searchBenefitsByValue(minValue: number, maxValue?: number)
  */
 export async function testDatabaseConnection() {
   try {
-    console.log('Testing database connection...');
+    logger.log('Testing database connection...');
     
     const startTime = Date.now();
     
@@ -398,7 +399,7 @@ export async function testDatabaseConnection() {
     const endTime = Date.now();
     const duration = endTime - startTime;
 
-    console.log('Database connection test successful:', {
+    logger.log('Database connection test successful:', {
       cardCount: cardCount?.length || 0,
       benefitCount: benefitCount?.length || 0,
       duration: `${duration}ms`

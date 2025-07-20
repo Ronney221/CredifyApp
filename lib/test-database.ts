@@ -1,5 +1,6 @@
 import { testDatabaseConnection, fetchAllCards, fetchCardById, fetchAppSchemes } from './supabase-cards';
 import { cardService } from './card-service';
+import { logger } from '../utils/logger';
 import { allCards } from '../src/data/card-data'; // Original data for comparison
 
 /**
@@ -293,7 +294,7 @@ export async function runDataIntegrityTests(): Promise<TestSuite> {
       );
     });
     
-    console.log('❌ Missing benefits:', missingBenefits);
+    logger.log('❌ Missing benefits:', missingBenefits);
     
     results.push({
       name: 'Detailed Benefit Comparison',
@@ -451,7 +452,7 @@ export async function runPerformanceTests(): Promise<TestSuite> {
  * Run all tests and return comprehensive results
  */
 export async function runAllTests(): Promise<TestSuite[]> {
-  console.log('🧪 Starting comprehensive database tests...');
+  logger.log('🧪 Starting comprehensive database tests...');
   
   // Run tests sequentially to avoid initialization conflicts
   const connectivitySuite = await runConnectivityTests();
@@ -466,12 +467,12 @@ export async function runAllTests(): Promise<TestSuite[]> {
   const totalFailed = suites.reduce((sum, suite) => sum + suite.summary.failed, 0);
   const totalDuration = suites.reduce((sum, suite) => sum + suite.summary.totalDuration, 0);
   
-  console.log('📊 Test Results Summary:');
-  console.log(`Total Tests: ${totalTests}`);
-  console.log(`Passed: ${totalPassed}`);
-  console.log(`Failed: ${totalFailed}`);
-  console.log(`Total Duration: ${totalDuration}ms`);
-  console.log(`Success Rate: ${((totalPassed / totalTests) * 100).toFixed(1)}%`);
+  logger.log('📊 Test Results Summary:');
+  logger.log(`Total Tests: ${totalTests}`);
+  logger.log(`Passed: ${totalPassed}`);
+  logger.log(`Failed: ${totalFailed}`);
+  logger.log(`Total Duration: ${totalDuration}ms`);
+  logger.log(`Success Rate: ${((totalPassed / totalTests) * 100).toFixed(1)}%`);
   
   return suites;
 }
@@ -481,19 +482,19 @@ export async function runAllTests(): Promise<TestSuite[]> {
  */
 export function logTestResults(suites: TestSuite[]) {
   suites.forEach(suite => {
-    console.log(`\n📋 ${suite.name}:`);
-    console.log(`  Summary: ${suite.summary.passed}/${suite.summary.total} passed (${suite.summary.totalDuration}ms)`);
+    logger.log(`\n📋 ${suite.name}:`);
+    logger.log(`  Summary: ${suite.summary.passed}/${suite.summary.total} passed (${suite.summary.totalDuration}ms)`);
     
     suite.results.forEach(result => {
       const status = result.success ? '✅' : '❌';
-      console.log(`  ${status} ${result.name} (${result.duration}ms)`);
+      logger.log(`  ${status} ${result.name} (${result.duration}ms)`);
       
       if (result.details) {
-        console.log(`     Details:`, result.details);
+        logger.log(`     Details:`, result.details);
       }
       
       if (result.error) {
-        console.log(`     Error: ${result.error}`);
+        logger.log(`     Error: ${result.error}`);
       }
     });
   });

@@ -8,6 +8,7 @@ import type {
   TransformedBenefit,
 } from '../types/database';
 import type { Card, Benefit } from '../src/data/card-data';
+import { logger } from '../utils/logger';
 
 /**
  * Image mapping for card assets
@@ -65,7 +66,7 @@ export function transformCard(dbCard: CardDefinitionWithRelations): TransformedC
   const image = dbCard.image_url ? IMAGE_MAP[dbCard.image_url] : undefined;
   
   if (dbCard.image_url && !image) {
-    console.warn(`Missing image mapping for: ${dbCard.image_url}`);
+    logger.warn(`Missing image mapping for: ${dbCard.image_url}`);
   }
 
   return {

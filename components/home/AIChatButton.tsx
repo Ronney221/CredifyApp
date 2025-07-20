@@ -16,6 +16,7 @@ import AIChat from './AIChat';
 import { Colors } from '../../constants/Colors';
 import { useOnboardingContext } from '../../app/(onboarding)/_context/OnboardingContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../../utils/logger';
 
 interface AIChatButtonProps {
   showNotification?: boolean;
@@ -34,7 +35,7 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
   useEffect(() => {
     const checkState = async () => {
       const storedValue = await AsyncStorage.getItem('HAS_REDEEMED_FIRST_PERK_KEY');
-      console.log('[AIChatButton] Component mounted:', {
+      logger.log('[AIChatButton] Component mounted:', {
         contextValue: hasRedeemedFirstPerk,
         asyncStorageValue: storedValue,
         timestamp: new Date().toISOString()
@@ -45,7 +46,7 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
 
   // Add logging for context value changes
   useEffect(() => {
-    console.log('[AIChatButton] hasRedeemedFirstPerk changed:', {
+    logger.log('[AIChatButton] hasRedeemedFirstPerk changed:', {
       newValue: hasRedeemedFirstPerk,
       timestamp: new Date().toISOString()
     });
@@ -93,13 +94,13 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
   };
 
   const handlePress = () => {
-    console.log('[AIChatButton] Button pressed, current state:', {
+    logger.log('[AIChatButton] Button pressed, current state:', {
       hasRedeemedFirstPerk,
       timestamp: new Date().toISOString()
     });
     
     if (!hasRedeemedFirstPerk) {
-      console.log('[AIChatButton] Button locked, showing tooltip');
+      logger.log('[AIChatButton] Button locked, showing tooltip');
       showTooltipWithTimeout();
       return;
     }

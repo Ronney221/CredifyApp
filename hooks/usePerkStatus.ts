@@ -3,6 +3,7 @@ import { Card, CardPerk } from '../src/data/card-data';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 import { useOnboardingContext } from '../app/(onboarding)/_context/OnboardingContext';
+import { hookLogger } from '../utils/logger';
 
 interface PerkDefinition {
   id: string;
@@ -64,7 +65,7 @@ const isRedemptionValidForPeriod = (redemptionDate: Date, resetDate: Date | unde
         startOfCurrentPeriod.setMonth(0);
         break;
       default:
-        console.warn(`Unexpected period months: ${perkPeriodMonths}`);
+        hookLogger.error('usePerkStatus', `Unexpected period months: ${perkPeriodMonths}`);
         return false;
     }
     
@@ -102,7 +103,7 @@ export function usePerkStatus(
         setArePerkDefinitionsLoading(false);
         return;
       }
-      console.log('========= usePerkStatus Effect - Fetching Perk Definitions ONCE =========');
+      hookLogger.log('usePerkStatus', '========= Fetching Perk Definitions ONCE =========');
       setArePerkDefinitionsLoading(true);
       try {
         const { data, error } = await supabase
@@ -110,22 +111,22 @@ export function usePerkStatus(
           .select('id, name, value');
         
         // Add debug logging
-        console.log('[usePerkStatus] Perk definitions query result:', {
+        hookLogger.log('usePerkStatus', 'Perk definitions query result:', {
           definitionsCount: data?.length || 0,
           error: error,
           firstFewDefinitions: data?.slice(0, 3)
         });
 
         if (error) {
-          console.error('Error fetching perk definitions:', error);
+          hookLogger.error('usePerkStatus', 'Error fetching perk definitions:', error);
           throw error;
         }
         if (data) {
           setPerkDefinitions(data);
-          console.log('Perk definitions loaded and stored in state:', data.length);
+          hookLogger.log('usePerkStatus', 'Perk definitions loaded and stored in state:', data.length);
         }
       } catch (error) {
-        console.error('Failed to fetch perk definitions:', error);
+        hookLogger.error('usePerkStatus', 'Failed to fetch perk definitions:', error);
       } finally {
         setArePerkDefinitionsLoading(false);
       }
@@ -135,15 +136,15 @@ export function usePerkStatus(
   }, [user, perkDefinitions.length]);
 
   useEffect(() => {
-    console.log('========= usePerkStatus Effect - Savings Calculation =========');
+    hookLogger.log('usePerkStatus', '========= Savings Calculation =========');
     
     const calculateSavings = async () => {
       try {
         setIsCalculatingSavings(true);
-        console.log('========= [usePerkStatus] calculateSavings called =========');
+        hookLogger.log('usePerkStatus', '========= calculateSavings called =========');
 
         if (!user) {
-          console.log('No user found, skipping savings calculation');
+          hookLogger.log('usePerkStatus', 'No user found, skipping savings calculation');
           setIsCalculatingSavings(false);
           setIsLoadingHook(false);
           return;
@@ -156,7 +157,7 @@ export function usePerkStatus(
           .order('redemption_date', { ascending: false });
 
         // Add debug logging
-        console.log('[usePerkStatus] Redemptions query result:', {
+        hookLogger.log('usePerkStatus', 'Redemptions query result:', {
           userId: user.id,
           redemptionsCount: allUserRedemptions?.length || 0,
           error: allRedemptionsError,
@@ -164,7 +165,7 @@ export function usePerkStatus(
         });
 
         if (allRedemptionsError) {
-          console.error('Error fetching redemptions:', allRedemptionsError);
+          hookLogger.error('usePerkStatus', 'Error fetching redemptions:', allRedemptionsError);
           throw allRedemptionsError;
         }
 
@@ -201,7 +202,7 @@ export function usePerkStatus(
         const processedCards = initialUserCardsWithPerks.map(cardData => {
           const processedPerks = cardData.perks.map(perk => {
             if (!perk.periodMonths) {
-              console.warn(`Perk ${perk.name} (ID: ${perk.id}) has no periodMonths defined. Skipping for period aggregation.`);
+              hookLogger.error('usePerkStatus', `Perk ${perk.name} (ID: ${perk.id}) has no periodMonths defined. Skipping for period aggregation.`);
               return { ...perk, status: 'available' as const };
             }
 
@@ -227,7 +228,7 @@ export function usePerkStatus(
                 remainingValue = latestRedemption.remaining_value;
               }
 
-              console.log(`[usePerkStatus] Checking redemption for ${perk.name}:`, {
+              hookLogger.log('usePerkStatus', `Checking redemption for ${perk.name}:`, {
                 redemptionDate: redemptionDate.toISOString(),
                 resetDate: resetDate?.toISOString(),
                 periodMonths: perk.periodMonths,
@@ -277,7 +278,7 @@ export function usePerkStatus(
         setCumulativeValueSavedPerCard(newCumulative);
         setPeriodAggregates(newPeriodAggregates);
 
-        console.log('Final Processed Data for UI:', {
+        hookLogger.log('usePerkStatus', 'Final Processed Data for UI:', {
           processedCardsPerks: processedCards.map(c => ({ 
             card: c.card.id, 
             perks: c.perks.map(p => ({
@@ -293,7 +294,7 @@ export function usePerkStatus(
         });
 
       } catch (error) {
-        console.error('Error during savings calculation:', error);
+        hookLogger.error('usePerkStatus', 'Error during savings calculation:', error);
       } finally {
         setIsCalculatingSavings(false);
         setIsLoadingHook(false);
@@ -314,8 +315,8 @@ export function usePerkStatus(
     newStatus: 'redeemed' | 'available' | 'partially_redeemed',
     remainingValue?: number
   ) => {
-    console.log('========= [usePerkStatus] setPerkStatus called =========');
-    console.log('Input parameters:', { cardId, perkId, newStatus, remainingValue });
+    hookLogger.log('usePerkStatus', '========= setPerkStatus called =========');
+    hookLogger.log('usePerkStatus', 'Input parameters:', { cardId, perkId, newStatus, remainingValue });
     
     // First, find the perk to get its current values BEFORE updating state
     let perkValue = 0;
@@ -327,8 +328,8 @@ export function usePerkStatus(
     let perkFound = false;
 
     // Debug: Log the current state to understand what's available
-    console.log(`[usePerkStatus] Searching for perk ${perkId} in card ${cardId}`);
-    console.log(`[usePerkStatus] Available cards:`, processedCardsWithPerks.map(c => ({ 
+    hookLogger.log('usePerkStatus', `Searching for perk ${perkId} in card ${cardId}`);
+    hookLogger.log('usePerkStatus', 'Available cards:', processedCardsWithPerks.map(c => ({ 
       cardId: c.card.id, 
       perkCount: c.perks.length,
       perkIds: c.perks.map(p => p.id)
@@ -337,7 +338,7 @@ export function usePerkStatus(
     // Find the perk data first
     processedCardsWithPerks.forEach(cardData => {
       if (cardData.card.id === cardId) {
-        console.log(`[usePerkStatus] Found card ${cardId}, checking ${cardData.perks.length} perks`);
+        hookLogger.log('usePerkStatus', `Found card ${cardId}, checking ${cardData.perks.length} perks`);
         cardData.perks.forEach(p => {
           if (p.id === perkId) {
             perkValue = p.value;
@@ -347,7 +348,7 @@ export function usePerkStatus(
             originalStatusIsPartiallyRedeemed = p.status === 'partially_redeemed';
             originalRemainingValue = p.remaining_value || 0;
             perkFound = true;
-            console.log('Found perk for status change:', { 
+            hookLogger.log('usePerkStatus', 'Found perk for status change:', { 
               perkName: p.name, 
               originalStatus: p.status, 
               newStatusRequested: newStatus, 
@@ -362,8 +363,8 @@ export function usePerkStatus(
     });
 
     if (!perkFound) {
-      console.error(`[usePerkStatus] Perk not found: ${perkId} in card ${cardId}`);
-      console.error(`[usePerkStatus] This might be a timing issue - optimistic update failed but database operation may still succeed`);
+      hookLogger.error('usePerkStatus', `Perk not found: ${perkId} in card ${cardId}`);
+      hookLogger.error('usePerkStatus', 'This might be a timing issue - optimistic update failed but database operation may still succeed');
       return;
     }
 
@@ -455,7 +456,7 @@ export function usePerkStatus(
             aggregate.partiallyRedeemedCount = Math.max(0, aggregate.partiallyRedeemedCount - 1);
           }
         }
-        console.log(`[usePerkStatus] Optimistic update for period ${periodMonths}:`, aggregate);
+        hookLogger.log('usePerkStatus', `Optimistic update for period ${periodMonths}:`, aggregate);
         return newAggregates;
       });
     }
@@ -467,15 +468,15 @@ export function usePerkStatus(
 
     // If this action represents the user's first-ever redemption, update onboarding context
     if (shouldAddToRedeemed) {
-      console.log('[usePerkStatus] Triggering markFirstPerkRedeemed from setPerkStatus');
+      hookLogger.log('usePerkStatus', 'Triggering markFirstPerkRedeemed from setPerkStatus');
       try {
         markFirstPerkRedeemed();
       } catch (err) {
-        console.warn('[usePerkStatus] markFirstPerkRedeemed threw', err);
+        hookLogger.error('usePerkStatus', 'markFirstPerkRedeemed threw', err);
       }
     }
 
-    console.log('Status change analysis:', { 
+    hookLogger.log('usePerkStatus', 'Status change analysis:', { 
       perkId, 
       newStatus, 
       isCurrentlyRedeemed: originalStatusIsRedeemed,
@@ -488,27 +489,27 @@ export function usePerkStatus(
     // Enhanced logging to show value changes for ALL redemption scenarios
     if (shouldAddToRedeemed) {
       const redeemedValue = newStatus === 'partially_redeemed' ? (perkValue - (remainingValue || 0)) : perkValue;
-      console.log(`[usePerkStatus] Marked ${perkId} as ${newStatus}, added $${redeemedValue}`);
+      hookLogger.log('usePerkStatus', `Marked ${perkId} as ${newStatus}, added $${redeemedValue}`);
     } else if (shouldRemoveFromRedeemed) {
       const removedValue = originalStatusIsPartiallyRedeemed ? originalRedeemedAmount : perkValue;
-      console.log(`[usePerkStatus] Marked ${perkId} as available, removed $${removedValue}`);
+      hookLogger.log('usePerkStatus', `Marked ${perkId} as available, removed $${removedValue}`);
     } else if (newStatus === 'partially_redeemed' && originalStatusIsPartiallyRedeemed) {
       // Log incremental partial redemptions
       const newRedeemedAmount = perkValue - (remainingValue || 0);
       const additionalRedeemed = newRedeemedAmount - originalRedeemedAmount;
-      console.log(`[usePerkStatus] Incremental partial redemption for ${perkId}, added $${additionalRedeemed} (total now $${newRedeemedAmount})`);
+      hookLogger.log('usePerkStatus', `Incremental partial redemption for ${perkId}, added $${additionalRedeemed} (total now $${newRedeemedAmount})`);
     } else if (newStatus === 'redeemed' && originalStatusIsPartiallyRedeemed) {
       // Log partial-to-full redemptions
       const additionalRedeemed = perkValue - originalRedeemedAmount;
-      console.log(`[usePerkStatus] Completed partial redemption for ${perkId}, added final $${additionalRedeemed} (total $${perkValue})`);
+      hookLogger.log('usePerkStatus', `Completed partial redemption for ${perkId}, added final $${additionalRedeemed} (total $${perkValue})`);
     }
 
-    console.log('New redeemedInCurrentCycle state:', redeemedInCurrentCycle);
-    console.log('========= [usePerkStatus] setPerkStatus complete =========');
+    hookLogger.log('usePerkStatus', 'New redeemedInCurrentCycle state:', redeemedInCurrentCycle);
+    hookLogger.log('usePerkStatus', '========= setPerkStatus complete =========');
   }, [processedCardsWithPerks, markFirstPerkRedeemed, redeemedInCurrentCycle]);
 
   const refreshSavings = useCallback(() => {
-    console.log('========= [usePerkStatus] refreshSavings called =========');
+    hookLogger.log('usePerkStatus', '========= refreshSavings called =========');
     // This will re-trigger the useEffect that calls calculateSavings
     // by changing the reference of initialUserCardsWithPerks, or by adding a new trigger state.
     // For simplicity, we can rely on the parent component re-providing initialUserCardsWithPerks if it changes,
@@ -523,7 +524,7 @@ export function usePerkStatus(
     const now = forcedDate || new Date();
     const newIdentifier = `${now.getFullYear()}-${now.getMonth()}`;
     if (newIdentifier !== currentCycleIdentifier) {
-      console.log(`New month detected: ${newIdentifier}. Resetting monthly perks and showing celebration.`);
+      hookLogger.log('usePerkStatus', `New month detected: ${newIdentifier}. Resetting monthly perks and showing celebration.`);
       setCurrentCycleIdentifier(newIdentifier);
       setShowCelebration(true);
       // Re-calculate savings which will naturally reset statuses for the new month based on DB

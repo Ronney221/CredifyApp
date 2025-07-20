@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Card } from '../../../src/data/card-data';
+import { logger } from '../../../utils/logger';
 
 const FREQUENTLY_OWNED_IDS = [
   'chase_sapphire_preferred',
@@ -40,7 +41,7 @@ export function useGroupedCards(allCards: Card[]) {
       return { frequentlyOwned: [], allCardsByIssuer: {} };
     }
 
-    console.log('[useGroupedCards] Recalculating grouped cards...');
+    logger.log('[useGroupedCards] Recalculating grouped cards...');
     // --- Data Preparation ---
     const frequentlyOwnedIdsSet = new Set(FREQUENTLY_OWNED_IDS);
 
@@ -89,7 +90,7 @@ export function useGroupedCards(allCards: Card[]) {
         }
       });
       
-    console.log('[useGroupedCards] Grouping complete.');
+    logger.log('[useGroupedCards] Grouping complete.');
     return { frequentlyOwned, allCardsByIssuer };
   }, [allCards]);
 

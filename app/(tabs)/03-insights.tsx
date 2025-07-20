@@ -34,6 +34,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import InsightsEmptyState from '../../components/insights/InsightsEmptyState';
 import InsightsLoadingState from '../../components/insights/InsightsLoadingState';
 import { calculateRedemptionValues } from '../../utils/insights-calculations';
+import { logger } from '../../utils/logger';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -319,9 +320,9 @@ export default function InsightsScreen() {
 
   // Transform user cards into the format needed for filtering
   const availableCardsForFilter = useMemo(() => {
-    console.log('[InsightsScreen] Cards loaded:', userCardsWithPerks.length);
+    logger.log('[InsightsScreen] Cards loaded:', userCardsWithPerks.length);
     if (userCardsWithPerks.length > 0) {
-      console.log('[InsightsScreen] Card IDs:', userCardsWithPerks.map(({ card }) => ({ id: card.id, name: card.name })));
+      logger.log('[InsightsScreen] Card IDs:', userCardsWithPerks.map(({ card }) => ({ id: card.id, name: card.name })));
     }
     return userCardsWithPerks.map(({ card, perks }: UserCardWithPerks) => ({
       id: card.id,
@@ -425,7 +426,7 @@ export default function InsightsScreen() {
         }),
       }));
 
-      console.log('[InsightsScreen] Generating insights with:', {
+      logger.log('[InsightsScreen] Generating insights with:', {
         selectedCardIds,
         processedCardsCount: processedCards.length,
         userId: user?.id
@@ -433,7 +434,7 @@ export default function InsightsScreen() {
       
       const result = await generateDummyInsightsData(selectedCardIds, processedCards, user?.id);
       
-      console.log('[InsightsScreen] Generated insights result:', {
+      logger.log('[InsightsScreen] Generated insights result:', {
         yearSectionsCount: result.yearSections.length,
         hasData: result.yearSections.length > 0
       });
@@ -472,7 +473,7 @@ export default function InsightsScreen() {
 
       // Log summary if we have insights data
       if (filteredResult.yearSections.length > 0) {
-        console.log('[InsightsScreen] Loaded insights for', filteredResult.yearSections.length, 'year(s)');
+        logger.log('[InsightsScreen] Loaded insights for', filteredResult.yearSections.length, 'year(s)');
       }
 
       setInsightsData(filteredResult);

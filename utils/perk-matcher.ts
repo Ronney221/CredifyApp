@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js';
+import { logger } from './logger';
 
 // --- TYPE DEFINITIONS for our minified data ---
 export interface MinifiedPerk {
@@ -100,10 +101,10 @@ const STOP_WORDS = new Set([
  */
 export function getRelevantPerks(query: string, allUserCards: MinifiedCard[]): MinifiedCard[] {
   try {
-    console.log('[PERK-MATCHER] Starting pre-filtering for query:', query);
+    logger.log('[PERK-MATCHER] Starting pre-filtering for query:', query);
     
     if (!query || typeof query !== 'string') {
-      console.warn('[PERK-MATCHER] Invalid query:', query);
+      logger.warn('[PERK-MATCHER] Invalid query:', query);
       return [];
     }
 
@@ -116,14 +117,14 @@ export function getRelevantPerks(query: string, allUserCards: MinifiedCard[]): M
         .filter(k => k && k.length > 2 && !STOP_WORDS.has(k))
         .slice(0, 10); // Limit number of keywords to prevent excessive processing
     } catch (err) {
-      console.warn('[PERK-MATCHER] Error tokenizing query:', err);
+      logger.warn('[PERK-MATCHER] Error tokenizing query:', err);
       return [];
     }
 
-    console.log('[PERK-MATCHER] Tokenized query into keywords (after stop words):', queryKeywords);
+    logger.log('[PERK-MATCHER] Tokenized query into keywords (after stop words):', queryKeywords);
 
     if (queryKeywords.length === 0) {
-      console.log('[PERK-MATCHER] No relevant keywords found in query after filtering stop words.');
+      logger.log('[PERK-MATCHER] No relevant keywords found in query after filtering stop words.');
       return [];
     }
 
@@ -134,7 +135,7 @@ export function getRelevantPerks(query: string, allUserCards: MinifiedCard[]): M
       try {
         const results = fuse.search(keyword);
         if (results && results.length > 0) {
-          console.log(`[PERK-MATCHER] Fuse results for keyword "${keyword}":`, 
+          logger.log(`[PERK-MATCHER] Fuse results for keyword "${keyword}":`, 
             JSON.stringify(results.slice(0, 3).map(r => ({
               id: r.item.id, 
               score: r.score?.toFixed(4)
@@ -149,20 +150,20 @@ export function getRelevantPerks(query: string, allUserCards: MinifiedCard[]): M
           });
         }
       } catch (err) {
-        console.warn(`[PERK-MATCHER] Error processing keyword "${keyword}":`, err);
+        logger.warn(`[PERK-MATCHER] Error processing keyword "${keyword}":`, err);
         continue; // Skip this keyword but continue with others
       }
     }
 
     if (relevantPerkIds.size === 0) {
-      console.log('[PERK-MATCHER] No relevant perks found in knowledge base for any keywords.');
+      logger.log('[PERK-MATCHER] No relevant perks found in knowledge base for any keywords.');
       return [];
     }
 
-    console.log('[PERK-MATCHER] Found relevant perk IDs:', Array.from(relevantPerkIds));
+    logger.log('[PERK-MATCHER] Found relevant perk IDs:', Array.from(relevantPerkIds));
 
     if (!Array.isArray(allUserCards)) {
-      console.warn('[PERK-MATCHER] Invalid allUserCards:', allUserCards);
+      logger.warn('[PERK-MATCHER] Invalid allUserCards:', allUserCards);
       return [];
     }
 
@@ -180,26 +181,26 @@ export function getRelevantPerks(query: string, allUserCards: MinifiedCard[]): M
                    perk?.s && 
                    (perk.s === 'a' || perk.s === 'p');
           } catch (err) {
-            console.warn('[PERK-MATCHER] Error filtering perk:', err);
+            logger.warn('[PERK-MATCHER] Error filtering perk:', err);
             return false;
           }
         });
 
         // If we found any relevant perks on this card, add it to our list for the AI
         if (relevantOwnedPerks.length > 0 && card?.cn) {
-          console.log(`[PERK-MATCHER] Found ${relevantOwnedPerks.length} relevant perk(s) on card: ${card.cn}`);
+          logger.log(`[PERK-MATCHER] Found ${relevantOwnedPerks.length} relevant perk(s) on card: ${card.cn}`);
           filteredCards.push({
             cn: card.cn,
             p: relevantOwnedPerks
           });
         }
       } catch (err) {
-        console.warn('[PERK-MATCHER] Error processing card:', err);
+        logger.warn('[PERK-MATCHER] Error processing card:', err);
         continue; // Skip this card but continue with others
       }
     }
     
-    console.log('[PERK-MATCHER] Pre-filtering complete. Sending', filteredCards.length, 'cards to the AI.');
+    logger.log('[PERK-MATCHER] Pre-filtering complete. Sending', filteredCards.length, 'cards to the AI.');
     return filteredCards;
   } catch (err) {
     console.error('[PERK-MATCHER] Critical error in getRelevantPerks:', err);

@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { sendTestNotification } from '../../../utils/notifications';
 import { NotificationPreferences } from '../../../types/notification-types';
 import { supabase } from '../../../lib/database';
+import { logger } from '../../../utils/logger';
 
 const NOTIFICATION_PREFS_KEY = '@notification_preferences';
 const UNIQUE_PERK_PERIODS_STORAGE_KEY = '@user_unique_perk_periods';
@@ -109,12 +110,12 @@ export const useNotificationPreferences = (userId?: string) => {
     const loadPrefs = async () => {
       try {
         const jsonValue = await AsyncStorage.getItem(NOTIFICATION_PREFS_KEY);
-        console.log('[useNotificationPreferences] Loading prefs from storage:', jsonValue);
+        logger.log('[useNotificationPreferences] Loading prefs from storage:', jsonValue);
         
         if (jsonValue != null) {
           const prefs = JSON.parse(jsonValue);
-          console.log('[useNotificationPreferences] Parsed prefs:', prefs);
-          console.log('[useNotificationPreferences] renewalRemindersEnabled from storage:', prefs.renewalRemindersEnabled);
+          logger.log('[useNotificationPreferences] Parsed prefs:', prefs);
+          logger.log('[useNotificationPreferences] renewalRemindersEnabled from storage:', prefs.renewalRemindersEnabled);
           
           setPerkExpiryRemindersEnabled(prefs.perkExpiryRemindersEnabled !== undefined ? prefs.perkExpiryRemindersEnabled : true);
           setRenewalRemindersEnabled(prefs.renewalRemindersEnabled !== undefined ? prefs.renewalRemindersEnabled : true);
@@ -136,7 +137,7 @@ export const useNotificationPreferences = (userId?: string) => {
           setRemind30DaysBeforeAnnual(prefs.remind30DaysBeforeAnnual !== undefined ? prefs.remind30DaysBeforeAnnual : true);
           setRemind60DaysBeforeAnnual(prefs.remind60DaysBeforeAnnual !== undefined ? prefs.remind60DaysBeforeAnnual : true);
         } else {
-          console.log('[useNotificationPreferences] No saved prefs found, using defaults');
+          logger.log('[useNotificationPreferences] No saved prefs found, using defaults');
         }
       } catch (e) {
         console.error("Failed to load notification prefs.", e);

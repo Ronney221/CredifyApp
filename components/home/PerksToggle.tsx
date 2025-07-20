@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
+import { logger } from '../../utils/logger';
 import SegmentedControl from '@react-native-segmented-control/segmented-control'; // Import the library
 import { Colors } from '../../constants/Colors'; // Assuming you might want to use your app's tint color
 
@@ -19,7 +20,7 @@ export const PerksToggle: React.FC<PerksToggleProps> = ({
   selectedMode, 
   onModeChange 
 }) => {
-  // console.log("DEBUG_PerksToggle_PROPS:", { segments, selectedMode });
+  // logger.log("DEBUG_PerksToggle_PROPS:", { segments, selectedMode });
 
   const selectedIndex = Math.max(0, segments.findIndex(segment => segment.key === selectedMode));
   const segmentValues = segments.map(segment => segment.title);

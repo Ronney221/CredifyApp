@@ -31,6 +31,7 @@ import { CardPerk, openPerkTarget, allCards } from '../../src/data/card-data';
 import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../utils/perk-matcher';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { logger } from '../../utils/logger';
 
 // --- Interfaces ---
 type BenefitRecommendationTuple = [string, string, string, number];
@@ -215,7 +216,7 @@ const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEn
 
 // Helper function to minify card data for the AI prompt
 const minifyCardData = (cards: ProcessedCard[]): MinifiedCard[] => {
-  console.log('[AIChat][minifyCardData] Starting data minification for', cards.length, 'cards.');
+  logger.log('[AIChat][minifyCardData] Starting data minification for', cards.length, 'cards.');
   const currentDate = new Date();
   const minified = cards.map(card => {
       const minifiedPerks = card.perks.map((perk: CardPerk) => {
@@ -254,7 +255,7 @@ const minifyCardData = (cards: ProcessedCard[]): MinifiedCard[] => {
           p: minifiedPerks
       };
   });
-  console.log('[AIChat][minifyCardData] Minification complete.');
+  logger.log('[AIChat][minifyCardData] Minification complete.');
   return minified;
 };
 
@@ -499,7 +500,7 @@ const performanceMonitor = {
   end(operation: PerformanceOperation) {
     const duration = performance.now() - this.startTime;
     if (duration > PERFORMANCE_THRESHOLDS[operation]) {
-      console.warn(`Performance warning: ${operation} took ${duration}ms`);
+      logger.warn(`Performance warning: ${operation} took ${duration}ms`);
     }
   }
 };
@@ -531,14 +532,14 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   }, [rawCardData]);
 
   const handleUpgrade = () => {
-    console.log('[AIChat][handleUpgrade] Upgrade button pressed.');
+    logger.log('[AIChat][handleUpgrade] Upgrade button pressed.');
     // For now, show an alert. Later, this could navigate to a paywall.
     Alert.alert(
       "Upgrade to Pro",
       "Unlock unlimited insights and chat history for just $2.99/month.",
       [
         { text: "Maybe Later", style: "cancel" },
-        { text: "Upgrade Now", onPress: () => console.log("Navigate to paywall") }
+        { text: "Upgrade Now", onPress: () => logger.log("Navigate to paywall") }
       ]
     );
   };
@@ -546,14 +547,14 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   // Load/set the current chat ID on mount
   useEffect(() => {
     const getChatId = async () => {
-      console.log('[AIChat][useEffect] Getting chat ID.');
+      logger.log('[AIChat][useEffect] Getting chat ID.');
       let chatId = await AsyncStorage.getItem(CURRENT_CHAT_ID_KEY);
       if (!chatId) {
         chatId = `chat_${Date.now()}`;
-        console.log('[AIChat][useEffect] No chat ID found, creating new one:', chatId);
+        logger.log('[AIChat][useEffect] No chat ID found, creating new one:', chatId);
         await AsyncStorage.setItem(CURRENT_CHAT_ID_KEY, chatId);
       } else {
-        console.log('[AIChat][useEffect] Found existing chat ID:', chatId);
+        logger.log('[AIChat][useEffect] Found existing chat ID:', chatId);
       }
       setCurrentChatId(chatId);
     };
@@ -566,7 +567,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     let isMounted = true;
 
     const loadChatHistory = async () => {
-      console.log('[AIChat][useEffect] Attempting to load chat history for chat ID:', currentChatId);
+      logger.log('[AIChat][useEffect] Attempting to load chat history for chat ID:', currentChatId);
       try {
         const savedHistory = await AsyncStorage.getItem(`@ai_chat_history_${currentChatId}`);
         if (!isMounted) return;
@@ -598,11 +599,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           } else if (isMounted) {
             setMessages(historyWithDates);
           }
-          console.log('[AIChat][useEffect] Successfully loaded', historyWithDates.length, 'messages from history.');
+          logger.log('[AIChat][useEffect] Successfully loaded', historyWithDates.length, 'messages from history.');
         } else if (isMounted) {
           // Set initial greeting message for a new chat
           setMessages(getOnboardingMessages());
-          console.log('[AIChat][useEffect] No chat history found, setting onboarding messages.');
+          logger.log('[AIChat][useEffect] No chat history found, setting onboarding messages.');
         }
       } catch (error) {
         console.error('[AIChat] Error loading chat history:', error);
@@ -620,16 +621,16 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     if (!currentChatId || messages.length === 0) return;
 
     const saveChatHistory = async () => {
-      console.log('[AIChat][useEffect] Attempting to save', messages.length, 'messages to history for chat ID:', currentChatId);
+      logger.log('[AIChat][useEffect] Attempting to save', messages.length, 'messages to history for chat ID:', currentChatId);
       try {
         // Don't save history until the user has sent their first message
         const userHasSentMessage = messages.some(m => m.user._id === USER._id);
         if (!userHasSentMessage) {
-          console.log('[AIChat][useEffect] User has not sent a message yet, skipping save.');
+          logger.log('[AIChat][useEffect] User has not sent a message yet, skipping save.');
           return;
         }
         await AsyncStorage.setItem(`@ai_chat_history_${currentChatId}`, JSON.stringify(messages));
-        console.log('[AIChat][useEffect] Successfully saved chat history.');
+        logger.log('[AIChat][useEffect] Successfully saved chat history.');
       } catch (error) {
         console.error('[AIChat] Error saving chat history:', error);
       }
@@ -640,7 +641,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   // Load chat usage from AsyncStorage
   useEffect(() => {
     const loadChatUsage = async () => {
-      console.log('[AIChat][useEffect] Loading chat usage stats.');
+      logger.log('[AIChat][useEffect] Loading chat usage stats.');
       try {
         const savedUsage = await AsyncStorage.getItem(CHAT_USAGE_KEY);
         if (savedUsage) {
@@ -650,7 +651,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           
           // Check if we need to reset the counter (new month)
           if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
-            console.log('[AIChat][useEffect] New month detected. Resetting chat usage limit.');
+            logger.log('[AIChat][useEffect] New month detected. Resetting chat usage limit.');
             setRemainingUses(MONTHLY_CHAT_LIMIT);
             await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
               remainingUses: MONTHLY_CHAT_LIMIT,
@@ -658,11 +659,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             }));
           } else {
             setRemainingUses(usage.remainingUses);
-            console.log('[AIChat][useEffect] Loaded remaining uses:', usage.remainingUses);
+            logger.log('[AIChat][useEffect] Loaded remaining uses:', usage.remainingUses);
           }
         } else {
           // First time user
-          console.log('[AIChat][useEffect] No usage stats found. Initializing for first-time user.');
+          logger.log('[AIChat][useEffect] No usage stats found. Initializing for first-time user.');
           setRemainingUses(MONTHLY_CHAT_LIMIT);
           await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
             remainingUses: MONTHLY_CHAT_LIMIT,
@@ -721,7 +722,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             try {
               global.gc();
             } catch (e) {
-              console.warn('Failed to run garbage collection:', e);
+              logger.warn('Failed to run garbage collection:', e);
             }
           }
         });
@@ -744,10 +745,10 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   // Enhanced error handling for API calls
   const handleAIResponse = async (userMessageText: string) => {
     performanceMonitor.start();
-    console.log(`[AIChat][handleAIResponse] Starting AI response flow for query: "${userMessageText}"`);
+    logger.log(`[AIChat][handleAIResponse] Starting AI response flow for query: "${userMessageText}"`);
 
     if (remainingUses <= 0) {
-      console.log('[AIChat][handleAIResponse] User has reached their monthly limit.');
+      logger.log('[AIChat][handleAIResponse] User has reached their monthly limit.');
       const errorMessage: Message = {
         _id: Math.random().toString(),
         text: "You've reached your monthly chat limit. Upgrade to continue getting tailored advice, or check back next month!",
@@ -787,7 +788,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         return acc;
       }, []);
 
-      console.log(`[AIChat][handleAIResponse] Found ${usablePerksData.length} cards with usable perks.`);
+      logger.log(`[AIChat][handleAIResponse] Found ${usablePerksData.length} cards with usable perks.`);
 
       // Batch processing for better memory usage
       const batchSize = 5;
@@ -814,7 +815,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         throw new Error('No available perks found after minification.');
       }
       
-      console.log('[AIChat][handleAIResponse] Minified data prepared. Calling getBenefitAdvice.');
+      logger.log('[AIChat][handleAIResponse] Minified data prepared. Calling getBenefitAdvice.');
       // STAGE 1: LOCAL PRE-FILTERING to find all potentially relevant perks
       const allMinifiedCards = minifyCardData(processedCards);
       const relevantCards = getRelevantPerks(userMessageText, allMinifiedCards);
@@ -828,7 +829,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
       // If our local search finds nothing usable, we don't need to call the AI at all.
       if (usableRelevantCards.length === 0) {
-        console.log('[AIChat][handleAIResponse] No usable perks found after all filtering. Returning NoBenefitFound.');
+        logger.log('[AIChat][handleAIResponse] No usable perks found after all filtering. Returning NoBenefitFound.');
         // This is a special case where we generate the response locally
         const noBenefitMessage: Message = {
           _id: Math.random().toString(),
@@ -846,16 +847,16 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         return; // Stop execution here
       }
 
-      console.log('[AIChat][handleAIResponse] Usable, relevant cards prepared. Calling getBenefitAdvice.');
+      logger.log('[AIChat][handleAIResponse] Usable, relevant cards prepared. Calling getBenefitAdvice.');
       const result = await getBenefitAdvice(userMessageText, usableRelevantCards);
-      console.log('[AIChat][handleAIResponse] Received advice from OpenAI:', result.response.responseType);
+      logger.log('[AIChat][handleAIResponse] Received advice from OpenAI:', result.response.responseType);
 
       let adviceText = '';
       let uiRecommendations: UIBenefitRecommendation[] = [];
       let groupedRecommendations: GroupedRecommendation[] = [];
 
       if (result.response.responseType === 'BenefitRecommendation' && Array.isArray(result.response.recommendations) && result.response.recommendations.length > 0) {
-        console.log('[AIChat][handleAIResponse] Processing recommendations. Full object:', JSON.stringify(result.response, null, 2));
+        logger.log('[AIChat][handleAIResponse] Processing recommendations. Full object:', JSON.stringify(result.response, null, 2));
         
         adviceText = "Here are a few perks that could help:"; 
 
@@ -865,7 +866,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
               return Array.isArray(rec) && rec.length === 4 && 
                      rec.every(item => item !== null && item !== undefined);
             } catch (err) {
-              console.warn('[AIChat] Error filtering recommendation:', err);
+              logger.warn('[AIChat] Error filtering recommendation:', err);
               return false;
             }
           })
@@ -953,7 +954,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                   cleanedDisplayText = cleanedDisplayText.replace(/\s+/g, ' ').trim();
                 }
               } catch (err) {
-                console.warn('[AIChat] Error cleaning display text:', err);
+                logger.warn('[AIChat] Error cleaning display text:', err);
                 cleanedDisplayText = displayText; // Fallback to original
               }
             
@@ -965,7 +966,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
             return { benefitName, cardName, displayText: cleanedDisplayText, remainingValue, perk };
             } catch (err) {
-              console.warn('[AIChat] Error mapping recommendation:', err);
+              logger.warn('[AIChat] Error mapping recommendation:', err);
               return null;
             }
           })
@@ -989,7 +990,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
         }, {});
       
         groupedRecommendations = Object.values(grouped);
-        console.log(`[AIChat][handleAIResponse] Created ${groupedRecommendations.length} UI groups for recommendations.`);
+        logger.log(`[AIChat][handleAIResponse] Created ${groupedRecommendations.length} UI groups for recommendations.`);
       
         // Sort perks within each group by urgency then value
         groupedRecommendations.forEach(group => {
@@ -1008,7 +1009,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       } else if (result.response.responseType === 'Conversational') {
         adviceText = 'How else can I help you maximize your credit card benefits?';
       }
-      console.log(`[AIChat][handleAIResponse] Final AI response text: "${adviceText}"`);
+      logger.log(`[AIChat][handleAIResponse] Final AI response text: "${adviceText}"`);
 
       const aiResponse: Message = {
         _id: Math.random().toString(),
@@ -1029,11 +1030,11 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       await updateChatUsage();
-      console.log(`[AIChat][handleAIResponse] Chat usage updated. Remaining uses: ${remainingUses - 1}`);
+      logger.log(`[AIChat][handleAIResponse] Chat usage updated. Remaining uses: ${remainingUses - 1}`);
 
       // Check for upsell opportunity AFTER setting the main response
       if (remainingUses - 1 > 0 && remainingUses - 1 <= UPSELL_THRESHOLD) {
-        console.log('[AIChat][handleAIResponse] User has entered the upsell threshold.');
+        logger.log('[AIChat][handleAIResponse] User has entered the upsell threshold.');
         const upsellMessage: Message = {
             _id: `upsell_${Date.now()}`,
             text: `Heads-up: You have ${remainingUses - 1} free AI queries remaining this month.`,
@@ -1065,7 +1066,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     if (trimmedText.length === 0) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    console.log(`[AIChat][handleSendQuery] User sent new query: "${trimmedText}"`);
+    logger.log(`[AIChat][handleSendQuery] User sent new query: "${trimmedText}"`);
 
     const newMessage: Message = {
       _id: Math.random().toString(),
@@ -1085,7 +1086,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   };
 
   const handleStartOver = () => {
-    console.log('[AIChat][handleStartOver] User requested suggested prompts.');
+    logger.log('[AIChat][handleStartOver] User requested suggested prompts.');
     const suggestedPrompts = getRandomExamples(3);
     const suggestedPromptsMessage: Message = {
       _id: `suggestions_${Date.now()}`,

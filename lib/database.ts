@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { Card, Benefit, allCards } from '../src/data/card-data';
 import { cardService } from './card-service';
+import { logger } from '../utils/logger';
 
 // Feature flag to switch between hard-coded data and database
 const USE_DATABASE_CARDS = true; // Set to true to use database instead of hard-coded data
@@ -13,7 +14,7 @@ export { supabase };
 export async function getAllCardsData(): Promise<Card[]> {
   if (USE_DATABASE_CARDS) {
     try {
-      console.log('📊 Loading cards from database...');
+      logger.log('📊 Loading cards from database...');
       return await cardService.getAllCards();
     } catch (error) {
       console.error('❌ Database fallback: Using hard-coded cards due to error:', error);
@@ -124,7 +125,7 @@ const calculateResetDate = (period: string, periodMonths: number, resetType: 'ca
 
 export async function getUserCards(userId: string) {
   try {
-    console.log('Fetching cards for user:', userId);
+    logger.log('Fetching cards for user:', userId);
     const { data: cards, error } = await supabase
       .from('user_credit_cards')
       .select('*')
@@ -137,7 +138,7 @@ export async function getUserCards(userId: string) {
       return { data: null, error };
     }
 
-    console.log('Successfully fetched cards:', cards?.length || 0);
+    logger.log('Successfully fetched cards:', cards?.length || 0);
     return { data: cards as UserCard[], error: null };
   } catch (error) {
     console.error('Unexpected error fetching user cards:', error);
@@ -247,7 +248,7 @@ export async function saveUserCards(
 
 export async function hasUserSelectedCards(userId: string): Promise<boolean> {
   try {
-    console.log('Checking if user has cards:', userId);
+    logger.log('Checking if user has cards:', userId);
     const { data: cards, error } = await supabase
       .from('user_credit_cards')
       .select('id')
@@ -261,7 +262,7 @@ export async function hasUserSelectedCards(userId: string): Promise<boolean> {
     }
 
     const hasCards = cards && cards.length > 0;
-    console.log('User has cards:', hasCards);
+    logger.log('User has cards:', hasCards);
     return hasCards;
   } catch (error) {
     console.error('Unexpected error checking user cards:', error);
@@ -277,7 +278,7 @@ export async function trackPerkRedemption(
   parentRedemptionId?: string
 ) {
   try {
-    console.log('Starting perk redemption tracking:', { 
+    logger.log('Starting perk redemption tracking:', { 
       userId, 
       cardId, 
       perkId: perk.id,
@@ -356,7 +357,7 @@ export async function trackPerkRedemption(
 
     // Get the user's card ID from the database
     const cardData = await findCardByIdData(cardId);
-    console.log(`[trackPerkRedemption] Looking up card: ${cardId}, found card data:`, cardData?.name);
+    logger.log(`[trackPerkRedemption] Looking up card: ${cardId}, found card data:`, cardData?.name);
     
     // First, let's see what cards this user actually has
     const { data: allUserCards } = await supabase
@@ -364,12 +365,12 @@ export async function trackPerkRedemption(
       .select('id, card_name, card_brand, status')
       .eq('user_id', userId);
     
-    console.log(`[trackPerkRedemption] All user cards:`, allUserCards);
+    logger.log(`[trackPerkRedemption] All user cards:`, allUserCards);
     
     const expectedBrand = cardId.split('_')[0];
     const expectedName = cardData?.name || '';
     
-    console.log(`[trackPerkRedemption] Looking for:`, {
+    logger.log(`[trackPerkRedemption] Looking for:`, {
       expectedBrand,
       expectedName,
       cardId
@@ -383,7 +384,7 @@ export async function trackPerkRedemption(
       .eq('card_name', expectedName)
       .eq('status', 'active');
 
-    console.log(`[trackPerkRedemption] User cards query result:`, userCardsResult);
+    logger.log(`[trackPerkRedemption] User cards query result:`, userCardsResult);
 
     let userCardToUse: any = null;
     
@@ -397,7 +398,7 @@ export async function trackPerkRedemption(
       });
       
       // TEMPORARY FALLBACK: Try to find ANY active card for this user
-      console.log('[trackPerkRedemption] Card lookup failed, trying fallback...');
+      logger.log('[trackPerkRedemption] Card lookup failed, trying fallback...');
       const { data: fallbackCards } = await supabase
         .from('user_credit_cards')
         .select('id, card_name, card_brand')
@@ -407,7 +408,7 @@ export async function trackPerkRedemption(
       
       if (fallbackCards && fallbackCards.length > 0) {
         userCardToUse = fallbackCards[0];
-        console.log('[trackPerkRedemption] Using fallback card:', userCardToUse.id);
+        logger.log('[trackPerkRedemption] Using fallback card:', userCardToUse.id);
       } else {
         console.error('[trackPerkRedemption] No fallback cards found');
         // Continue with null user_card_id for now
@@ -415,7 +416,7 @@ export async function trackPerkRedemption(
       }
     } else {
       userCardToUse = userCardsResult[0];
-      console.log(`[trackPerkRedemption] Using matched card:`, userCardToUse.id);
+      logger.log(`[trackPerkRedemption] Using matched card:`, userCardToUse.id);
     }
 
     // Calculate reset date based on perk period and type
@@ -482,7 +483,7 @@ export async function getPerkRedemptions(
   includeExpired: boolean = false
 ) {
   try {
-    console.log('Fetching perk redemptions:', { userId, startDate, endDate, includeExpired });
+    logger.log('Fetching perk redemptions:', { userId, startDate, endDate, includeExpired });
 
     let query = supabase
       .from('perk_redemptions')
@@ -542,7 +543,7 @@ export async function getPerkRedemptions(
       };
     });
 
-    console.log('Successfully fetched perk redemptions:', processedData?.length || 0);
+    logger.log('Successfully fetched perk redemptions:', processedData?.length || 0);
     return { data: processedData, error: null };
   } catch (error) {
     console.error('Unexpected error fetching perk redemptions:', error);
@@ -574,7 +575,7 @@ export async function getAnnualRedemptions(userId: string) {
 
 export async function deletePerkRedemption(userId: string, perkDefinitionId: string) {
   try {
-    console.log('[DB] Attempting to delete ALL perk redemptions:', { userId, perkDefinitionId });
+    logger.log('[DB] Attempting to delete ALL perk redemptions:', { userId, perkDefinitionId });
 
     // Get all redemption records for this perk to understand what we're deleting
     const { data: allRedemptions, error: findError } = await supabase
@@ -590,11 +591,11 @@ export async function deletePerkRedemption(userId: string, perkDefinitionId: str
     }
 
     if (!allRedemptions || allRedemptions.length === 0) {
-      console.log('No redemption records found to delete');
+      logger.log('No redemption records found to delete');
       return { error: null };
     }
 
-    console.log(`[DB] Found ${allRedemptions.length} redemption records to delete:`, allRedemptions);
+    logger.log(`[DB] Found ${allRedemptions.length} redemption records to delete:`, allRedemptions);
 
     // Delete ALL redemption records for this perk at once
     // This handles both parent and child redemptions, and multiple partial redemptions
@@ -613,7 +614,7 @@ export async function deletePerkRedemption(userId: string, perkDefinitionId: str
       return { error: deleteError };
     }
 
-    console.log(`Successfully deleted all ${allRedemptions.length} perk redemption(s):`, { userId, perkDefinitionId });
+    logger.log(`Successfully deleted all ${allRedemptions.length} perk redemption(s):`, { userId, perkDefinitionId });
     return { error: null };
   } catch (error) {
     console.error('Unexpected error deleting perk redemptions:', { 
@@ -633,7 +634,7 @@ export async function setAutoRedemption(
   enabled: boolean = true
 ) {
   try {
-    console.log('Setting auto-redemption:', { 
+    logger.log('Setting auto-redemption:', { 
       userId, 
       cardId, 
       perkName: perk.name,
@@ -641,7 +642,7 @@ export async function setAutoRedemption(
     });
 
     // First, find the perk definition
-    console.log('Looking up perk definition for:', perk.name);
+    logger.log('Looking up perk definition for:', perk.name);
     const { data: perkDef, error: perkDefError } = await supabase
       .from('perk_definitions')
       .select('id, name')
@@ -657,7 +658,7 @@ export async function setAutoRedemption(
       return { error: new Error(`Perk definition not found for: ${perk.name}`) };
     }
 
-    console.log('Found perk definition:', {
+    logger.log('Found perk definition:', {
       id: perkDef.id,
       name: perkDef.name,
       matches: perkDef.name === perk.name
@@ -693,7 +694,7 @@ export async function setAutoRedemption(
 
     let userCardToUse;
     if (userCardsResult.length > 1) {
-      console.warn('Multiple active cards found for auto-redemption, proceeding with the first one:', {
+      logger.warn('Multiple active cards found for auto-redemption, proceeding with the first one:', {
         userId,
         cardId,
         brand: cardId.split('_')[0],
@@ -706,7 +707,7 @@ export async function setAutoRedemption(
       userCardToUse = userCardsResult[0];
     }
     
-    console.log('Using user_card_id for auto-redemption:', userCardToUse.id);
+    logger.log('Using user_card_id for auto-redemption:', userCardToUse.id);
 
     if (enabled) {
       // Insert/update the auto-redemption preference
@@ -729,12 +730,12 @@ export async function setAutoRedemption(
         return { error };
       }
 
-      console.log('Successfully set auto-redemption:', data);
+      logger.log('Successfully set auto-redemption:', data);
       return { data, error: null };
     } else {
       // Delete ALL auto-redemption rows for this user and perk, regardless of user_card_id
       // This handles cases where there might be multiple user_card_id entries for the same user
-      console.log('Attempting to delete ALL auto-redemptions for user and perk:', {
+      logger.log('Attempting to delete ALL auto-redemptions for user and perk:', {
         userId,
         perkId: perkDef.id,
         perkName: perk.name
@@ -759,15 +760,15 @@ export async function setAutoRedemption(
         .eq('perk_id', perkDef.id);
 
       if (verificationError) {
-        console.warn('Could not verify deletion, but delete operation succeeded:', verificationError);
+        logger.warn('Could not verify deletion, but delete operation succeeded:', verificationError);
       } else {
-        console.log('Verification check:', {
+        logger.log('Verification check:', {
           remainingRows: verificationData?.length || 0,
           data: verificationData
         });
       }
 
-      console.log('Successfully deleted auto-redemption preference(s)');
+      logger.log('Successfully deleted auto-redemption preference(s)');
       return { data: null, error: null };
     }
   } catch (error) {
@@ -778,7 +779,7 @@ export async function setAutoRedemption(
 
 export async function getAutoRedemptions(userId: string) {
   try {
-    console.log('Fetching auto-redemptions for user:', userId);
+    logger.log('Fetching auto-redemptions for user:', userId);
 
     const { data, error } = await supabase
       .from('perk_auto_redemptions')
@@ -801,7 +802,7 @@ export async function getAutoRedemptions(userId: string) {
       return { error };
     }
 
-    console.log('Successfully fetched auto-redemptions:', data?.length || 0);
+    logger.log('Successfully fetched auto-redemptions:', data?.length || 0);
     return { data, error: null };
   } catch (error) {
     console.error('Unexpected error fetching auto-redemptions:', error);
@@ -866,7 +867,7 @@ export async function checkAutoRedemptionByCardId(
 
 export async function debugAutoRedemptions(userId: string) {
   try {
-    console.log('=== DEBUG: All auto-redemptions for user ===');
+    logger.log('=== DEBUG: All auto-redemptions for user ===');
     const { data, error } = await supabase
       .from('perk_auto_redemptions')
       .select(`
@@ -887,7 +888,7 @@ export async function debugAutoRedemptions(userId: string) {
       return { error };
     }
 
-    console.log(`Found ${data?.length || 0} auto-redemption records:`, data);
+    logger.log(`Found ${data?.length || 0} auto-redemption records:`, data);
     return { data, error: null };
   } catch (error) {
     console.error('Unexpected error in debug function:', error);

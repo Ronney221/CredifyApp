@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { logger } from './logger';
 
 export const requestNotificationPermissions = async (): Promise<boolean> => {
   try {
@@ -12,7 +13,7 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
     }
     
     if (finalStatus !== 'granted') {
-      console.log('Failed to get notification permissions');
+      logger.log('Failed to get notification permissions');
       return false;
     }
     return true;
@@ -32,13 +33,13 @@ export const scheduleNotificationAsync = async (
     // Check if we have permission first
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
-      console.log('No notification permission, skipping schedule');
+      logger.log('No notification permission, skipping schedule');
       return null;
     }
 
     // Ensure the notification date is in the future
     if (date.getTime() <= Date.now()) {
-      console.log('Notification date is in the past, skipping schedule');
+      logger.log('Notification date is in the past, skipping schedule');
       return null;
     }
 
@@ -48,7 +49,7 @@ export const scheduleNotificationAsync = async (
       ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
     };
 
-    console.log(`Scheduling notification: "${title}" for ${date.toLocaleString()}. Current time is ${new Date().toLocaleString()}`);
+    logger.log(`Scheduling notification: "${title}" for ${date.toLocaleString()}. Current time is ${new Date().toLocaleString()}`);
     
     // Create notification channel for Android
     if (Platform.OS === 'android') {

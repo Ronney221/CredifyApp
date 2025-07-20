@@ -1,6 +1,7 @@
 import { Platform, Linking, Alert , ImageSourcePropType } from 'react-native';
 
 import * as WebBrowser from 'expo-web-browser';
+import { logger } from '../../utils/logger';
 
 export interface Benefit {
   id: string;
@@ -1517,7 +1518,7 @@ async function isAppInstalled(appKey: keyof typeof APP_SCHEMES): Promise<boolean
       }
     }
   } catch (error) {
-    console.log(`Error checking if app is installed for ${appKey}:`, error);
+    logger.log(`Error checking if app is installed for ${appKey}:`, error);
     return false;
   }
 }
@@ -1539,7 +1540,7 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
           await Linking.openURL(url);
           return true;
         } catch (error) {
-          console.log(`Failed to open ${appKey} with iOS scheme, trying fallback:`, error);
+          logger.log(`Failed to open ${appKey} with iOS scheme, trying fallback:`, error);
           // Try universal link as fallback
           await Linking.openURL(appSchemes.fallback);
           return true;
@@ -1553,19 +1554,19 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
           await Linking.openURL(intentUrl);
           return true;
         } catch (error) {
-          console.log(`Failed to open ${appKey} with intent, trying package:`, error);
+          logger.log(`Failed to open ${appKey} with intent, trying package:`, error);
           // Try package URL as fallback
           try {
             await Linking.openURL(`${appSchemes.androidPackage}://`);
             return true;
           } catch (packageError) {
-            console.log(`Failed to open ${appKey} with package, trying scheme:`, packageError);
+            logger.log(`Failed to open ${appKey} with package, trying scheme:`, packageError);
             // Try scheme as last resort
             try {
               await Linking.openURL(scheme);
               return true;
             } catch (schemeError) {
-              console.log(`Failed to open ${appKey} with scheme, falling back to website:`, schemeError);
+              logger.log(`Failed to open ${appKey} with scheme, falling back to website:`, schemeError);
               await Linking.openURL(appSchemes.fallback);
               return true;
             }
@@ -1591,7 +1592,7 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
                 try {
                   await Linking.openURL(storeUrl);
                 } catch (error) {
-                  console.log('Error opening store URL, trying fallback website:', error);
+                  logger.log('Error opening store URL, trying fallback website:', error);
                   await Linking.openURL(appSchemes.fallback);
                 }
               }
@@ -1605,12 +1606,12 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
                 await WebBrowser.openBrowserAsync(appSchemes.fallback);
                 resolve(true);
               } catch (error) {
-                console.log('Error opening fallback URL with WebBrowser:', error);
+                logger.log('Error opening fallback URL with WebBrowser:', error);
                 try {
                   await Linking.openURL(appSchemes.fallback);
                   resolve(true);
                 } catch (linkError) {
-                  console.log('Error opening fallback URL with Linking:', linkError);
+                  logger.log('Error opening fallback URL with Linking:', linkError);
                   resolve(false);
                 }
               }
@@ -1626,18 +1627,18 @@ async function openAppOrFallback(appKey: keyof typeof APP_SCHEMES): Promise<bool
       );
     });
   } catch (error) {
-    console.log(`Error in openAppOrFallback for ${appKey}:`, error);
+    logger.log(`Error in openAppOrFallback for ${appKey}:`, error);
     // If all else fails, try the fallback URL
     try {
       await WebBrowser.openBrowserAsync(appSchemes.fallback);
       return true;
     } catch (fallbackError) {
-      console.log('Fallback URL also failed, trying Linking:', fallbackError);
+      logger.log('Fallback URL also failed, trying Linking:', fallbackError);
       try {
         await Linking.openURL(appSchemes.fallback);
         return true;
       } catch (linkError) {
-        console.log('Linking also failed:', linkError);
+        logger.log('Linking also failed:', linkError);
         return false;
       }
     }
@@ -1653,7 +1654,7 @@ export async function openPerkTarget(perk: CardPerk): Promise<boolean> {
       return openAppOrFallback(appKey);
     } else {
       // If no appKey or invalid appKey, fall back to Google search
-      console.log(`No app mapping or invalid appKey found for perk: ${targetPerkName}. Falling back to Google search.`);
+      logger.log(`No app mapping or invalid appKey found for perk: ${targetPerkName}. Falling back to Google search.`);
       const searchTerm = encodeURIComponent(targetPerkName);
       const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
       try {

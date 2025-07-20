@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 export default function EmailConfirm() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function EmailConfirm() {
   useEffect(() => {
     const confirmEmail = async () => {
       try {
-        console.log('Email confirmation params:', params);
+        logger.log('Email confirmation params:', params);
         
         const { token_hash, type } = params;
         
@@ -26,7 +27,7 @@ export default function EmailConfirm() {
             setStatus('error');
             setTimeout(() => router.replace('/'), 3000);
           } else {
-            console.log('Email confirmed successfully:', data);
+            logger.log('Email confirmed successfully:', data);
             setStatus('success');
             setTimeout(() => router.replace('/(tabs)/01-dashboard'), 2000);
           }

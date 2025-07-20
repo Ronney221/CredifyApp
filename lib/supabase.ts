@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { decode } from 'base64-arraybuffer';
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 
 const supabaseUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -59,7 +60,7 @@ export const updateUserProfile = async (updates: {
 
 export const uploadAvatar = async (uri: string, userId: string): Promise<{ url?: string; error?: Error }> => {
   try {
-    console.log('Starting avatar upload for user:', userId);
+    logger.log('Starting avatar upload for user:', userId);
     
     // Get the current user's metadata to find the existing avatar URL
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -69,13 +70,13 @@ export const uploadAvatar = async (uri: string, userId: string): Promise<{ url?:
     if (user?.user_metadata?.avatar_url) {
       const existingAvatarPath = user.user_metadata.avatar_url.split('/').pop();
       if (existingAvatarPath) {
-        console.log('Deleting existing avatar:', existingAvatarPath);
+        logger.log('Deleting existing avatar:', existingAvatarPath);
         const { error: deleteError } = await supabase.storage
           .from('avatars')
           .remove([existingAvatarPath]);
         
         if (deleteError) {
-          console.warn('Error deleting existing avatar:', deleteError);
+          logger.warn('Error deleting existing avatar:', deleteError);
           // Continue with upload even if delete fails
         }
       }
@@ -96,7 +97,7 @@ export const uploadAvatar = async (uri: string, userId: string): Promise<{ url?:
     const fileName = `${userId}_${Date.now()}.${fileExt}`;
     const filePath = fileName;
 
-    console.log('Uploading file:', { fileName, filePath, size: blob.size });
+    logger.log('Uploading file:', { fileName, filePath, size: blob.size });
 
     // Convert blob to base64 for Supabase storage
     const fileReader = new FileReader();
@@ -123,14 +124,14 @@ export const uploadAvatar = async (uri: string, userId: string): Promise<{ url?:
       throw uploadError;
     }
 
-    console.log('Upload successful, getting public URL');
+    logger.log('Upload successful, getting public URL');
 
     // Get public URL
     const { data } = await supabase.storage
       .from('avatars')
       .getPublicUrl(filePath);
 
-    console.log('Got public URL:', data.publicUrl);
+    logger.log('Got public URL:', data.publicUrl);
     return { url: data.publicUrl };
   } catch (error) {
     console.error('Error uploading avatar:', error);
@@ -163,7 +164,7 @@ export const deleteUserAccount = async () => {
     if (user.user_metadata?.avatar_url) {
       const { error: avatarError } = await deleteAvatar(user.id);
       if (avatarError) {
-        console.warn('Error deleting avatar during account deletion:', avatarError);
+        logger.warn('Error deleting avatar during account deletion:', avatarError);
         // Continue with deletion even if avatar deletion fails
       }
     }

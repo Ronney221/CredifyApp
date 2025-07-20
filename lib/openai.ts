@@ -2,6 +2,7 @@
 import { getRelevantPerks } from '../utils/perk-matcher';
 import { supabase } from './supabase';
 import { MinifiedCard, MinifiedPerk } from '../utils/perk-matcher';
+import { logger } from '../utils/logger';
 
 interface TokenUsage {
   promptTokens: number;
@@ -35,7 +36,7 @@ function calculateCost(usage: { promptTokens: number; completionTokens: number }
 
 // The function signature now expects the minified data structure
 export async function getBenefitAdvice(query: string, availableCards: MinifiedCard[]): Promise<{ response: AIResponse; usage: TokenUsage }> {
-  console.log('[OpenAI] Starting getBenefitAdvice function with new architecture');
+  logger.log('[OpenAI] Starting getBenefitAdvice function with new architecture');
   
   // FINAL V9 - DEFINITIVE STYLING & FORMATTING PROMPT
   const system_prompt = `
@@ -98,7 +99,7 @@ export async function getBenefitAdvice(query: string, availableCards: MinifiedCa
 
   // If our local search finds nothing, we don't need to call the AI at all.
   if (filteredPerks.length === 0) {
-    console.log('[OpenAI] No relevant perks found after pre-filtering. Returning NoBenefitFound.');
+    logger.log('[OpenAI] No relevant perks found after pre-filtering. Returning NoBenefitFound.');
     return {
       response: { responseType: 'NoBenefitFound', recommendations: [] },
       usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0 }
@@ -115,8 +116,8 @@ User Context (JSON):
   "cards": ${JSON.stringify(filteredPerks)} 
 }`; // We now use filteredPerks!
 
-  console.log('[OpenAI] System Prompt size is now minimal.');
-  console.log('[OpenAI] Sending lean user prompt to AI:', user_prompt);
+  logger.log('[OpenAI] System Prompt size is now minimal.');
+  logger.log('[OpenAI] Sending lean user prompt to AI:', user_prompt);
 
   try {
     const envDebug = {
@@ -126,14 +127,14 @@ User Context (JSON):
       // Check if we're using production URLs in development
       isProductionUrl: process.env.EXPO_PUBLIC_SUPABASE_URL?.includes('ozgnkpadloshnwliaodw')
     };
-    console.log('[OpenAI] Debug - Environment:', envDebug);
+    logger.log('[OpenAI] Debug - Environment:', envDebug);
 
     // If we're using production URLs, always use production endpoint
     const endpoint = envDebug.isProductionUrl
       ? `${supabaseUrl}/functions/v1/openai`
       : 'http://localhost:54321/functions/v1/openai';
 
-    console.log('[OpenAI] Using endpoint:', endpoint);
+    logger.log('[OpenAI] Using endpoint:', endpoint);
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -169,7 +170,7 @@ User Context (JSON):
     }
 
     const data = await response.json();
-    console.log('[OpenAI] Successful response:', {
+    logger.log('[OpenAI] Successful response:', {
       status: response.status,
       hasChoices: !!data.choices,
       choicesLength: data.choices?.length
@@ -192,10 +193,10 @@ User Context (JSON):
     };
     
     const rawContent = data.choices[0].message.content.trim();
-    console.log('[OpenAI] Raw response content from AI:', rawContent);
+    logger.log('[OpenAI] Raw response content from AI:', rawContent);
 
     const aiResponse: AIResponse = JSON.parse(rawContent);
-    console.log('[OpenAI] Parsed AI response:', aiResponse);
+    logger.log('[OpenAI] Parsed AI response:', aiResponse);
 
     return {
       response: aiResponse,

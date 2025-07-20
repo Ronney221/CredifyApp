@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/Colors';
 import { BlurView } from 'expo-blur';
 import BackButton from '../../../components/ui/BackButton';
+import { logger } from '../../../utils/logger';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -188,7 +189,7 @@ export default function NotificationSettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
-        console.log('[NotificationsScreen] Focussed, reloading card data.');
+        logger.log('[NotificationsScreen] Focussed, reloading card data.');
         loadExistingCards();
       }
     }, [user?.id])

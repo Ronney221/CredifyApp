@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -10,7 +11,7 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('Auth callback params:', params);
+        logger.log('Auth callback params:', params);
         
         // Extract tokens from URL parameters
         const { access_token, refresh_token, error } = params;
@@ -31,11 +32,11 @@ export default function AuthCallback() {
             console.error('Session error:', sessionError);
             router.replace('/');
           } else {
-            console.log('Authentication successful:', data);
+            logger.log('Authentication successful:', data);
             router.replace('/(onboarding)/card-select');
           }
         } else {
-          console.log('No access token found, redirecting to index');
+          logger.log('No access token found, redirecting to index');
           router.replace('/');
         }
       } catch (error) {

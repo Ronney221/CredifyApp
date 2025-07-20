@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import Svg, { Defs, Rect, Mask, Circle, G } from 'react-native-svg';
+import { logger } from '../../utils/logger';
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -185,7 +186,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({
   const { x, y: rawY, width, height } = highlightedElementLayout;
   const y = rawY - 2; // Slight upward adjustment to compensate for positioning
   
-  console.log('[OnboardingOverlay] Received layout:', { x, y, width, height });
+  logger.log('[OnboardingOverlay] Received layout:', { x, y, width, height });
   
   // Calculate tooltip position
   const tooltipY = y + height + 20;

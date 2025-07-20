@@ -1,6 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect, useCallback } from 'react';
 import { getAutoRedemptions } from '../lib/database';
+import { logger } from '../utils/logger';
 
 interface AutoRedemption {
   id: string;
@@ -24,14 +25,14 @@ export function useAutoRedemptions() {
 
   const loadAutoRedemptions = useCallback(async () => {
     if (!user) {
-      console.log('[useAutoRedemptions] No user, clearing auto-redemptions');
+      logger.log('[useAutoRedemptions] No user, clearing auto-redemptions');
       setAutoRedemptions([]);
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log(`[useAutoRedemptions] Loading auto-redemptions for user: ${user.id}`);
+      logger.log(`[useAutoRedemptions] Loading auto-redemptions for user: ${user.id}`);
       setIsLoading(true);
       const { data, error } = await getAutoRedemptions(user.id);
       
@@ -39,7 +40,7 @@ export function useAutoRedemptions() {
         console.error('[useAutoRedemptions] Error loading auto-redemptions:', error);
         setAutoRedemptions([]);
       } else {
-        console.log(`[useAutoRedemptions] Successfully loaded ${data?.length || 0} auto-redemptions:`, 
+        logger.log(`[useAutoRedemptions] Successfully loaded ${data?.length || 0} auto-redemptions:`, 
           data?.map(ar => ({
             perkName: ar.perk_definitions?.name,
             cardName: ar.user_credit_cards?.card_name,

@@ -31,6 +31,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { CardPerk } from '../../src/data/card-data';
 import MerchantLogo from './MerchantLogo';
+import { logger } from '../../utils/logger';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -284,7 +285,7 @@ export default function PerkInfoSheet({
     const instructions = perk.redemptionInstructions.trim();
     
     // Debug: Log the raw instructions to see the actual format
-    console.log('[PerkInfoSheet] Raw redemption instructions:', JSON.stringify(instructions));
+    logger.log('[PerkInfoSheet] Raw redemption instructions:', JSON.stringify(instructions));
     
     // Try multiple line break patterns
     let tips = [];
@@ -297,19 +298,19 @@ export default function PerkInfoSheet({
     
     // First try double line breaks
     tips = processedInstructions.split('\n\n').filter(tip => tip.trim().length > 0);
-    console.log('[PerkInfoSheet] After \\n\\n split:', tips);
+    logger.log('[PerkInfoSheet] After \\n\\n split:', tips);
     
     // If that didn't work, try different patterns
     if (tips.length === 1) {
       // Try Windows-style line breaks
       tips = processedInstructions.split('\r\n\r\n').filter(tip => tip.trim().length > 0);
-      console.log('[PerkInfoSheet] After \\r\\n\\r\\n split:', tips);
+      logger.log('[PerkInfoSheet] After \\r\\n\\r\\n split:', tips);
     }
     
     // If still one tip, try splitting by "Credify Hack" pattern
     if (tips.length === 1 && processedInstructions.includes('Credify Hack')) {
       tips = processedInstructions.split(/(?=Credify Hack \d+)/g).filter(tip => tip.trim().length > 0);
-      console.log('[PerkInfoSheet] After Credify Hack split:', tips);
+      logger.log('[PerkInfoSheet] After Credify Hack split:', tips);
     }
     
     // Fallback: treat as single tip
@@ -317,7 +318,7 @@ export default function PerkInfoSheet({
       tips = [instructions];
     }
     
-    console.log('[PerkInfoSheet] Final tips array:', tips);
+    logger.log('[PerkInfoSheet] Final tips array:', tips);
 
     // Convert tips to carousel format with appropriate icons
     return tips.map((tip, index) => {

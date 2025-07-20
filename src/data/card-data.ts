@@ -1,5 +1,6 @@
 import { Platform, Linking, Alert , ImageSourcePropType } from 'react-native';
 import { CardService } from '../../lib/card-service';
+import { logger } from '../../utils/logger';
 
 // Keep all the type definitions
 export interface Benefit {
@@ -166,7 +167,7 @@ async function isAppInstalled(appScheme: any): Promise<boolean> {
             }
           } catch (error) {
             // If canOpenURL throws (scheme not in LSApplicationQueriesSchemes), continue
-            console.log(`Cannot check URL ${scheme}:`, error);
+            logger.log(`Cannot check URL ${scheme}:`, error);
           }
         }
       }
@@ -212,7 +213,7 @@ async function isAppInstalled(appScheme: any): Promise<boolean> {
       return false;
     }
   } catch (error) {
-    console.log('Error checking if app is installed:', error);
+    logger.log('Error checking if app is installed:', error);
     return false;
   }
 }
@@ -220,7 +221,7 @@ async function isAppInstalled(appScheme: any): Promise<boolean> {
 // Helper function to open an app using app scheme key
 async function openAppWithScheme(appSchemeKey: string, perkName: string): Promise<{success: boolean, usedFallback: boolean}> {
   try {
-    console.log('Opening app with scheme key:', appSchemeKey);
+    logger.log('Opening app with scheme key:', appSchemeKey);
 
     // Get database-loaded app schemes
     const cardService = CardService.getInstance();
@@ -228,12 +229,12 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
     
     const appScheme = appSchemes[appSchemeKey];
     if (!appScheme) {
-      console.log('App scheme not found for key:', appSchemeKey);
+      logger.log('App scheme not found for key:', appSchemeKey);
       // Fallback: try to open a web search for the perk
       const searchTerm = encodeURIComponent(perkName);
       const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
       try {
-        console.log('Opening fallback web search:', googleSearchUrl);
+        logger.log('Opening fallback web search:', googleSearchUrl);
         await Linking.openURL(googleSearchUrl);
         return { success: true, usedFallback: true };
       } catch (error) {
@@ -242,11 +243,11 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
       }
     }
 
-    console.log('Found app scheme:', appScheme);
+    logger.log('Found app scheme:', appScheme);
     
     // Check if app is installed using similar logic to original
     const isInstalled = await isAppInstalled(appScheme);
-    console.log(`App installed check for ${appSchemeKey}:`, isInstalled);
+    logger.log(`App installed check for ${appSchemeKey}:`, isInstalled);
 
     if (Platform.OS === 'ios') {
       const schemes = Array.isArray(appScheme.ios) ? appScheme.ios : [appScheme.ios];
@@ -256,14 +257,14 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
         for (const scheme of schemes) {
           if (scheme) {
             try {
-              console.log('Trying to open iOS URL:', scheme);
+              logger.log('Trying to open iOS URL:', scheme);
               
               // Use Linking.openURL for all URLs (both HTTPS and custom schemes)
               // This prevents the app from freezing when opening external apps
               await Linking.openURL(scheme);
               return { success: true, usedFallback: false };
             } catch (error) {
-              console.log('Failed to open scheme:', scheme, error);
+              logger.log('Failed to open scheme:', scheme, error);
               // Continue to next scheme
             }
           }
@@ -272,7 +273,7 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
       
       // Try fallback
       if (appScheme.fallbackUrl) {
-        console.log('Opening fallback URL:', appScheme.fallbackUrl);
+        logger.log('Opening fallback URL:', appScheme.fallbackUrl);
         try {
           await Linking.openURL(appScheme.fallbackUrl);
           return { success: true, usedFallback: true };
@@ -290,11 +291,11 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
         try {
           const scheme = schemes[0]?.replace('://', '') || appSchemeKey;
           const intentUrl = `intent://#Intent;package=${appScheme.androidPackage};scheme=${scheme};end`;
-          console.log('Trying Android intent:', intentUrl);
+          logger.log('Trying Android intent:', intentUrl);
           await Linking.openURL(intentUrl);
           return { success: true, usedFallback: false };
         } catch (error) {
-          console.log('Intent failed:', error);
+          logger.log('Intent failed:', error);
         }
       }
       
@@ -302,18 +303,18 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
       for (const scheme of schemes) {
         if (scheme) {
           try {
-            console.log('Trying Android scheme:', scheme);
+            logger.log('Trying Android scheme:', scheme);
             await Linking.openURL(scheme);
             return { success: true, usedFallback: false };
           } catch (error) {
-            console.log('Failed to open scheme:', scheme, error);
+            logger.log('Failed to open scheme:', scheme, error);
           }
         }
       }
       
       // Fallback
       if (appScheme.fallbackUrl) {
-        console.log('Opening fallback URL:', appScheme.fallbackUrl);
+        logger.log('Opening fallback URL:', appScheme.fallbackUrl);
         try {
           await Linking.openURL(appScheme.fallbackUrl);
           return { success: true, usedFallback: true };
@@ -331,7 +332,7 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
     });
     
     if (storeUrl) {
-      console.log('Opening app store:', storeUrl);
+      logger.log('Opening app store:', storeUrl);
       try {
         await Linking.openURL(storeUrl);
         return { success: true, usedFallback: true };
@@ -359,7 +360,7 @@ export async function openPerkTarget(perk: CardPerk): Promise<{success: boolean,
     const choices = multiChoiceConfigs[perk.name];
     
     if (choices && choices.length > 0) {
-      console.log('Multi-choice perk detected:', perk.name, 'with choices:', choices);
+      logger.log('Multi-choice perk detected:', perk.name, 'with choices:', choices);
       
       // Show choice dialog for multi-choice perks
       return new Promise((resolve) => {
@@ -376,7 +377,7 @@ export async function openPerkTarget(perk: CardPerk): Promise<{success: boolean,
                   const result = await openAppWithScheme(appSchemeKey, choice.targetPerkName);
                   resolve(result);
                 } else {
-                  console.log('No app scheme mapping found for:', choice.targetPerkName);
+                  logger.log('No app scheme mapping found for:', choice.targetPerkName);
                   // Fallback to web search
                   const searchTerm = encodeURIComponent(choice.targetPerkName);
                   const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
@@ -407,7 +408,7 @@ export async function openPerkTarget(perk: CardPerk): Promise<{success: boolean,
       const appSchemeKey = perk.appScheme;
       
       if (!appSchemeKey) {
-        console.log('No app scheme found for perk:', perk.name);
+        logger.log('No app scheme found for perk:', perk.name);
         return { success: false, usedFallback: false };
       }
 

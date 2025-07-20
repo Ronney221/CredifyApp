@@ -7,6 +7,7 @@ import { Card, CardPerk } from '../../src/data/card-data';
 import { useAuth } from '../../hooks/useAuth';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+import { logger } from '../../utils/logger';
 
 type SegmentKey = number;
 type ImperativeHandle = { refresh: () => void };
@@ -87,7 +88,7 @@ const PerkDonutDisplayManagerInner = (
     backgroundColor = '#FAFAFE', // Default background color
   } = props;
 
-  // console.log("DEBUG_PDM_INNER: Component body START. Props:", { periodAggregatesIsPresent: !!periodAggregates, uniquePerkPeriodsCount: uniquePerkPeriods?.length, userCardsWithPerksCount: userCardsWithPerks?.length });
+  // logger.log("DEBUG_PDM_INNER: Component body START. Props:", { periodAggregatesIsPresent: !!periodAggregates, uniquePerkPeriodsCount: uniquePerkPeriods?.length, userCardsWithPerksCount: userCardsWithPerks?.length });
 
   const { user } = useAuth();
   const [activeSegmentKey, setActiveSegmentKey] = useState<SegmentKey>(() => uniquePerkPeriods?.[0] || 1);
@@ -104,7 +105,7 @@ const PerkDonutDisplayManagerInner = (
     }
     debounceTimeoutRef.current = setTimeout(() => {
       setLastRefresh(Date.now());
-      // console.log('PDM Refreshed:', Date.now());
+      // logger.log('PDM Refreshed:', Date.now());
     }, 16); // Debounce for 16ms
   }, []);
 
@@ -144,9 +145,9 @@ const PerkDonutDisplayManagerInner = (
   }, [user, userCardsWithPerks]);
 
   const toggleSegments = useMemo((): Segment[] => {
-    console.log('PDM: Recalculating toggleSegments. uniquePerkPeriods:', uniquePerkPeriods);
+    logger.log('PDM: Recalculating toggleSegments. uniquePerkPeriods:', uniquePerkPeriods);
     if (!uniquePerkPeriods || uniquePerkPeriods.length === 0) {
-      console.log('PDM: No unique periods, defaulting to monthly');
+      logger.log('PDM: No unique periods, defaulting to monthly');
       return [{ key: '1', title: getPeriodDisplayName(1) }];
     }
     const segments = uniquePerkPeriods.map(period => ({
@@ -155,7 +156,7 @@ const PerkDonutDisplayManagerInner = (
     }));
     // Add 'All' tab at the end
     segments.push({ key: 'all', title: 'All' });
-    console.log('PDM: Generated segments:', segments);
+    logger.log('PDM: Generated segments:', segments);
     return segments;
   }, [uniquePerkPeriods]);
   
@@ -310,7 +311,7 @@ const PerkDonutDisplayManagerInner = (
     );
   }
 
-  // console.log("DEBUG_PDM_INNER: Component body END - Before JSX. Calculated values:", { activeSegmentKey, activeDataIsPresent: !!activeData, toggleSegmentsCount: toggleSegments?.length, totalAnnualFees });
+  // logger.log("DEBUG_PDM_INNER: Component body END - Before JSX. Calculated values:", { activeSegmentKey, activeDataIsPresent: !!activeData, toggleSegmentsCount: toggleSegments?.length, totalAnnualFees });
 
   return (
     <View style={[styles.metricsContainer, { backgroundColor /* opacity: isRefreshing ? 0.6 : 1 <- removed */ }]}>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Card, CardPerk } from '../src/data/card-data';
 import { getUserActiveCards, getAllCardsData } from '../lib/database';
+import { logger } from '../utils/logger';
 
 interface UserCard {
   id: string;
@@ -43,13 +44,13 @@ export function useUserCards(): UserCardsHookResult {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.log('[useUserCards] No authenticated user. Returning empty cards.');
+        logger.log('[useUserCards] No authenticated user. Returning empty cards.');
         setUserCardsWithPerks([]);
         setIsLoading(false);
         return;
       }
 
-      // console.log('[useUserCards] Authenticated user, fetching from DB for user:', user.id);
+      // logger.log('[useUserCards] Authenticated user, fetching from DB for user:', user.id);
       const { data: userCardsFromDb, error: dbError } = await getUserActiveCards(user.id);
       if (dbError) {
         throw dbError;
@@ -65,7 +66,7 @@ export function useUserCards(): UserCardsHookResult {
           userCardsFromDb.map(dbCard => [dbCard.card_name, dbCard])
         );
 
-        // console.log('[useUserCards] Database records:', userCardsFromDb.map(card => ({
+        // logger.log('[useUserCards] Database records:', userCardsFromDb.map(card => ({
         //   name: card.card_name,
         //   renewal_date: card.renewal_date,
         //   status: card.status
@@ -87,7 +88,7 @@ export function useUserCards(): UserCardsHookResult {
         // Transform to final format with proper perk transformation
         finalCards = matchedCards.map(({ card, dbRecord }) => {
           const renewalDate = dbRecord.renewal_date ? new Date(dbRecord.renewal_date) : null;
-          // console.log('[useUserCards] Processing card:', {
+          // logger.log('[useUserCards] Processing card:', {
           //   name: card.name,
           //   dbRenewalDate: dbRecord.renewal_date,
           //   parsedRenewalDate: renewalDate,
@@ -109,10 +110,10 @@ export function useUserCards(): UserCardsHookResult {
           };
         });
 
-        console.log('[useUserCards] Processed cards with order:', 
+        logger.log('[useUserCards] Processed cards with order:', 
           finalCards.map(c => `${c.card.name} (${cardNameToDbRecord.get(c.card.name)?.display_order})`));
       } else {
-        console.log('[useUserCards] No active cards found in DB for authenticated user.');
+        logger.log('[useUserCards] No active cards found in DB for authenticated user.');
       }
 
       setUserCardsWithPerks(finalCards);
@@ -129,12 +130,12 @@ export function useUserCards(): UserCardsHookResult {
   }, []);
 
   useEffect(() => {
-    console.log(`[useUserCards] useEffect triggered. refreshKey: ${refreshKey}, initialLoadDone: ${initialLoadDoneRef.current}`);
+    logger.log(`[useUserCards] useEffect triggered. refreshKey: ${refreshKey}, initialLoadDone: ${initialLoadDoneRef.current}`);
     loadUserCards();
   }, [loadUserCards, refreshKey]);
 
   const refreshUserCards = useCallback(async () => {
-    console.log('[useUserCards] refreshUserCards called, incrementing refreshKey.');
+    logger.log('[useUserCards] refreshUserCards called, incrementing refreshKey.');
     setRefreshKey(prevKey => prevKey + 1);
   }, []);
 

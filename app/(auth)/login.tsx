@@ -37,6 +37,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../utils/logger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -235,10 +236,10 @@ export default function LoginScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('🧹 Clearing AsyncStorage...');
+              logger.log('🧹 Clearing AsyncStorage...');
               await AsyncStorage.clear();
-              console.log('✅ AsyncStorage cleared successfully');
-              console.log('🔄 Navigating to root...');
+              logger.log('✅ AsyncStorage cleared successfully');
+              logger.log('🔄 Navigating to root...');
               router.replace('/');
             } catch (e) {
               console.error('❌ Failed to reset storage:', e);

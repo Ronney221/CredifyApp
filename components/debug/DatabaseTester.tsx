@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { runAllTests, logTestResults, TestSuite } from '../../lib/test-database';
 import { cardService } from '../../lib/card-service';
+import { logger } from '../../utils/logger';
 
 interface DatabaseTesterProps {
   onClose?: () => void;
@@ -17,7 +18,7 @@ export function DatabaseTester({ onClose }: DatabaseTesterProps) {
     setResults(null);
     
     try {
-      console.log('🧪 Running database tests...');
+      logger.log('🧪 Running database tests...');
       const testResults = await runAllTests();
       setResults(testResults);
       logTestResults(testResults);

@@ -14,6 +14,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
 import { RootSiblingParent } from 'react-native-root-siblings';
 import { setupNotificationHandler } from '../utils/notification-handler';
+import { logger } from '../utils/logger';
 
 // Initialize notification handler
 setupNotificationHandler();
@@ -72,28 +73,28 @@ function AuthStateHandler() {
 
     const checkOnboardingStatus = async () => {
       try {
-        console.log('🔍 [Layout] Checking auth state...');
-        console.log('👤 User:', user ? 'exists' : 'none');
-        console.log('📍 Full segments array:', segments);
-        console.log('📍 Current segment:', segments[0]);
-        console.log('🏷️ inAuthGroup:', inAuthGroup, 'inOnboardingGroup:', inOnboardingGroup, 'inTabsGroup:', inTabsGroup, 'inLegalGroup:', inLegalGroup);
+        logger.log('🔍 [Layout] Checking auth state...');
+        logger.log('👤 User:', user ? 'exists' : 'none');
+        logger.log('📍 Full segments array:', segments);
+        logger.log('📍 Current segment:', segments[0]);
+        logger.log('🏷️ inAuthGroup:', inAuthGroup, 'inOnboardingGroup:', inOnboardingGroup, 'inTabsGroup:', inTabsGroup, 'inLegalGroup:', inLegalGroup);
         
         const hasCompletedOnboarding = await AsyncStorage.getItem('@hasCompletedOnboarding');
-        console.log('🎯 [Layout] hasCompletedOnboarding:', hasCompletedOnboarding);
+        logger.log('🎯 [Layout] hasCompletedOnboarding:', hasCompletedOnboarding);
 
         // If segments is undefined or empty, we're at the root
         if (!segments || segments.length === 0 || !segments[0]) {
-          console.log('➡️ [Layout] At root (segments empty/undefined), determining initial route...');
+          logger.log('➡️ [Layout] At root (segments empty/undefined), determining initial route...');
           if (!user) {
             if (hasCompletedOnboarding === null) {
-              console.log('➡️ [Layout] New user at root, routing to welcome');
+              logger.log('➡️ [Layout] New user at root, routing to welcome');
               router.replace('/(onboarding)/welcome');
             } else {
-              console.log('➡️ [Layout] Returning user at root, routing to login');
+              logger.log('➡️ [Layout] Returning user at root, routing to login');
               router.replace('/(auth)/login');
             }
           } else {
-            console.log('➡️ [Layout] Logged in user at root, routing to dashboard');
+            logger.log('➡️ [Layout] Logged in user at root, routing to dashboard');
             router.replace('/(tabs)/01-dashboard');
           }
           return;
@@ -103,29 +104,29 @@ function AuthStateHandler() {
           // Not signed in
           if (hasCompletedOnboarding === null) {
             // New user, hasn't completed onboarding
-            console.log('➡️ [Layout] New user, allowing onboarding or auth');
+            logger.log('➡️ [Layout] New user, allowing onboarding or auth');
             if (!inOnboardingGroup && !inAuthGroup && !inLegalGroup) {
               router.replace('/(onboarding)/welcome');
             }
           } else {
             // Returning user, has completed onboarding
-            console.log('➡️ [Layout] Returning user, routing to login');
+            logger.log('➡️ [Layout] Returning user, routing to login');
             if (!inAuthGroup && !inLegalGroup) {
               router.replace('/(auth)/login');
             }
           }
         } else {
           // Signed in
-          console.log('✅ [Layout] User is signed in');
+          logger.log('✅ [Layout] User is signed in');
           if (inAuthGroup || inOnboardingGroup) {
-            console.log('➡️ [Layout] User is in auth/onboarding group, routing to dashboard');
+            logger.log('➡️ [Layout] User is in auth/onboarding group, routing to dashboard');
             router.replace('/(tabs)/01-dashboard');
           } else if (inTabsGroup) {
-            console.log('✅ [Layout] User is already in tabs group, no redirect needed');
+            logger.log('✅ [Layout] User is already in tabs group, no redirect needed');
           } else if (inLegalGroup) {
-            console.log('✅ [Layout] User is in legal group, no redirect needed');
+            logger.log('✅ [Layout] User is in legal group, no redirect needed');
           } else {
-            console.log('❓ [Layout] User is in unknown group, segments:', segments);
+            logger.log('❓ [Layout] User is in unknown group, segments:', segments);
           }
         }
       } catch (error) {

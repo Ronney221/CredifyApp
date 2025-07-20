@@ -6,8 +6,9 @@ import { useRouter, Redirect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext'; // Adjust path
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 
-console.log("🔍 Runtime extras:", Constants.expoConfig!.extra);
+logger.log("🔍 Runtime extras:", Constants.expoConfig!.extra);
 
 export default function AppGateway() {
   const { session, loading: authLoading } = useAuth();
@@ -15,7 +16,7 @@ export default function AppGateway() {
 
   useEffect(() => {
     if (authLoading) return; // Wait for the auth session to load
-    console.log('📱 AppGateway: Auth session loaded');
+    logger.log('📱 AppGateway: Auth session loaded');
   }, [authLoading, session]);
 
   return null;

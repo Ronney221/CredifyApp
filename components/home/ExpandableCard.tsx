@@ -28,6 +28,7 @@ import PerkRow from './expandable-card/PerkRow';
 import CardHeader from './expandable-card/CardHeader';
 import { useOnboardingContext, useOnboarding } from '../../app/(onboarding)/_context/OnboardingContext';
 import OnboardingOverlay from './OnboardingOverlay';
+import { logger } from '../../utils/logger';
 
 // Add showToast function
 const showToast = (message: string, onUndo?: () => void) => {
@@ -60,10 +61,10 @@ const showToast = (message: string, onUndo?: () => void) => {
       color: '#FFFFFF',
     },
     onShow: () => {
-      console.log('Toast shown:', toastMessage);
+      logger.log('Toast shown:', toastMessage);
     },
     onHidden: () => {
-      console.log('Toast hidden:', toastMessage);
+      logger.log('Toast hidden:', toastMessage);
     },
     onPress: () => { 
       if (!isSwipeAction && onUndo) { 
@@ -130,7 +131,7 @@ const ExpandableCardComponent = ({
   onRenewalDatePress,
   onOpenLoggingModal,
 }: ExpandableCardProps) => {
-  console.log('[ExpandableCard] Rendering card:', {
+  logger.log('[ExpandableCard] Rendering card:', {
     cardName: card.name,
     renewalDate: renewalDate,
     cardRenewalDate: card.renewalDate,
@@ -488,7 +489,7 @@ const ExpandableCardComponent = ({
         options.push('Cancel Monthly Auto-Redemption');
         actions.push(async () => {
           try {
-            console.log(`[ExpandableCard] Attempting to cancel auto-redemption for ${perk.name}`);
+            logger.log(`[ExpandableCard] Attempting to cancel auto-redemption for ${perk.name}`);
             
             // Perform both DB operations: turn off auto-redeem AND delete current redemption
             const [autoResult, deleteResult] = await Promise.all([
@@ -502,7 +503,7 @@ const ExpandableCardComponent = ({
               console.error(`[ExpandableCard] Failed to disable auto-redemption for ${perk.name}:`, error);
               Alert.alert('Error', `Failed to disable auto-redemption: ${error instanceof Error ? error.message : 'Unknown error'}`);
             } else {
-              console.log(`[ExpandableCard] Successfully cancelled auto-redemption for ${perk.name}`);
+              logger.log(`[ExpandableCard] Successfully cancelled auto-redemption for ${perk.name}`);
               
               // Optimistically update UI to mark as available
               setPerkStatus?.(card.id, perk.id, 'available');
@@ -542,7 +543,7 @@ const ExpandableCardComponent = ({
                       // Mark as redeemed in DB
                       const { error: redeemError } = await trackPerkRedemption(user.id, cardId, perk, perk.value);
                       if (redeemError) {
-                        console.log('Note: Auto-redemption set but current month redemption may already exist', redeemError);
+                        logger.log('Note: Auto-redemption set but current month redemption may already exist', redeemError);
                       }
                     }
 

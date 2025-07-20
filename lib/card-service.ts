@@ -8,6 +8,7 @@ import {
   validateTransformedCard 
 } from './data-transform';
 import type { Card, Benefit } from '../src/data/card-data';
+import { logger } from '../utils/logger';
 
 /**
  * CardService - High-level API for fetching card data
@@ -36,12 +37,12 @@ export class CardService {
   public async initialize(forceRefresh = false): Promise<{ success: boolean; error?: any }> {
     // If already initializing, wait for the existing initialization to complete
     if (this._isLoading && this._initPromise) {
-      console.log('CardService already initializing, waiting for completion...');
+      logger.log('CardService already initializing, waiting for completion...');
       return await this._initPromise;
     }
 
     if (!forceRefresh && this._cards && this._appSchemes && this._multiChoiceConfig) {
-      console.log('CardService already initialized');
+      logger.log('CardService already initialized');
       return { success: true };
     }
 
@@ -64,7 +65,7 @@ export class CardService {
    */
   private async _performInitialization(forceRefresh: boolean): Promise<{ success: boolean; error?: any }> {
     try {
-      console.log('Initializing CardService from database...');
+      logger.log('Initializing CardService from database...');
       
       // Test database connection first
       const connectionTest = await testDatabaseConnection();
@@ -72,7 +73,7 @@ export class CardService {
         throw new Error(`Database connection failed: ${connectionTest.error}`);
       }
       
-      console.log('Database connection successful:', connectionTest.stats);
+      logger.log('Database connection successful:', connectionTest.stats);
 
       // Fetch all data in parallel
       const [cardsResult, appSchemesResult, multiChoiceResult] = await Promise.all([
@@ -98,7 +99,7 @@ export class CardService {
         const validation = validateTransformedCard(card as any);
         
         if (!validation.isValid) {
-          console.warn(`Card validation warnings for ${card.name}:`, validation.errors);
+          logger.warn(`Card validation warnings for ${card.name}:`, validation.errors);
         }
         
         return card;
@@ -109,7 +110,7 @@ export class CardService {
       this._appSchemes = createAppSchemesFromDb(appSchemesResult.data || []);
       this._multiChoiceConfig = createMultiChoiceConfigFromDb(multiChoiceResult.data || []);
 
-      console.log('CardService initialized successfully:', {
+      logger.log('CardService initialized successfully:', {
         cardsCount: this._cards.length,
         appSchemesCount: Object.keys(this._appSchemes).length,
         multiChoiceConfigCount: Object.keys(this._multiChoiceConfig).length,
@@ -255,7 +256,7 @@ export class CardService {
    * Refresh data from database
    */
   public async refresh(): Promise<{ success: boolean; error?: any }> {
-    console.log('Refreshing CardService data...');
+    logger.log('Refreshing CardService data...');
     this._cards = null;
     this._appSchemes = null;
     this._multiChoiceConfig = null;
@@ -279,7 +280,7 @@ export class CardService {
    * Clear cached data (useful for testing)
    */
   public clearCache() {
-    console.log('Clearing CardService cache...');
+    logger.log('Clearing CardService cache...');
     this._cards = null;
     this._appSchemes = null;
     this._multiChoiceConfig = null;

@@ -4,11 +4,12 @@
 /* eslint-disable import/no-unresolved */
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
+import { logger } from '../../../utils/logger';
 /* eslint-enable import/no-unresolved */
 
 serve(async (req) => {
   // Log incoming request details
-  console.log('[Edge Function] Incoming request:', {
+  logger.log('[Edge Function] Incoming request:', {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries())
@@ -16,14 +17,14 @@ serve(async (req) => {
 
   // Enable CORS for browser requests
   if (req.method === 'OPTIONS') {
-    console.log('[Edge Function] Handling CORS preflight request');
+    logger.log('[Edge Function] Handling CORS preflight request');
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     // Log environment check
     const openAIKey = Deno.env.get('OPENAI_API_KEY');
-    console.log('[Edge Function] Environment check:', {
+    logger.log('[Edge Function] Environment check:', {
       hasOpenAIKey: !!openAIKey,
       envKeys: Object.keys(Deno.env.toObject())
     });
@@ -36,7 +37,7 @@ serve(async (req) => {
     let requestBody;
     try {
       requestBody = await req.json();
-      console.log('[Edge Function] Request body parsed successfully');
+      logger.log('[Edge Function] Request body parsed successfully');
     } catch (error) {
       console.error('[Edge Function] Failed to parse request body:', error);
       throw new Error('Invalid request body');
@@ -53,7 +54,7 @@ serve(async (req) => {
     }
 
     // Log OpenAI request
-    console.log('[Edge Function] Sending request to OpenAI');
+    logger.log('[Edge Function] Sending request to OpenAI');
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -71,7 +72,7 @@ serve(async (req) => {
     });
 
     // Log OpenAI response status
-    console.log('[Edge Function] OpenAI response status:', openAIResponse.status);
+    logger.log('[Edge Function] OpenAI response status:', openAIResponse.status);
 
     if (!openAIResponse.ok) {
       const errorData = await openAIResponse.text();
@@ -84,7 +85,7 @@ serve(async (req) => {
     }
 
     const data = await openAIResponse.json();
-    console.log('[Edge Function] Successfully processed OpenAI response');
+    logger.log('[Edge Function] Successfully processed OpenAI response');
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

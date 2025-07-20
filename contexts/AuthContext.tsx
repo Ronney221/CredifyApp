@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { deleteUserAccount } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 // Define the context shape
 interface AuthContextType {
@@ -53,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth event:', event);
+        logger.log('Auth event:', event);
         setSession(session);
         setUser(session?.user ?? null);
 
