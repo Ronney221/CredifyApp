@@ -8,7 +8,6 @@ import {
   StatusBar,
   Animated,
   useWindowDimensions,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,8 +30,8 @@ const TOKENS = {
   },
   typography: {
     largeTitle: {
-      fontSize: 32,
-      lineHeight: 38,
+      fontSize: 26,
+      lineHeight: 32,
       letterSpacing: -1,
       fontWeight: '800' as const,
     },
@@ -55,8 +54,8 @@ const TOKENS = {
       fontWeight: '400' as const,
     },
     statNumber: {
-      fontSize: 36,
-      lineHeight: 40,
+      fontSize: 28,
+      lineHeight: 32,
       letterSpacing: -1,
       fontWeight: '800' as const,
     },
@@ -127,7 +126,7 @@ export default function WhyThisMattersScreen() {
         colors={['#ffffff', '#f9fafb']}
         style={styles.gradient}
       >
-        <View style={styles.scrollContent}>
+        <View style={styles.content}>
           <MotiView
             from={{ opacity: 0, translateY: 30 }}
             animate={{ opacity: 1, translateY: 0 }}
@@ -224,15 +223,16 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
   },
-  scrollContent: {
+  content: {
     flex: 1,
     paddingHorizontal: TOKENS.spacing.lg,
-    paddingTop: TOKENS.spacing.lg,
-    paddingBottom: TOKENS.spacing.lg,
+    paddingTop: TOKENS.spacing.md,
+    paddingBottom: TOKENS.spacing.xl,
+    justifyContent: 'space-between',
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: TOKENS.spacing.xl,
+    marginBottom: TOKENS.spacing.md,
   },
   title: {
     color: TOKENS.colors.text.primary,
@@ -249,13 +249,13 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   statisticsContainer: {
-    gap: TOKENS.spacing.md,
-    marginBottom: TOKENS.spacing.lg,
+    gap: TOKENS.spacing.xs,
+    marginBottom: TOKENS.spacing.sm,
   },
   statisticCard: {
     flexDirection: 'row',
     backgroundColor: TOKENS.colors.background.card,
-    padding: TOKENS.spacing.lg,
+    padding: TOKENS.spacing.sm,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
@@ -282,16 +282,16 @@ const styles = StyleSheet.create({
   },
   statDescription: {
     color: TOKENS.colors.text.secondary,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 18,
   },
   urgencyContainer: {
-    marginBottom: TOKENS.spacing.lg,
+    marginBottom: TOKENS.spacing.sm,
   },
   urgencyCard: {
     flexDirection: 'row',
     backgroundColor: '#FFF8F0',
-    padding: TOKENS.spacing.lg,
+    padding: TOKENS.spacing.sm,
     borderRadius: 14,
     alignItems: 'flex-start',
     borderWidth: 1,
@@ -303,8 +303,8 @@ const styles = StyleSheet.create({
   },
   urgencyText: {
     flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
     color: TOKENS.colors.text.primary,
   },
   urgencyHighlight: {

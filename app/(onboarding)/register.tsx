@@ -10,7 +10,6 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
-  ScrollView,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -239,11 +238,7 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         {/* Personalized Card Display with Continuous Animation */}
         <View style={styles.cardsContainer}>
           {selectedCardObjects.map((card, index) => (
@@ -381,7 +376,7 @@ export default function RegisterScreen() {
             </View>
           </View>
         </MotiView>
-      </ScrollView>
+      </View>
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
@@ -397,19 +392,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  scrollView: {
+  content: {
     flex: 1,
   },
-  scrollViewContent: {
-    flexGrow: 1,
-    paddingTop: 0,
-  },
   cardsContainer: {
-    height: 180,
+    height: 160,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 24,
+    marginTop: 16,
   },
   cardWrapper: {
     width: SCREEN_WIDTH * 0.4,
@@ -436,24 +427,24 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 16,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logoImage: {
-    width: 350,
-    height: 70,
-    marginBottom: 8,
+    width: 300,
+    height: 60,
+    marginBottom: 6,
     alignSelf: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     letterSpacing: -0.5,
   },
   subtitle: {
@@ -465,7 +456,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   authContainer: {
-    paddingTop: 16,
+    paddingTop: 12,
   },
   socialButton: {
     backgroundColor: '#ffffff',
@@ -508,11 +499,11 @@ const styles = StyleSheet.create({
   },
   testimonialContainer: {
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: 16,
     paddingHorizontal: 16,
   },
   testimonialText: {
-    fontSize: 17,
+    fontSize: 16,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
     fontWeight: '500',
