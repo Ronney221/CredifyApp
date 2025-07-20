@@ -438,7 +438,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: ComponentSpacing.cardInnerSpacing, // 12pt
     marginTop: Spacing.sm, // 8pt
     alignSelf: 'flex-start',
-    overflow: 'hidden',
+    minWidth: 155, // Ensure minimum width for full text including 'd'
+    flexShrink: 0, // Prevent shrinking
   },
   inlineHintText: {
     color: '#007AFF',
