@@ -29,15 +29,15 @@ const InsightsHeaderRight = () => {
 };
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const barStyle = colorScheme === 'dark' ? 'light' : 'dark';
+  // Remove dark mode - app doesn't support it yet
+  const barStyle = 'dark';
 
   // Define iOS pill-style tab bar
   const iosPillTabBarStyle = {
     backgroundColor: 'transparent',
     borderTopColor: 'transparent',
     position: 'absolute' as const,
-    bottom: 20, // Sits above home indicator
+    bottom: 16, // Sits closer to home indicator like iOS 26
     left: 20, // Good width for most devices
     right: 20,
     height: 56,
@@ -55,7 +55,7 @@ export default function TabLayout() {
   // Define iOS pill-style blur
   const iosPillBlurStyle = {
     position: 'absolute' as const,
-    bottom: 20,
+    bottom: 16,
     left: 20,
     right: 20,
     height: 56,
@@ -68,7 +68,7 @@ export default function TabLayout() {
   // Overlay style for white contrast
   const iosPillOverlayStyle = {
     ...iosPillBlurStyle,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(255,255,255,0.5)', // Reduced opacity for more transparency
     zIndex: 2,
   };
 
@@ -78,7 +78,7 @@ export default function TabLayout() {
     borderTopColor: '#e0e0e0',
     height: 52,
     position: 'absolute' as const,
-    bottom: 0, // Android safe area
+    bottom: 16, // Match iOS positioning
     left: 20,
     right: 20,
     paddingBottom: 0,
@@ -88,10 +88,21 @@ export default function TabLayout() {
     borderRadius: 30,
   };
 
-  // Animation for active tab icon
+  // Animation for active tab icon with spring physics
   function AnimatedTabIcon({ name, color, size, focused }: { name: any; color: string; size: number; focused: boolean }) {
+    const scaleValue = React.useRef(new Animated.Value(focused ? 1.15 : 1)).current;
+    
+    React.useEffect(() => {
+      Animated.spring(scaleValue, {
+        toValue: focused ? 1.15 : 1,
+        useNativeDriver: true,
+        tension: 300,
+        friction: 10,
+      }).start();
+    }, [focused]);
+    
     return (
-      <Animated.View style={{ transform: [{ scale: focused ? 1.12 : 1 }] }}>
+      <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
         <Ionicons name={name} size={size} color={color} />
       </Animated.View>
     );
@@ -100,14 +111,14 @@ export default function TabLayout() {
   return (
     <View style={{ flex: 1 }}>
       <StatusBar
-        style={barStyle}
+        style="dark"
         backgroundColor={Platform.OS === 'android' ? '#FAFAFE' : 'transparent'}
         translucent={true}
       />
       {Platform.OS === 'ios' && (
         <>
           <BlurView
-            intensity={20} // Increased from 50
+            intensity={80} // Increased for stronger blur effect
             tint={'light'}
             style={iosPillBlurStyle}
           />
@@ -130,9 +141,14 @@ export default function TabLayout() {
           },
           tabBarActiveTintColor: Colors.light.tint,
           tabBarInactiveTintColor: Platform.select({
-            ios: 'rgba(0, 0, 0, 0.65)', // Increased opacity for readability
+            ios: 'rgba(0, 0, 0, 0.5)',
             android: '#8e8e93',
           }),
+          tabBarShowLabel: true,
+          tabBarLabelStyle: {
+            fontSize: 10,
+            marginTop: -2,
+          },
         }}
       >
         <Tabs.Screen
