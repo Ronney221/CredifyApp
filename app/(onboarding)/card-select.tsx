@@ -66,6 +66,8 @@ export default function OnboardingCardSelectScreen() {
   const scaleValues = useRef(new Map<string, Animated.Value>()).current;
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
+  const [displayValue, setDisplayValue] = useState(0);
+  const valueOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loadCards = async () => {
@@ -112,26 +114,34 @@ export default function OnboardingCardSelectScreen() {
 
     if (isCurrentlySelected) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Animated.timing(cardScale, {
+      // Gentle settle animation for deselection
+      Animated.spring(cardScale, {
         toValue: 1,
-        duration: 200,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         useNativeDriver: true,
+        damping: 15,
+        mass: 1,
+        stiffness: 150,
+        velocity: -2,
       }).start();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Enhanced spring animation for selection with bounce
       Animated.sequence([
-        Animated.timing(cardScale, {
-          toValue: 1.1,
-          duration: 150,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        Animated.spring(cardScale, {
+          toValue: 1.08,
           useNativeDriver: true,
+          damping: 8,
+          mass: 0.8,
+          stiffness: 200,
+          velocity: 5,
         }),
-        Animated.timing(cardScale, {
-          toValue: 1,
-          duration: 200,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        Animated.spring(cardScale, {
+          toValue: 1.02,
           useNativeDriver: true,
+          damping: 12,
+          mass: 1,
+          stiffness: 180,
+          velocity: 0,
         }),
       ]).start();
     }
@@ -199,6 +209,62 @@ export default function OnboardingCardSelectScreen() {
     return { frequentlyOwned, allCardsByIssuer };
   }, [allCards, isLoadingCards]);
 
+  // Calculate total value of selected cards
+  const selectedCardObjects = useMemo(() => {
+    return selectedCards
+      .map((cardId: string) => allCards.find(card => card.id === cardId))
+      .filter((card): card is Card => card !== undefined);
+  }, [selectedCards, allCards]);
+
+  const totalFees = useMemo(() => {
+    return selectedCardObjects.reduce((total: number, card: Card) => {
+      return total + (card.annualFee || 0);
+    }, 0);
+  }, [selectedCardObjects]);
+
+  // Animate value changes
+  useEffect(() => {
+    if (totalFees > 0) {
+      // Show the value container if hidden
+      if (displayValue === 0) {
+        Animated.timing(valueOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
+
+      // Animate the value counter from current value to target
+      const targetValue = Math.round(totalFees);
+      const startValue = displayValue;
+      const duration = 400;
+      const steps = 20;
+      const increment = (targetValue - startValue) / steps;
+      let currentStep = 0;
+
+      const interval = setInterval(() => {
+        currentStep++;
+        const newValue = Math.round(startValue + (increment * currentStep));
+        setDisplayValue(newValue);
+
+        if (currentStep >= steps) {
+          clearInterval(interval);
+          setDisplayValue(targetValue);
+        }
+      }, duration / steps);
+
+      return () => clearInterval(interval);
+    } else {
+      // Hide value container when no cards selected
+      setDisplayValue(0);
+      Animated.timing(valueOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [totalFees, valueOpacity]); // Changed from totalValue to totalFees
+
   const subtitleAnimationDelay = 50;
   const listAnimationDelay = subtitleAnimationDelay + 100;
 
@@ -237,6 +303,25 @@ export default function OnboardingCardSelectScreen() {
           </Text>
         </MotiView>
       </View>
+
+      {/* Running Total Value Display */}
+      <Animated.View 
+        style={[
+          styles.valueContainer,
+          {
+            opacity: valueOpacity,
+            transform: [{
+              translateY: valueOpacity.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-20, 0],
+              })
+            }]
+          }
+        ]}
+      >
+        <Text style={styles.valueLabel}>You're Paying Annually</Text>
+        <Text style={styles.valueAmount}>${displayValue.toLocaleString()}</Text>
+      </Animated.View>
 
       <MotiView
         from={{ opacity: 0, translateY: 12 }}
@@ -422,5 +507,30 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     marginRight: 8,
+  },
+  valueContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFE5E5',
+  },
+  valueLabel: {
+    fontSize: 14,
+    color: Colors.light.secondaryLabel,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  valueAmount: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#DC3545',
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
 }); 

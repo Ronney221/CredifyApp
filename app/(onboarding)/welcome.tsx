@@ -243,6 +243,29 @@ export default function WelcomeScreen() {
             >
               <Text style={styles.getStartedText}>Let&apos;s Do the Math</Text>
             </TouchableOpacity>
+            
+            <MotiView
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ ...TOKENS.animation.timing, delay: 200 }}
+              style={styles.signInContainer}
+            >
+              <TouchableOpacity
+                style={styles.signInButton}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  router.replace('/(auth)/login');
+                }}
+                activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel="Already have an account? Sign In"
+                accessibilityHint="Opens sign in screen for existing users"
+              >
+                <Text style={styles.signInText}>
+                  Already have an account? <Text style={styles.signInLink}>Sign In</Text>
+                </Text>
+              </TouchableOpacity>
+            </MotiView>
           </MotiView>
         )}
       </LinearGradient>
@@ -316,7 +339,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: TOKENS.spacing.xl,
-    paddingBottom: Platform.OS === 'ios' ? TOKENS.spacing.xl : TOKENS.spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? TOKENS.spacing.lg : TOKENS.spacing.md,
   },
   getStartedButton: {
     backgroundColor: Colors.light.tint,
@@ -333,5 +356,23 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     ...TOKENS.typography.headline,
     letterSpacing: -0.2,
+  },
+  signInContainer: {
+    alignItems: 'center',
+    marginTop: TOKENS.spacing.sm,
+  },
+  signInButton: {
+    paddingVertical: TOKENS.spacing.sm,
+    paddingHorizontal: TOKENS.spacing.md,
+  },
+  signInText: {
+    fontSize: 15,
+    color: TOKENS.colors.text.secondary,
+    textAlign: 'center',
+    letterSpacing: -0.1,
+  },
+  signInLink: {
+    color: Colors.light.tint,
+    fontWeight: '600',
   },
 }); 
