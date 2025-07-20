@@ -162,28 +162,9 @@ const CardHeader: React.FC<CardHeaderProps> = ({
   };
 
   const renderRenewalDatePrompt = () => {
-    // console.log('[CardHeader] renderRenewalDatePrompt:', {
-    //   cardName: card.name,
-    //   renewalDate: renewalDate,
-    //   hasHandler: !!onRenewalDatePress,
-    //   renewalDateType: renewalDate ? typeof renewalDate : 'null',
-    //   isDateObject: renewalDate instanceof Date
-    // });
-
-    if (renewalDate || !onRenewalDatePress) return null;
-
-    return (
-      <TouchableOpacity 
-        onPress={onRenewalDatePress}
-        style={styles.renewalPrompt}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="calendar-outline" size={14} color={systemBlue} />
-        <Text style={styles.renewalPromptText}>
-          Never miss an annual fee
-        </Text>
-      </TouchableOpacity>
-    );
+    // Removed persistent "never miss annual fee" button for better UX
+    // Will be replaced with contextual notifications when annual fee approaches
+    return null;
   };
 
   return (
@@ -197,7 +178,7 @@ const CardHeader: React.FC<CardHeaderProps> = ({
           <Image source={card.image} style={styles.cardImage} />
         </View>
         <View style={styles.cardTextContainer}>
-          <Text style={styles.cardName}>{card.name}</Text>
+          <Text style={styles.cardName} numberOfLines={1}>{card.name}</Text>
           <View style={styles.cardSubtitle}>
              {renderSubtitle()}
           </View>

@@ -163,6 +163,7 @@ export const CardRow: React.FC<CardRowProps> = ({
     <TouchableOpacity
       style={[
         styles.cardRow,
+        mode === 'onboard' && styles.cardRowOnboard,
         isSelected && mode === 'onboard' && styles.cardRowSelected,
         isSelectedForDeletion && mode === 'manage' && styles.cardRowSelectedForDeletion,
         disabled && styles.cardRowDisabled,
@@ -255,6 +256,9 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
     }),
+  },
+  cardRowOnboard: {
+    marginHorizontal: 16,
   },
   cardRowSelected: {
     backgroundColor: '#eef7ff',
