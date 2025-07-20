@@ -40,6 +40,10 @@ export default function HelpFAQScreen() {
 
   const faqs = [
     {
+      question: 'How do I use swipe gestures on perks?',
+      answer: 'Credify uses intuitive swipe gestures to quickly manage your perks:\n\n• Swipe RIGHT on available perks → Mark as used/redeemed\n• Swipe LEFT on redeemed perks → Mark as available (undo)\n\nEach swipe reveals action buttons that you can tap. You can also tap any perk to see all available actions in a detailed view.',
+    },
+    {
       question: 'What is Credify and how does it work?',
       answer: 'Credify is your AI-powered command center for credit card perks. It helps you track, manage, and maximize your credit card benefits in one place. The app shows a unified dashboard of all your available benefits—monthly, quarterly, and annual—and helps ensure you get every dollar of value from your annual fees.',
     },
