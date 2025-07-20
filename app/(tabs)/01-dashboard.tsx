@@ -54,6 +54,8 @@ import { useSharedValue, useAnimatedScrollHandler, runOnJS } from 'react-native-
 import UserCardItem from '../../components/home/UserCardItem';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
 import UsernameRequirementModal from '../../components/profile/UsernameRequirementModal';
+import { dashboardLogger } from '../../utils/logger';
+import { PERFORMANCE_CONFIGS, keyExtractors, PerformanceMonitor } from '../../utils/performance';
 
 // Import notification functions
 import {
@@ -124,10 +126,10 @@ const showToast = (message: string, onUndo?: (() => void) | null) => {
       color: '#FFFFFF',
     },
     onShow: () => {
-      console.log('Toast shown:', toastMessage);
+      dashboardLogger.log('Toast shown:', toastMessage);
     },
     onHidden: () => {
-      console.log('Toast hidden:', toastMessage);
+      dashboardLogger.log('Toast hidden:', toastMessage);
     },
     onPress: () => { 
       if (onUndo) { 
@@ -195,9 +197,8 @@ const EXPANDED_HEADER_CONTENT_HEIGHT = 60; // Increased height for better visual
 const COLLAPSED_HEADER_CONTENT_HEIGHT = 20;
 const HEADER_SCROLL_DISTANCE = EXPANDED_HEADER_CONTENT_HEIGHT - COLLAPSED_HEADER_CONTENT_HEIGHT;
 
-// Constants for FlatList card rendering & expansion
-const ESTIMATED_COLLAPSED_CARD_HEIGHT = 109; // Updated from 96, based on Amex Gold (larger) collapsed height
-const ESTIMATED_EXPANDED_CARD_HEIGHT = 555; // Updated from 316, based on Amex Gold (max observed) expanded height
+// Use optimized performance constants
+const { CARD_LIST } = PERFORMANCE_CONFIGS;
 
 // Define the type for a single item in the cards list - MOVED HERE and defined explicitly
 interface CardListItem {
@@ -271,7 +272,7 @@ export default function Dashboard() {
         const hintSeen = await AsyncStorage.getItem(SWIPE_HINT_STORAGE_KEY);
         setUserHasSeenSwipeHint(hintSeen === 'true');
       } catch (error) {
-        console.error('Error loading swipe hint status:', error);
+        dashboardLogger.error('Error loading swipe hint status:', error);
       }
     };
     loadInitialData();
@@ -527,7 +528,7 @@ export default function Dashboard() {
 
         await checkNotificationStatus();
       } catch (e) {
-        console.error("[Dashboard] Failed to load data from AsyncStorage.", e);
+        dashboardLogger.error('Failed to load data from AsyncStorage.', e);
         if (isSubscribed) {
           setUniquePerkPeriodsForToggle([]); // Default on error
         }
@@ -571,7 +572,7 @@ export default function Dashboard() {
             await AsyncStorage.setItem(UNIQUE_PERK_PERIODS_STORAGE_KEY, JSON.stringify(sortedPeriods));
             // console.log('[Dashboard] Saved unique perk periods to AsyncStorage:', sortedPeriods);
           } catch (e) {
-            console.error("[Dashboard] Failed to save unique perk periods to AsyncStorage:", e);
+            dashboardLogger.error('Failed to save unique perk periods to AsyncStorage:', e);
           }
         };
         savePeriods();
@@ -590,7 +591,7 @@ export default function Dashboard() {
         await AsyncStorage.setItem(SWIPE_HINT_STORAGE_KEY, JSON.stringify(true));
         setUserHasSeenSwipeHint(true);
       } catch (e) {
-        console.error("Failed to save swipe hint status.", e);
+        dashboardLogger.error('Failed to save swipe hint status.', e);
       }
     }
   };
@@ -642,7 +643,7 @@ export default function Dashboard() {
             donutDisplayRef.current.refresh();
           }
         } catch (error) {
-          console.warn('[Dashboard] Focus effect refresh failed:', error);
+          dashboardLogger.error('Focus effect refresh failed:', error);
         }
       };
       
@@ -678,7 +679,7 @@ export default function Dashboard() {
         prefs = { ...defaultNotificationPreferences, ...JSON.parse(jsonValue) };
       }
     } catch (e) {
-      console.error("[Dashboard] Failed to load notification prefs for scheduling.", e);
+      dashboardLogger.error('Failed to load notification prefs for scheduling.', e);
     }
 
     await cancelNotification();
@@ -705,7 +706,7 @@ export default function Dashboard() {
           }
         }
       } catch (error) {
-        console.error("Error scheduling card reminders:", error);
+        dashboardLogger.error('Error scheduling card reminders:', error);
       }
     }
   };
@@ -775,7 +776,7 @@ export default function Dashboard() {
       await perkRedemptionMarkRedeemed(cardWithPerk.card.id, perkToRedeem, amount);
       
     } catch (error) {
-      console.error('Error saving log:', error);
+      dashboardLogger.error('Error saving log:', error);
       Alert.alert('Error', 'Failed to save usage log.');
     } finally {
       setIsUpdatingPerk(false);
@@ -804,14 +805,14 @@ export default function Dashboard() {
 
     // Only show welcome back for available or partially redeemed perks
     if (selectedPerk.status === 'available' || selectedPerk.status === 'partially_redeemed') {
-      console.log('🎯 Setting up AppState listener for perk:', perkInfo.name, 'Current AppState:', appState.current);
+      dashboardLogger.log('🎯 Setting up AppState listener for perk:', perkInfo.name, 'Current AppState:', appState.current);
       
       let hasShownWelcomeBack = false;
       let wasInBackground = false;
 
       // Set up a one-time AppState change listener
       const handleAppStateChange = (nextAppState: AppStateStatus) => {
-        console.log('🔄 AppState changed:', { 
+        dashboardLogger.log('🔄 AppState changed:', { 
           current: appState.current, 
           next: nextAppState,
           perkName: perkInfo.name,
@@ -821,14 +822,14 @@ export default function Dashboard() {
 
         // Track when app goes to background or inactive
         if (nextAppState === 'background' || nextAppState === 'inactive') {
-          console.log('📱 App went to background/inactive, setting wasInBackground = true');
+          dashboardLogger.log('📱 App went to background/inactive, setting wasInBackground = true');
           wasInBackground = true;
           return;
         }
 
         // Show welcome back snackbar when coming back to active state
         if (nextAppState === 'active' && wasInBackground && !hasShownWelcomeBack) {
-          console.log('🎉 Showing welcome back for:', perkInfo.name);
+          dashboardLogger.log('🎉 Showing welcome back for:', perkInfo.name);
           hasShownWelcomeBack = true;
           
           // Remove the listener since we only want to handle the first return to the app
@@ -838,22 +839,22 @@ export default function Dashboard() {
           setWelcomeBackPerk(selectedPerk);
           setShowWelcomeBackSnackbar(true);
         } else if (nextAppState === 'active' && wasInBackground && hasShownWelcomeBack) {
-          console.log('🔄 App returned to active but welcome back already shown');
+          dashboardLogger.log('🔄 App returned to active but welcome back already shown');
         } else if (nextAppState === 'active' && !wasInBackground) {
-          console.log('🔄 App became active but was never in background');
+          dashboardLogger.log('🔄 App became active but was never in background');
         }
         appState.current = nextAppState;
       };
 
       const subscription = AppState.addEventListener('change', handleAppStateChange);
-      console.log('✅ AppState listener registered successfully');
+      dashboardLogger.log('✅ AppState listener registered successfully');
     }
 
     try {
       // Always attempt to open the app target
-      console.log('🚀 About to open perk target:', perkToOpenAppFor.name);
+      dashboardLogger.log('🚀 About to open perk target:', perkToOpenAppFor.name);
       const openResult = await openPerkTarget(perkToOpenAppFor);
-      console.log('📱 App opening result:', openResult);
+      dashboardLogger.log('📱 App opening result:', openResult);
       
       if (openResult.success && Platform.OS === 'ios') {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -862,12 +863,12 @@ export default function Dashboard() {
       // If we used a fallback (WebBrowser), show the snackbar immediately
       // since WebBrowser doesn't trigger AppState transitions
       if (openResult.success && openResult.usedFallback) {
-        console.log('🌐 Used fallback URL, showing welcome back snackbar immediately');
+        dashboardLogger.log('🌐 Used fallback URL, showing welcome back snackbar immediately');
         setWelcomeBackPerk(selectedPerk);
         setShowWelcomeBackSnackbar(true);
       }
     } catch (openErrorOrDbError) {
-      console.error('Error in perk action flow:', openErrorOrDbError);
+      dashboardLogger.error('Error in perk action flow:', openErrorOrDbError);
       handleInfoSheetDismiss();
       Alert.alert('Operation Failed', 'An error occurred while opening the app.');
     }
@@ -905,7 +906,7 @@ export default function Dashboard() {
         );
 
         if (error) {
-            console.error('Error tracking redemption in DB:', error);
+            dashboardLogger.error('Error tracking redemption in DB:', error);
             Alert.alert('Error', 'Failed to save redemption.');
             setIsUpdatingPerk(false); // Turn off loading
             return;
@@ -926,7 +927,7 @@ export default function Dashboard() {
         }
 
     } catch (err) {
-        console.error('Unexpected error marking perk as redeemed:', err);
+        dashboardLogger.error('Unexpected error marking perk as redeemed:', err);
         Alert.alert('Error', 'An unexpected error occurred.');
     } finally {
         // --- End loading state ---
@@ -949,7 +950,7 @@ export default function Dashboard() {
         const { error } = await deletePerkRedemption(user.id, selectedPerk.definition_id);
 
         if (error) {
-            console.error('Error deleting redemption in DB:', error);
+            dashboardLogger.error('Error deleting redemption in DB:', error);
             Alert.alert('Error', 'Failed to mark perk as available.');
             setIsUpdatingPerk(false); // Turn off loading
             return;
@@ -962,7 +963,7 @@ export default function Dashboard() {
         showToast(`${selectedPerk.name} marked as available.`);
 
     } catch (err) {
-        console.error('Unexpected error marking perk as available:', err);
+        dashboardLogger.error('Unexpected error marking perk as available:', err);
         Alert.alert('Error', 'An unexpected error occurred.');
     } finally {
         // --- End loading state ---
@@ -986,7 +987,7 @@ export default function Dashboard() {
       setUserHasSeenSwipeHint(false);
       Alert.alert('Success', 'Swipe hint reset. Coach mark will show again.');
     } catch (e) {
-      console.error("Failed to reset swipe hint.", e);
+      dashboardLogger.error('Failed to reset swipe hint.', e);
       Alert.alert('Error', 'Failed to reset swipe hint.');
     }
   };
@@ -1042,7 +1043,7 @@ export default function Dashboard() {
         });
         setRenewalDates(parsedDates);
       } catch (error) {
-        console.error('Error parsing renewal dates:', error);
+        dashboardLogger.error('Error parsing renewal dates:', error);
       }
     }
   }, [params.renewalDates]);
@@ -1057,7 +1058,7 @@ export default function Dashboard() {
 
   // Map cards to CardListItems with all required properties
   const cardListItems: CardListItem[] = useMemo(() => cardsListData.map((cardData, index) => {
-    console.log('[Dashboard] Mapping card to list item:', {
+    dashboardLogger.log('Mapping card to list item:', {
       cardName: cardData.card.name,
       cardRenewalDate: cardData.card.renewalDate,
       stateRenewalDate: renewalDates[cardData.card.id]
@@ -1357,7 +1358,7 @@ export default function Dashboard() {
             ref={flatListRef}
             data={cardListItems}
             renderItem={renderExpandableCardItem}
-            keyExtractor={(item) => item.card.id}
+            keyExtractor={keyExtractors.cardList}
             ListHeaderComponent={listHeaderElement}
             ListFooterComponent={listFooterElement}
             contentContainerStyle={[
@@ -1369,6 +1370,12 @@ export default function Dashboard() {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             extraData={activeCardId}
+            // Performance optimizations
+            removeClippedSubviews={CARD_LIST.REMOVE_CLIPPED_SUBVIEWS}
+            maxToRenderPerBatch={CARD_LIST.MAX_TO_RENDER_PER_BATCH}
+            windowSize={CARD_LIST.WINDOW_SIZE}
+            initialNumToRender={CARD_LIST.INITIAL_NUM_TO_RENDER}
+            updateCellsBatchingPeriod={CARD_LIST.UPDATE_CELLS_BATCH_PERIOD}
           />
         ) : (
           <ScrollView 
