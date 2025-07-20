@@ -12,6 +12,7 @@ import {
   TextStyle,
   Animated,
   Easing,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
+import { SocialProof } from '../../components/onboarding/SocialProof';
 
 // Design tokens
 const TOKENS = {
@@ -36,9 +38,9 @@ const TOKENS = {
   },
   typography: {
     largeTitle: {
-      fontSize: 32,
-      lineHeight: 40,
-      letterSpacing: -0.5,
+      fontSize: 36,
+      lineHeight: 42,
+      letterSpacing: -1.2,
       fontWeight: '800' as const,
     },
     title1: {
@@ -60,8 +62,8 @@ const TOKENS = {
       fontWeight: '400' as const,
     },
     feature: {
-      fontSize: 16,
-      lineHeight: 22,
+      fontSize: 15,
+      lineHeight: 20,
       letterSpacing: -0.2,
       fontWeight: '500' as const,
     },
@@ -91,12 +93,13 @@ const TOKENS = {
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const lottieRef = useRef<LottieView>(null);
   const [isReducedMotion, setIsReducedMotion] = React.useState(false);
   const [showCTA, setShowCTA] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     // Check for reduced motion preference
@@ -150,81 +153,102 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
       <LinearGradient
-        colors={['#ffffff', '#f8f9fa']}
+        colors={['#ffffff', '#f9fafb']}
         style={styles.gradient}
       >
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={TOKENS.animation.timing}
-          style={styles.contentContainer}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <View style={styles.headerContainer}>
-            <Text 
-              style={[TOKENS.typography.largeTitle, styles.title]}
-              accessibilityRole="header"
-            >
-              Stop Donating Money{'\n'}to the Banks
-            </Text>
-            <Text 
-              style={[TOKENS.typography.body, styles.subtitle]}
-              accessibilityRole="text"
-            >
-              Run a 60-second audit and uncover every dollar your cards already owe you
-            </Text>
-          </View>
-
-          <Animated.View
-            style={[
-              styles.animationContainer,
-              {
-                transform: [{ scale: scaleAnim }],
-                opacity: opacityAnim,
-              }
-            ]}
-          >
-            <LottieView
-              ref={lottieRef}
-              source={require('../../assets/animations/credit_card_animation.json')}
-              autoPlay={true}
-              loop={true}
-              style={styles.animation}
-              speed={isReducedMotion ? 0.5 : 1}
-              renderMode="HARDWARE"
-              cacheComposition={true}
-            />
-          </Animated.View>
-
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
             animate={{ opacity: 1, translateY: 0 }}
-            transition={{ ...TOKENS.animation.timing, delay: 200 }}
-            style={styles.featuresContainer}
+            transition={TOKENS.animation.timing}
+            style={styles.contentContainer}
           >
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.checkmark} />
-              <Text style={[TOKENS.typography.feature, styles.featureText]}>
-                Track your credit card benefits
+            <View style={styles.headerContainer}>
+              <Text 
+                style={[TOKENS.typography.largeTitle, styles.title]}
+                accessibilityRole="header"
+              >
+                Stop Donating{' '}
+                <Text style={styles.titleHighlight}>Money</Text>
+                {'\n'}to the Banks
+              </Text>
+              <Text 
+                style={[TOKENS.typography.body, styles.subtitle]}
+                accessibilityRole="text"
+              >
+                Run a 60-second audit and uncover every dollar your cards already owe you
               </Text>
             </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.checkmark} />
-              <Text style={[TOKENS.typography.feature, styles.featureText]}>
-                Get notified about renewals
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.light.tint} style={styles.checkmark} />
-              <Text style={[TOKENS.typography.feature, styles.featureText]}>
-                Maximize your rewards
-              </Text>
-            </View>
+
+            <Animated.View
+              style={[
+                styles.animationContainer,
+                {
+                  transform: [{ scale: scaleAnim }],
+                  opacity: opacityAnim,
+                }
+              ]}
+            >
+              <LottieView
+                ref={lottieRef}
+                source={require('../../assets/animations/credit_card_animation.json')}
+                autoPlay={true}
+                loop={true}
+                style={styles.animation}
+                speed={isReducedMotion ? 0.5 : 1}
+                renderMode="HARDWARE"
+                cacheComposition={true}
+              />
+            </Animated.View>
+
+            <SocialProof variant="welcome" delay={400} />
+
+            <MotiView
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ ...TOKENS.animation.timing, delay: 600 }}
+              style={styles.featuresContainer}
+            >
+              <View style={styles.featureRow}>
+                <View style={styles.featureItem}>
+                  <View style={styles.featureIconContainer}>
+                    <Ionicons name="checkmark-circle" size={18} color={Colors.light.tint} />
+                  </View>
+                  <Text style={[TOKENS.typography.feature, styles.featureText]}>
+                    Track all perks
+                  </Text>
+                </View>
+                <View style={styles.featureItem}>
+                  <View style={styles.featureIconContainer}>
+                    <Ionicons name="notifications" size={18} color={Colors.light.tint} />
+                  </View>
+                  <Text style={[TOKENS.typography.feature, styles.featureText]}>
+                    Never miss deadlines
+                  </Text>
+                </View>
+                <View style={styles.featureItem}>
+                  <View style={styles.featureIconContainer}>
+                    <Ionicons name="trending-up" size={18} color={Colors.light.tint} />
+                  </View>
+                  <Text style={[TOKENS.typography.feature, styles.featureText]}>
+                    Maximize rewards
+                  </Text>
+                </View>
+              </View>
+            </MotiView>
+
           </MotiView>
-        </MotiView>
+        </ScrollView>
 
         {showCTA && (
           <MotiView
@@ -269,27 +293,32 @@ export default function WelcomeScreen() {
           </MotiView>
         )}
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop:32,
     flex: 1,
     backgroundColor: '#ffffff',
   },
   gradient: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   contentContainer: {
     flex: 1,
     paddingHorizontal: TOKENS.spacing.lg,
-    paddingTop: TOKENS.spacing.sm,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: TOKENS.spacing.md,
+    marginBottom: TOKENS.spacing.xs,
     paddingTop: 0,
   },
   title: {
@@ -297,65 +326,83 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: TOKENS.spacing.sm,
   },
+  titleHighlight: {
+    color: Colors.light.tint,
+  },
   subtitle: {
     color: TOKENS.colors.text.secondary,
     textAlign: 'center',
-    paddingHorizontal: TOKENS.spacing.lg,
-    opacity: 0.9,
-    marginBottom: TOKENS.spacing.sm,
+    paddingHorizontal: TOKENS.spacing.md,
+    opacity: 0.8,
+    marginBottom: 0,
   },
   animationContainer: {
     alignItems: 'center',
-    marginBottom: TOKENS.spacing.md,
-    height: 280,
-    marginTop: -TOKENS.spacing.sm,
+    justifyContent: 'center',
+    height: 200,
+    marginVertical: 0,
     transform: [{ perspective: 1000 }],
   },
   animation: {
-    width: '140%',
-    height: '100%',
-    marginTop: -TOKENS.spacing.md,
+    width: '150%',
+    height: '150%',
     transform: [{ perspective: 1000 }],
   },
   featuresContainer: {
-    marginBottom: TOKENS.spacing.lg,
-    paddingHorizontal: TOKENS.spacing.md,
+    marginTop: TOKENS.spacing.md,
+    marginBottom: TOKENS.spacing.xl,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: TOKENS.spacing.xs,
   },
   featureItem: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
-    marginBottom: TOKENS.spacing.sm,
-    backgroundColor: TOKENS.colors.background.feature,
-    padding: TOKENS.spacing.md,
-    borderRadius: 12,
+    paddingHorizontal: TOKENS.spacing.xs,
   },
-  checkmark: {
-    marginRight: TOKENS.spacing.sm,
+  featureIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.light.tint + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: TOKENS.spacing.xs,
   },
   featureText: {
-    color: TOKENS.colors.text.primary,
-    opacity: 0.9,
-    flex: 1,
+    color: TOKENS.colors.text.secondary,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 16,
   },
   footer: {
-    paddingHorizontal: TOKENS.spacing.xl,
-    paddingBottom: Platform.OS === 'ios' ? TOKENS.spacing.lg : TOKENS.spacing.md,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: TOKENS.spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 24,
+    paddingTop: TOKENS.spacing.md,
+    backgroundColor: 'transparent',
   },
   getStartedButton: {
     backgroundColor: Colors.light.tint,
-    paddingVertical: TOKENS.spacing.lg,
-    borderRadius: 16,
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: 'center',
     shadowColor: Colors.light.tint,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   getStartedText: {
     color: '#ffffff',
-    ...TOKENS.typography.headline,
-    letterSpacing: -0.2,
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: -0.3,
   },
   signInContainer: {
     alignItems: 'center',
