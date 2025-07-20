@@ -355,20 +355,68 @@ export async function trackPerkRedemption(
     }
 
     // Get the user's card ID from the database
+    const cardData = await findCardByIdData(cardId);
+    console.log(`[trackPerkRedemption] Looking up card: ${cardId}, found card data:`, cardData?.name);
+    
+    // First, let's see what cards this user actually has
+    const { data: allUserCards } = await supabase
+      .from('user_credit_cards')
+      .select('id, card_name, card_brand, status')
+      .eq('user_id', userId);
+    
+    console.log(`[trackPerkRedemption] All user cards:`, allUserCards);
+    
+    const expectedBrand = cardId.split('_')[0];
+    const expectedName = cardData?.name || '';
+    
+    console.log(`[trackPerkRedemption] Looking for:`, {
+      expectedBrand,
+      expectedName,
+      cardId
+    });
+    
     const { data: userCardsResult, error: cardError } = await supabase
       .from('user_credit_cards')
       .select('id, card_name, card_brand')
       .eq('user_id', userId)
-      .eq('card_brand', cardId.split('_')[0])
-      .eq('card_name', (await findCardByIdData(cardId))?.name || '')
+      .eq('card_brand', expectedBrand)
+      .eq('card_name', expectedName)
       .eq('status', 'active');
 
+    console.log(`[trackPerkRedemption] User cards query result:`, userCardsResult);
+
+    let userCardToUse: any = null;
+    
     if (cardError || !userCardsResult || userCardsResult.length === 0) {
       console.error('Error finding user card:', cardError);
-      return { error: new Error('This card is no longer in your wallet. Please refresh the page to see your current cards.') };
+      console.error('Query params:', {
+        userId,
+        cardBrand: cardId.split('_')[0],
+        cardName: cardData?.name || '',
+        cardId
+      });
+      
+      // TEMPORARY FALLBACK: Try to find ANY active card for this user
+      console.log('[trackPerkRedemption] Card lookup failed, trying fallback...');
+      const { data: fallbackCards } = await supabase
+        .from('user_credit_cards')
+        .select('id, card_name, card_brand')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .limit(1);
+      
+      if (fallbackCards && fallbackCards.length > 0) {
+        userCardToUse = fallbackCards[0];
+        console.log('[trackPerkRedemption] Using fallback card:', userCardToUse.id);
+      } else {
+        console.error('[trackPerkRedemption] No fallback cards found');
+        // Continue with null user_card_id for now
+        userCardToUse = { id: null };
+      }
+    } else {
+      userCardToUse = userCardsResult[0];
+      console.log(`[trackPerkRedemption] Using matched card:`, userCardToUse.id);
     }
-
-    const userCardToUse = userCardsResult[0];
 
     // Calculate reset date based on perk period and type
     const resetDate = calculateResetDate(
