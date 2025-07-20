@@ -222,24 +222,32 @@ export default function LoginScreen() {
   };
 
   const handleResetStorage = async () => {
-    try {
-      console.log('🧹 Clearing AsyncStorage...');
-      await AsyncStorage.clear();
-      console.log('✅ AsyncStorage cleared successfully');
-      
-      Alert.alert('Success', 'Local storage has been reset', [
+    Alert.alert(
+      'Show Tutorial Again?',
+      'This will clear your local settings and show the onboarding tutorial.',
+      [
         {
-          text: 'OK',
-          onPress: () => {
-            console.log('🔄 Navigating to root...');
-            router.replace('/');
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Show Tutorial',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🧹 Clearing AsyncStorage...');
+              await AsyncStorage.clear();
+              console.log('✅ AsyncStorage cleared successfully');
+              console.log('🔄 Navigating to root...');
+              router.replace('/');
+            } catch (e) {
+              console.error('❌ Failed to reset storage:', e);
+              Alert.alert('Error', 'Failed to reset tutorial settings');
+            }
           }
         }
-      ]);
-    } catch (e) {
-      console.error('❌ Failed to reset storage:', e);
-      Alert.alert('Error', 'Failed to reset storage');
-    }
+      ]
+    );
   };
 
   const dismissKeyboard = () => {
@@ -254,7 +262,7 @@ export default function LoginScreen() {
         style={styles.resetButton}
         onPress={handleResetStorage}
       >
-        <Ionicons name="refresh" size={20} color={Colors.light.secondaryLabel} />
+        <Ionicons name="help-circle-outline" size={20} color={Colors.light.secondaryLabel} />
       </TouchableOpacity>
 
       <ScrollView 

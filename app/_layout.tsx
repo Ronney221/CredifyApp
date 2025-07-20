@@ -103,8 +103,8 @@ function AuthStateHandler() {
           // Not signed in
           if (hasCompletedOnboarding === null) {
             // New user, hasn't completed onboarding
-            console.log('➡️ [Layout] New user, routing to welcome');
-            if (!inOnboardingGroup && !inLegalGroup) {
+            console.log('➡️ [Layout] New user, allowing onboarding or auth');
+            if (!inOnboardingGroup && !inAuthGroup && !inLegalGroup) {
               router.replace('/(onboarding)/welcome');
             }
           } else {
