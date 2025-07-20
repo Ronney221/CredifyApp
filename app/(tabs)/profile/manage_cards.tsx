@@ -44,66 +44,7 @@ export default function ManageCardsScreen() {
   const params = useLocalSearchParams<{ 
     highlightCardId?: string; 
     backRoute?: string;
-    mode?: string;
-    source?: string;
-    intent?: string;
-    currentOrder?: string;
-    totalSavings?: string;
-    cardCount?: string;
-    backButton?: string;
-    timestamp?: string;
   }>();
-  const pathname = usePathname();
-  
-  // Enhanced mode detection for dashboard integration
-  const isDashboardMode = params.source === 'dashboard';
-  const currentMode = params.mode || 'default';
-  const dashboardIntent = params.intent;
-  
-  
-  // Mode-specific configurations
-  const modeConfig = useMemo(() => {
-    switch (currentMode) {
-      case 'quick-add':
-        return {
-          title: dashboardIntent === 'first-card' ? 'Add Your First Card' : 'Add More Cards',
-          description: dashboardIntent === 'first-card' 
-            ? 'Get started by selecting your first credit card to track rewards.'
-            : 'Expand your collection to maximize rewards tracking.',
-          primaryAction: 'add',
-          showReorder: false,
-          showEdit: false,
-          autoOpenModal: true
-        };
-      case 'reorder-only':
-        return {
-          title: 'Optimize Card Order',
-          description: `Reorder your cards by value. Total savings: $${params.totalSavings || '0'}`,
-          primaryAction: 'reorder',
-          showReorder: true,
-          showEdit: true,
-          autoOpenModal: false
-        };
-      case 'dashboard-tools':
-        return {
-          title: 'Quick Card Settings',
-          description: `Manage your ${params.cardCount || '0'} cards efficiently.`,
-          primaryAction: 'manage',
-          showReorder: true,
-          showEdit: true,
-          autoOpenModal: false
-        };
-      default:
-        return {
-          title: 'Manage Cards',
-          description: 'Add, remove, and organize your credit cards.',
-          primaryAction: 'manage',
-          showReorder: true,
-          showEdit: true,
-          autoOpenModal: false
-        };
-    }
-  }, [currentMode, dashboardIntent, params.totalSavings, params.cardCount]);
 
   const cardManagement = useCardManagement(user?.id);
   
@@ -167,15 +108,6 @@ export default function ManageCardsScreen() {
     }
   }, [params.highlightCardId, selectedCards, selectedCardObjects]);
 
-  // Auto-open add card modal for quick-add mode
-  useEffect(() => {
-    if (modeConfig.autoOpenModal && !isLoading) {
-      const timer = setTimeout(() => {
-        setAddCardModalVisible(true);
-      }, 300); // Small delay to ensure screen is loaded
-      return () => clearTimeout(timer);
-    }
-  }, [modeConfig.autoOpenModal, isLoading]);
 
   const handleEditModeToggle = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -333,27 +265,9 @@ export default function ManageCardsScreen() {
           "Failed to save card order. Please try reordering again.",
           [{ text: "OK" }]
         );
-      } else {
-        // Mode-specific reorder completion feedback
-        if (currentMode === 'reorder-only') {
-          if (Platform.OS === 'ios') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-          // Show subtle success feedback for reorder mode
-          setTimeout(() => {
-            Alert.alert(
-              "Order Updated! ✅",
-              "Your cards have been reordered. Higher cards will be checked first for optimal perks.",
-              [
-                { text: "Done", onPress: () => router.back() },
-                { text: "Continue Editing", style: "cancel" }
-              ]
-            );
-          }, 300);
-        }
       }
     }
-  }, [user?.id, currentMode, router]);
+  }, [user?.id, router]);
 
   const showDatePicker = (cardId: string) => {
     setCurrentEditingCardId(cardId);
@@ -428,32 +342,6 @@ export default function ManageCardsScreen() {
     if (newCardIds.length > 0) {
       await handleDoneAddCardModal(newCardIds);
       setNewlyAddedCardIdForScroll(newCardIds[0]);
-      
-      // Mode-specific completion actions
-      if (currentMode === 'quick-add') {
-        // For quick-add mode, show success feedback and potentially navigate back
-        if (Platform.OS === 'ios') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        
-        // If this was the first card, show celebration
-        if (dashboardIntent === 'first-card') {
-          Alert.alert(
-            "Great start! 🎉",
-            "You've added your first card. Start tracking those perks and maximize your rewards!",
-            [{ text: "Let's Go!", onPress: () => router.back() }]
-          );
-        } else if (dashboardIntent === 'expand-collection') {
-          // For expanding collection, provide optimization tip
-          setTimeout(() => {
-            Alert.alert(
-              "Cards Added! 💳",
-              "Tip: Cards higher in your list are checked first for optimal perks. Reorder them anytime!",
-              [{ text: "Got it", onPress: () => router.back() }]
-            );
-          }, 500);
-        }
-      }
     }
     setAddCardModalVisible(false);
     setTempSelectedCardIdsInModal(new Set());
@@ -537,10 +425,10 @@ export default function ManageCardsScreen() {
     navigation.setOptions({
       headerLeft: () => (
         <BackButton 
-          label={params.backButton || "Profile"} 
+          label="Profile" 
         />
       ),
-      headerTitle: modeConfig.title,
+      headerTitle: "Manage Cards",
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
           {isEditMode && selectedForDeletion.size > 0 && (
@@ -550,7 +438,7 @@ export default function ManageCardsScreen() {
               </Text>
             </TouchableOpacity>
           )}
-          {selectedCards.length > 0 && modeConfig.showEdit && (
+          {selectedCards.length > 0 && (
             <TouchableOpacity onPress={handleEditModeToggle} style={{ marginLeft: 15 }}>
               <Text style={{ color: Colors.light.tint, fontSize: 17, fontWeight: '600' }}>
                 {isEditMode ? 'Done' : 'Edit'}
@@ -566,7 +454,7 @@ export default function ManageCardsScreen() {
       ),
       headerShown: true,
     });
-  }, [navigation, isEditMode, selectedCards.length, selectedForDeletion.size, handleEditModeToggle, handleOpenAddCardModal, handleBulkDelete, modeConfig, params.backButton]);
+  }, [navigation, isEditMode, selectedCards.length, selectedForDeletion.size, handleEditModeToggle, handleOpenAddCardModal, handleBulkDelete]);
 
   if (isLoading) {
     return (
@@ -586,26 +474,8 @@ export default function ManageCardsScreen() {
           renderItem={renderItem}
           ListHeaderComponent={
             <View style={styles.section}>
-              {isDashboardMode && (
-                <View style={styles.modeDescriptionContainer}>
-                  <Text style={styles.modeDescription}>{modeConfig.description}</Text>
-                  {currentMode === 'reorder-only' && selectedCardObjects.length > 1 && (
-                    <View style={styles.reorderHintContainer}>
-                      <Ionicons name="swap-vertical" size={16} color={Colors.light.tint} />
-                      <Text style={styles.reorderHint}>
-                        Drag cards to reorder. Higher cards are checked first for optimal perks.
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitleYourCards}>YOUR CARDS</Text>
-                {currentMode === 'reorder-only' && selectedCardObjects.length > 1 && (
-                  <Text style={styles.cardCountIndicator}>
-                    {selectedCardObjects.length} cards
-                  </Text>
-                )}
               </View>
               {selectedCardObjects.length === 0 && (
                 <EmptyState onAddCard={handleOpenAddCardModal} />
@@ -679,39 +549,5 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 12,
-  },
-  modeDescriptionContainer: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.light.separator,
-  },
-  modeDescription: {
-    fontSize: 15,
-    color: Colors.light.secondaryLabel,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  reorderHintContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.separator,
-  },
-  reorderHint: {
-    fontSize: 13,
-    color: Colors.light.tint,
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-  cardCountIndicator: {
-    fontSize: 13,
-    color: Colors.light.secondaryLabel,
-    fontWeight: '500',
   },
 }); 
