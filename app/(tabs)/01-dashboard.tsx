@@ -1165,46 +1165,79 @@ export default function Dashboard() {
     handleOpenAiChat
   ]);
 
-  // Dynamic labeling for manage cards button
-  const getManageButtonContent = useMemo(() => {
+  // Smart action logic for dashboard button - Top 0.1% experience
+  const getDashboardAction = useMemo(() => {
     const cardCount = userCardsWithPerks.length;
+    const totalSavings = Object.values(cumulativeValueSavedPerCard).reduce((sum, val) => sum + val, 0);
     
+    // Priority 1: If they have 0-1 cards, focus on growth
     if (cardCount === 0) {
       return {
         label: "Add Your First Card",
-        icon: "add-circle-outline" as keyof typeof Ionicons.glyphMap
+        action: "ADD_CARDS" as const,
+        icon: "add-circle-outline" as keyof typeof Ionicons.glyphMap,
+        params: { mode: "quick-add", source: "dashboard", intent: "first-card" }
       };
     } else if (cardCount === 1) {
       return {
-        label: "Add More Cards",
-        icon: "add-outline" as keyof typeof Ionicons.glyphMap
-      };
-    } else if (cardCount > 4) {
-      return {
-        label: "Optimize Card Order",
-        icon: "trending-up-outline" as keyof typeof Ionicons.glyphMap
-      };
-    } else {
-      return {
-        label: "Customize Cards",
-        icon: "options-outline" as keyof typeof Ionicons.glyphMap
+        label: "Add More Cards", 
+        action: "ADD_CARDS" as const,
+        icon: "add-outline" as keyof typeof Ionicons.glyphMap,
+        params: { mode: "quick-add", source: "dashboard", intent: "expand-collection" }
       };
     }
-  }, [userCardsWithPerks.length]);
+    
+    // Priority 2: If they have 2-4 cards, focus on optimization
+    if (cardCount <= 4) {
+      return {
+        label: "Optimize Card Order",
+        action: "REORDER" as const,
+        icon: "trending-up-outline" as keyof typeof Ionicons.glyphMap,
+        params: { 
+          mode: "reorder-only", 
+          source: "dashboard",
+          currentOrder: userCardsWithPerks.map(c => c.card.id).join(','),
+          totalSavings: totalSavings.toString()
+        }
+      };
+    }
+    
+    // Priority 3: If they have 5+ cards, focus on management
+    return {
+      label: "Quick Card Settings",
+      action: "QUICK_MANAGE" as const,
+      icon: "options-outline" as keyof typeof Ionicons.glyphMap,
+      params: { 
+        mode: "dashboard-tools", 
+        source: "dashboard",
+        totalSavings: totalSavings.toString(),
+        cardCount: cardCount.toString()
+      }
+    };
+  }, [userCardsWithPerks.length, cumulativeValueSavedPerCard, userCardsWithPerks]);
+
 
   // Create the ListFooterElement using useMemo for stability
   const listFooterElement = useMemo(() => (
     <View style={styles.manageCardsContainer}>
       <TouchableOpacity
         style={styles.manageCardsFooter}
-        onPress={() => router.push('/(tabs)/profile/manage_cards')}
-        activeOpacity={0.7}
+        onPress={handleDashboardAction}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`${getDashboardAction.label} - ${getDashboardAction.action.replace('_', ' ').toLowerCase()}`}
+        accessibilityHint={`Opens ${getDashboardAction.action.toLowerCase().replace('_', ' ')} interface`}
       >
-        <Ionicons name={getManageButtonContent.icon} size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-        <Text style={styles.manageCardsText}>{getManageButtonContent.label}</Text>
+        <Ionicons 
+          name={getDashboardAction.icon} 
+          size={18} 
+          color="#FFFFFF" 
+          style={{ marginRight: 8 }} 
+        />
+        <Text style={styles.manageCardsText}>{getDashboardAction.label}</Text>
       </TouchableOpacity>
     </View>
-  ), [router, getManageButtonContent]);
+  ), [handleDashboardAction, getDashboardAction]);
 
   // Only show full-screen loader on the very first load of user cards.
   // Subsequent refreshes (isUserCardsRefreshing) or savings calculations (isCalculatingSavings)
@@ -1246,6 +1279,80 @@ export default function Dashboard() {
   const handleUsernameModalComplete = () => {
     setShowUsernameModal(false);
   };
+
+  // Enhanced dashboard action handler with premium interactions
+  const handleDashboardAction = useCallback(async () => {
+    // Get action fresh each time to avoid stale closures
+    const cardCount = userCardsWithPerks.length;
+    const totalSavings = Object.values(cumulativeValueSavedPerCard).reduce((sum, val) => sum + val, 0);
+    
+    let action;
+    if (cardCount === 0) {
+      action = {
+        label: "Add Your First Card",
+        action: "ADD_CARDS" as const,
+        icon: "add-circle-outline" as keyof typeof Ionicons.glyphMap,
+        params: { mode: "quick-add", source: "dashboard", intent: "first-card" }
+      };
+    } else if (cardCount === 1) {
+      action = {
+        label: "Add More Cards", 
+        action: "ADD_CARDS" as const,
+        icon: "add-outline" as keyof typeof Ionicons.glyphMap,
+        params: { mode: "quick-add", source: "dashboard", intent: "expand-collection" }
+      };
+    } else if (cardCount <= 4) {
+      action = {
+        label: "Optimize Card Order",
+        action: "REORDER" as const,
+        icon: "trending-up-outline" as keyof typeof Ionicons.glyphMap,
+        params: { 
+          mode: "reorder-only", 
+          source: "dashboard",
+          currentOrder: userCardsWithPerks.map(c => c.card.id).join(','),
+          totalSavings: totalSavings.toString()
+        }
+      };
+    } else {
+      action = {
+        label: "Quick Card Settings",
+        action: "QUICK_MANAGE" as const,
+        icon: "options-outline" as keyof typeof Ionicons.glyphMap,
+        params: { 
+          mode: "dashboard-tools", 
+          source: "dashboard",
+          totalSavings: totalSavings.toString(),
+          cardCount: cardCount.toString()
+        }
+      };
+    }
+    
+    try {
+      // Premium haptic feedback based on action type
+      if (action.action === 'ADD_CARDS') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else if (action.action === 'REORDER') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+
+      // Smart routing with context
+      router.push({
+        pathname: '/(tabs)/profile/manage_cards',
+        params: {
+          ...action.params,
+          backButton: 'Dashboard', // Custom back button text
+          timestamp: Date.now().toString() // Force refresh if same params
+        }
+      });
+
+    } catch (error) {
+      console.error('[Dashboard] Error in dashboard action:', error);
+      // Fallback to basic navigation
+      router.push('/(tabs)/profile/manage_cards');
+    }
+  }, [userCardsWithPerks, cumulativeValueSavedPerCard, router]);
 
   if (isUserCardsInitialLoading || (userCardsWithPerks.length === 0 && retryAttempt < maxRetries)) {
     return (
