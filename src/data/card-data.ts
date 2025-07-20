@@ -1,5 +1,4 @@
 import { Platform, Linking, Alert , ImageSourcePropType } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 import { CardService } from '../../lib/card-service';
 
 // Keep all the type definitions
@@ -233,7 +232,7 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
       const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
       try {
         console.log('Opening fallback web search:', googleSearchUrl);
-        await WebBrowser.openBrowserAsync(googleSearchUrl);
+        await Linking.openURL(googleSearchUrl);
         return { success: true, usedFallback: true };
       } catch (error) {
         console.error('Failed to open fallback search:', error);
@@ -257,15 +256,10 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
             try {
               console.log('Trying to open iOS URL:', scheme);
               
-              // For HTTPS URLs, use WebBrowser for better handling
-              if (scheme.startsWith('https://') || scheme.startsWith('http://')) {
-                await WebBrowser.openBrowserAsync(scheme);
-                return { success: true, usedFallback: false };
-              } else {
-                // For custom schemes, use Linking
-                await Linking.openURL(scheme);
-                return { success: true, usedFallback: false };
-              }
+              // Use Linking.openURL for all URLs (both HTTPS and custom schemes)
+              // This prevents the app from freezing when opening external apps
+              await Linking.openURL(scheme);
+              return { success: true, usedFallback: false };
             } catch (error) {
               console.log('Failed to open scheme:', scheme, error);
               // Continue to next scheme
@@ -277,8 +271,13 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
       // Try fallback
       if (appScheme.fallbackUrl) {
         console.log('Opening fallback URL:', appScheme.fallbackUrl);
-        await WebBrowser.openBrowserAsync(appScheme.fallbackUrl);
-        return { success: true, usedFallback: true };
+        try {
+          await Linking.openURL(appScheme.fallbackUrl);
+          return { success: true, usedFallback: true };
+        } catch (error) {
+          console.error('Failed to open fallback URL:', error);
+          return { success: false, usedFallback: true };
+        }
       }
     } else {
       // Android logic
@@ -313,8 +312,13 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
       // Fallback
       if (appScheme.fallbackUrl) {
         console.log('Opening fallback URL:', appScheme.fallbackUrl);
-        await WebBrowser.openBrowserAsync(appScheme.fallbackUrl);
-        return { success: true, usedFallback: true };
+        try {
+          await Linking.openURL(appScheme.fallbackUrl);
+          return { success: true, usedFallback: true };
+        } catch (error) {
+          console.error('Failed to open fallback URL:', error);
+          return { success: false, usedFallback: true };
+        }
       }
     }
     
@@ -326,8 +330,13 @@ async function openAppWithScheme(appSchemeKey: string, perkName: string): Promis
     
     if (storeUrl) {
       console.log('Opening app store:', storeUrl);
-      await WebBrowser.openBrowserAsync(storeUrl);
-      return { success: true, usedFallback: true };
+      try {
+        await Linking.openURL(storeUrl);
+        return { success: true, usedFallback: true };
+      } catch (error) {
+        console.error('Failed to open app store:', error);
+        return { success: false, usedFallback: true };
+      }
     }
     
     return { success: false, usedFallback: false };
@@ -370,7 +379,7 @@ export async function openPerkTarget(perk: CardPerk): Promise<{success: boolean,
                   const searchTerm = encodeURIComponent(choice.targetPerkName);
                   const googleSearchUrl = `https://www.google.com/search?q=${searchTerm}`;
                   try {
-                    await WebBrowser.openBrowserAsync(googleSearchUrl);
+                    await Linking.openURL(googleSearchUrl);
                     resolve({ success: true, usedFallback: true });
                   } catch (error) {
                     console.error('Failed to open fallback search:', error);
