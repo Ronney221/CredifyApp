@@ -136,14 +136,16 @@ const TARGET_PERK_TO_APP_SCHEME_MAP: Record<string, string> = {
   'Marriott Bonvoy Credit': 'marriott',
   'Chase Travel Credit': 'chase',
   'Delta Stays Credit': 'delta',
-  'Airline Fee Credit': 'amex',
   'The Edit by Chase Travel Credit': 'chase',
   'StubHub / viagogo Credit': 'stubhub',
   'Exclusive Tables Dining Credit': 'opentable',
   'DoorDash Restaurant Credit': 'doordash',
   'DoorDash Non-Restaurant Credit #1': 'doordash',
   'DoorDash Non-Restaurant Credit #2': 'doordash',
-  'DoorDash Grocery Credit': 'doordash'
+  'DoorDash Grocery Credit': 'doordash',
+  'United Airlines Credit': 'united',
+  'Delta Airlines Credit': 'delta',
+  'American Airlines Credit': 'american'
 };
 
 // Helper function to check if an app is installed (similar to original)
