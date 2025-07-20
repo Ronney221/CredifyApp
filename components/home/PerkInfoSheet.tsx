@@ -246,6 +246,7 @@ export default function PerkInfoSheet({
 }: PerkInfoSheetProps) {
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
+  const [isOpeningApp, setIsOpeningApp] = useState(false);
   
   const translateY = useSharedValue(screenHeight);
   const context = useSharedValue({ y: 0 });
@@ -461,6 +462,11 @@ export default function PerkInfoSheet({
   }, [showHowItWorks, rotation]);
 
   const handleOpenApp = useCallback(async () => {
+    // Prevent multiple rapid taps
+    if (isOpeningApp) return;
+    
+    setIsOpeningApp(true);
+    
     // Epic button animation sequence
     
     // 1. Initial press with rotation and glow
@@ -506,8 +512,12 @@ export default function PerkInfoSheet({
     setTimeout(async () => {
       handleDismiss();
       await onOpenApp();
+      // Reset the flag after a delay to allow for the app to open
+      setTimeout(() => {
+        setIsOpeningApp(false);
+      }, 1000);
     }, 750); // Extended time for full animation experience
-  }, [handleDismiss, onOpenApp, buttonScale, buttonRotation, buttonGlow, rippleScale, rippleOpacity, successCheckScale, successCheckOpacity]);
+  }, [handleDismiss, onOpenApp, buttonScale, buttonRotation, buttonGlow, rippleScale, rippleOpacity, successCheckScale, successCheckOpacity, isOpeningApp]);
 
   const nextTip = useCallback(() => {
     setCurrentTipIndex((prev) => (prev + 1) % proTips.length);
@@ -559,6 +569,7 @@ export default function PerkInfoSheet({
       rippleOpacity.value = 0;
       successCheckScale.value = 0;
       successCheckOpacity.value = 0;
+      setIsOpeningApp(false);
     } else {
       overlayOpacity.value = withTiming(0, { duration: 200 });
       heroCardScale.value = withTiming(0.95, { duration: 200 });
@@ -682,6 +693,7 @@ export default function PerkInfoSheet({
                     style={[styles.primaryButton, { backgroundColor: merchantColor }]} 
                     onPress={handleOpenApp}
                     activeOpacity={1}
+                    disabled={isOpeningApp}
                   >
                     <LinearGradient
                       colors={[merchantColor, merchantColor + 'DD']}
