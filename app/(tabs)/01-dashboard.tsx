@@ -1165,6 +1165,33 @@ export default function Dashboard() {
     handleOpenAiChat
   ]);
 
+  // Dynamic labeling for manage cards button
+  const getManageButtonContent = useMemo(() => {
+    const cardCount = userCardsWithPerks.length;
+    
+    if (cardCount === 0) {
+      return {
+        label: "Add Your First Card",
+        icon: "add-circle-outline" as keyof typeof Ionicons.glyphMap
+      };
+    } else if (cardCount === 1) {
+      return {
+        label: "Add More Cards",
+        icon: "add-outline" as keyof typeof Ionicons.glyphMap
+      };
+    } else if (cardCount > 4) {
+      return {
+        label: "Optimize Card Order",
+        icon: "trending-up-outline" as keyof typeof Ionicons.glyphMap
+      };
+    } else {
+      return {
+        label: "Customize Cards",
+        icon: "options-outline" as keyof typeof Ionicons.glyphMap
+      };
+    }
+  }, [userCardsWithPerks.length]);
+
   // Create the ListFooterElement using useMemo for stability
   const listFooterElement = useMemo(() => (
     <View style={styles.manageCardsContainer}>
@@ -1173,11 +1200,11 @@ export default function Dashboard() {
         onPress={() => router.push('/(tabs)/profile/manage_cards')}
         activeOpacity={0.7}
       >
-        <Text style={styles.manageCardsText}>Manage & Reorder Cards</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.light.tint} />
+        <Ionicons name={getManageButtonContent.icon} size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+        <Text style={styles.manageCardsText}>{getManageButtonContent.label}</Text>
       </TouchableOpacity>
     </View>
-  ), [router]);
+  ), [router, getManageButtonContent]);
 
   // Only show full-screen loader on the very first load of user cards.
   // Subsequent refreshes (isUserCardsRefreshing) or savings calculations (isCalculatingSavings)
@@ -1690,14 +1717,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#F0F0F0',
+    paddingVertical: 18,
+    backgroundColor: Colors.light.tint,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   manageCardsText: {
     fontSize: 16,
-    color: Colors.light.tint,
-    fontWeight: '500',
-    marginRight: 4,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 } as const); 
