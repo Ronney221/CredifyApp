@@ -137,22 +137,22 @@ WHERE "benefit_id" = 'csr_the_edit_credit_h1' OR "benefit_id" = 'csr_the_edit_cr
 -- Chase Sapphire Reserve: Exclusive Tables Dining Credit
 UPDATE "public"."benefit_definitions"
 SET "description" = 'Receive a $150 statement credit twice per year (Jan-Jun and Jul-Dec) for dining experiences at "Sapphire Reserve Exclusive Tables" restaurants.'
-WHERE "benefit_id" = 'csr_dining_credit_h1' OR "benefit_id" = 'csr_dining_credit_h2';
+WHERE "benefit_id" = 'csr_dining_credit_h1';
 
 UPDATE "public"."benefit_definitions"
 SET "redemption_instructions" = 'Credify Reality Check:
 This benefit is extremely limited. The list of participating restaurants is very small and concentrated in a few major cities. Before dining, you must verify the restaurant is on the specific "Exclusive Tables" list provided by Chase, not the broader Visa Dining Collection. No reservation is required; simply pay with your CSR at an eligible restaurant to trigger the credit.'
-WHERE "benefit_id" = 'csr_dining_credit_h1' OR "benefit_id" = 'csr_dining_credit_h2';
+WHERE "benefit_id" = 'csr_dining_credit_h1';
 
 -- Chase Sapphire Reserve: StubHub / viagogo Credit
 UPDATE "public"."benefit_definitions"
 SET "description" = 'Receive a $150 statement credit twice per year (Jan-Jun and Jul-Dec) for event tickets purchased through StubHub or viagogo. Benefit requires activation.'
-WHERE "benefit_id" = 'csr_stubhub_credit_h1' OR "benefit_id" = 'csr_stubhub_credit_h2';
+WHERE "benefit_id" = 'csr_stubhub_credit_h1';
 
 UPDATE "public"."benefit_definitions"
 SET "redemption_instructions" = 'Credify Warning:
 This credit functions as a discount, not free money. Due to high fees on the platform for both buying and selling, attempting to liquidate the credit by reselling tickets will result in a significant loss (often 25-30%). Best used only if you are an existing StubHub user who can offset the cost of a planned purchase.'
-WHERE "benefit_id" = 'csr_stubhub_credit_h1' OR "benefit_id" = 'csr_stubhub_credit_h2';
+WHERE "benefit_id" = 'csr_stubhub_credit_h1';
 
 -- Chase Sapphire Reserve: DoorDash Restaurant Credit ($5)
 UPDATE "public"."benefit_definitions"

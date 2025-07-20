@@ -442,41 +442,6 @@ SELECT
 FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
 ON CONFLICT (benefit_id) DO NOTHING;
 
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories, start_date, end_date) 
-SELECT 
-    'csr_dining_credit_h2',
-    cd.id,
-    'Exclusive Tables Dining Credit (H2)',
-    150.00,
-    'semi_annual',
-    6,
-    'calendar',
-    '$150 statement credit for dining experiences booked through the "Sapphire Reserve Exclusive Tables" platform on OpenTable. Valid from July 1 to December 31.',
-    'Credit is automatically applied for dining experiences booked via the "Sapphire Reserve Exclusive Tables" program.',
-    'opentable',
-    ARRAY['Dining'],
-    '2024-07-01'::DATE,
-    '2024-12-31'::DATE
-FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
-
-INSERT INTO benefit_definitions (benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories, start_date, end_date) 
-SELECT 
-    'csr_stubhub_credit_h2',
-    cd.id,
-    'StubHub/viagogo Credit (H2)',
-    150.00,
-    'semi_annual',
-    6,
-    'calendar',
-    '$150 statement credit for event tickets purchased through StubHub or viagogo. Valid from July 1 to December 31.',
-    'Purchase tickets on StubHub or viagogo using your Sapphire Reserve card. Credit is automatically applied.',
-    'stubhub',
-    ARRAY['Entertainment'],
-    '2024-07-01'::DATE,
-    '2024-12-31'::DATE
-FROM card_definitions cd WHERE cd.card_id = 'chase_sapphire_reserve'
-ON CONFLICT (benefit_id) DO NOTHING;
 
 -- Insert benefit definitions for Chase Sapphire Preferred
 INSERT INTO benefit_definitions (id, benefit_id, card_definition_id, name, value, period, period_months, reset_type, description, redemption_instructions, app_scheme, categories) 
