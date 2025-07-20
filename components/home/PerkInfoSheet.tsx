@@ -251,8 +251,15 @@ export default function PerkInfoSheet({
   const context = useSharedValue({ y: 0 });
   const rotation = useSharedValue(0);
   const buttonScale = useSharedValue(1);
+  const buttonRotation = useSharedValue(0);
+  const buttonGlow = useSharedValue(0);
   const heroCardScale = useSharedValue(0.95);
+  const heroCardRotation = useSharedValue(-2);
   const overlayOpacity = useSharedValue(0);
+  const rippleScale = useSharedValue(0);
+  const rippleOpacity = useSharedValue(0);
+  const successCheckScale = useSharedValue(0);
+  const successCheckOpacity = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
   const appName = useMemo(() => perk ? getAppName(perk) : '', [perk]);
@@ -372,7 +379,10 @@ export default function PerkInfoSheet({
 
   const animatedHeroStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ scale: heroCardScale.value }],
+      transform: [
+        { scale: heroCardScale.value },
+        { rotateZ: `${heroCardRotation.value}deg` }
+      ],
       opacity: withTiming(visible ? 1 : 0, { duration: 300 }),
     };
   });
@@ -385,7 +395,32 @@ export default function PerkInfoSheet({
 
   const animatedButtonStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ scale: buttonScale.value }],
+      transform: [
+        { scale: buttonScale.value },
+        { rotateZ: `${buttonRotation.value}deg` }
+      ],
+    };
+  });
+
+  const animatedButtonGlowStyle = useAnimatedStyle(() => {
+    return {
+      shadowOpacity: buttonGlow.value * 0.3,
+      shadowRadius: buttonGlow.value * 20,
+      elevation: buttonGlow.value * 8,
+    };
+  });
+
+  const animatedRippleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: rippleScale.value }],
+      opacity: rippleOpacity.value,
+    };
+  });
+
+  const animatedSuccessStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: successCheckScale.value }],
+      opacity: successCheckOpacity.value,
     };
   });
 
@@ -426,23 +461,53 @@ export default function PerkInfoSheet({
   }, [showHowItWorks, rotation]);
 
   const handleOpenApp = useCallback(async () => {
-    // Button press animation with visible feedback
-    buttonScale.value = withTiming(0.94, { duration: 150 }, () => {
-      buttonScale.value = withTiming(1.02, { duration: 100 }, () => {
-        buttonScale.value = withTiming(1, { duration: 100 });
-      });
-    });
+    // Epic button animation sequence
+    
+    // 1. Initial press with rotation and glow
+    buttonScale.value = withTiming(0.92, { duration: 100 });
+    buttonRotation.value = withTiming(-1, { duration: 100 });
+    buttonGlow.value = withTiming(1, { duration: 100 });
+    
+    // 2. Ripple effect
+    rippleScale.value = 0;
+    rippleOpacity.value = 0.6;
+    rippleScale.value = withTiming(3, { duration: 600 });
+    rippleOpacity.value = withTiming(0, { duration: 600 });
     
     if (Platform.OS === 'ios') {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
     
-    // Add delay to show animation before app launch
+    // 3. Bounce back with success indication
+    setTimeout(() => {
+      buttonScale.value = withSpring(1.05, { damping: 15, stiffness: 300 });
+      buttonRotation.value = withSpring(1, { damping: 15, stiffness: 300 });
+      
+      // Success checkmark animation
+      successCheckScale.value = withSpring(1, { damping: 12, stiffness: 400 });
+      successCheckOpacity.value = withTiming(1, { duration: 200 });
+      
+      if (Platform.OS === 'ios') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    }, 150);
+    
+    // 4. Final settle and fade out success
+    setTimeout(() => {
+      buttonScale.value = withSpring(1, { damping: 20, stiffness: 300 });
+      buttonRotation.value = withSpring(0, { damping: 20, stiffness: 300 });
+      buttonGlow.value = withTiming(0, { duration: 200 });
+      
+      successCheckOpacity.value = withTiming(0, { duration: 300 });
+      successCheckScale.value = withTiming(0, { duration: 300 });
+    }, 300);
+    
+    // 5. Launch app after full animation
     setTimeout(async () => {
       handleDismiss();
       await onOpenApp();
-    }, 400); // Give time for animation to complete
-  }, [handleDismiss, onOpenApp, buttonScale]);
+    }, 750); // Extended time for full animation experience
+  }, [handleDismiss, onOpenApp, buttonScale, buttonRotation, buttonGlow, rippleScale, rippleOpacity, successCheckScale, successCheckOpacity]);
 
   const nextTip = useCallback(() => {
     setCurrentTipIndex((prev) => (prev + 1) % proTips.length);
@@ -460,24 +525,46 @@ export default function PerkInfoSheet({
 
   React.useEffect(() => {
     if (visible) {
-      // Staggered entrance animation
-      overlayOpacity.value = withTiming(1, { duration: 200 });
-      translateY.value = withTiming(0, {
-        duration: 400,
-        easing: Easing.out(Easing.cubic),
+      // Premium staggered entrance animation
+      overlayOpacity.value = withTiming(1, { duration: 300 });
+      
+      // Sheet slides up with bounce
+      translateY.value = withSpring(0, {
+        damping: 25,
+        stiffness: 400,
+        mass: 0.8,
       });
-      heroCardScale.value = withSpring(1, {
-        damping: 20,
-        stiffness: 300,
-      });
+      
+      // Hero card dramatic entrance
+      setTimeout(() => {
+        heroCardScale.value = withSpring(1, {
+          damping: 15,
+          stiffness: 300,
+        });
+        heroCardRotation.value = withSpring(0, {
+          damping: 20,
+          stiffness: 400,
+        });
+      }, 100);
+      
       setShowHowItWorks(false);
       setCurrentTipIndex(0);
       rotation.value = 0;
+      
+      // Reset button states
+      buttonScale.value = 1;
+      buttonRotation.value = 0;
+      buttonGlow.value = 0;
+      rippleScale.value = 0;
+      rippleOpacity.value = 0;
+      successCheckScale.value = 0;
+      successCheckOpacity.value = 0;
     } else {
       overlayOpacity.value = withTiming(0, { duration: 200 });
       heroCardScale.value = withTiming(0.95, { duration: 200 });
+      heroCardRotation.value = withTiming(-2, { duration: 200 });
     }
-  }, [visible, overlayOpacity, heroCardScale]);
+  }, [visible, overlayOpacity, heroCardScale, heroCardRotation, buttonScale, buttonRotation, buttonGlow, rippleScale, rippleOpacity, successCheckScale, successCheckOpacity]);
 
   if (!visible || !perk) {
     return null;
@@ -581,30 +668,50 @@ export default function PerkInfoSheet({
 
             {/* Primary CTA Button */}
             <View style={styles.ctaSection}>
-              <Animated.View style={animatedButtonStyle}>
-                <TouchableOpacity 
-                  style={[styles.primaryButton, { backgroundColor: merchantColor }]} 
-                  onPress={handleOpenApp}
-                  activeOpacity={0.9}
-                >
-                <LinearGradient
-                  colors={[merchantColor, merchantColor + 'DD']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.buttonGradient}
-                >
-                  <View style={styles.buttonContent}>
-                    <View style={styles.buttonIconContainer}>
-                      <Ionicons name={merchantIcon as any} size={22} color="#FFFFFF" />
-                    </View>
-                    <Text style={styles.primaryButtonText}>
-                      Open {appName}
-                    </Text>
-                    <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+              <View style={styles.buttonContainer}>
+                {/* Ripple Effect */}
+                <Animated.View style={[
+                  styles.rippleEffect,
+                  { backgroundColor: merchantColor + '30' },
+                  animatedRippleStyle
+                ]} />
+                
+                {/* Main Button */}
+                <Animated.View style={[animatedButtonStyle, animatedButtonGlowStyle]}>
+                  <TouchableOpacity 
+                    style={[styles.primaryButton, { backgroundColor: merchantColor }]} 
+                    onPress={handleOpenApp}
+                    activeOpacity={1}
+                  >
+                    <LinearGradient
+                      colors={[merchantColor, merchantColor + 'DD']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.buttonGradient}
+                    >
+                      <View style={styles.buttonContent}>
+                        <View style={styles.buttonIconContainer}>
+                          <Ionicons name={merchantIcon as any} size={22} color="#FFFFFF" />
+                        </View>
+                        <Text style={styles.primaryButtonText}>
+                          Open {appName}
+                        </Text>
+                        <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+                
+                {/* Success Checkmark Overlay */}
+                <Animated.View style={[
+                  styles.successOverlay,
+                  animatedSuccessStyle
+                ]}>
+                  <View style={[styles.successCircle, { backgroundColor: merchantColor }]}>
+                    <Ionicons name="checkmark" size={24} color="#FFFFFF" />
                   </View>
-                </LinearGradient>
-                </TouchableOpacity>
-              </Animated.View>
+                </Animated.View>
+              </View>
             </View>
 
             {/* Tips Cards Stack */}
@@ -840,6 +947,41 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     paddingHorizontal: 4,
   },
+  buttonContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rippleEffect: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    zIndex: 1,
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -25,
+    marginLeft: -25,
+    zIndex: 3,
+  },
+  successCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   primaryButton: {
     borderRadius: 20,
     shadowColor: '#000',
@@ -850,6 +992,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+    zIndex: 2,
   },
   buttonGradient: {
     borderRadius: 20,
@@ -872,6 +1015,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: 'rgba(255, 255, 255, 0.5)',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   primaryButtonText: {
     fontSize: 18,
