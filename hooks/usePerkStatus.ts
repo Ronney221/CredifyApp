@@ -317,36 +317,62 @@ export function usePerkStatus(
     console.log('========= [usePerkStatus] setPerkStatus called =========');
     console.log('Input parameters:', { cardId, perkId, newStatus, remainingValue });
     
+    // First, find the perk to get its current values BEFORE updating state
     let perkValue = 0;
     let periodMonths = 0;
     let definitionId = '';
     let originalStatusIsRedeemed = false;
     let originalStatusIsPartiallyRedeemed = false;
     let originalRemainingValue = 0;
+    let perkFound = false;
 
-    // Detect first-ever redemption so the UI can show the onboarding sheet.
-    // We will evaluate this *after* we inspect the current perk details (see below).
-      
+    // Debug: Log the current state to understand what's available
+    console.log(`[usePerkStatus] Searching for perk ${perkId} in card ${cardId}`);
+    console.log(`[usePerkStatus] Available cards:`, processedCardsWithPerks.map(c => ({ 
+      cardId: c.card.id, 
+      perkCount: c.perks.length,
+      perkIds: c.perks.map(p => p.id)
+    })));
+
+    // Find the perk data first
+    processedCardsWithPerks.forEach(cardData => {
+      if (cardData.card.id === cardId) {
+        console.log(`[usePerkStatus] Found card ${cardId}, checking ${cardData.perks.length} perks`);
+        cardData.perks.forEach(p => {
+          if (p.id === perkId) {
+            perkValue = p.value;
+            periodMonths = p.periodMonths || 1;
+            definitionId = p.definition_id;
+            originalStatusIsRedeemed = p.status === 'redeemed';
+            originalStatusIsPartiallyRedeemed = p.status === 'partially_redeemed';
+            originalRemainingValue = p.remaining_value || 0;
+            perkFound = true;
+            console.log('Found perk for status change:', { 
+              perkName: p.name, 
+              originalStatus: p.status, 
+              newStatusRequested: newStatus, 
+              value: perkValue, 
+              definition_id: definitionId, 
+              periodMonths,
+              remainingValue
+            });
+          }
+        });
+      }
+    });
+
+    if (!perkFound) {
+      console.error(`[usePerkStatus] Perk not found: ${perkId} in card ${cardId}`);
+      console.error(`[usePerkStatus] This might be a timing issue - optimistic update failed but database operation may still succeed`);
+      return;
+    }
+
+    // Now update the state with the perk data we found
     setProcessedCardsWithPerks(prevUserCards =>
       prevUserCards.map(cardData => {
         if (cardData.card.id === cardId) {
           const updatedPerks = cardData.perks.map(p => {
             if (p.id === perkId) {
-              perkValue = p.value;
-              periodMonths = p.periodMonths || 1;
-              definitionId = p.definition_id;
-              originalStatusIsRedeemed = p.status === 'redeemed';
-              originalStatusIsPartiallyRedeemed = p.status === 'partially_redeemed';
-              originalRemainingValue = p.remaining_value || 0;
-              console.log('Found perk for status change:', { 
-                perkName: p.name, 
-                originalStatus: p.status, 
-                newStatusRequested: newStatus, 
-                value: perkValue, 
-                definition_id: definitionId, 
-                periodMonths,
-                remainingValue
-              });
               return { 
                 ...p, 
                 status: newStatus,
@@ -378,10 +404,16 @@ export function usePerkStatus(
         const valueToAdd = perkValue - originalRedeemedAmount;
         newCumulative[cardId] = currentCardValue + valueToAdd;
       } else if (newStatus === 'partially_redeemed' && !originalStatusIsRedeemed && !originalStatusIsPartiallyRedeemed) {
+        // First-time partial redemption
         const redeemedValue = perkValue - (remainingValue || 0);
         newCumulative[cardId] = currentCardValue + redeemedValue;
+      } else if (newStatus === 'partially_redeemed' && originalStatusIsPartiallyRedeemed) {
+        // Incremental partial redemption: calculate the additional amount redeemed
+        const newRedeemedAmount = perkValue - (remainingValue || 0);
+        const additionalRedeemed = newRedeemedAmount - originalRedeemedAmount;
+        newCumulative[cardId] = currentCardValue + additionalRedeemed;
       } else if (newStatus === 'available' && (originalStatusIsRedeemed || originalStatusIsPartiallyRedeemed)) {
-        const valueToSubtract = originalStatusIsPartiallyRedeemed ? (perkValue - (remainingValue || 0)) : perkValue;
+        const valueToSubtract = originalStatusIsPartiallyRedeemed ? originalRedeemedAmount : perkValue;
         newCumulative[cardId] = Math.max(0, currentCardValue - valueToSubtract);
       }
       return newCumulative;
@@ -404,11 +436,18 @@ export function usePerkStatus(
             aggregate.partiallyRedeemedCount = Math.max(0, aggregate.partiallyRedeemedCount - 1);
           }
         } else if (newStatus === 'partially_redeemed' && !originalStatusIsRedeemed && !originalStatusIsPartiallyRedeemed) {
+          // First-time partial redemption
           const redeemedValue = perkValue - (remainingValue || 0);
           aggregate.redeemedValue += redeemedValue;
           aggregate.partiallyRedeemedCount++;
+        } else if (newStatus === 'partially_redeemed' && originalStatusIsPartiallyRedeemed) {
+          // Incremental partial redemption: only add the additional amount
+          const newRedeemedAmount = perkValue - (remainingValue || 0);
+          const additionalRedeemed = newRedeemedAmount - originalRedeemedAmount;
+          aggregate.redeemedValue += additionalRedeemed;
+          // partiallyRedeemedCount stays the same (still 1 partially redeemed perk)
         } else if (newStatus === 'available' && (originalStatusIsRedeemed || originalStatusIsPartiallyRedeemed)) {
-          const valueToSubtract = originalStatusIsPartiallyRedeemed ? (perkValue - (remainingValue || 0)) : perkValue;
+          const valueToSubtract = originalStatusIsPartiallyRedeemed ? originalRedeemedAmount : perkValue;
           aggregate.redeemedValue = Math.max(0, aggregate.redeemedValue - valueToSubtract);
           if (originalStatusIsRedeemed) {
             aggregate.redeemedCount = Math.max(0, aggregate.redeemedCount - 1);
@@ -446,17 +485,27 @@ export function usePerkStatus(
       remainingValue
     });
 
+    // Enhanced logging to show value changes for ALL redemption scenarios
     if (shouldAddToRedeemed) {
       const redeemedValue = newStatus === 'partially_redeemed' ? (perkValue - (remainingValue || 0)) : perkValue;
       console.log(`[usePerkStatus] Marked ${perkId} as ${newStatus}, added $${redeemedValue}`);
     } else if (shouldRemoveFromRedeemed) {
-      const removedValue = originalStatusIsPartiallyRedeemed ? (perkValue - (remainingValue || 0)) : perkValue;
+      const removedValue = originalStatusIsPartiallyRedeemed ? originalRedeemedAmount : perkValue;
       console.log(`[usePerkStatus] Marked ${perkId} as available, removed $${removedValue}`);
+    } else if (newStatus === 'partially_redeemed' && originalStatusIsPartiallyRedeemed) {
+      // Log incremental partial redemptions
+      const newRedeemedAmount = perkValue - (remainingValue || 0);
+      const additionalRedeemed = newRedeemedAmount - originalRedeemedAmount;
+      console.log(`[usePerkStatus] Incremental partial redemption for ${perkId}, added $${additionalRedeemed} (total now $${newRedeemedAmount})`);
+    } else if (newStatus === 'redeemed' && originalStatusIsPartiallyRedeemed) {
+      // Log partial-to-full redemptions
+      const additionalRedeemed = perkValue - originalRedeemedAmount;
+      console.log(`[usePerkStatus] Completed partial redemption for ${perkId}, added final $${additionalRedeemed} (total $${perkValue})`);
     }
 
     console.log('New redeemedInCurrentCycle state:', redeemedInCurrentCycle);
     console.log('========= [usePerkStatus] setPerkStatus complete =========');
-  }, [markFirstPerkRedeemed]);
+  }, [processedCardsWithPerks, markFirstPerkRedeemed, redeemedInCurrentCycle]);
 
   const refreshSavings = useCallback(() => {
     console.log('========= [usePerkStatus] refreshSavings called =========');

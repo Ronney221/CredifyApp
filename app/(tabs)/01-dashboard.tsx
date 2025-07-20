@@ -754,12 +754,15 @@ export default function Dashboard() {
     if (!loggingPerk || !user) return;
 
     setIsUpdatingPerk(true);
+    
+    // Store perk reference before dismissing modal
+    const perkToRedeem = loggingPerk;
     handleLoggingModalDismiss();
 
     try {
       // Find the card ID for this perk
       const cardWithPerk = userCardsWithPerks.find(card => 
-        card.perks.some(p => p.id === loggingPerk.id)
+        card.perks.some(p => p.id === perkToRedeem.id)
       );
       
       if (!cardWithPerk) {
@@ -769,7 +772,7 @@ export default function Dashboard() {
       }
 
       // Use the perk redemption hook
-      await perkRedemptionMarkRedeemed(cardWithPerk.card.id, loggingPerk, amount);
+      await perkRedemptionMarkRedeemed(cardWithPerk.card.id, perkToRedeem, amount);
       
     } catch (error) {
       console.error('Error saving log:', error);
