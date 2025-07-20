@@ -79,6 +79,41 @@ const { height: screenHeight } = Dimensions.get('window');
 
 // Get the app name for the CTA button
 const getAppName = (perk: CardPerk): string => {
+  // Special handling for multi-choice perks
+  const lowerPerkName = perk.name.toLowerCase();
+  if (lowerPerkName.includes('airline fee credit') || 
+      lowerPerkName.includes('airline incidental') ||
+      lowerPerkName.includes('airline flight credit')) {
+    return 'Airlines';
+  }
+  if (lowerPerkName.includes('annual travel credit')) {
+    return 'Travel';
+  }
+  if (lowerPerkName.includes('travel & dining credit')) {
+    return 'Travel & Dining';
+  }
+  if (lowerPerkName.includes('digital entertainment credit')) {
+    return 'Streaming Apps';
+  }
+  if (lowerPerkName.includes('apple services credit')) {
+    return 'Apple Apps';
+  }
+  if (lowerPerkName.includes('disney bundle credit')) {
+    return 'Disney Apps';
+  }
+  if (lowerPerkName.includes('lifestyle convenience credits')) {
+    return 'Lifestyle Apps';
+  }
+  if (lowerPerkName.includes('rideshare credit')) {
+    return 'Rideshare Apps';
+  }
+  if (lowerPerkName.includes('dining credit')) {
+    return 'Dining Apps';
+  }
+  if (lowerPerkName.includes('uber cash')) {
+    return 'Uber Apps';
+  }
+  
   if (perk.appScheme) {
     // Map app schemes to friendly names
     switch (perk.appScheme) {
@@ -102,6 +137,10 @@ const getAppName = (perk: CardPerk): string => {
       case 'soulcycle': return 'SoulCycle';
       case 'shoprunner': return 'ShopRunner';
       case 'wegmans': return 'Wegmans';
+      case 'united': return 'United Airlines';
+      case 'delta': return 'Delta Airlines';
+      case 'american': return 'American Airlines';
+      case 'amex': return 'Amex';
       default: return perk.appScheme.charAt(0).toUpperCase() + perk.appScheme.slice(1);
     }
   }
@@ -123,6 +162,8 @@ const getMerchantColor = (perkName: string): string => {
   if (lowerName.includes('chase travel')) return '#117ACA';
   if (lowerName.includes('disney')) return '#0066CC';
   if (lowerName.includes('delta')) return '#003366';
+  if (lowerName.includes('united')) return '#002244';
+  if (lowerName.includes('american airlines') || lowerName.includes('american credit')) return '#C41E3A';
   if (lowerName.includes('marriott')) return '#003366';
   if (lowerName.includes('hilton')) return '#104C97';
   if (lowerName.includes('clear')) return '#003087';
@@ -132,6 +173,18 @@ const getMerchantColor = (perkName: string): string => {
   if (lowerName.includes('stubhub')) return '#3B5998';
   
   // Category-based colors
+  if (lowerName.includes('airline fee credit') || 
+      lowerName.includes('airline incidental') || 
+      lowerName.includes('airline flight credit')) return '#1E3A8A'; // Aviation blue
+  if (lowerName.includes('annual travel credit')) return '#6366F1'; // Travel purple
+  if (lowerName.includes('travel & dining credit')) return '#059669'; // Teal for mixed category
+  if (lowerName.includes('digital entertainment credit')) return '#7C3AED'; // Entertainment purple
+  if (lowerName.includes('apple services credit')) return '#007AFF'; // Apple blue
+  if (lowerName.includes('disney bundle credit')) return '#0066CC'; // Disney blue
+  if (lowerName.includes('lifestyle convenience credits')) return '#059669'; // Lifestyle teal
+  if (lowerName.includes('rideshare credit')) return '#000000'; // Black for rideshare
+  if (lowerName.includes('dining credit')) return '#DC2626'; // Red for dining
+  if (lowerName.includes('uber cash')) return '#000000'; // Uber black
   if (lowerName.includes('travel')) return '#6366F1';
   if (lowerName.includes('dining')) return '#DC2626';
   if (lowerName.includes('hotel')) return '#7C3AED';
@@ -155,6 +208,8 @@ const getMerchantButtonIcon = (perkName: string): string => {
   if (lowerName.includes('chase travel')) return 'compass';
   if (lowerName.includes('disney')) return 'film';
   if (lowerName.includes('delta')) return 'airplane';
+  if (lowerName.includes('united')) return 'airplane-outline';
+  if (lowerName.includes('american airlines') || lowerName.includes('american credit')) return 'airplane';
   if (lowerName.includes('marriott')) return 'bed';
   if (lowerName.includes('hilton')) return 'bed-outline';
   if (lowerName.includes('hotel')) return 'business';
@@ -163,6 +218,18 @@ const getMerchantButtonIcon = (perkName: string): string => {
   if (lowerName.includes('starbucks')) return 'cafe-outline';
   if (lowerName.includes('opentable')) return 'restaurant-outline';
   if (lowerName.includes('stubhub')) return 'ticket';
+  if (lowerName.includes('airline fee credit') || 
+      lowerName.includes('airline incidental') || 
+      lowerName.includes('airline flight credit')) return 'airplane';
+  if (lowerName.includes('annual travel credit')) return 'airplane';
+  if (lowerName.includes('travel & dining credit')) return 'globe'; // Multi-category icon
+  if (lowerName.includes('digital entertainment credit')) return 'play-circle'; // Streaming icon
+  if (lowerName.includes('apple services credit')) return 'logo-apple'; // Apple icon
+  if (lowerName.includes('disney bundle credit')) return 'film'; // Disney icon
+  if (lowerName.includes('lifestyle convenience credits')) return 'grid'; // Grid for multiple options
+  if (lowerName.includes('rideshare credit')) return 'car'; // Car icon
+  if (lowerName.includes('dining credit')) return 'restaurant'; // Restaurant icon
+  if (lowerName.includes('uber cash')) return 'car'; // Uber icon
   if (lowerName.includes('dining')) return 'restaurant';
   if (lowerName.includes('travel')) return 'airplane';
   if (lowerName.includes('entertainment')) return 'play-circle';
