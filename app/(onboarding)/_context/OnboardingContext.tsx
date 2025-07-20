@@ -38,6 +38,7 @@ interface OnboardingContextType {
   hasSeenSwipeOnboarding: boolean;
   markTapOnboardingAsSeen: () => Promise<void>;
   markSwipeOnboardingAsSeen: () => Promise<void>;
+  reloadOnboardingFlags: () => Promise<void>;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -148,6 +149,32 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     }
   }, [hasSeenSwipeOnboarding]);
 
+  const reloadOnboardingFlags = useCallback(async () => {
+    try {
+      console.log('[OnboardingContext] Reloading onboarding flags');
+      const [[, redeemedVal], [, seenVal], [, tapVal], [, swipeVal]] = await AsyncStorage.multiGet([
+        HAS_REDEEMED_FIRST_PERK_KEY,
+        HAS_SEEN_ONBOARDING_SHEET_KEY,
+        HAS_SEEN_TAP_ONBOARDING_KEY,
+        HAS_SEEN_SWIPE_ONBOARDING_KEY,
+      ]);
+
+      const redeemedBool = redeemedVal === 'true';
+      const seenBool = seenVal === 'true';
+      const tapBool = tapVal === 'true';
+      const swipeBool = swipeVal === 'true';
+
+      setHasRedeemedFirstPerk(redeemedBool);
+      setHasSeenOnboardingSheet(seenBool);
+      setHasSeenTapOnboarding(tapBool);
+      setHasSeenSwipeOnboarding(swipeBool);
+      
+      console.log('[OnboardingContext] Flags reloaded:', { tapBool, swipeBool });
+    } catch (err) {
+      console.error('[OnboardingContext] Failed to reload onboarding flags', err);
+    }
+  }, []);
+
   const resetFirstPerkRedemption = useCallback(async () => {
     console.log('[OnboardingContext] Resetting first perk redemption state');
     try {
@@ -234,6 +261,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     hasSeenSwipeOnboarding,
     markTapOnboardingAsSeen,
     markSwipeOnboardingAsSeen,
+    reloadOnboardingFlags,
   };
 
   return (
@@ -259,6 +287,7 @@ export function useOnboarding() {
     markTapOnboardingAsSeen: context.markTapOnboardingAsSeen,
     markSwipeOnboardingAsSeen: context.markSwipeOnboardingAsSeen,
     isOnboardingFlagsReady: context.isOnboardingFlagsReady,
+    reloadOnboardingFlags: context.reloadOnboardingFlags,
   };
 }
 

@@ -26,7 +26,7 @@ import { NotificationPreferences } from '../../types/notification-types';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import * as Sentry from '@sentry/react-native';
-import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY, HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY } from '../(onboarding)/_context/OnboardingContext';
+import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY, HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY, useOnboarding } from '../(onboarding)/_context/OnboardingContext';
 import { DatabaseTester } from '../../components/debug/DatabaseTester';
 
 // Constants
@@ -54,6 +54,7 @@ const ProfileScreen = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
   const { setHasRedeemedFirstPerk } = useOnboardingContext();
+  const { reloadOnboardingFlags } = useOnboarding();
   const [showTester, setShowTester] = useState(false);
 
   const handleTestPerkExpiryNotifications = async () => {
@@ -148,10 +149,13 @@ const ProfileScreen = () => {
       // Remove both tap and swipe onboarding keys to reset the full flow
       await AsyncStorage.multiRemove([HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY]);
       
+      // Reload the onboarding flags to immediately reflect the changes
+      await reloadOnboardingFlags();
+      
       Alert.alert(
-        "Success",
-        "Tap onboarding has been reset. The tap tutorial will show when you next expand a card with perks.",
-        [{ text: "OK" }]
+        "Tutorial Reset",
+        "Tutorial has been reset successfully! Go to your dashboard and expand any card with perks to see the interactive tutorial again.",
+        [{ text: "Got it!" }]
       );
     } catch (error) {
       console.error('[Profile] Error resetting tap onboarding state:', error);
@@ -339,6 +343,13 @@ const ProfileScreen = () => {
     {
       title: 'Support',
       data: [
+        {
+          id: 'replay-tutorial',
+          title: 'Replay Tutorial',
+          icon: 'school-outline',
+          subtitle: 'Learn about tap and swipe gestures again',
+          onPress: handleResetTapOnboarding
+        },
         {
           id: 'help-faq',
           title: 'Help & FAQ',
