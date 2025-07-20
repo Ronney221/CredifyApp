@@ -426,17 +426,22 @@ export default function PerkInfoSheet({
   }, [showHowItWorks, rotation]);
 
   const handleOpenApp = useCallback(async () => {
-    // Button press animation
-    buttonScale.value = withTiming(0.96, { duration: 100 }, () => {
-      buttonScale.value = withTiming(1, { duration: 100 });
+    // Button press animation with visible feedback
+    buttonScale.value = withTiming(0.94, { duration: 150 }, () => {
+      buttonScale.value = withTiming(1.02, { duration: 100 }, () => {
+        buttonScale.value = withTiming(1, { duration: 100 });
+      });
     });
     
     if (Platform.OS === 'ios') {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     
-    handleDismiss();
-    await onOpenApp();
+    // Add delay to show animation before app launch
+    setTimeout(async () => {
+      handleDismiss();
+      await onOpenApp();
+    }, 400); // Give time for animation to complete
   }, [handleDismiss, onOpenApp, buttonScale]);
 
   const nextTip = useCallback(() => {
@@ -614,7 +619,10 @@ export default function PerkInfoSheet({
                     index > 0 && styles.secondaryTipCard,
                   ]}
                 >
-                  <View style={styles.tipCardContent}>
+                  <View style={[
+                    styles.tipCardContent,
+                    index === 0 && styles.primaryTipCardContent
+                  ]}>
                     <View style={styles.tipHeader}>
                       <View style={[
                         styles.tipIconContainer,
@@ -638,7 +646,6 @@ export default function PerkInfoSheet({
                             styles.tipDescription,
                             index === 0 && styles.primaryTipDescription
                           ]}
-                          numberOfLines={index === 0 ? 4 : 2}
                         >
                           {tip.description}
                         </Text>
@@ -905,9 +912,13 @@ const styles = StyleSheet.create({
   },
   secondaryTipCard: {
     backgroundColor: '#F9F9F9',
+    minHeight: 80,
   },
   tipCardContent: {
     padding: 14,
+  },
+  primaryTipCardContent: {
+    padding: 18,
   },
   tipHeader: {
     flexDirection: 'row',
@@ -948,6 +959,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666666',
     lineHeight: 22,
+    marginTop: 2,
   },
   viewMoreCard: {
     backgroundColor: '#F2F2F7',
