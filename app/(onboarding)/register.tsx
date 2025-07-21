@@ -477,7 +477,7 @@ export default function RegisterScreen() {
                       style={styles.testimonialAvatar}
                     >
                       <Image
-                        source={{ uri: shuffledTestimonials[currentTestimonial].avatar }}
+                        source={{ uri: shuffledTestimonials[currentTestimonial]?.avatar || '' }}
                         style={styles.testimonialAvatarImage}
                         resizeMode="cover"
                       />
@@ -494,7 +494,7 @@ export default function RegisterScreen() {
                         }}
                       >
                         <Text style={styles.testimonialName}>
-                          {shuffledTestimonials[currentTestimonial].name}
+                          {shuffledTestimonials[currentTestimonial]?.name || ''}
                         </Text>
                       </MotiView>
                       <MotiView
@@ -535,7 +535,7 @@ export default function RegisterScreen() {
                     }}
                   >
                     <Text style={styles.testimonialText}>
-                      "{shuffledTestimonials[currentTestimonial].text}"
+                      "{shuffledTestimonials[currentTestimonial]?.text || ''}"
                     </Text>
                   </MotiView>
                 </MotiView>
