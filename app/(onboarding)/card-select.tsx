@@ -390,24 +390,23 @@ export default function OnboardingCardSelectScreen() {
         </ScrollView>
       </MotiView>
 
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 400 }}
-        style={styles.footer}
-      >
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            selectedCards.length === 0 && styles.nextButtonDisabled
-          ]}
-          onPress={handleNext}
-          disabled={selectedCards.length === 0}
-          activeOpacity={0.6}
+      {selectedCards.length > 0 && (
+        <MotiView
+          from={{ opacity: 0, translateY: 20, scale: 0.9 }}
+          animate={{ opacity: 1, translateY: 0, scale: 1 }}
+          exit={{ opacity: 0, translateY: 20, scale: 0.9 }}
+          transition={{ type: 'spring', damping: 15, mass: 1, stiffness: 150 }}
+          style={styles.footer}
         >
-          <Text style={styles.nextButtonText}>Crunch My Numbers</Text>
-        </TouchableOpacity>
-      </MotiView>
+          <TouchableOpacity
+            style={styles.nextButton}
+            onPress={handleNext}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.nextButtonText}>Crunch My Numbers</Text>
+          </TouchableOpacity>
+        </MotiView>
+      )}
     </SafeAreaView>
   );
 }
@@ -492,11 +491,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 5 },
     elevation: 5,
-  },
-  nextButtonDisabled: {
-    backgroundColor: '#d1d1d6',
-    shadowOpacity: 0,
-    elevation: 0,
   },
   nextButtonText: {
     color: '#ffffff',
