@@ -122,12 +122,14 @@ export default function PerkLoggingModal({
   }, []);
 
   const handleLogFullAmount = useCallback(() => {
-    setInputValue(maxValue.toFixed(2));
-    setError('');
+    // Instant log full amount without needing to click save
     if (Platform.OS === 'ios') {
-      Haptics.selectionAsync();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [maxValue]);
+    
+    handleDismiss();
+    onSaveLog(maxValue);
+  }, [maxValue, handleDismiss, onSaveLog]);
 
   const handleSaveLog = useCallback(() => {
     const amount = parseDecimalInput(inputValue);

@@ -11,9 +11,10 @@ import Reanimated, {
   withTiming, 
   interpolate, 
   runOnJS,
-  withSequence
+  withSequence,
+  useAnimatedGestureHandler
 } from 'react-native-reanimated';
-import { Swipeable } from 'react-native-gesture-handler';
+import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { CardPerk, calculatePerkExpiryDate } from '../../../src/data/card-data';
@@ -39,10 +40,13 @@ interface PerkRowProps {
   onLongPressPerk: () => void;
   onSwipeableWillOpen: (direction: 'left' | 'right') => void;
   onSwipeableOpen: (direction: 'left' | 'right') => void;
-  setSwipeableRef: (ref: Swipeable | null) => void;
+  setSwipeableRef: (ref: any) => void;
   renderLeftActions?: () => React.ReactNode;
   renderRightActions?: () => React.ReactNode;
   onLayout?: (layout: {x: number; y: number; width: number; height: number}) => void;
+  onInstantLog?: (perk: CardPerk, amount: number) => void;
+  onSaveLog?: (amount: number) => void;
+  onOpenLoggingModal?: (perk: CardPerk) => void;
 }
 
 const PerkRow: React.FC<PerkRowProps> = ({
@@ -62,6 +66,9 @@ const PerkRow: React.FC<PerkRowProps> = ({
   renderLeftActions,
   renderRightActions,
   onLayout,
+  onInstantLog,
+  onSaveLog,
+  onOpenLoggingModal,
 }) => {
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
@@ -70,6 +77,23 @@ const PerkRow: React.FC<PerkRowProps> = ({
   // Advanced micro-interaction state
   const [isPressed, setIsPressed] = useState(false);
   const pressOpacity = useSharedValue(0);
+  
+  // Gesture constants
+  const SHORT_SWIPE_THRESHOLD = 80;
+  const LONG_SWIPE_THRESHOLD = 180;
+  const ACTION_BUTTON_WIDTH = 120;
+  const INSTANT_LOG_ANIMATION_DURATION = 300;
+  
+  // Shared values for gesture
+  const translateX = useSharedValue(0);
+  const isGestureActive = useSharedValue(false);
+  
+  // Create a ref object for external control
+  React.useImperativeHandle(setSwipeableRef, () => ({
+    close: () => {
+      translateX.value = withSpring(0, springConfig);
+    }
+  }), []);
   
   // Premium spring configuration for Apple-quality animations
   const springConfig = {
@@ -133,6 +157,146 @@ const PerkRow: React.FC<PerkRowProps> = ({
     };
   });
   
+  // Track whether we've crossed the threshold for haptic feedback
+  const hasTriggeredHaptic = useSharedValue(false);
+  const hasTriggeredLongHaptic = useSharedValue(false);
+  
+  // Handle instant log for long swipe
+  const handleInstantLog = () => {
+    logger.log('[PerkRow] handleInstantLog called for perk:', perk.name, 'status:', perk.status);
+    
+    if (perk.status === 'available' || perk.status === 'partially_redeemed') {
+      logger.log('[PerkRow] Perk is available, proceeding with instant log');
+      
+      // Flash success animation
+      flashOpacity.value = withSequence(
+        withTiming(0.3, { duration: 100 }),
+        withTiming(0, { duration: 200 })
+      );
+      
+      // Calculate the amount to log
+      const amountToLog = perk.status === 'partially_redeemed' 
+        ? (perk.remaining_value || perk.value)
+        : perk.value;
+      
+      logger.log('[PerkRow] Amount to log:', amountToLog, 'onInstantLog available:', !!onInstantLog, 'onSaveLog available:', !!onSaveLog, 'onOpenLoggingModal available:', !!onOpenLoggingModal);
+      
+      // Trigger instant logging with full amount - this should directly save the log
+      if (onInstantLog) {
+        logger.log('[PerkRow] Calling onInstantLog');
+        onInstantLog(perk, amountToLog);
+      } else if (onSaveLog) {
+        logger.log('[PerkRow] Calling onSaveLog as fallback');
+        onSaveLog(amountToLog);
+      } else {
+        logger.log('[PerkRow] No direct logging methods available, falling back to simulating button press');
+        // As a fallback, trigger the left action button which opens the modal
+        // The user can then use the "Log Full Amount" button in the modal
+        onSwipeableOpen('left');
+      }
+    } else {
+      logger.log('[PerkRow] Perk not available for instant log, status:', perk.status);
+    }
+  };
+  
+  // Pre-calculate status to avoid accessing perk.status in animated context
+  const isAvailable = perk.status === 'available' || perk.status === 'partially_redeemed';
+  
+  // Gesture handler for pan
+  const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent>({
+    onStart: () => {
+      isGestureActive.value = true;
+      hasTriggeredHaptic.value = false;
+      hasTriggeredLongHaptic.value = false;
+    },
+    onActive: (event) => {
+      if (isAvailable) {
+        // For available perks, allow right swipe only (positive translateX)
+        // Allow swipe beyond ACTION_BUTTON_WIDTH for long swipe
+        translateX.value = Math.max(0, event.translationX);
+        
+        // Trigger haptic when crossing short threshold
+        if (translateX.value >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
+          hasTriggeredHaptic.value = true;
+          runOnJS(triggerHapticFeedback)('light');
+        }
+        
+        // Trigger stronger haptic when crossing long threshold
+        if (translateX.value >= LONG_SWIPE_THRESHOLD && !hasTriggeredLongHaptic.value) {
+          hasTriggeredLongHaptic.value = true;
+          runOnJS(triggerHapticFeedback)('medium');
+        }
+      } else {
+        // For redeemed perks, allow left swipe only (negative translateX)
+        translateX.value = Math.min(0, Math.max(-ACTION_BUTTON_WIDTH, event.translationX));
+        
+        // Trigger haptic when crossing threshold
+        if (Math.abs(translateX.value) >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
+          hasTriggeredHaptic.value = true;
+          runOnJS(triggerHapticFeedback)('light');
+        }
+      }
+    },
+    onEnd: () => {
+      const absTranslateX = Math.abs(translateX.value);
+      
+      if (isAvailable && translateX.value >= LONG_SWIPE_THRESHOLD) {
+        // Long swipe detected - trigger instant log
+        runOnJS(triggerHapticFeedback)('success');
+        runOnJS(handleInstantLog)();
+        // Animate back to closed position after a brief pause
+        translateX.value = withSequence(
+          withTiming(LONG_SWIPE_THRESHOLD + 20, { duration: 100 }),
+          withSpring(0, springConfig)
+        );
+      } else if (absTranslateX >= SHORT_SWIPE_THRESHOLD) {
+        // Short swipe - snap to open position
+        if (isAvailable) {
+          translateX.value = withSpring(ACTION_BUTTON_WIDTH, springConfig);
+          runOnJS(enhancedOnSwipeableOpen)('left');
+        } else {
+          translateX.value = withSpring(-ACTION_BUTTON_WIDTH, springConfig);
+          runOnJS(enhancedOnSwipeableOpen)('right');
+        }
+      } else {
+        // Didn't pass threshold - snap back to closed
+        translateX.value = withSpring(0, springConfig);
+      }
+      
+      isGestureActive.value = false;
+    },
+  });
+  
+  // Success flash animation
+  const flashOpacity = useSharedValue(0);
+  
+  // Animated style for the swipeable content
+  const animatedStyle = useAnimatedStyle(() => {
+    // Add slight scale effect when approaching long swipe threshold
+    const scale = interpolate(
+      translateX.value,
+      [0, LONG_SWIPE_THRESHOLD - 20, LONG_SWIPE_THRESHOLD],
+      [1, 1, 1.02],
+      'clamp'
+    );
+    
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { scale }
+      ],
+      zIndex: 10, // Above the action buttons
+    };
+  });
+  
+  // Flash overlay for success animation
+  const flashOverlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: flashOpacity.value,
+      backgroundColor: '#34C759', // iOS green
+    };
+  });
+  
   const shouldShowRedeemHintOnThisPerk = showSwipeHint && isFirstAvailablePerk;
   const shouldShowUndoHintOnThisPerk = showUndoHint && isFirstRedeemedPerk;
 
@@ -167,21 +331,25 @@ const PerkRow: React.FC<PerkRowProps> = ({
       entering={FadeIn.duration(300).springify()}
       exiting={FadeOut.duration(200)}
     >
-      <Swipeable
-        ref={setSwipeableRef}
-        renderLeftActions={renderLeftActions}
-        renderRightActions={renderRightActions}
-        leftThreshold={30} // Lower threshold for more responsive interaction
-        rightThreshold={30}
-        leftOpenValue={120} // Limit left swipe (Log Usage button) to 120px like iMessage
-        rightOpenValue={-120} // Limit right swipe (Available button) to 120px
-        onSwipeableWillOpen={enhancedOnSwipeableWillOpen}
-        onSwipeableOpen={enhancedOnSwipeableOpen}
-        friction={1.8} // Optimized friction for premium feel
-        overshootFriction={8} // Refined overshoot for better control
-        useNativeAnimations={true} // Use native animations for better performance
-      >
-        <TouchableOpacity
+      {/* Action buttons layer - behind the main content */}
+      <View style={styles.actionsContainer}>
+        {/* Left action (Log Usage) - for available perks */}
+        {(perk.status === 'available' || perk.status === 'partially_redeemed') && renderLeftActions && (
+          <View style={styles.leftActionContainer}>
+            {renderLeftActions()}
+          </View>
+        )}
+        {/* Right action (Available) - for redeemed perks */}
+        {perk.status === 'redeemed' && renderRightActions && (
+          <View style={styles.rightActionContainer}>
+            {renderRightActions()}
+          </View>
+        )}
+      </View>
+      
+      <PanGestureHandler onGestureEvent={gestureHandler}>
+        <Reanimated.View style={animatedStyle}>
+          <TouchableOpacity
           ref={touchableRef}
           activeOpacity={1} // Prevent opacity change during swipe
           onPress={onTapPerk}
@@ -290,8 +458,14 @@ const PerkRow: React.FC<PerkRowProps> = ({
               style={[styles.pressOverlay, pressOverlayStyle]}
               pointerEvents="none"
             />
-        </TouchableOpacity>
-      </Swipeable>
+            {/* Success flash overlay */}
+            <Reanimated.View 
+              style={[styles.flashOverlay, flashOverlayStyle]}
+              pointerEvents="none"
+            />
+          </TouchableOpacity>
+        </Reanimated.View>
+      </PanGestureHandler>
     </Reanimated.View>
   );
 };
@@ -308,18 +482,13 @@ const styles = StyleSheet.create({
     paddingVertical: ComponentSpacing.listItemPadding, // 16pt
     paddingHorizontal: ComponentSpacing.listItemPadding, // 16pt
     position: 'relative',
-    overflow: 'hidden',
     minHeight: 72, // Ensure consistent height for swipe action alignment
-    // Ensure this stays on top of swipe actions and maintains opacity
-    zIndex: 10, // Higher z-index to stay above actions
-    opacity: 1, // Force full opacity during swipe
+    backgroundColor: '#FFFFFF', // Ensure opaque background to hide actions behind
   },
   perkContainerAvailable: {
     backgroundColor: PerkDesign.available.background,
-    // Remove border to prevent border radius conflicts
-    // iOS Messages style: remove LEFT corners where green action connects
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderBottomLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl, // 16pt
     borderBottomRightRadius: BorderRadius.xl, // 16pt
     ...Platform.select({
@@ -336,26 +505,22 @@ const styles = StyleSheet.create({
   },
   perkContainerRedeemed: {
     backgroundColor: PerkDesign.redeemed.background,
-    // iOS Messages style: remove RIGHT corners where blue action connects
     borderTopLeftRadius: BorderRadius.xl, // 16pt
     borderBottomLeftRadius: BorderRadius.xl, // 16pt
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
+    borderTopRightRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
   },
   perkContainerAutoRedeemed: {
     backgroundColor: PerkDesign.autoRedeemed.background,
-    // iOS Messages style: remove RIGHT corners where blue action connects
     borderTopLeftRadius: BorderRadius.xl, // 16pt
     borderBottomLeftRadius: BorderRadius.xl, // 16pt
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
+    borderTopRightRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
   },
   perkContainerPartiallyRedeemed: {
     backgroundColor: PerkDesign.partiallyRedeemed.background,
-    // Remove border to prevent border radius conflicts
-    // iOS Messages style: remove LEFT corners where green action connects
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderBottomLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl, // 16pt
     borderBottomRightRadius: BorderRadius.xl, // 16pt
     ...Platform.select({
@@ -463,6 +628,40 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: BorderRadius.xl, // Match container radius
+  },
+  flashOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: BorderRadius.xl, // Match container radius
+  },
+  actionsContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 1, // Behind the main content
+  },
+  leftActionContainer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 120, // ACTION_BUTTON_WIDTH
+    overflow: 'hidden',
+  },
+  rightActionContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 120, // ACTION_BUTTON_WIDTH  
+    overflow: 'hidden',
   },
 });
 

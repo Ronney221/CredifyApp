@@ -93,6 +93,8 @@ export interface ExpandableCardProps {
   renewalDate?: Date | null;
   onRenewalDatePress?: () => void;
   onOpenLoggingModal?: (perk: CardPerk) => void;
+  onInstantLog?: (perk: CardPerk, amount: number) => void;
+  onSaveLog?: (amount: number) => void;
 }
 
 // Use our design system's success green - more professional than iOS systemGreen
@@ -130,11 +132,15 @@ const ExpandableCardComponent = ({
   renewalDate,
   onRenewalDatePress,
   onOpenLoggingModal,
+  onInstantLog,
+  onSaveLog,
 }: ExpandableCardProps) => {
   logger.log('[ExpandableCard] Rendering card:', {
     cardName: card.name,
     renewalDate: renewalDate,
     cardRenewalDate: card.renewalDate,
+    onInstantLogAvailable: !!onInstantLog,
+    onSaveLogAvailable: !!onSaveLog,
     hasHandler: !!onRenewalDatePress
   });
   const validPerks = perks ? perks.filter(Boolean) : [];
@@ -146,7 +152,7 @@ const ExpandableCardComponent = ({
   const [autoRedeemUpdateKey, setAutoRedeemUpdateKey] = useState(0);
   const { user } = useAuth();
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
-  const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
+  const swipeableRefs = useRef<Record<string, any>>({});
   const { hasSeenTapOnboarding, hasSeenSwipeOnboarding, markTapOnboardingAsSeen, markSwipeOnboardingAsSeen, isOnboardingFlagsReady } = useOnboarding();
   const [firstPerkLayout, setFirstPerkLayout] = useState<{x: number; y: number; width: number; height: number} | null>(null);
   
@@ -685,7 +691,7 @@ const ExpandableCardComponent = ({
       animatedUndoNudgeStyle={animatedUndoNudgeStyle}
       onTapPerk={() => onTapPerk(card.id, perk.id, perk)}
       onLongPressPerk={() => handleLongPressPerk(card.id, perk)}
-      setSwipeableRef={(ref: Swipeable | null) => { swipeableRefs.current[perk.id] = ref; }}
+      setSwipeableRef={(ref: any) => { swipeableRefs.current[perk.id] = ref; }}
       onSwipeableWillOpen={(direction: 'left' | 'right') => {
         if (direction === 'left') { // Right-swipe reveals the left-side action ("Redeem")
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -711,6 +717,9 @@ const ExpandableCardComponent = ({
       renderLeftActions={isAvailable ? () => renderLeftActions(perk) : undefined}
       renderRightActions={!isAvailable ? () => renderRightActions(perk) : undefined}
       onLayout={isFirstPerk ? handleFirstPerkLayout : undefined}
+      onInstantLog={onInstantLog}
+      onSaveLog={onSaveLog}
+      onOpenLoggingModal={onOpenLoggingModal}
     />
     );
   };

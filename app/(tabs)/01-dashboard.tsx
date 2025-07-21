@@ -66,6 +66,14 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+};
+
 // Move helper functions outside component
 const getDaysRemainingInMonth = (): number => {
   const today = new Date();
@@ -742,6 +750,68 @@ export default function Dashboard() {
     setShowLoggingModal(true);
   }, []);
 
+  const handleInstantLog = useCallback(async (perk: CardPerk, amount: number) => {
+    dashboardLogger.log('[Dashboard] handleInstantLog called for perk:', perk.name, 'amount:', amount);
+    
+    if (!user) {
+      dashboardLogger.log('[Dashboard] No user found, returning');
+      return;
+    }
+
+    dashboardLogger.log('[Dashboard] Starting instant log process');
+    setIsUpdatingPerk(true);
+
+    try {
+      // Find the card ID for this perk
+      const cardWithPerk = userCardsWithPerks.find(uc => 
+        uc.perks.some(p => p.id === perk.id)
+      );
+
+      if (!cardWithPerk) {
+        Alert.alert('Error', 'Could not find the card for this perk');
+        setIsUpdatingPerk(false);
+        return;
+      }
+
+      // Log the redemption
+      const { error: redeemError } = await trackPerkRedemption(user.id, cardWithPerk.id, perk, amount);
+      
+      if (redeemError) {
+        Alert.alert('Error', 'Failed to log perk usage');
+        setIsUpdatingPerk(false);
+        return;
+      }
+
+      // Update the local state
+      if (amount >= perk.value) {
+        // Full redemption
+        setPerkStatus(cardWithPerk.id, perk.id, 'redeemed');
+      } else {
+        // Partial redemption
+        const remainingValue = perk.value - amount;
+        setPerkStatus(cardWithPerk.id, perk.id, 'partially_redeemed', remainingValue);
+      }
+
+      // Refresh perks from database
+      refreshUserCards();
+
+      // Success toast
+      setPendingToast({ 
+        message: `Logged ${formatCurrency(amount)} for ${perk.name}`,
+        onUndo: null 
+      });
+
+      // Show celebration for instant log
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 2000);
+    } catch (error) {
+      console.error('Error in instant log:', error);
+      Alert.alert('Error', 'Failed to log perk usage');
+    } finally {
+      setIsUpdatingPerk(false);
+    }
+  }, [user, userCardsWithPerks, setPerkStatus, refreshUserCards]);
+
   const handleWelcomeBackDismiss = () => {
     setShowWelcomeBackSnackbar(false);
     setWelcomeBackPerk(null);
@@ -1075,8 +1145,18 @@ export default function Dashboard() {
       setPendingToast,
       renewalDate: cardData.card.renewalDate,
       onRenewalDatePress: () => handleRenewalDatePress(cardData.card.id),
-      onOpenLoggingModal: handleOpenLoggingModal
+      onOpenLoggingModal: handleOpenLoggingModal,
+      onInstantLog: handleInstantLog,
+      onSaveLog: handleSaveLog
     };
+    
+    // Add logging to verify functions are available
+    dashboardLogger.log('[Dashboard] Creating card list item props:', {
+      cardName: cardData.card.name,
+      hasHandleSaveLog: !!handleSaveLog,
+      hasHandleInstantLog: !!handleInstantLog,
+      hasHandleOpenLoggingModal: !!handleOpenLoggingModal
+    });
   }), [
     cardsListData,
     cumulativeValueSavedPerCard,
@@ -1089,7 +1169,9 @@ export default function Dashboard() {
     setPerkStatus,
     setPendingToast,
     handleRenewalDatePress,
-    handleOpenLoggingModal
+    handleOpenLoggingModal,
+    handleInstantLog,
+    handleSaveLog
   ]);
 
   // renderItem function for the FlatList
