@@ -34,6 +34,9 @@ import Animated, {
   withDelay,
   Easing,
   useSharedValue,
+  withSpring,
+  interpolate,
+  useAnimatedProps,
 } from 'react-native-reanimated';
 
 import { supabase } from '../../lib/supabase';
@@ -58,43 +61,14 @@ const allCards = [
   require('../../assets/images/usb_altitude_reserve.png'),
 ];
 
-const testimonials = [
-  { name: 'Matt K.', percentage: 93 },
-  { name: 'Sarah L.', percentage: 87 },
-  { name: 'James R.', percentage: 91 },
-  { name: 'Emma T.', percentage: 85 },
-  { name: 'Alex M.', percentage: 89 },
-  { name: 'Sophie B.', percentage: 92 },
-  { name: 'David P.', percentage: 88 },
-  { name: 'Rachel W.', percentage: 90 },
-  { name: 'Michael C.', percentage: 94 },
-  { name: 'Lisa H.', percentage: 86 },
-  { name: 'John D.', percentage: 91 },
-  { name: 'Anna S.', percentage: 88 },
-  { name: 'Tom B.', percentage: 93 },
-  { name: 'Olivia M.', percentage: 87 },
-  { name: 'Daniel R.', percentage: 90 },
-];
 
-const verbs = [
-  'captured',
-  'redeemed',
-  'unlocked',
-  'maximized',
-  'secured',
-  'claimed',
-  'earned',
-  'collected',
-  'leveraged',
-  'optimized'
-];
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function LoginScreen() {
   const router = useRouter();
   const { signInGoogle, signInApple, signInEmail } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
-  const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
   const [selectedCards, setSelectedCards] = React.useState<typeof allCards>([]);
   const translateY = useSharedValue(0);
   const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
@@ -103,6 +77,14 @@ export default function LoginScreen() {
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const passwordInputRef = useRef<TextInput | null>(null);
+  
+  // Micro-interaction values
+  const googleButtonScale = useSharedValue(1);
+  const emailButtonScale = useSharedValue(1);
+  const googleButtonDepth = useSharedValue(0);
+  const emailButtonDepth = useSharedValue(0);
+  const parallaxOffset = useSharedValue(0);
+  const loadingProgress = useSharedValue(0);
 
   // Function to get random cards
   const getRandomCards = () => {
@@ -121,10 +103,6 @@ export default function LoginScreen() {
 
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
     
-    // Rotate testimonials every 4 seconds
-    const testimonialInterval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 4000);
     
     // Start the floating animation
     translateY.value = withRepeat(
@@ -135,10 +113,19 @@ export default function LoginScreen() {
       -1,
       true
     );
+
+    // Start subtle parallax drift
+    parallaxOffset.value = withRepeat(
+      withSequence(
+        withTiming(5, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-5, { duration: 3000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
     
     return () => {
       clearInterval(cardInterval);
-      clearInterval(testimonialInterval);
     };
   }, []);
 
@@ -152,8 +139,74 @@ export default function LoginScreen() {
     };
   });
 
+  // Button animation styles with depth
+  const googleButtonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: googleButtonScale.value },
+        { translateY: googleButtonDepth.value }
+      ],
+      shadowOpacity: interpolate(googleButtonDepth.value, [0, 4], [0.1, 0.25]),
+      shadowOffset: {
+        width: 0,
+        height: interpolate(googleButtonDepth.value, [0, 4], [2, 8]),
+      },
+      shadowRadius: interpolate(googleButtonDepth.value, [0, 4], [4, 12]),
+    };
+  });
+
+  const emailButtonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: emailButtonScale.value },
+        { translateY: emailButtonDepth.value }
+      ],
+      shadowOpacity: interpolate(emailButtonDepth.value, [0, 4], [0.1, 0.25]),
+      shadowOffset: {
+        width: 0,
+        height: interpolate(emailButtonDepth.value, [0, 4], [2, 8]),
+      },
+      shadowRadius: interpolate(emailButtonDepth.value, [0, 4], [4, 12]),
+    };
+  });
+
+  // Parallax effect for cards
+  const cardsParallaxStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateY: parallaxOffset.value * 0.3 },
+        { scale: 1 - parallaxOffset.value * 0.0001 }
+      ],
+    };
+  });
+
+  // Loading state morphing
+  const loadingAnimatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(loadingProgress.value, [0, 0.5, 1], [1, 1.1, 1]);
+    const opacity = interpolate(loadingProgress.value, [0, 0.3, 0.7, 1], [1, 0.8, 0.8, 1]);
+    
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
+
+  // Enhanced haptic patterns
+  const playSuccessHapticPattern = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 100);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 200);
+  };
+
+  const playErrorHapticPattern = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
+  };
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    loadingProgress.value = withRepeat(withTiming(1, { duration: 1000 }), -1, true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
@@ -167,11 +220,13 @@ export default function LoginScreen() {
         return;
       }
       
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      loadingProgress.value = 0;
+      await playSuccessHapticPattern();
       router.replace('/(tabs)/01-dashboard' as any);
     } catch (error) {
       console.error('Google sign in error:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      loadingProgress.value = 0;
+      await playErrorHapticPattern();
     } finally {
       setIsLoading(false);
     }
@@ -179,6 +234,7 @@ export default function LoginScreen() {
 
   const handleAppleSignIn = async () => {
     setIsLoading(true);
+    loadingProgress.value = withRepeat(withTiming(1, { duration: 1000 }), -1, true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
@@ -192,11 +248,13 @@ export default function LoginScreen() {
         return;
       }
       
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      loadingProgress.value = 0;
+      await playSuccessHapticPattern();
       router.replace('/(tabs)/01-dashboard' as any);
     } catch (error) {
       console.error('Apple sign in error:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      loadingProgress.value = 0;
+      await playErrorHapticPattern();
     } finally {
       setIsLoading(false);
     }
@@ -266,13 +324,10 @@ export default function LoginScreen() {
         <Ionicons name="help-circle-outline" size={20} color={Colors.light.secondaryLabel} />
       </TouchableOpacity>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Credit Card Display with Continuous Animation */}
-        <View style={styles.cardsContainer}>
+      <View style={styles.contentWrapper}>
+        {/* Premium Card Display with Glassmorphism */}
+        <Animated.View style={[styles.cardsContainer, cardsParallaxStyle]}>
+          <View style={styles.cardsBackdrop} />
           {selectedCards.map((cardImage, index) => (
             <MotiView
               key={index}
@@ -310,6 +365,7 @@ export default function LoginScreen() {
                   animatedStyle,
                 ]}
               >
+                <View style={styles.cardGlow} />
                 <Image
                   source={cardImage}
                   style={styles.cardImage}
@@ -318,7 +374,7 @@ export default function LoginScreen() {
               </Animated.View>
             </MotiView>
           ))}
-        </View>
+        </Animated.View>
 
         <MotiView
           from={{ opacity: 0, translateY: 20 }}
@@ -341,33 +397,57 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.authContainer}>
-            <TouchableOpacity 
-              style={styles.socialButton} 
+            <AnimatedTouchableOpacity 
+              style={[styles.socialButton, googleButtonAnimatedStyle]} 
               onPress={handleGoogleSignIn}
               disabled={isLoading}
-              activeOpacity={0.8}
+              activeOpacity={1}
+              onPressIn={() => {
+                googleButtonScale.value = withSpring(0.95, { damping: 10, stiffness: 400 });
+                googleButtonDepth.value = withSpring(4, { damping: 12, stiffness: 300 });
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              onPressOut={() => {
+                googleButtonScale.value = withSpring(1, { damping: 10, stiffness: 400 });
+                googleButtonDepth.value = withSpring(0, { damping: 12, stiffness: 300 });
+              }}
             >
               <View style={styles.socialButtonContent}>
-                <Ionicons name="logo-google" size={20} color="#4285f4" />
+                <View style={styles.iconContainer}>
+                  <Ionicons name="logo-google" size={22} color="#4285f4" />
+                </View>
                 <Text style={styles.socialButtonText}>
                   Continue with Google
                 </Text>
+                <Ionicons name="arrow-forward" size={18} color="#666" style={styles.arrowIcon} />
               </View>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.socialButton} 
+            <AnimatedTouchableOpacity 
+              style={[styles.socialButton, emailButtonAnimatedStyle]} 
               onPress={() => setIsEmailModalVisible(true)}
               disabled={isLoading}
-              activeOpacity={0.8}
+              activeOpacity={1}
+              onPressIn={() => {
+                emailButtonScale.value = withSpring(0.95, { damping: 10, stiffness: 400 });
+                emailButtonDepth.value = withSpring(4, { damping: 12, stiffness: 300 });
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              onPressOut={() => {
+                emailButtonScale.value = withSpring(1, { damping: 10, stiffness: 400 });
+                emailButtonDepth.value = withSpring(0, { damping: 12, stiffness: 300 });
+              }}
             >
               <View style={styles.socialButtonContent}>
-                <Ionicons name="mail" size={20} color={Colors.light.tint} />
+                <View style={[styles.iconContainer, styles.emailIconContainer]}>
+                  <Ionicons name="mail" size={22} color={Colors.light.tint} />
+                </View>
                 <Text style={styles.socialButtonText}>
                   Continue with Email
                 </Text>
+                <Ionicons name="arrow-forward" size={18} color="#666" style={styles.arrowIcon} />
               </View>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
             
             {Platform.OS === 'ios' && isAppleAuthAvailable && (
               <View style={styles.appleButtonWrapper}>
@@ -381,24 +461,12 @@ export default function LoginScreen() {
               </View>
             )}
 
-            {/* Testimonials Carousel */}
-            <MotiView
-              key={currentTestimonial}
-              from={{ opacity: 0, translateY: 10 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 400 }}
-              style={styles.testimonialContainer}
-            >
-              <Text style={styles.testimonialText}>
-                {testimonials[currentTestimonial].name} {verbs[currentTestimonial % verbs.length]} {testimonials[currentTestimonial].percentage}% of their perks last year
-              </Text>
-            </MotiView>
-
             {/* Security Badge */}
             <View style={styles.securityContainer}>
               <Ionicons name="lock-closed" size={16} color={Colors.light.secondaryLabel} />
               <Text style={styles.securityText}>256-bit AES encryption • TLS 1.3</Text>
             </View>
+
 
             <View style={styles.termsContainer}>
               <Text style={styles.termsText}>
@@ -410,7 +478,7 @@ export default function LoginScreen() {
             </View>
           </View>
         </MotiView>
-      </ScrollView>
+      </View>
 
       <Modal
         animationType="slide"
@@ -496,9 +564,12 @@ export default function LoginScreen() {
       </Modal>
 
       {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
-        </View>
+        <Animated.View style={[styles.loadingOverlay, loadingAnimatedStyle]}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.light.tint} />
+            <Text style={styles.loadingText}>Securing your connection...</Text>
+          </View>
+        </Animated.View>
       )}
     </SafeAreaView>
   );
@@ -509,41 +580,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  scrollView: {
+  contentWrapper: {
     flex: 1,
   },
-  scrollViewContent: {
-    flexGrow: 1,
-    paddingTop: 0,
-  },
   cardsContainer: {
-    height: 180,
+    height: 140,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 0,
+    marginTop: 16,
+    marginBottom: 12,
+    position: 'relative',
+  },
+  cardsBackdrop: {
+    position: 'absolute',
+    top: -20,
+    left: -20,
+    right: -20,
+    bottom: -20,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 30,
+    backdropFilter: 'blur(10px)',
   },
   cardWrapper: {
-    width: SCREEN_WIDTH * 0.4,
+    width: SCREEN_WIDTH * 0.5,
     height: 120,
-    marginHorizontal: -20,
+    marginHorizontal: -30,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   cardImageContainer: {
     width: '100%',
     height: '100%',
+    position: 'relative',
+  },
+  cardGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 16,
+    zIndex: -1,
   },
   cardImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: 14,
   },
   contentContainer: {
     flex: 1,
@@ -552,21 +642,22 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
   },
   logoImage: {
-    width: 350,
-    height: 70,
-    marginBottom: 24,
+    width: 320,
+    height: 64,
+    marginBottom: 20,
     alignSelf: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
     letterSpacing: -0.5,
+    lineHeight: 32,
   },
   subtitle: {
     fontSize: 17,
@@ -574,36 +665,55 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     letterSpacing: -0.2,
-    paddingHorizontal: 24,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    fontWeight: '500',
   },
   authContainer: {
-    paddingTop: 16,
+    paddingTop: 24,
+    paddingHorizontal: 0,
   },
   socialButton: {
     backgroundColor: '#ffffff',
     height: 50,
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 16,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
     marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
   },
   socialButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     height: '100%',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(66, 133, 244, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emailIconContainer: {
+    backgroundColor: `rgba(0, 122, 255, 0.08)`,
   },
   socialButtonText: {
     color: '#1c1c1e',
     fontSize: 17,
     fontWeight: '600',
-    marginLeft: 8,
+    flex: 1,
+    textAlign: 'center',
+    marginLeft: -16,
+  },
+  arrowIcon: {
+    opacity: 0.6,
   },
   appleButtonWrapper: {
     marginHorizontal: 16,
@@ -619,22 +729,12 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
   },
-  testimonialContainer: {
-    alignItems: 'center',
-    marginVertical: 24,
-    paddingHorizontal: 16,
-  },
-  testimonialText: {
-    fontSize: 17,
-    color: Colors.light.secondaryLabel,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
   securityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginTop: 24,
+    marginBottom: 20,
     opacity: 0.7,
   },
   securityText: {
@@ -643,8 +743,8 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   termsContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: 24,
+    marginBottom: 24,
   },
   termsText: {
     color: '#8e8e93',
@@ -660,9 +760,27 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
+    backdropFilter: 'blur(10px)',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.light.text,
+    fontWeight: '500',
   },
   resetButton: {
     position: 'absolute',
