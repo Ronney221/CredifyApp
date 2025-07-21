@@ -143,26 +143,28 @@ export default function RegisterScreen() {
       setCurrentTestimonial((prev) => (prev + 1) % shuffledTestimonials.length);
     }, 5000);
     
-    // Start the floating animation
-    translateY.value = withRepeat(
-      withSequence(
-        withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
+    // Start the floating animation with a small delay to ensure component is mounted
+    setTimeout(() => {
+      translateY.value = withRepeat(
+        withSequence(
+          withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      );
+    }, 100);
     
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [shuffledTestimonials.length]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         {
-          translateY: translateY.value,
+          translateY: translateY?.value ?? 0,
         },
       ],
     };
