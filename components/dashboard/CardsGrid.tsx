@@ -36,6 +36,8 @@ interface CardListItem {
   renewalDate?: Date | null;
   onRenewalDatePress?: () => void;
   onOpenLoggingModal: (perk: CardPerk) => void;
+  onInstantLog?: (perk: CardPerk, amount: number) => void;
+  onSaveLog?: (amount: number) => void;
 }
 
 interface CardsGridProps {
@@ -80,6 +82,8 @@ export default function CardsGrid({
       renewalDate={item.renewalDate}
       onRenewalDatePress={item.onRenewalDatePress}
       onOpenLoggingModal={item.onOpenLoggingModal}
+      onInstantLog={item.onInstantLog}
+      onSaveLog={item.onSaveLog}
     />
   );
 

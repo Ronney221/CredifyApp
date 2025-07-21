@@ -774,7 +774,7 @@ export default function Dashboard() {
       }
 
       // Log the redemption
-      const { error: redeemError } = await trackPerkRedemption(user.id, cardWithPerk.id, perk, amount);
+      const { error: redeemError } = await trackPerkRedemption(user.id, cardWithPerk.card.id, perk, amount);
       
       if (redeemError) {
         Alert.alert('Error', 'Failed to log perk usage');
@@ -785,11 +785,11 @@ export default function Dashboard() {
       // Update the local state
       if (amount >= perk.value) {
         // Full redemption
-        setPerkStatus(cardWithPerk.id, perk.id, 'redeemed');
+        setPerkStatus(cardWithPerk.card.id, perk.id, 'redeemed');
       } else {
         // Partial redemption
         const remainingValue = perk.value - amount;
-        setPerkStatus(cardWithPerk.id, perk.id, 'partially_redeemed', remainingValue);
+        setPerkStatus(cardWithPerk.card.id, perk.id, 'partially_redeemed', remainingValue);
       }
 
       // Refresh perks from database
