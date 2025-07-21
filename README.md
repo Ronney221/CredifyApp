@@ -70,6 +70,42 @@ This release introduces a powerful new layer of intelligence and backend robustn
 
 ---
 
+### **Update: Version 2.0 Features - Official App Store Launch (Released 7/20/2025)**
+
+This major release marks Credify's official App Store launch with significant new features and a complete UI overhaul for a premium user experience.
+
+🚀 **New Features**
+* **Redemption Tips & Hacks:** Unlock the full potential of your perks! Every perk now features a series of tips and hacks, showing you clever strategies that power users employ to maximize their redemptions.
+* **Multi-Card Deletion:** Managing your wallet is now easier. You can now select and delete multiple cards at once from the card management screen.
+* **'All' Time Filter:** An "All" tab has been added to the time period filters (1M, 3M, 6M, 1Y) in the insights section, allowing you to see your complete redemption history at once.
+* **Categorized App Shortcuts:** To help you redeem faster, buttons to open partner apps are now grouped into logical categories (e.g., "Open Streaming Apps," "Open Dining Apps"), each with its own distinct color and icon.
+* **Delete Account:** As part of our commitment to your privacy and in adherence with iOS guidelines, you can now delete your account directly from the app.
+* **Annual Fee Counter:** When selecting your cards during onboarding, you'll now see a running total of the annual fees, helping you understand the value you're getting from your perks.
+
+✨ **UI/UX & Core Functionality Improvements**
+* **Updated Swipe-to-Log Functionality:** We've changed the swipe-right gesture on perks. Instead of simply marking a perk as fully redeemed, you now have the flexibility to log either a partial or the full redemption amount directly.
+* **Complete UI Overhaul:** The app has a stunning new look! We've redesigned major screens with a modern and premium feel, including:
+  * **Icons for Every Perk:** Every single perk now has its own unique icon, making it easier to identify and visually distinguish them at a glance.
+  * **Glassmorphism Effects:** See-through, blurry backgrounds on cards and other elements for a sleek, modern aesthetic.
+  * **Redesigned Profile & Dashboard:** A cleaner layout with a larger avatar, better-organized sections, a new hero balance card, and subtle animations.
+* **New Tutorial Experience:** The one-time pop-up tutorial is gone! We've replaced it with a much clearer, more comprehensive preview overlay that you can access anytime by tapping the "Replay Tutorial" button in your Profile.
+* **More Intuitive Insights:** Your monthly summaries in the Insights tab are now easier to understand. We've also fixed spacing issues to ensure a consistent and clean look across different screen sizes.
+* **Enhanced "Edit Profile" Screen:** The "Edit Profile" screen is much more user-friendly. Key improvements include a fix for the save confirmation button, which is no longer hidden behind the keyboard.
+* **Value-Weighted Progress Bar:** The progress bar for your perks now visually represents the value of each perk, giving you a more accurate picture of your redemption progress.
+* **Improved Animations & Interactions:** We've polished animations throughout the app for a smoother, more responsive experience, including satisfying button taps, smoother screen transitions, and enhanced haptic feedback.
+* **iMessage-Style Swiping:** Swiping on perks now has a limited distance, similar to the iMessage app, for a more controlled and polished interaction.
+* **Clearer Messaging & Design:** We've updated language and visuals across the app, including adding partner logos, implementing a consistent design system, and ensuring clearer messages about your redemption status.
+
+🐛 **Bug Fixes & Performance Improvements**
+* **Historical Perk Logic Fixed:** We've corrected an issue where the expiration status of perks in past months was displayed in the wrong tense (e.g., "Expires next month" for a past month).
+* **"Welcome Back" Snackbar Fix:** The "Welcome Back" message that appears after using a partner app will now display correctly and will no longer be hidden behind the navigation bar.
+* **Visual Glitch Squashing:** We've resolved various visual bugs, including text getting cut off, inconsistent spacing, animation jitters, and elements not aligning correctly.
+* **Performance Optimizations:** We've made several under-the-hood improvements to make the app faster and more responsive, especially on the dashboard.
+* **Database Migration & Fixes:** We've successfully migrated our card data to a new database and fixed several bugs related to how redemption data is saved, resulting in more reliable data loading.
+* **Duplicate Button Press Prevention:** We've added a safeguard to prevent accidental double-taps when opening a partner app.
+
+---
+
 ## Core Features ✨
 
 ### 🧠 AI-Powered Financial Assistant
