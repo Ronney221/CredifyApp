@@ -989,6 +989,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    alignItems: 'center',
   },
   chartHeader: {
     flexDirection: 'row',

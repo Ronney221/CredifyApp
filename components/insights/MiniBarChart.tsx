@@ -295,6 +295,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     position: 'relative',
     minWidth: 32,
+    alignItems: 'center',
   },
   valueLabelContainer: {
     height: 16,
