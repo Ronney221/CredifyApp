@@ -98,7 +98,7 @@ export default function LoginScreen() {
     // Set initial random cards
     setSelectedCards(getRandomCards());
     
-    // Rotate cards every 5 seconds with simple fade
+    // Rotate cards every 7 seconds with simple fade
     const cardInterval = setInterval(() => {
       // Fade out
       cardOpacity.value = withTiming(0, { duration: 300 });
@@ -109,7 +109,7 @@ export default function LoginScreen() {
         setCardKey(prev => prev + 1); // Force MotiView re-animation
         cardOpacity.value = withTiming(1, { duration: 300 });
       }, 300);
-    }, 5000);
+    }, 7000);
 
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
     
