@@ -101,7 +101,7 @@ export default function CardsGrid({
         <Ionicons 
           name="card-outline" 
           size={18} 
-          color="#FFFFFF" 
+          color={Colors.light.textSecondary} 
           style={{ marginRight: 8 }} 
         />
         <Text style={styles.manageCardsText}>Manage & Reorder Cards</Text>
@@ -236,18 +236,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    backgroundColor: Colors.light.tint,
+    paddingVertical: 16,
+    backgroundColor: Colors.light.secondarySystemGroupedBackground,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.light.separator,
   },
   manageCardsText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    fontSize: 15,
+    color: Colors.light.text,
+    fontWeight: '500',
   },
 });
