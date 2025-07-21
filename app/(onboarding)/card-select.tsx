@@ -330,14 +330,33 @@ export default function OnboardingCardSelectScreen() {
             transition={{ type: 'timing', duration: 300 }}
             style={styles.valueHeaderContainer}
           >
-            <View style={styles.valueHeaderTop}>
-              <Ionicons name="card" size={20} color={Colors.light.tint} style={styles.valueIcon} />
+            <MotiView
+              from={{ opacity: 0, translateY: -10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ 
+                type: 'spring', 
+                damping: 15, 
+                mass: 1, 
+                stiffness: 200,
+                delay: 100
+              }}
+            >
               <Text style={styles.valueLabel}>Annual Fees Selected</Text>
-            </View>
+            </MotiView>
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
               <Text style={styles.valueAmount}>${displayValue.toLocaleString()}</Text>
             </Animated.View>
-            <Text style={styles.valueSubtext}>We'll show you how your perks cover this</Text>
+            <MotiView
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ 
+                type: 'timing', 
+                duration: 400,
+                delay: 200
+              }}
+            >
+              <Text style={styles.valueSubtext}>We'll show you how your perks cover this</Text>
+            </MotiView>
           </MotiView>
         )}
       </View>
@@ -527,19 +546,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
   },
-  valueHeaderTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  valueIcon: {
-    marginRight: 6,
-  },
   valueLabel: {
-    fontSize: 15,
+    fontSize: 28,
     color: Colors.light.text,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: -0.5,
+    lineHeight: 34,
+    marginBottom: 8,
   },
   valueAmount: {
     fontSize: 28,
