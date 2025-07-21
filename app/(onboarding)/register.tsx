@@ -42,27 +42,60 @@ import { onboardingScreenNames } from './_layout';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const testimonials = [
-  { name: 'Matt K.', percentage: 93 },
-  { name: 'Sarah L.', percentage: 87 },
-  { name: 'James R.', percentage: 91 },
-  { name: 'Emma T.', percentage: 85 },
-  { name: 'Alex M.', percentage: 89 },
-  { name: 'Sophie B.', percentage: 92 },
-  { name: 'David P.', percentage: 88 },
-  { name: 'Rachel W.', percentage: 90 },
-];
-
-const verbs = [
-  'captured',
-  'redeemed',
-  'unlocked',
-  'maximized',
-  'secured',
-  'claimed',
-  'earned',
-  'collected',
-  'leveraged',
-  'optimized'
+  {
+    name: "Sarah P.",
+    text: "It's like the app found free money for me.",
+    avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "Michael R.",
+    text: "The unified dashboard is a game-changer. I feel completely in control of my benefits for the first time.",
+    avatar: "https://images.pexels.com/photos/842980/pexels-photo-842980.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "Dr. Anya Sharma",
+    text: "I've already gotten $650 in value back from my $695 annual fee. It validates my decision every time.",
+    avatar: "https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "David L.",
+    text: "Credify flagged a $20 monthly credit I didn't know about. Now I'm saving $240 a year.",
+    avatar: "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "Jessica Chen",
+    text: "The AI assistant recommended my Platinum for 5x points and reminded me I had a $200 airline credit.",
+    avatar: "https://images.pexels.com/photos/3772510/pexels-photo-3772510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "Chris G.",
+    text: "I get all the benefit tracking with none of the security worries. It's the perfect setup.",
+    avatar: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "Ben Carter",
+    text: "Credify reminded me to renew my CLEAR Plus with the right card for the full $189 credit.",
+    avatar: "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "Chloe Kim",
+    text: "The interface is so clean and intuitive. The app feels incredibly polished and smooth to use.",
+    avatar: "https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  },
+  {
+    name: "Samuel Jones",
+    text: "We've stopped letting our DoorDash credits go to waste and now plan our take-out nights around them.",
+    avatar: "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    rating: 5
+  }
 ];
 
 
@@ -93,10 +126,10 @@ export default function RegisterScreen() {
     
     loadCards();
     
-    // Rotate testimonials every 4 seconds
+    // Rotate testimonials every 5 seconds (slower for better UX)
     const interval = setInterval(() => {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 4000);
+    }, 5000);
     
     // Start the floating animation
     translateY.value = withRepeat(
@@ -132,6 +165,18 @@ export default function RegisterScreen() {
       .map((cardId: string) => allCards.find(card => card.id === cardId))
       .filter((card): card is Card => card !== undefined);
   }, [selectedCards, allCards]);
+
+  // Enhanced haptic patterns
+  const playSuccessHapticPattern = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 100);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 200);
+  };
+
+  const playErrorHapticPattern = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 150);
+  };
 
   const saveCardsToDatabase = async (userId: string) => {
     try {
@@ -189,11 +234,11 @@ export default function RegisterScreen() {
       // Set onboarding as complete after successful registration
       await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
       
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await playSuccessHapticPattern();
       router.replace('/(tabs)/01-dashboard' as any);
     } catch (error) {
       console.error('[Register] Google sign in process failed:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await playErrorHapticPattern();
     } finally {
       setIsLoading(false);
     }
@@ -227,11 +272,11 @@ export default function RegisterScreen() {
       // Set onboarding as complete after successful registration
       await AsyncStorage.setItem('@hasCompletedOnboarding', 'true');
       
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await playSuccessHapticPattern();
       router.replace('/(tabs)/01-dashboard' as any);
     } catch (error) {
       console.error('[Register] Apple sign in process failed:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await playErrorHapticPattern();
     } finally {
       setIsLoading(false);
     }
@@ -369,49 +414,121 @@ export default function RegisterScreen() {
               </MotiView>
             )}
 
-            {/* Enhanced Testimonials Carousel */}
+            {/* Premium Testimonials with Staggered Animations */}
             <MotiView
               key={currentTestimonial}
-              from={{ opacity: 0, translateY: 10, scale: 0.95 }}
-              animate={{ opacity: 1, translateY: 0, scale: 1 }}
-              transition={{ type: 'spring', duration: 600 }}
+              from={{ 
+                opacity: 0, 
+                translateY: 20,
+                scale: 0.95
+              }}
+              animate={{ 
+                opacity: 1, 
+                translateY: 0,
+                scale: 1
+              }}
+              exit={{
+                opacity: 0,
+                translateY: -20,
+                scale: 0.95
+              }}
+              transition={{ 
+                type: 'spring',
+                delay: 1400,
+                damping: 20,
+                stiffness: 200,
+                mass: 0.8
+              }}
+              exitTransition={{
+                type: 'timing',
+                duration: 200
+              }}
               style={styles.testimonialContainer}
             >
-              <View style={styles.testimonialCard}>
+              <MotiView
+                from={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ 
+                  type: 'spring',
+                  delay: 150,
+                  damping: 15,
+                  stiffness: 300
+                }}
+                style={styles.testimonialCard}
+              >
                 <View style={styles.testimonialHeader}>
-                  <View style={styles.testimonialAvatar}>
+                  <MotiView
+                    from={{ opacity: 0, scale: 0.5, rotate: '-180deg' }}
+                    animate={{ opacity: 1, scale: 1, rotate: '0deg' }}
+                    transition={{
+                      type: 'spring',
+                      delay: 300,
+                      damping: 12,
+                      stiffness: 250
+                    }}
+                    style={styles.testimonialAvatar}
+                  >
                     <Text style={styles.testimonialInitial}>
                       {testimonials[currentTestimonial].name.charAt(0)}
                     </Text>
-                  </View>
+                  </MotiView>
                   <View style={styles.testimonialInfo}>
-                    <Text style={styles.testimonialName}>
-                      {testimonials[currentTestimonial].name}
-                    </Text>
-                    <View style={styles.testimonialStars}>
+                    <MotiView
+                      from={{ opacity: 0, translateX: 30 }}
+                      animate={{ opacity: 1, translateX: 0 }}
+                      transition={{
+                        type: 'spring',
+                        delay: 450,
+                        damping: 18,
+                        stiffness: 200
+                      }}
+                    >
+                      <Text style={styles.testimonialName}>
+                        {testimonials[currentTestimonial].name}
+                      </Text>
+                    </MotiView>
+                    <MotiView
+                      from={{ opacity: 0, translateX: 20 }}
+                      animate={{ opacity: 1, translateX: 0 }}
+                      transition={{
+                        type: 'timing',
+                        delay: 600,
+                        duration: 400
+                      }}
+                      style={styles.testimonialStars}
+                    >
                       {[...Array(5)].map((_, i) => (
-                        <Text key={i} style={styles.star}>⭐</Text>
+                        <MotiView
+                          key={i}
+                          from={{ opacity: 0, scale: 0.3 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{
+                            type: 'spring',
+                            delay: 700 + (i * 50),
+                            damping: 8,
+                            stiffness: 400
+                          }}
+                        >
+                          <Text style={styles.star}>⭐</Text>
+                        </MotiView>
                       ))}
-                    </View>
+                    </MotiView>
                   </View>
                 </View>
-                <Text style={styles.testimonialText}>
-                  "{verbs[currentTestimonial % verbs.length]} {testimonials[currentTestimonial].percentage}% of their credit card perks last year with Credify"
-                </Text>
-              </View>
-              
-              {/* Pagination dots */}
-              <View style={styles.paginationDots}>
-                {testimonials.map((_, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.paginationDot,
-                      index === currentTestimonial && styles.paginationDotActive
-                    ]}
-                  />
-                ))}
-              </View>
+                <MotiView
+                  from={{ opacity: 0, translateY: 15 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  transition={{
+                    type: 'timing',
+                    delay: 900,
+                    duration: 500
+                  }}
+                >
+                  <Text style={styles.testimonialText}>
+                    "{testimonials[currentTestimonial].text}"
+                  </Text>
+                </MotiView>
+              </MotiView>
             </MotiView>
 
             {/* Security Badge */}
@@ -419,26 +536,26 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed" size={16} color={Colors.light.secondaryLabel} />
               <Text style={styles.securityText}>256-bit AES encryption • TLS 1.3</Text>
             </View>
-
-            <View style={styles.termsContainer}>
-              <Text style={styles.termsText}>
-                By continuing, you agree to our{' '}
-                <Link href="/(legal)/terms" asChild>
-                  <Text style={styles.termsLink}>Terms of Service</Text>
-                </Link>
-                {' '}and{' '}
-                <Link href="/(legal)/terms" asChild>
-                  <Text style={styles.termsLink}>Privacy Policy</Text>
-                </Link>
-              </Text>
-            </View>
           </View>
         </MotiView>
       </View>
 
+      {/* Terms at bottom */}
+      <View style={styles.bottomTermsContainer}>
+        <Text style={styles.termsText}>
+          By continuing, you agree to our{' '}
+          <Link href="/(legal)/terms" asChild>
+            <Text style={styles.termsLink}>Terms & Privacy</Text>
+          </Link>
+        </Text>
+      </View>
+
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.light.tint} />
+            <Text style={styles.loadingText}>Creating your account...</Text>
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -458,8 +575,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: 20,
+    marginBottom: 16,
     position: 'relative',
   },
   cardsBackdrop: {
@@ -508,16 +625,16 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 8,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   logoImage: {
     width: 320,
     height: 64,
-    marginBottom: 20,
+    marginBottom: 16,
     alignSelf: 'center',
   },
   title: {
@@ -525,7 +642,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
     letterSpacing: -0.5,
     lineHeight: 32,
   },
@@ -543,14 +660,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   authContainer: {
-    paddingTop: 16,
+    paddingTop: 20,
     paddingHorizontal: 16,
   },
   socialButton: {
     backgroundColor: '#ffffff',
     height: 50,
     borderRadius: 14,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
@@ -586,7 +703,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   appleButtonWrapper: {
-    marginBottom: 12,
+    marginBottom: 20,
     height: 50,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
@@ -600,17 +717,18 @@ const styles = StyleSheet.create({
   },
   testimonialContainer: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 16,
     paddingHorizontal: 8,
   },
   testimonialCard: {
     backgroundColor: 'rgba(248, 249, 250, 0.8)',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
     marginBottom: 10,
+    minHeight: 120,
   },
   testimonialHeader: {
     flexDirection: 'row',
@@ -648,33 +766,18 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   testimonialText: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.light.secondaryLabel,
     lineHeight: 20,
     fontWeight: '500',
     fontStyle: 'italic',
   },
-  paginationDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  paginationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    marginHorizontal: 3,
-  },
-  paginationDotActive: {
-    backgroundColor: '#007AFF',
-    width: 20,
-  },
   securityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 0,
     opacity: 0.7,
   },
   securityText: {
@@ -682,9 +785,11 @@ const styles = StyleSheet.create({
     color: Colors.light.secondaryLabel,
     marginLeft: 6,
   },
-  termsContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
+  bottomTermsContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
+    backgroundColor: '#ffffff',
   },
   termsText: {
     color: '#8e8e93',
@@ -700,8 +805,26 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
+    backdropFilter: 'blur(10px)',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.light.text,
+    fontWeight: '500',
   },
 }); 
