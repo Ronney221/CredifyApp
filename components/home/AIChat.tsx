@@ -17,6 +17,8 @@ import {
   useColorScheme,
   InteractionManager,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MotiView } from 'moti';
 import { FlatList } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -260,48 +262,78 @@ const minifyCardData = (cards: ProcessedCard[]): MinifiedCard[] => {
 };
 
 // --- Header Component ---
-const ChatHeader = ({ onClose, onStartOver, hasMessages }: { 
+const ChatHeader = ({ onClose, onStartOver, hasMessages, isTyping, remainingUses }: { 
   onClose: () => void;
   onStartOver: () => void;
   hasMessages: boolean;
-}) => (
-  <BlurView intensity={50} tint="light" style={styles.headerBlur}>
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Credify AI</Text>
-      <View style={styles.headerButtons}>
-        <Pressable 
-          onPress={onStartOver}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed && { opacity: 0.7 }
-          ]}
-          accessibilityLabel="Get suggested prompts"
-          accessibilityHint="Shows a list of example questions you can ask"
-        >
-          <Ionicons 
-            name="bulb-outline" 
-            size={22} 
-            color="#007AFF" 
-          />
-        </Pressable>
-        <Pressable 
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onClose();
-          }} 
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed && { opacity: 0.7 }
-          ]}
-        >
-          <Text style={styles.headerButtonText}>Done</Text>
-        </Pressable>
+  isTyping?: boolean;
+  remainingUses?: number;
+}) => {
+  const [contextText, setContextText] = useState<string>('');
+
+  useEffect(() => {
+    if (isTyping) {
+      setContextText('AI is thinking...');
+    } else if (remainingUses !== undefined) {
+      setContextText(`${remainingUses} queries remaining`);
+    } else {
+      setContextText('Your AI assistant');
+    }
+  }, [isTyping, remainingUses]);
+
+  return (
+    <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.headerBlur}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Credify AI</Text>
+            <View style={styles.contextContainer}>
+              {isTyping && (
+                <View style={styles.typingDots}>
+                  <Animated.View style={[styles.dot, styles.dot1]} />
+                  <Animated.View style={[styles.dot, styles.dot2]} />
+                  <Animated.View style={[styles.dot, styles.dot3]} />
+                </View>
+              )}
+              <Text style={styles.contextText}>{contextText}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.headerButtons}>
+          <Pressable 
+            onPress={onStartOver}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.headerButton,
+              pressed && { opacity: 0.7 }
+            ]}
+            accessibilityLabel="Get suggested prompts"
+            accessibilityHint="Shows a list of example questions you can ask"
+          >
+            <Ionicons 
+              name="bulb-outline" 
+              size={22} 
+              color="#007AFF" 
+            />
+          </Pressable>
+          <Pressable 
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onClose();
+            }} 
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.headerButton,
+              pressed && { opacity: 0.7 }
+            ]}
+          >
+            <Text style={styles.headerButtonText}>Done</Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
-  </BlurView>
-);
+    </BlurView>
+  );
+};
 
 // --- Message Bubble Component ---
 const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecommendations, isUpsell, isLimitReached, onUpgrade, suggestedPrompts, onPromptPress }: { 
@@ -378,108 +410,130 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
   };
 
   return (
-    <Animated.View
+    <MotiView
+      from={{ opacity: 0, translateY: 20, scale: 0.95 }}
+      animate={{ opacity: pending ? 0.7 : 1, translateY: 0, scale: 1 }}
+      transition={{
+        type: 'spring',
+        damping: 20,
+        stiffness: 300,
+        mass: 0.8,
+      }}
       style={[
         styles.messageRow,
         { justifyContent: isAI ? 'flex-start' : 'flex-end' },
-        { opacity: fadeAnim, transform: [{ translateY }] },
-        pending && { opacity: 0.7 },
       ]}
     >
-      <View style={[styles.messageBubble, isAI ? styles.aiBubble : styles.userBubble]}>
-        {/* Render the main text (which can now be a header) */}
-        {text && text.length > 0 && (
-          <Text style={[styles.messageText, isAI ? styles.aiText : styles.userText]}>
-            {formatTextWithBold(text)}
-          </Text>
-        )}
-  
-        {/* NEW: Render the interactive recommendations if they exist */}
-        {isAI && groupedRecommendations && groupedRecommendations.length > 0 && (
-          <View style={styles.recommendationsContainer}>
-            {groupedRecommendations.map((group, groupIndex) => (
-              <View key={group.cardId} style={groupIndex > 0 ? styles.cardGroup : {}}>
-                <Text style={styles.cardHeader}>{group.cardName}</Text>
-                {group.perks.map((rec, recIndex) => (
-                  <View
-                    key={recIndex}
-                    style={[
-                      styles.recommendationBox,
-                      recIndex > 0 && styles.recommendationSeparator,
-                    ]}
-                  >
-                    <Text style={styles.recommendationText}>{formatTextWithBold(rec.displayText)}</Text>
-                    {rec.perk && (
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.redeemButton,
-                          pressed && { opacity: 0.7 },
-                        ]}
-                        onPress={() => openPerkTarget(rec.perk!)}
-                      >
-                        <Text style={styles.redeemButtonText}>{getButtonText(rec)}</Text>
-                        <Ionicons name="arrow-forward-circle" size={20} color="#FFFFFF" />
-                      </Pressable>
-                    )}
-                  </View>
-                ))}
-              </View>
-            ))}
-          </View>
-        )}
-  
-        {/* NEW: Clickable Suggested Prompts */}
-        {isAI && suggestedPrompts && onPromptPress && (
-          <View style={styles.promptsContainer}>
-            {suggestedPrompts.map((prompt, index) => (
-              <Pressable
-                key={index}
-                style={({ pressed }) => [
-                  styles.promptButton,
-                  pressed && { opacity: 0.7 }
-                ]}
-                onPress={() => onPromptPress(prompt)}
-              >
-                <Text style={styles.promptButtonText}>{prompt}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-  
-        {/* NEW: Upsell and Limit Reached CTAs */}
-        {(isUpsell || isLimitReached) && onUpgrade && (
-            <View style={styles.ctaContainer}>
-                <Pressable
-                    style={({ pressed }) => [
-                        styles.upgradeButton,
-                        pressed && { opacity: 0.8 },
-                    ]}
-                    onPress={onUpgrade}
-                >
-                    <Ionicons name="sparkles" size={18} color="#FFFFFF" />
-                    <Text style={styles.upgradeButtonText}>
-                        {isLimitReached ? "Upgrade to Pro" : "Unlock Unlimited"}
-                    </Text>
-                </Pressable>
-            </View>
-        )}
-  
-        {/* The debug info remains the same */}
-        <View style={styles.debugContainer}>
-          {/* {DEBUG_MODE && usage && isAI && (
-            <Text style={styles.debugText}>
-              Tokens: {usage.promptTokens} + {usage.completionTokens} = {usage.totalTokens} ($
-              {usage.estimatedCost.toFixed(5)})
-            </Text>
-          )} */}
-          {remainingUses !== undefined && isAI && (
-            <Text style={styles.usageText}>
-              {remainingUses} chats remaining this month
+      {isAI ? (
+        <View style={[styles.messageBubble, styles.aiBubble]}>
+          <LinearGradient
+            colors={['#F8FAFF', '#F0F4FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientBackground}
+          />
+          {/* Render the main text */}
+          {text && text.length > 0 && (
+            <Text style={[styles.messageText, styles.aiText]}>
+              {formatTextWithBold(text)}
             </Text>
           )}
+  
+          {/* Render the interactive recommendations if they exist */}
+          {groupedRecommendations && groupedRecommendations.length > 0 && (
+            <View style={styles.recommendationsContainer}>
+              {groupedRecommendations.map((group, groupIndex) => (
+                <View key={group.cardId} style={groupIndex > 0 ? styles.cardGroup : {}}>
+                  <Text style={styles.cardHeader}>{group.cardName}</Text>
+                  {group.perks.map((rec, recIndex) => (
+                    <View
+                      key={recIndex}
+                      style={[
+                        styles.recommendationBox,
+                        recIndex > 0 && styles.recommendationSeparator,
+                      ]}
+                    >
+                      <Text style={styles.recommendationText}>{formatTextWithBold(rec.displayText)}</Text>
+                      {rec.perk && (
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.redeemButton,
+                            pressed && { opacity: 0.7 },
+                          ]}
+                          onPress={() => openPerkTarget(rec.perk!)}
+                        >
+                          <Text style={styles.redeemButtonText}>{getButtonText(rec)}</Text>
+                          <Ionicons name="arrow-forward-circle" size={20} color="#FFFFFF" />
+                        </Pressable>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          )}
+    
+          {/* Clickable Suggested Prompts */}
+          {suggestedPrompts && onPromptPress && (
+            <View style={styles.promptsContainer}>
+              {suggestedPrompts.map((prompt, index) => (
+                <Pressable
+                  key={index}
+                  style={({ pressed }) => [
+                    styles.promptButton,
+                    pressed && { opacity: 0.7 }
+                  ]}
+                  onPress={() => onPromptPress(prompt)}
+                >
+                  <Text style={styles.promptButtonText}>{prompt}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+    
+          {/* Upsell and Limit Reached CTAs */}
+          {(isUpsell || isLimitReached) && onUpgrade && (
+            <View style={styles.ctaContainer}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.upgradeButton,
+                  pressed && { opacity: 0.8 },
+                ]}
+                onPress={onUpgrade}
+              >
+                <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                <Text style={styles.upgradeButtonText}>
+                  {isLimitReached ? "Upgrade to Pro" : "Unlock Unlimited"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+    
+          {/* Debug info */}
+          <View style={styles.debugContainer}>
+            {remainingUses !== undefined && (
+              <Text style={styles.usageText}>
+                {remainingUses} chats remaining this month
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
-    </Animated.View>
+      ) : (
+        <LinearGradient
+          colors={['#007AFF', '#0051D5']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.messageBubble, styles.userBubble]}
+        >
+          {/* Render the main text */}
+          {text && text.length > 0 && (
+            <Text style={[styles.messageText, styles.userText]}>
+              {formatTextWithBold(text)}
+            </Text>
+          )}
+        </LinearGradient>
+      )}
+    </MotiView>
   );
 };
 
@@ -1122,6 +1176,8 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           onClose={onClose} 
           onStartOver={handleStartOver}
           hasMessages={messages.length > 1}
+          isTyping={isTyping}
+          remainingUses={remainingUses}
         />
         <KeyboardAvoidingView
           style={styles.flex_1}
@@ -1199,32 +1255,76 @@ const styles = StyleSheet.create({
   },
   headerBlur: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitleContainer: {
+    flexDirection: 'column',
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#000000',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
+    marginBottom: 2,
+  },
+  contextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contextText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  typingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#007AFF',
+    marginHorizontal: 1,
+  },
+  dot1: {
+    opacity: 0.4,
+  },
+  dot2: {
+    opacity: 0.7,
+  },
+  dot3: {
+    opacity: 1,
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   headerButton: {
     padding: 8,
+    borderRadius: 8,
   },
   headerButtonText: {
-    fontSize: 17,
+    fontSize: 16,
     color: '#007AFF',
-    fontWeight: '400',
+    fontWeight: '600',
   },
   messageList: {
     flex: 1,
@@ -1239,34 +1339,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   messageBubble: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    maxWidth: '75%',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    maxWidth: '80%',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 22,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+    fontWeight: '500',
   },
   userBubble: {
-    backgroundColor: '#E5F3FF',
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 8,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   aiBubble: {
-    backgroundColor: '#F7F7F7',
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 8,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.1)',
   },
   userText: {
-    color: '#000000',
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   aiText: {
-    color: '#000000',
+    color: '#1D1D1F',
+    fontWeight: '500',
   },
   boldText: {
     fontWeight: '600',
