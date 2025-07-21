@@ -276,10 +276,10 @@ const PerkDonutDisplayManagerInner = (
     // Only count fully redeemed perks in the X of Y count
     const fullyRedeemedCount = currentAggregates.redeemedCount;
 
-    // Format the combined stats text with proper currency formatting
+    // Format the combined stats text with proper currency formatting and non-breaking spaces
     const combinedStatsText = activeSegmentKey === -1 
-      ? `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks • All time periods`
-      : `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks • Resets in ${daysUntilReset} days`;
+      ? `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks\nAll time periods`
+      : `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks\nResets in ${daysUntilReset}\u00A0days`;
 
     return {
       value: currentAggregates.redeemedValue,

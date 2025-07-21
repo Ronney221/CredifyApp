@@ -192,6 +192,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
     marginTop: 24,
     lineHeight: 22,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    maxWidth: 280,
+    minHeight: 44,
   },
 });
