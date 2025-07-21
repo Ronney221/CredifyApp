@@ -108,11 +108,23 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
+  const [shuffledTestimonials, setShuffledTestimonials] = React.useState(testimonials);
   const [allCards, setAllCards] = React.useState<Card[]>([]);
   const translateY = useSharedValue(0);
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
+    
+    // Shuffle testimonials on mount
+    const shuffleArray = (array: typeof testimonials) => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+    setShuffledTestimonials(shuffleArray(testimonials));
     
     // Load cards from database
     const loadCards = async () => {
@@ -128,7 +140,7 @@ export default function RegisterScreen() {
     
     // Rotate testimonials every 5 seconds  
     const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+      setCurrentTestimonial((prev) => (prev + 1) % shuffledTestimonials.length);
     }, 5000);
     
     // Start the floating animation
@@ -416,13 +428,13 @@ export default function RegisterScreen() {
             )}
 
             {/* Premium Testimonials with Staggered Animations */}
-            <AnimatePresence exitBeforeEnter>
+            <AnimatePresence mode="wait">
               <MotiView
                 key={currentTestimonial}
                 from={{ 
                   opacity: 0, 
-                  translateY: 20,
-                  scale: 0.95
+                  translateY: 10,
+                  scale: 0.98
                 }}
                 animate={{ 
                   opacity: 1, 
@@ -430,9 +442,7 @@ export default function RegisterScreen() {
                   scale: 1
                 }}
                 exit={{
-                  opacity: 0,
-                  translateY: -30,
-                  scale: 0.9
+                  opacity: 0
                 }}
                 transition={{ 
                   type: 'spring',
@@ -441,33 +451,16 @@ export default function RegisterScreen() {
                   stiffness: 200,
                   mass: 0.8
                 }}
-                exitTransition={{
-                  type: 'spring',
-                  duration: 500,
-                  damping: 15,
-                  stiffness: 300
-                }}
                 style={styles.testimonialContainer}
               >
                 <MotiView
                   from={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ 
-                    opacity: 0, 
-                    scale: 0.85,
-                    rotate: '-2deg'
-                  }}
                   transition={{ 
                     type: 'spring',
                     delay: 950,
                     damping: 15,
                     stiffness: 300
-                  }}
-                  exitTransition={{
-                    type: 'spring',
-                    duration: 400,
-                    damping: 12,
-                    stiffness: 250
                   }}
                   style={styles.testimonialCard}
                 >
@@ -475,27 +468,16 @@ export default function RegisterScreen() {
                     <MotiView
                       from={{ opacity: 0, scale: 0.5, rotate: '-180deg' }}
                       animate={{ opacity: 1, scale: 1, rotate: '0deg' }}
-                      exit={{ 
-                        opacity: 0, 
-                        scale: 0.3, 
-                        rotate: '180deg' 
-                      }}
                       transition={{
                         type: 'spring',
                         delay: 1100,
                         damping: 12,
                         stiffness: 250
                       }}
-                      exitTransition={{
-                        type: 'spring',
-                        duration: 300,
-                        damping: 10,
-                        stiffness: 400
-                      }}
                       style={styles.testimonialAvatar}
                     >
                       <Image
-                        source={{ uri: testimonials[currentTestimonial].avatar }}
+                        source={{ uri: shuffledTestimonials[currentTestimonial].avatar }}
                         style={styles.testimonialAvatarImage}
                         resizeMode="cover"
                       />
@@ -504,41 +486,24 @@ export default function RegisterScreen() {
                       <MotiView
                         from={{ opacity: 0, translateX: 30 }}
                         animate={{ opacity: 1, translateX: 0 }}
-                        exit={{ 
-                          opacity: 0, 
-                          translateX: -30 
-                        }}
                         transition={{
                           type: 'spring',
                           delay: 1250,
                           damping: 18,
                           stiffness: 200
                         }}
-                        exitTransition={{
-                          type: 'timing',
-                          duration: 250
-                        }}
                       >
                         <Text style={styles.testimonialName}>
-                          {testimonials[currentTestimonial].name}
+                          {shuffledTestimonials[currentTestimonial].name}
                         </Text>
                       </MotiView>
                       <MotiView
                         from={{ opacity: 0, translateX: 20 }}
                         animate={{ opacity: 1, translateX: 0 }}
-                        exit={{ 
-                          opacity: 0, 
-                          translateX: -20,
-                          scale: 0.8
-                        }}
                         transition={{
                           type: 'timing',
                           delay: 1400,
                           duration: 400
-                        }}
-                        exitTransition={{
-                          type: 'timing',
-                          duration: 200
                         }}
                         style={styles.testimonialStars}
                       >
@@ -547,22 +512,11 @@ export default function RegisterScreen() {
                             key={i}
                             from={{ opacity: 0, scale: 0.3 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            exit={{ 
-                              opacity: 0, 
-                              scale: 0.1,
-                              rotate: '45deg'
-                            }}
                             transition={{
                               type: 'spring',
                               delay: 1500 + (i * 50),
                               damping: 8,
                               stiffness: 400
-                            }}
-                            exitTransition={{
-                              type: 'spring',
-                              duration: 150 + (i * 30),
-                              damping: 6,
-                              stiffness: 500
                             }}
                           >
                             <Text style={styles.star}>⭐</Text>
@@ -574,36 +528,28 @@ export default function RegisterScreen() {
                   <MotiView
                     from={{ opacity: 0, translateY: 15 }}
                     animate={{ opacity: 1, translateY: 0 }}
-                    exit={{ 
-                      opacity: 0, 
-                      translateY: 20,
-                      scale: 0.95
-                    }}
                     transition={{
                       type: 'timing',
                       delay: 1700,
                       duration: 500
                     }}
-                    exitTransition={{
-                      type: 'timing',
-                      duration: 300
-                    }}
                   >
                     <Text style={styles.testimonialText}>
-                      "{testimonials[currentTestimonial].text}"
+                      "{shuffledTestimonials[currentTestimonial].text}"
                     </Text>
                   </MotiView>
                 </MotiView>
               </MotiView>
             </AnimatePresence>
 
-            {/* Security Badge */}
-            <View style={styles.securityContainer}>
-              <Ionicons name="lock-closed" size={16} color={Colors.light.secondaryLabel} />
-              <Text style={styles.securityText}>256-bit AES encryption • TLS 1.3</Text>
-            </View>
           </View>
         </MotiView>
+
+        {/* Security Badge */}
+        <View style={styles.securityContainer}>
+          <Ionicons name="lock-closed" size={16} color={Colors.light.secondaryLabel} />
+          <Text style={styles.securityText}>256-bit AES encryption • TLS 1.3</Text>
+        </View>
       </View>
 
       {/* Terms at bottom */}
