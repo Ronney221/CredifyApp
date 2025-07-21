@@ -1,5 +1,5 @@
 // app/(onboarding)/register.tsx
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -43,55 +43,55 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const testimonials = [
   {
-    name: "Sarah P.",
+    name: "Sharon L.",
     text: "It's like the app found free money for me.",
     avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
   },
   {
-    name: "Michael R.",
+    name: "Justin L.",
     text: "The unified dashboard is a game-changer. I feel completely in control of my benefits for the first time.",
     avatar: "https://images.pexels.com/photos/842980/pexels-photo-842980.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
   },
   {
-    name: "Dr. Anya Sharma",
+    name: "Chanel L.",
     text: "I've already gotten $650 in value back from my $695 annual fee. It validates my decision every time.",
     avatar: "https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
   },
   {
-    name: "David L.",
+    name: "Grant Y.",
     text: "Credify flagged a $20 monthly credit I didn't know about. Now I'm saving $240 a year.",
     avatar: "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
   },
   {
-    name: "Jessica Chen",
+    name: "Jessie T.",
     text: "The AI assistant recommended my Platinum for 5x points and reminded me I had a $200 airline credit.",
     avatar: "https://images.pexels.com/photos/3772510/pexels-photo-3772510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
   },
   {
-    name: "Chris G.",
+    name: "Ryan C.",
     text: "I get all the benefit tracking with none of the security worries. It's the perfect setup.",
     avatar: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
   },
   {
-    name: "Ben Carter",
+    name: "Josh H.",
     text: "Credify reminded me to renew my CLEAR Plus with the right card for the full $189 credit.",
     avatar: "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
   },
   {
-    name: "Chloe Kim",
+    name: "Rose P.",
     text: "The interface is so clean and intuitive. The app feels incredibly polished and smooth to use.",
-    avatar: "https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+    avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPhJf_FhJXaVreABCP1G6s7aGxWrwAfBh-SA&s",
     rating: 5
   },
   {
-    name: "Samuel Jones",
+    name: "Brian L.",
     text: "We've stopped letting our DoorDash credits go to waste and now plan our take-out nights around them.",
     avatar: "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     rating: 5
@@ -110,6 +110,14 @@ export default function RegisterScreen() {
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
   const [allCards, setAllCards] = React.useState<Card[]>([]);
   const translateY = useSharedValue(0);
+  const testimonialOpacity = useSharedValue(1);
+  const testimonialScale = useSharedValue(1);
+  const testimonialTranslateY = useSharedValue(0);
+  const avatarOpacity = useSharedValue(1);
+  const avatarScale = useSharedValue(1);
+  const nameOpacity = useSharedValue(1);
+  const starsOpacity = useSharedValue(1);
+  const textOpacity = useSharedValue(1);
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
@@ -126,9 +134,85 @@ export default function RegisterScreen() {
     
     loadCards();
     
-    // Rotate testimonials every 5 seconds (slower for better UX)
+    // Set initial values for entrance animation
+    testimonialOpacity.value = 0;
+    testimonialScale.value = 0.95;
+    testimonialTranslateY.value = 20;
+    avatarOpacity.value = 0;
+    avatarScale.value = 0.5;
+    nameOpacity.value = 0;
+    starsOpacity.value = 0;
+    textOpacity.value = 0;
+    
+    // Start staggered entrance animations
+    setTimeout(() => {
+      testimonialOpacity.value = withTiming(1, { duration: 600 });
+      testimonialScale.value = withTiming(1, { duration: 600 });
+      testimonialTranslateY.value = withTiming(0, { duration: 600 });
+    }, 800);
+    
+    setTimeout(() => {
+      avatarOpacity.value = withTiming(1, { duration: 400 });
+      avatarScale.value = withTiming(1, { duration: 400 });
+    }, 1200);
+    
+    setTimeout(() => {
+      nameOpacity.value = withTiming(1, { duration: 300 });
+    }, 1400);
+    
+    setTimeout(() => {
+      starsOpacity.value = withTiming(1, { duration: 300 });
+    }, 1500);
+    
+    setTimeout(() => {
+      textOpacity.value = withTiming(1, { duration: 500 });
+    }, 1700);
+    
+    // Rotate testimonials every 5 seconds with exit animation
     const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+      console.log('Starting testimonial exit animation');
+      // Animate out
+      testimonialOpacity.value = withTiming(0, { duration: 400 });
+      testimonialScale.value = withTiming(0.9, { duration: 400 });
+      testimonialTranslateY.value = withTiming(-30, { duration: 400 });
+      
+      setTimeout(() => {
+        console.log('Switching testimonial and starting entrance');
+        setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+        
+        // Reset and animate in
+        testimonialOpacity.value = 0;
+        testimonialScale.value = 0.95;
+        testimonialTranslateY.value = 20;
+        avatarOpacity.value = 0;
+        avatarScale.value = 0.5;
+        nameOpacity.value = 0;
+        starsOpacity.value = 0;
+        textOpacity.value = 0;
+        
+        setTimeout(() => {
+          testimonialOpacity.value = withTiming(1, { duration: 600 });
+          testimonialScale.value = withTiming(1, { duration: 600 });
+          testimonialTranslateY.value = withTiming(0, { duration: 600 });
+          
+          setTimeout(() => {
+            avatarOpacity.value = withTiming(1, { duration: 300 });
+            avatarScale.value = withTiming(1, { duration: 300 });
+          }, 200);
+          
+          setTimeout(() => {
+            nameOpacity.value = withTiming(1, { duration: 250 });
+          }, 350);
+          
+          setTimeout(() => {
+            starsOpacity.value = withTiming(1, { duration: 250 });
+          }, 450);
+          
+          setTimeout(() => {
+            textOpacity.value = withTiming(1, { duration: 400 });
+          }, 600);
+        }, 100);
+      }, 500); // Wait for exit animation
     }, 5000);
     
     // Start the floating animation
@@ -153,6 +237,49 @@ export default function RegisterScreen() {
           translateY: translateY.value,
         },
       ],
+    };
+  });
+
+  const testimonialAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: testimonialOpacity.value,
+      transform: [
+        {
+          scale: testimonialScale.value,
+        },
+        {
+          translateY: testimonialTranslateY.value,
+        },
+      ],
+    };
+  });
+
+  const avatarAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: avatarOpacity.value,
+      transform: [
+        {
+          scale: avatarScale.value,
+        },
+      ],
+    };
+  });
+
+  const nameAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: nameOpacity.value,
+    };
+  });
+
+  const starsAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: starsOpacity.value,
+    };
+  });
+
+  const textAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: textOpacity.value,
     };
   });
 
@@ -414,122 +541,35 @@ export default function RegisterScreen() {
               </MotiView>
             )}
 
-            {/* Premium Testimonials with Staggered Animations */}
-            <MotiView
-              key={currentTestimonial}
-              from={{ 
-                opacity: 0, 
-                translateY: 20,
-                scale: 0.95
-              }}
-              animate={{ 
-                opacity: 1, 
-                translateY: 0,
-                scale: 1
-              }}
-              exit={{
-                opacity: 0,
-                translateY: -20,
-                scale: 0.95
-              }}
-              transition={{ 
-                type: 'spring',
-                delay: 1400,
-                damping: 20,
-                stiffness: 200,
-                mass: 0.8
-              }}
-              exitTransition={{
-                type: 'timing',
-                duration: 200
-              }}
-              style={styles.testimonialContainer}
+            {/* Premium Testimonials with Exit Animations */}
+            <Animated.View
+              style={[styles.testimonialContainer, testimonialAnimatedStyle]}
             >
-              <MotiView
-                from={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ 
-                  type: 'spring',
-                  delay: 150,
-                  damping: 15,
-                  stiffness: 300
-                }}
-                style={styles.testimonialCard}
-              >
+              <View style={styles.testimonialCard}>
                 <View style={styles.testimonialHeader}>
-                  <MotiView
-                    from={{ opacity: 0, scale: 0.5, rotate: '-180deg' }}
-                    animate={{ opacity: 1, scale: 1, rotate: '0deg' }}
-                    transition={{
-                      type: 'spring',
-                      delay: 300,
-                      damping: 12,
-                      stiffness: 250
-                    }}
-                    style={styles.testimonialAvatar}
-                  >
-                    <Text style={styles.testimonialInitial}>
-                      {testimonials[currentTestimonial].name.charAt(0)}
-                    </Text>
-                  </MotiView>
+                  <Animated.View style={[styles.testimonialAvatar, avatarAnimatedStyle]}>
+                    <Image
+                      source={{ uri: testimonials[currentTestimonial].avatar }}
+                      style={styles.testimonialAvatarImage}
+                      resizeMode="cover"
+                    />
+                  </Animated.View>
                   <View style={styles.testimonialInfo}>
-                    <MotiView
-                      from={{ opacity: 0, translateX: 30 }}
-                      animate={{ opacity: 1, translateX: 0 }}
-                      transition={{
-                        type: 'spring',
-                        delay: 450,
-                        damping: 18,
-                        stiffness: 200
-                      }}
-                    >
-                      <Text style={styles.testimonialName}>
-                        {testimonials[currentTestimonial].name}
-                      </Text>
-                    </MotiView>
-                    <MotiView
-                      from={{ opacity: 0, translateX: 20 }}
-                      animate={{ opacity: 1, translateX: 0 }}
-                      transition={{
-                        type: 'timing',
-                        delay: 600,
-                        duration: 400
-                      }}
-                      style={styles.testimonialStars}
-                    >
+                    <Animated.Text style={[styles.testimonialName, nameAnimatedStyle]}>
+                      {testimonials[currentTestimonial].name}
+                    </Animated.Text>
+                    <Animated.View style={[styles.testimonialStars, starsAnimatedStyle]}>
                       {[...Array(5)].map((_, i) => (
-                        <MotiView
-                          key={i}
-                          from={{ opacity: 0, scale: 0.3 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{
-                            type: 'spring',
-                            delay: 700 + (i * 50),
-                            damping: 8,
-                            stiffness: 400
-                          }}
-                        >
-                          <Text style={styles.star}>⭐</Text>
-                        </MotiView>
+                        <Text key={i} style={styles.star}>⭐</Text>
                       ))}
-                    </MotiView>
+                    </Animated.View>
                   </View>
                 </View>
-                <MotiView
-                  from={{ opacity: 0, translateY: 15 }}
-                  animate={{ opacity: 1, translateY: 0 }}
-                  transition={{
-                    type: 'timing',
-                    delay: 900,
-                    duration: 500
-                  }}
-                >
-                  <Text style={styles.testimonialText}>
-                    "{testimonials[currentTestimonial].text}"
-                  </Text>
-                </MotiView>
-              </MotiView>
-            </MotiView>
+                <Animated.Text style={[styles.testimonialText, textAnimatedStyle]}>
+                  "{testimonials[currentTestimonial].text}"
+                </Animated.Text>
+              </View>
+            </Animated.View>
 
             {/* Security Badge */}
             <View style={styles.securityContainer}>
@@ -748,6 +788,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  testimonialAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
   },
   testimonialInfo: {
     flex: 1,
