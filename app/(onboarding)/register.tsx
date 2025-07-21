@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link, useLocalSearchParams } from 'expo-router';
-import { MotiView } from 'moti';
+import { MotiView, AnimatePresence } from 'moti';
 import { Colors } from '../../constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { useOnboardingContext } from './_context/OnboardingContext';
@@ -110,14 +110,6 @@ export default function RegisterScreen() {
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
   const [allCards, setAllCards] = React.useState<Card[]>([]);
   const translateY = useSharedValue(0);
-  const testimonialOpacity = useSharedValue(1);
-  const testimonialScale = useSharedValue(1);
-  const testimonialTranslateY = useSharedValue(0);
-  const avatarOpacity = useSharedValue(1);
-  const avatarScale = useSharedValue(1);
-  const nameOpacity = useSharedValue(1);
-  const starsOpacity = useSharedValue(1);
-  const textOpacity = useSharedValue(1);
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
@@ -134,85 +126,9 @@ export default function RegisterScreen() {
     
     loadCards();
     
-    // Set initial values for entrance animation
-    testimonialOpacity.value = 0;
-    testimonialScale.value = 0.95;
-    testimonialTranslateY.value = 20;
-    avatarOpacity.value = 0;
-    avatarScale.value = 0.5;
-    nameOpacity.value = 0;
-    starsOpacity.value = 0;
-    textOpacity.value = 0;
-    
-    // Start staggered entrance animations
-    setTimeout(() => {
-      testimonialOpacity.value = withTiming(1, { duration: 600 });
-      testimonialScale.value = withTiming(1, { duration: 600 });
-      testimonialTranslateY.value = withTiming(0, { duration: 600 });
-    }, 800);
-    
-    setTimeout(() => {
-      avatarOpacity.value = withTiming(1, { duration: 400 });
-      avatarScale.value = withTiming(1, { duration: 400 });
-    }, 1200);
-    
-    setTimeout(() => {
-      nameOpacity.value = withTiming(1, { duration: 300 });
-    }, 1400);
-    
-    setTimeout(() => {
-      starsOpacity.value = withTiming(1, { duration: 300 });
-    }, 1500);
-    
-    setTimeout(() => {
-      textOpacity.value = withTiming(1, { duration: 500 });
-    }, 1700);
-    
-    // Rotate testimonials every 5 seconds with exit animation
+    // Rotate testimonials every 5 seconds  
     const interval = setInterval(() => {
-      console.log('Starting testimonial exit animation');
-      // Animate out
-      testimonialOpacity.value = withTiming(0, { duration: 400 });
-      testimonialScale.value = withTiming(0.9, { duration: 400 });
-      testimonialTranslateY.value = withTiming(-30, { duration: 400 });
-      
-      setTimeout(() => {
-        console.log('Switching testimonial and starting entrance');
-        setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-        
-        // Reset and animate in
-        testimonialOpacity.value = 0;
-        testimonialScale.value = 0.95;
-        testimonialTranslateY.value = 20;
-        avatarOpacity.value = 0;
-        avatarScale.value = 0.5;
-        nameOpacity.value = 0;
-        starsOpacity.value = 0;
-        textOpacity.value = 0;
-        
-        setTimeout(() => {
-          testimonialOpacity.value = withTiming(1, { duration: 600 });
-          testimonialScale.value = withTiming(1, { duration: 600 });
-          testimonialTranslateY.value = withTiming(0, { duration: 600 });
-          
-          setTimeout(() => {
-            avatarOpacity.value = withTiming(1, { duration: 300 });
-            avatarScale.value = withTiming(1, { duration: 300 });
-          }, 200);
-          
-          setTimeout(() => {
-            nameOpacity.value = withTiming(1, { duration: 250 });
-          }, 350);
-          
-          setTimeout(() => {
-            starsOpacity.value = withTiming(1, { duration: 250 });
-          }, 450);
-          
-          setTimeout(() => {
-            textOpacity.value = withTiming(1, { duration: 400 });
-          }, 600);
-        }, 100);
-      }, 500); // Wait for exit animation
+      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     
     // Start the floating animation
@@ -240,48 +156,6 @@ export default function RegisterScreen() {
     };
   });
 
-  const testimonialAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: testimonialOpacity.value,
-      transform: [
-        {
-          scale: testimonialScale.value,
-        },
-        {
-          translateY: testimonialTranslateY.value,
-        },
-      ],
-    };
-  });
-
-  const avatarAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: avatarOpacity.value,
-      transform: [
-        {
-          scale: avatarScale.value,
-        },
-      ],
-    };
-  });
-
-  const nameAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: nameOpacity.value,
-    };
-  });
-
-  const starsAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: starsOpacity.value,
-    };
-  });
-
-  const textAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: textOpacity.value,
-    };
-  });
 
   // Get the selected card objects with proper typing
   const selectedCardObjects = useMemo(() => {
@@ -541,35 +415,187 @@ export default function RegisterScreen() {
               </MotiView>
             )}
 
-            {/* Premium Testimonials with Exit Animations */}
-            <Animated.View
-              style={[styles.testimonialContainer, testimonialAnimatedStyle]}
-            >
-              <View style={styles.testimonialCard}>
-                <View style={styles.testimonialHeader}>
-                  <Animated.View style={[styles.testimonialAvatar, avatarAnimatedStyle]}>
-                    <Image
-                      source={{ uri: testimonials[currentTestimonial].avatar }}
-                      style={styles.testimonialAvatarImage}
-                      resizeMode="cover"
-                    />
-                  </Animated.View>
-                  <View style={styles.testimonialInfo}>
-                    <Animated.Text style={[styles.testimonialName, nameAnimatedStyle]}>
-                      {testimonials[currentTestimonial].name}
-                    </Animated.Text>
-                    <Animated.View style={[styles.testimonialStars, starsAnimatedStyle]}>
-                      {[...Array(5)].map((_, i) => (
-                        <Text key={i} style={styles.star}>⭐</Text>
-                      ))}
-                    </Animated.View>
+            {/* Premium Testimonials with Staggered Animations */}
+            <AnimatePresence exitBeforeEnter>
+              <MotiView
+                key={currentTestimonial}
+                from={{ 
+                  opacity: 0, 
+                  translateY: 20,
+                  scale: 0.95
+                }}
+                animate={{ 
+                  opacity: 1, 
+                  translateY: 0,
+                  scale: 1
+                }}
+                exit={{
+                  opacity: 0,
+                  translateY: -30,
+                  scale: 0.9
+                }}
+                transition={{ 
+                  type: 'spring',
+                  delay: 800,
+                  damping: 20,
+                  stiffness: 200,
+                  mass: 0.8
+                }}
+                exitTransition={{
+                  type: 'spring',
+                  duration: 500,
+                  damping: 15,
+                  stiffness: 300
+                }}
+                style={styles.testimonialContainer}
+              >
+                <MotiView
+                  from={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ 
+                    opacity: 0, 
+                    scale: 0.85,
+                    rotate: '-2deg'
+                  }}
+                  transition={{ 
+                    type: 'spring',
+                    delay: 950,
+                    damping: 15,
+                    stiffness: 300
+                  }}
+                  exitTransition={{
+                    type: 'spring',
+                    duration: 400,
+                    damping: 12,
+                    stiffness: 250
+                  }}
+                  style={styles.testimonialCard}
+                >
+                  <View style={styles.testimonialHeader}>
+                    <MotiView
+                      from={{ opacity: 0, scale: 0.5, rotate: '-180deg' }}
+                      animate={{ opacity: 1, scale: 1, rotate: '0deg' }}
+                      exit={{ 
+                        opacity: 0, 
+                        scale: 0.3, 
+                        rotate: '180deg' 
+                      }}
+                      transition={{
+                        type: 'spring',
+                        delay: 1100,
+                        damping: 12,
+                        stiffness: 250
+                      }}
+                      exitTransition={{
+                        type: 'spring',
+                        duration: 300,
+                        damping: 10,
+                        stiffness: 400
+                      }}
+                      style={styles.testimonialAvatar}
+                    >
+                      <Image
+                        source={{ uri: testimonials[currentTestimonial].avatar }}
+                        style={styles.testimonialAvatarImage}
+                        resizeMode="cover"
+                      />
+                    </MotiView>
+                    <View style={styles.testimonialInfo}>
+                      <MotiView
+                        from={{ opacity: 0, translateX: 30 }}
+                        animate={{ opacity: 1, translateX: 0 }}
+                        exit={{ 
+                          opacity: 0, 
+                          translateX: -30 
+                        }}
+                        transition={{
+                          type: 'spring',
+                          delay: 1250,
+                          damping: 18,
+                          stiffness: 200
+                        }}
+                        exitTransition={{
+                          type: 'timing',
+                          duration: 250
+                        }}
+                      >
+                        <Text style={styles.testimonialName}>
+                          {testimonials[currentTestimonial].name}
+                        </Text>
+                      </MotiView>
+                      <MotiView
+                        from={{ opacity: 0, translateX: 20 }}
+                        animate={{ opacity: 1, translateX: 0 }}
+                        exit={{ 
+                          opacity: 0, 
+                          translateX: -20,
+                          scale: 0.8
+                        }}
+                        transition={{
+                          type: 'timing',
+                          delay: 1400,
+                          duration: 400
+                        }}
+                        exitTransition={{
+                          type: 'timing',
+                          duration: 200
+                        }}
+                        style={styles.testimonialStars}
+                      >
+                        {[...Array(5)].map((_, i) => (
+                          <MotiView
+                            key={i}
+                            from={{ opacity: 0, scale: 0.3 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ 
+                              opacity: 0, 
+                              scale: 0.1,
+                              rotate: '45deg'
+                            }}
+                            transition={{
+                              type: 'spring',
+                              delay: 1500 + (i * 50),
+                              damping: 8,
+                              stiffness: 400
+                            }}
+                            exitTransition={{
+                              type: 'spring',
+                              duration: 150 + (i * 30),
+                              damping: 6,
+                              stiffness: 500
+                            }}
+                          >
+                            <Text style={styles.star}>⭐</Text>
+                          </MotiView>
+                        ))}
+                      </MotiView>
+                    </View>
                   </View>
-                </View>
-                <Animated.Text style={[styles.testimonialText, textAnimatedStyle]}>
-                  "{testimonials[currentTestimonial].text}"
-                </Animated.Text>
-              </View>
-            </Animated.View>
+                  <MotiView
+                    from={{ opacity: 0, translateY: 15 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    exit={{ 
+                      opacity: 0, 
+                      translateY: 20,
+                      scale: 0.95
+                    }}
+                    transition={{
+                      type: 'timing',
+                      delay: 1700,
+                      duration: 500
+                    }}
+                    exitTransition={{
+                      type: 'timing',
+                      duration: 300
+                    }}
+                  >
+                    <Text style={styles.testimonialText}>
+                      "{testimonials[currentTestimonial].text}"
+                    </Text>
+                  </MotiView>
+                </MotiView>
+              </MotiView>
+            </AnimatePresence>
 
             {/* Security Badge */}
             <View style={styles.securityContainer}>
