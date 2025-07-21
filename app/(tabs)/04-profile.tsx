@@ -375,83 +375,83 @@ const ProfileScreen = () => {
       ],
       footer: 'Get help with your account, cards, and more.',
     },
-    {
-      title: 'Developer',
-      data: [
-        // {
-        //   id: 'test-sentry',
-        //   title: 'Test Sentry Error',
-        //   icon: 'bug-outline',
-        //   onPress: () => {
-        //     try {
-        //       Sentry.captureException(new Error('Sentry test error from Profile screen'));
-        //       Alert.alert('Success', 'Sentry test error captured. Check your Sentry dashboard.');
-        //     } catch (error) {
-        //       console.error("Sentry test failed:", error);
-        //       Alert.alert('Error', 'Failed to capture Sentry error.');
-        //     }
-        //   }
-        // },
-        {
-          id: 'reset-first-redemption',
-          title: 'Reset First Redemption',
-          icon: 'refresh-outline',
-          onPress: handleResetFirstRedemption
-        },
-        {
-          id: 'reset-tap-onboarding',
-          title: 'Reset Tap Onboarding',
-          icon: 'hand-left-outline',
-          onPress: handleResetTapOnboarding
-        },
-        {
-          id: 'clear-chat',
-          title: 'Clear Chat History',
-          icon: 'chatbubble-ellipses-outline',
-          onPress: handleClearChat
-        },
-        // {
-        //   id: 'show-chat-notification',
-        //   title: 'Test AI Chat Notification',
-        //   icon: 'notifications-circle-outline',
-        //   onPress: handleShowChatNotification
-        // },
-        {
-          id: 'reset-chat-credits',
-          title: 'Reset Chat Credits',
-          icon: 'cash-outline',
-          onPress: handleResetChatCredits
-        },
-        {
-          id: 'reset-notification-prefs',
-          title: 'Reset Notification Preferences',
-          icon: 'notifications-outline',
-          onPress: handleResetNotificationPreferences
-        },
-        // {
-        //   id: 'test-inactivity-message',
-        //   title: 'Send Suggested AI Message',
-        //   icon: 'time-outline',
-        //   onPress: handleTestInactivityMessage
-        // },
-        {
-          id: 'test-perk-expiry-notifications',
-          title: 'Test All Notifications',
-          icon: 'timer-outline',
-          onPress: handleTestPerkExpiryNotifications
-        },
-        {
-          id: 'test-database',
-          title: 'Test Database',
-          icon: 'server-outline',
-          onPress: () => {
-            logger.log('Test Database button tapped!');
-            setShowTester(true);
-          }
-        },
-      ],
-      footer: 'Development tools and testing options.',
-    },
+    // {
+    //   title: 'Developer',
+    //   data: [
+    //     // {
+    //     //   id: 'test-sentry',
+    //     //   title: 'Test Sentry Error',
+    //     //   icon: 'bug-outline',
+    //     //   onPress: () => {
+    //     //     try {
+    //     //       Sentry.captureException(new Error('Sentry test error from Profile screen'));
+    //     //       Alert.alert('Success', 'Sentry test error captured. Check your Sentry dashboard.');
+    //     //     } catch (error) {
+    //     //       console.error("Sentry test failed:", error);
+    //     //       Alert.alert('Error', 'Failed to capture Sentry error.');
+    //     //     }
+    //     //   }
+    //     // },
+    //     {
+    //       id: 'reset-first-redemption',
+    //       title: 'Reset First Redemption',
+    //       icon: 'refresh-outline',
+    //       onPress: handleResetFirstRedemption
+    //     },
+    //     {
+    //       id: 'reset-tap-onboarding',
+    //       title: 'Reset Tap Onboarding',
+    //       icon: 'hand-left-outline',
+    //       onPress: handleResetTapOnboarding
+    //     },
+    //     {
+    //       id: 'clear-chat',
+    //       title: 'Clear Chat History',
+    //       icon: 'chatbubble-ellipses-outline',
+    //       onPress: handleClearChat
+    //     },
+    //     // {
+    //     //   id: 'show-chat-notification',
+    //     //   title: 'Test AI Chat Notification',
+    //     //   icon: 'notifications-circle-outline',
+    //     //   onPress: handleShowChatNotification
+    //     // },
+    //     {
+    //       id: 'reset-chat-credits',
+    //       title: 'Reset Chat Credits',
+    //       icon: 'cash-outline',
+    //       onPress: handleResetChatCredits
+    //     },
+    //     {
+    //       id: 'reset-notification-prefs',
+    //       title: 'Reset Notification Preferences',
+    //       icon: 'notifications-outline',
+    //       onPress: handleResetNotificationPreferences
+    //     },
+    //     // {
+    //     //   id: 'test-inactivity-message',
+    //     //   title: 'Send Suggested AI Message',
+    //     //   icon: 'time-outline',
+    //     //   onPress: handleTestInactivityMessage
+    //     // },
+    //     {
+    //       id: 'test-perk-expiry-notifications',
+    //       title: 'Test All Notifications',
+    //       icon: 'timer-outline',
+    //       onPress: handleTestPerkExpiryNotifications
+    //     },
+    //     {
+    //       id: 'test-database',
+    //       title: 'Test Database',
+    //       icon: 'server-outline',
+    //       onPress: () => {
+    //         logger.log('Test Database button tapped!');
+    //         setShowTester(true);
+    //       }
+    //     },
+    //   ],
+    //   footer: 'Development tools and testing options.',
+    // },
   ];
 
   const renderItem = ({ item, index, section }: SectionListRenderItemInfo<ProfileRow, ProfileSection>) => {
