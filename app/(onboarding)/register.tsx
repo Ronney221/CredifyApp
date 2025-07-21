@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     marginTop: 20,
-    marginBottom: 16,
+    marginBottom: 24,
     position: 'relative',
   },
   cardsBackdrop: {
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   authContainer: {
-    paddingTop: 20,
+    paddingTop: 24,
     paddingHorizontal: 16,
   },
   socialButton: {
@@ -729,7 +729,8 @@ const styles = StyleSheet.create({
   },
   testimonialContainer: {
     alignItems: 'center',
-    marginVertical: 16,
+    marginTop: 20,
+    marginBottom: 16,
     paddingHorizontal: 8,
   },
   testimonialCard: {
@@ -793,8 +794,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    marginBottom: 0,
+    marginTop: 20,
+    marginBottom: 12,
     opacity: 0.7,
   },
   securityText: {
@@ -804,7 +805,7 @@ const styles = StyleSheet.create({
   },
   bottomTermsContainer: {
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 20 : 16,
     backgroundColor: '#ffffff',
   },
