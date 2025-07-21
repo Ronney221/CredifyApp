@@ -15,9 +15,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Run tests with coverage report
 - Tests are located in `__tests__/` directory and focus on logic tests in `__tests__/logic/`
+- Jest configuration targets only `**/__tests__/logic/**/*.test.ts` files for focused testing
 
 ### Code Quality
 - `npm run lint` - Run ESLint for code linting
+
+### Development Reset
+- `npm run reset-project` - Reset project configuration (available via scripts)
 
 ## Architecture Overview
 
@@ -77,10 +81,11 @@ This is a React Native mobile app built with Expo (SDK 53) and TypeScript. The a
 - Follow Expo's official documentation patterns
 
 ### Testing Strategy
-- Unit tests use Jest with React Native Testing Library
+- Unit tests use Jest with React Native Testing Library and ts-jest preset
 - Test configuration focuses on logic tests in `__tests__/logic/`
 - Mock files are provided for React Native and asset imports
 - Transform configurations handle TypeScript and React Native modules
+- Module name mapping supports @ alias for root directory imports
 
 ### State Management
 - React Context and useReducer for global state
