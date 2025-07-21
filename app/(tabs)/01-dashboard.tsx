@@ -1367,8 +1367,17 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     overflow: 'hidden',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212,212,212,0.5)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 0.5 },
+        shadowOpacity: 0.08,
+        shadowRadius: 0,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   headerContent: {
     position: 'absolute',
@@ -1607,11 +1616,17 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     backgroundColor: Colors.light.tint,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.12,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   manageCardsText: {
     fontSize: 16,
