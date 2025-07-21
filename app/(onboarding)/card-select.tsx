@@ -68,6 +68,7 @@ export default function OnboardingCardSelectScreen() {
   const [isLoadingCards, setIsLoadingCards] = useState(true);
   const [displayValue, setDisplayValue] = useState(0);
   const valueOpacity = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const loadCards = async () => {
@@ -250,6 +251,23 @@ export default function OnboardingCardSelectScreen() {
         if (currentStep >= steps) {
           clearInterval(interval);
           setDisplayValue(targetValue);
+          // Pulse animation when value updates
+          Animated.sequence([
+            Animated.spring(scaleAnim, {
+              toValue: 1.1,
+              useNativeDriver: true,
+              damping: 10,
+              mass: 1,
+              stiffness: 200,
+            }),
+            Animated.spring(scaleAnim, {
+              toValue: 1,
+              useNativeDriver: true,
+              damping: 10,
+              mass: 1,
+              stiffness: 200,
+            }),
+          ]).start();
         }
       }, duration / steps);
 
@@ -283,49 +301,47 @@ export default function OnboardingCardSelectScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.headerContentContainer}>
-        <MotiView
-          from={{ opacity: 0, translateY: 8 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 400 }}
-          style={styles.headerWrapper}
-        >
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerText}>{headerText}</Text>
-          </View>
-        </MotiView>
-        <MotiView
-          from={{ opacity: 0, translateY: 8 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 400, delay: subtitleAnimationDelay }}
-        >
-          <Text style={styles.subtitle}>
-            We do the math. You just tap.
-          </Text>
-        </MotiView>
+        {selectedCards.length === 0 ? (
+          <>
+            <MotiView
+              from={{ opacity: 0, translateY: 8 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 400 }}
+              style={styles.headerWrapper}
+            >
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerText}>{headerText}</Text>
+              </View>
+            </MotiView>
+            <MotiView
+              from={{ opacity: 0, translateY: 8 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 400, delay: subtitleAnimationDelay }}
+            >
+              <Text style={styles.subtitle}>
+                We do the math. You just tap.
+              </Text>
+            </MotiView>
+          </>
+        ) : (
+          <MotiView
+            from={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'timing', duration: 300 }}
+            style={styles.valueHeaderContainer}
+          >
+            <View style={styles.valueHeaderTop}>
+              <Ionicons name="card" size={20} color={Colors.light.tint} style={styles.valueIcon} />
+              <Text style={styles.valueLabel}>Annual Fees Selected</Text>
+            </View>
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              <Text style={styles.valueAmount}>${displayValue.toLocaleString()}</Text>
+            </Animated.View>
+            <Text style={styles.valueSubtext}>We'll show you how your perks cover this</Text>
+          </MotiView>
+        )}
       </View>
 
-      {/* Running Total Value Display */}
-      <Animated.View 
-        style={[
-          styles.valueContainer,
-          {
-            opacity: valueOpacity,
-            transform: [{
-              translateY: valueOpacity.interpolate({
-                inputRange: [0, 1],
-                outputRange: [-20, 0],
-              })
-            }]
-          }
-        ]}
-      >
-        <View style={styles.valueHeader}>
-          <Ionicons name="card" size={20} color={Colors.light.tint} style={styles.valueIcon} />
-          <Text style={styles.valueLabel}>Annual Fees Selected</Text>
-        </View>
-        <Text style={styles.valueAmount}>${displayValue.toLocaleString()}</Text>
-        <Text style={styles.valueSubtext}>We'll show you how your perks cover this</Text>
-      </Animated.View>
 
       <MotiView
         from={{ opacity: 0, translateY: 12 }}
@@ -404,8 +420,9 @@ const styles = StyleSheet.create({
   },
   headerContentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 16,
     backgroundColor: '#ffffff',
+    minHeight: 120,
   },
   headerWrapper: {
     paddingTop: 8,
@@ -512,18 +529,11 @@ const styles = StyleSheet.create({
     height: 24,
     marginRight: 8,
   },
-  valueContainer: {
+  valueHeaderContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: '#F8F9FF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E8EBFF',
+    paddingTop: 8,
   },
-  valueHeader: {
+  valueHeaderTop: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
@@ -546,10 +556,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   valueSubtext: {
-    fontSize: 13,
+    fontSize: 17,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
     opacity: 0.8,
-    lineHeight: 16,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+    paddingBottom: 8,
   },
 }); 
