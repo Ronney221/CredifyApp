@@ -11,6 +11,7 @@ import {
   TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
+import { MotiView } from 'moti';
 import { Ionicons } from '@expo/vector-icons';
 import AIChat from './AIChat';
 import { Colors } from '../../constants/Colors';
@@ -27,6 +28,7 @@ interface AIChatButtonProps {
 export default function AIChatButton({ showNotification, onOpen, onClose }: AIChatButtonProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const tooltipOpacity = useRef(new Animated.Value(0)).current;
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>();
   const { hasRedeemedFirstPerk } = useOnboardingContext();
@@ -108,11 +110,17 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
     if (onOpen) {
       onOpen();
     }
-    setIsModalVisible(true);
+    
+    setIsAnimating(true);
+    // Small delay to allow hero animation to start
+    setTimeout(() => {
+      setIsModalVisible(true);
+    }, 50);
   };
 
   const handleClose = () => {
     setIsModalVisible(false);
+    setIsAnimating(false);
     if (onClose) {
       onClose();
     }
@@ -140,41 +148,66 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
           </TouchableWithoutFeedback>
         )}
 
-        <TouchableOpacity
-          style={[
-            styles.container,
-            !hasRedeemedFirstPerk && styles.containerDisabled
-          ]}
-          onPress={handlePress}
-          activeOpacity={hasRedeemedFirstPerk ? 0.7 : 1}
-          accessibilityRole="button"
-          accessibilityLabel={hasRedeemedFirstPerk ? "Open AI Chat" : "AI Chat (Locked)"}
+        <MotiView
+          animate={{
+            scale: isAnimating ? 1.1 : 1,
+            opacity: isAnimating ? 0.8 : 1,
+          }}
+          transition={{
+            type: 'spring',
+            damping: 15,
+            stiffness: 200,
+          }}
         >
-          <View style={styles.iconContainer}>
-            <Ionicons 
-              name="sparkles" 
-              size={20} 
-              color={hasRedeemedFirstPerk ? "#007AFF" : "rgba(142, 142, 147, 0.8)"} 
-            />
-            {!hasRedeemedFirstPerk && (
-              <View style={styles.lockOverlay}>
-                <Ionicons name="lock-closed" size={10} color="#8E8E93" />
-              </View>
-            )}
-          </View>
-          {showNotification && hasRedeemedFirstPerk && <View style={styles.notificationDot} />}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.container,
+              !hasRedeemedFirstPerk && styles.containerDisabled
+            ]}
+            onPress={handlePress}
+            activeOpacity={hasRedeemedFirstPerk ? 0.7 : 1}
+            accessibilityRole="button"
+            accessibilityLabel={hasRedeemedFirstPerk ? "Open AI Chat" : "AI Chat (Locked)"}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons 
+                name="chatbubble-ellipses" 
+                size={20} 
+                color={hasRedeemedFirstPerk ? "#007AFF" : "rgba(142, 142, 147, 0.8)"} 
+              />
+              {!hasRedeemedFirstPerk && (
+                <View style={styles.lockOverlay}>
+                  <Ionicons name="lock-closed" size={10} color="#8E8E93" />
+                </View>
+              )}
+            </View>
+            {showNotification && hasRedeemedFirstPerk && <View style={styles.notificationDot} />}
+          </TouchableOpacity>
+        </MotiView>
       </View>
 
       <Modal
         visible={isModalVisible}
-        animationType="slide"
+        animationType="none"
         onRequestClose={handleClose}
-        presentationStyle="pageSheet"
+        presentationStyle="fullScreen"
+        transparent={false}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <AIChat onClose={handleClose} />
-        </SafeAreaView>
+        <MotiView
+          from={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          transition={{
+            type: 'spring',
+            damping: 20,
+            stiffness: 300,
+          }}
+          style={styles.modalContainer}
+        >
+          <SafeAreaView style={styles.modalContent}>
+            <AIChat onClose={handleClose} />
+          </SafeAreaView>
+        </MotiView>
       </Modal>
     </>
   );
@@ -200,6 +233,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
+    flex: 1,
+  },
+  modalContent: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
