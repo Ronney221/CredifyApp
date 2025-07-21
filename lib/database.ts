@@ -432,18 +432,19 @@ export async function trackPerkRedemption(
     const totalValue = perkDef.value;
     const remainingValue = isPartialRedemption ? perkDef.value - valueRedeemed : 0;
 
-    // If transitioning from partial to full redemption, delete the partial redemption first
+    // If transitioning from partial to full redemption, delete ONLY the current period partial redemption
     if (perk.status === 'partially_redeemed' && !isPartialRedemption) {
       const { error: deleteError } = await supabase
         .from('perk_redemptions')
         .delete()
         .eq('user_id', userId)
         .eq('perk_id', perk.definition_id)
-        .eq('status', 'partially_redeemed');
+        .eq('status', 'partially_redeemed')
+        .gt('reset_date', now.toISOString()); // Only delete current period partial redemptions
 
       if (deleteError) {
-        console.error('Error deleting partial redemption:', deleteError);
-        return { error: new Error('Failed to delete partial redemption') };
+        console.error('Error deleting current period partial redemption:', deleteError);
+        return { error: new Error('Failed to delete current period partial redemption') };
       }
     }
 
@@ -575,38 +576,78 @@ export async function getAnnualRedemptions(userId: string) {
 
 export async function deletePerkRedemption(userId: string, perkDefinitionId: string) {
   try {
-    logger.log('[DB] Attempting to delete ALL perk redemptions:', { userId, perkDefinitionId });
+    logger.log('[DB] Attempting to delete CURRENT PERIOD perk redemptions only:', { userId, perkDefinitionId });
 
-    // Get all redemption records for this perk to understand what we're deleting
-    const { data: allRedemptions, error: findError } = await supabase
+    // First, get the perk definition to understand its period and reset type
+    const { data: perkDef, error: perkDefError } = await supabase
+      .from('perk_definitions')
+      .select('id, name, period_months, reset_type')
+      .eq('id', perkDefinitionId)
+      .single();
+
+    if (perkDefError || !perkDef) {
+      console.error('Error finding perk definition for deletion:', perkDefError);
+      return { error: new Error(`Perk definition not found for ID: ${perkDefinitionId}`) };
+    }
+
+    // Get current active redemptions only (those with reset_date > now)
+    const now = new Date();
+    const { data: currentRedemptions, error: findError } = await supabase
       .from('perk_redemptions')
-      .select('id, parent_redemption_id, value_redeemed, status')
+      .select('id, parent_redemption_id, value_redeemed, status, reset_date, redemption_date')
       .eq('user_id', userId)
       .eq('perk_id', perkDefinitionId)
+      .gt('reset_date', now.toISOString()) // Only current period redemptions
       .order('redemption_date', { ascending: false });
 
     if (findError) {
-      console.error('Database error finding perk redemptions:', findError);
+      console.error('Database error finding current perk redemptions:', findError);
       return { error: findError };
     }
 
-    if (!allRedemptions || allRedemptions.length === 0) {
-      logger.log('No redemption records found to delete');
+    if (!currentRedemptions || currentRedemptions.length === 0) {
+      logger.log('No current period redemption records found to delete');
       return { error: null };
     }
 
-    logger.log(`[DB] Found ${allRedemptions.length} redemption records to delete:`, allRedemptions);
+    logger.log(`[DB] Found ${currentRedemptions.length} CURRENT PERIOD redemption records to delete:`, 
+      currentRedemptions.map(r => ({ 
+        id: r.id, 
+        status: r.status, 
+        value: r.value_redeemed,
+        redemption_date: r.redemption_date,
+        reset_date: r.reset_date 
+      }))
+    );
 
-    // Delete ALL redemption records for this perk at once
-    // This handles both parent and child redemptions, and multiple partial redemptions
+    // Also check if there are historical redemptions that will be preserved
+    const { data: historicalRedemptions, error: historicalError } = await supabase
+      .from('perk_redemptions')
+      .select('id, redemption_date, reset_date')
+      .eq('user_id', userId)
+      .eq('perk_id', perkDefinitionId)
+      .lte('reset_date', now.toISOString()); // Historical redemptions
+
+    if (!historicalError && historicalRedemptions && historicalRedemptions.length > 0) {
+      logger.log(`[DB] Preserving ${historicalRedemptions.length} historical redemption records:`,
+        historicalRedemptions.map(r => ({ 
+          id: r.id,
+          redemption_date: r.redemption_date,
+          reset_date: r.reset_date 
+        }))
+      );
+    }
+
+    // Delete ONLY current period redemption records
     const { error: deleteError } = await supabase
       .from('perk_redemptions')
       .delete()
       .eq('user_id', userId)
-      .eq('perk_id', perkDefinitionId);
+      .eq('perk_id', perkDefinitionId)
+      .gt('reset_date', now.toISOString()); // Only delete current period
 
     if (deleteError) {
-      console.error('Database error deleting all perk redemptions:', { 
+      console.error('Database error deleting current period perk redemptions:', { 
         error: deleteError,
         userId,
         perkDefinitionId
@@ -614,7 +655,14 @@ export async function deletePerkRedemption(userId: string, perkDefinitionId: str
       return { error: deleteError };
     }
 
-    logger.log(`Successfully deleted all ${allRedemptions.length} perk redemption(s):`, { userId, perkDefinitionId });
+    logger.log(`Successfully deleted ${currentRedemptions.length} CURRENT PERIOD perk redemption(s). Historical data preserved.`, { 
+      userId, 
+      perkDefinitionId,
+      perkName: perkDef.name,
+      deletedCount: currentRedemptions.length,
+      preservedCount: historicalRedemptions?.length || 0
+    });
+    
     return { error: null };
   } catch (error) {
     console.error('Unexpected error deleting perk redemptions:', { 

@@ -124,8 +124,14 @@ export function usePerkRedemption({
             // On undo, restore the previous state exactly
             setPerkStatus(cardId, perk.id, originalStatus, previousValue);
             
-            // First delete the new redemption
-            const { error: undoError } = await supabase.from('perk_redemptions').delete().eq('user_id', userId).eq('perk_id', perk.definition_id);
+            // First delete ONLY the current period redemption (preserve historical data)
+            const now = new Date();
+            const { error: undoError } = await supabase
+              .from('perk_redemptions')
+              .delete()
+              .eq('user_id', userId)
+              .eq('perk_id', perk.definition_id)
+              .gt('reset_date', now.toISOString()); // Only delete current period
             if (undoError) {
               setPerkStatus(cardId, perk.id, newStatus, remainingValue);
               onPerkStatusChange?.();
