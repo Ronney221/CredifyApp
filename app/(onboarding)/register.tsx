@@ -428,7 +428,7 @@ export default function RegisterScreen() {
             )}
 
             {/* Premium Testimonials with Staggered Animations */}
-            <AnimatePresence mode="wait">
+            <AnimatePresence exitBeforeEnter>
               <MotiView
                 key={currentTestimonial}
                 from={{ 
