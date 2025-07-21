@@ -11,6 +11,8 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link, useLocalSearchParams } from 'expo-router';
@@ -62,6 +64,7 @@ const verbs = [
   'leveraged',
   'optimized'
 ];
+
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -239,8 +242,9 @@ export default function RegisterScreen() {
       <StatusBar barStyle="dark-content" />
       
       <View style={styles.content}>
-        {/* Personalized Card Display with Continuous Animation */}
+        {/* Premium Card Display with Glassmorphism */}
         <View style={styles.cardsContainer}>
+          <View style={styles.cardsBackdrop} />
           {selectedCardObjects.map((card, index) => (
             <MotiView
               key={card.id}
@@ -254,21 +258,22 @@ export default function RegisterScreen() {
                 opacity: 1,
                 translateY: 0,
                 scale: 1,
-                rotate: `${-5 + (index * 3)}deg`,
+                rotate: `${-8 + (index * 4)}deg`,
               }}
               transition={{
                 type: 'spring',
-                delay: index * 200,
-                damping: 12,
+                delay: index * 150,
+                damping: 15,
                 mass: 1,
-                stiffness: 100,
+                stiffness: 120,
               }}
               style={[
                 styles.cardWrapper,
                 {
                   transform: [
-                    { translateX: (index - (selectedCardObjects.length - 1) / 2) * 40 },
+                    { translateX: (index - (selectedCardObjects.length - 1) / 2) * 35 },
                   ],
+                  zIndex: selectedCardObjects.length - index,
                 },
               ]}
             >
@@ -278,6 +283,7 @@ export default function RegisterScreen() {
                   animatedStyle,
                 ]}
               >
+                <View style={styles.cardGlow} />
                 <Image
                   source={card.image}
                   style={styles.cardImage}
@@ -300,60 +306,112 @@ export default function RegisterScreen() {
               style={styles.logoImage}
               resizeMode="contain"
             />
+            
+            
             <Text style={styles.title}>
               {savingsAmount > 0 ? (
-                `Secure Your $${savingsAmount}`
+                <>
+                  Secure Your{' '}
+                  <Text style={styles.titleHighlight}>${savingsAmount.toLocaleString()}</Text>
+                  {' '}in Savings
+                </>
               ) : (
-                `Maximize Your Card Benefits`
+                'Maximize Your Card Benefits'
               )}
             </Text>
             <Text style={styles.subtitle}>
               {savingsAmount > 0 ? (
-                'Create your Credify account to stay ahead of expiring credits'
+                'Join thousands who never miss a credit card perk again'
               ) : (
-                'Create your Credify account to track and maximize your benefits'
+                'Track every benefit, maximize every reward'
               )}
             </Text>
           </View>
 
           <View style={styles.authContainer}>
-            <TouchableOpacity 
-              style={styles.socialButton} 
-              onPress={handleGoogleSignIn}
-              disabled={isLoading}
-              activeOpacity={0.8}
+            <MotiView
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'spring', delay: 1200 }}
             >
-              <View style={styles.socialButtonContent}>
-                <Ionicons name="logo-google" size={20} color="#4285f4" />
-                <Text style={styles.socialButtonText}>
-                  Sign up with Google
-                </Text>
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.socialButton} 
+                onPress={handleGoogleSignIn}
+                disabled={isLoading}
+                activeOpacity={0.9}
+              >
+                <View style={styles.socialButtonContent}>
+                  <View style={styles.iconContainer}>
+                    <Ionicons name="logo-google" size={22} color="#4285f4" />
+                  </View>
+                  <Text style={styles.socialButtonText}>
+                    Continue with Google
+                  </Text>
+                  <Ionicons name="arrow-forward" size={18} color="#666" style={styles.arrowIcon} />
+                </View>
+              </TouchableOpacity>
+            </MotiView>
             
             {Platform.OS === 'ios' && isAppleAuthAvailable && (
-              <View style={styles.appleButtonWrapper}>
+              <MotiView
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'spring', delay: 1300 }}
+                style={styles.appleButtonWrapper}
+              >
                 <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
                   buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                  cornerRadius={12}
+                  cornerRadius={16}
                   style={styles.appleButton}
                   onPress={handleAppleSignIn}
                 />
-              </View>
+              </MotiView>
             )}
 
-            {/* Testimonials Carousel */}
+            {/* Enhanced Testimonials Carousel */}
             <MotiView
               key={currentTestimonial}
-              from={{ opacity: 0, translateY: 10 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 400 }}
+              from={{ opacity: 0, translateY: 10, scale: 0.95 }}
+              animate={{ opacity: 1, translateY: 0, scale: 1 }}
+              transition={{ type: 'spring', duration: 600 }}
               style={styles.testimonialContainer}
             >
-              <Text style={styles.testimonialText}>
-                {testimonials[currentTestimonial].name} {verbs[currentTestimonial % verbs.length]} {testimonials[currentTestimonial].percentage}% of their perks last year
-              </Text>
+              <View style={styles.testimonialCard}>
+                <View style={styles.testimonialHeader}>
+                  <View style={styles.testimonialAvatar}>
+                    <Text style={styles.testimonialInitial}>
+                      {testimonials[currentTestimonial].name.charAt(0)}
+                    </Text>
+                  </View>
+                  <View style={styles.testimonialInfo}>
+                    <Text style={styles.testimonialName}>
+                      {testimonials[currentTestimonial].name}
+                    </Text>
+                    <View style={styles.testimonialStars}>
+                      {[...Array(5)].map((_, i) => (
+                        <Text key={i} style={styles.star}>⭐</Text>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+                <Text style={styles.testimonialText}>
+                  "{verbs[currentTestimonial % verbs.length]} {testimonials[currentTestimonial].percentage}% of their credit card perks last year with Credify"
+                </Text>
+              </View>
+              
+              {/* Pagination dots */}
+              <View style={styles.paginationDots}>
+                {testimonials.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      index === currentTestimonial && styles.paginationDotActive
+                    ]}
+                  />
+                ))}
+              </View>
             </MotiView>
 
             {/* Security Badge */}
@@ -396,56 +454,84 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardsContainer: {
-    height: 160,
+    height: 140,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     marginTop: 16,
+    marginBottom: 12,
+    position: 'relative',
+  },
+  cardsBackdrop: {
+    position: 'absolute',
+    top: -20,
+    left: -20,
+    right: -20,
+    bottom: -20,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 30,
+    backdropFilter: 'blur(10px)',
   },
   cardWrapper: {
-    width: SCREEN_WIDTH * 0.4,
+    width: SCREEN_WIDTH * 0.5,
     height: 120,
-    marginHorizontal: -20,
+    marginHorizontal: -30,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   cardImageContainer: {
     width: '100%',
     height: '100%',
+    position: 'relative',
+  },
+  cardGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 16,
+    zIndex: -1,
   },
   cardImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: 14,
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   logoImage: {
-    width: 300,
-    height: 60,
-    marginBottom: 6,
+    width: 320,
+    height: 64,
+    marginBottom: 20,
     alignSelf: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
     letterSpacing: -0.5,
+    lineHeight: 32,
+  },
+  titleHighlight: {
+    color: '#007AFF',
+    fontWeight: '800',
   },
   subtitle: {
     fontSize: 17,
@@ -453,44 +539,59 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     letterSpacing: -0.2,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
+    fontWeight: '500',
   },
   authContainer: {
-    paddingTop: 12,
+    paddingTop: 16,
+    paddingHorizontal: 16,
   },
   socialButton: {
     backgroundColor: '#ffffff',
     height: 50,
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: 14,
+    marginBottom: 12,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
-    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
   },
   socialButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     height: '100%',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(66, 133, 244, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   socialButtonText: {
     color: '#1c1c1e',
     fontSize: 17,
     fontWeight: '600',
-    marginLeft: 8,
+    flex: 1,
+    textAlign: 'center',
+    marginLeft: -16,
+  },
+  arrowIcon: {
+    opacity: 0.6,
   },
   appleButtonWrapper: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     height: 50,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
   appleButton: {
@@ -499,20 +600,81 @@ const styles = StyleSheet.create({
   },
   testimonialContainer: {
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: 12,
+    paddingHorizontal: 8,
+  },
+  testimonialCard: {
+    backgroundColor: 'rgba(248, 249, 250, 0.8)',
     paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+    marginBottom: 10,
+  },
+  testimonialHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  testimonialAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  testimonialInitial: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  testimonialInfo: {
+    flex: 1,
+  },
+  testimonialName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  testimonialStars: {
+    flexDirection: 'row',
+  },
+  star: {
+    fontSize: 12,
+    marginRight: 2,
   },
   testimonialText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.light.secondaryLabel,
-    textAlign: 'center',
+    lineHeight: 20,
     fontWeight: '500',
+    fontStyle: 'italic',
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    marginHorizontal: 3,
+  },
+  paginationDotActive: {
+    backgroundColor: '#007AFF',
+    width: 20,
   },
   securityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
     opacity: 0.7,
   },
   securityText: {
@@ -522,7 +684,7 @@ const styles = StyleSheet.create({
   },
   termsContainer: {
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   termsText: {
     color: '#8e8e93',
