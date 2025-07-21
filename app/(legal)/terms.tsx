@@ -22,7 +22,6 @@ export default function TermsScreen() {
       <Stack.Screen
         options={{
           headerShown: false,
-          animation: 'slide_from_bottom',
           presentation: 'modal',
         }}
       />
@@ -88,21 +87,53 @@ export default function TermsScreen() {
           data.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>2.3 Notifications and Reminders.</Text>{' '}
+          <Text style={styles.bold}>2.3 AI-Powered Features.</Text> Credify uses
+          artificial intelligence and machine learning technologies to provide
+          personalized recommendations and insights. These AI features are for
+          informational purposes only and should not be considered as
+          professional financial, investment, or tax advice. AI-generated
+          content may contain errors or inaccuracies. You should always
+          consult with qualified professionals before making financial
+          decisions.
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>2.4 Not Financial Advice.</Text> Credify is
+          a tracking and organizational tool only. Nothing in the App
+          constitutes financial, investment, tax, or legal advice. We do not
+          recommend specific financial products, investment strategies, or
+          financial decisions. All suggestions, calculations, and insights are
+          for informational purposes only. You should consult with qualified
+          financial professionals before making any financial decisions based
+          on information from the App.
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>2.5 Calculation Accuracy and ROI Estimates.</Text>{' '}
+          All ROI calculations, savings estimates, fee recovery tracking, and
+          other financial metrics displayed in the App are estimates based on
+          user-provided data and may contain errors or inaccuracies. These
+          calculations do not account for all variables that may affect your
+          actual financial outcomes, including but not limited to: taxes,
+          interest rates, market fluctuations, fees, restrictions, or changes
+          to credit card terms. You are solely responsible for verifying all
+          calculations and should not rely on the App's estimates for important
+          financial decisions.
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.bold}>2.6 Notifications and Reminders.</Text>{' '}
           Credify can send you notifications for approaching perk expiration or
           renewal periods. You are responsible for configuring push
           notifications or email settings. We cannot guarantee you will receive
           alerts if you disable notifications on your device.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>2.4 One-Tap Redemption.</Text> When you tap
+          <Text style={styles.bold}>2.7 One-Tap Redemption.</Text> When you tap
           a perk, Credify attempts to open the associated third-party app or
           website (e.g., Uber, Grubhub, airline portals, streaming services)
           and mark it as used. We do not control those third-party services and
           are not responsible if they fail to launch, load, or redeem correctly.
         </Text>
         <Text style={styles.paragraph}>
-          <Text style={styles.bold}>2.5 Usage Prohibitions.</Text> You agree
+          <Text style={styles.bold}>2.8 Usage Prohibitions.</Text> You agree
           not to:
         </Text>
         <Text style={styles.bulletPoint}>
@@ -116,6 +147,14 @@ export default function TermsScreen() {
         <Text style={styles.bulletPoint}>
           • Interfere with, disrupt, or attempt to gain unauthorized access to
           any system, network, or user data.
+        </Text>
+        <Text style={styles.bulletPoint}>
+          • Use the App to engage in any fraudulent financial activities or
+          misrepresent your financial status to third parties.
+        </Text>
+        <Text style={styles.bulletPoint}>
+          • Attempt to manipulate or exploit AI features for unintended
+          purposes.
         </Text>
 
         <Text style={styles.sectionTitle}>3. Intellectual Property</Text>
@@ -162,7 +201,9 @@ export default function TermsScreen() {
           ANY KIND, EXPRESS OR IMPLIED. WE DISCLAIM ALL WARRANTIES, INCLUDING,
           BUT NOT LIMITED TO, MERCHANTABILITY, FITNESS FOR A PARTICULAR
           PURPOSE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE APP WILL BE
-          ERROR-FREE, UNINTERRUPTED, OR COMPLETELY SECURE.
+          ERROR-FREE, UNINTERRUPTED, OR COMPLETELY SECURE. WE SPECIFICALLY
+          DISCLAIM ANY WARRANTIES REGARDING THE ACCURACY OF AI-GENERATED
+          CONTENT, FINANCIAL CALCULATIONS, OR THIRD-PARTY DATA.
         </Text>
 
         <Text style={styles.sectionTitle}>6. Limitation of Liability</Text>
@@ -170,9 +211,12 @@ export default function TermsScreen() {
           TO THE FULLEST EXTENT PERMITTED BY LAW, IN NO EVENT WILL CREDIFY (OR
           ITS PARENT, AFFILIATES, OFFICERS, DIRECTORS, EMPLOYEES, OR LICENSORS)
           BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR
-          PUNITIVE DAMAGES. OUR MAXIMUM LIABILITY FOR ANY CLAIM ARISING FROM OR
-          RELATED TO THESE TERMS OR THE APP SHALL NOT EXCEED THE AMOUNTS YOU PAID
-          (IF ANY) TO USE THE APP IN THE 12 MONTHS PRIOR TO THE CLAIM.
+          PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO DAMAGES ARISING FROM
+          INCORRECT CALCULATIONS, INACCURATE ROI ESTIMATES, FINANCIAL LOSSES
+          RESULTING FROM APP-PROVIDED INFORMATION, OR RELIANCE ON AI-GENERATED
+          CONTENT. OUR MAXIMUM LIABILITY FOR ANY CLAIM ARISING FROM OR RELATED
+          TO THESE TERMS OR THE APP SHALL NOT EXCEED THE AMOUNTS YOU PAID (IF
+          ANY) TO USE THE APP IN THE 12 MONTHS PRIOR TO THE CLAIM.
         </Text>
 
         <Text style={styles.sectionTitle}>7. Indemnification</Text>
@@ -218,10 +262,7 @@ export default function TermsScreen() {
           If you have any questions about these Terms, please contact us at:
         </Text>
         <Text style={styles.bulletPoint}>
-          • Email: support@credifyapp.com
-        </Text>
-        <Text style={styles.bulletPoint}>
-          • Address: Credify, Inc. • 1234 Market St, San Francisco, CA 94103
+          • Email: support@getcredify.app
         </Text>
     
          {/* PRIVACY POLICY */}
@@ -395,7 +436,7 @@ export default function TermsScreen() {
           • <Text style={styles.bold}>Access and Update: </Text>You can review
           or update some of your Account information through the App&apos;s Settings.
           To delete your Account and data, contact us at
-          support@credifyapp.com.{'\n'}
+          support@getcredify.app.{'\n'}
           • <Text style={styles.bold}>Push Notifications:</Text> You may opt
           out of push notifications by adjusting your device&apos;s notification
           settings.{'\n'}
@@ -447,10 +488,10 @@ export default function TermsScreen() {
           please contact us at:
         </Text>
         <Text style={styles.bulletPoint}>
-          • Email: privacy@credifyapp.com
+          • Email: support@getcredify.app
         </Text>
         <Text style={styles.bulletPoint}>
-          • Address: Credify, Inc. • 1234 Market St, San Francisco, CA 94103
+          • Privacy Policy: https://getcredify.app/privacy
         </Text>
       </ScrollView>
     </SafeAreaView>
