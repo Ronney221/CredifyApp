@@ -33,8 +33,6 @@ import { Colors } from '../../constants/Colors';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import PerkDonutDisplayManager from '../../components/home/PerkDonutDisplayManager';
-import ExpandableCard from '../../components/home/ExpandableCard';
 import PerkInfoSheet from '../../components/home/PerkInfoSheet';
 import PerkLoggingModal from '../../components/home/PerkLoggingModal';
 import WelcomeBackSnackbar from '../../components/home/WelcomeBackSnackbar';
@@ -45,17 +43,15 @@ import { usePerkRedemption } from '../../hooks/usePerkRedemption';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
-import ActionHintPill from '../../components/home/ActionHintPill';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BlurView } from 'expo-blur';
 import { useOnboardingContext } from '../(onboarding)/_context/OnboardingContext';
-import AIChatButton from '../../components/home/AIChatButton';
-import { useSharedValue, useAnimatedScrollHandler, runOnJS } from 'react-native-reanimated';
-import UserCardItem from '../../components/home/UserCardItem';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
 import UsernameRequirementModal from '../../components/profile/UsernameRequirementModal';
 import { dashboardLogger } from '../../utils/logger';
 import { PERFORMANCE_CONFIGS, keyExtractors, PerformanceMonitor } from '../../utils/performance';
+import DashboardHeader from '../../components/dashboard/DashboardHeader';
+import CardsGrid from '../../components/dashboard/CardsGrid';
+import { PerksOverviewWithRef } from '../../components/dashboard/PerksOverview';
 
 // Import notification functions
 import {
@@ -1118,55 +1114,36 @@ export default function Dashboard() {
     />
   );
 
-  // Create the ListHeaderElement using useMemo for stability
-  const listHeaderElement = useMemo(() => {
-    // console.log("DEBUG: Dashboard listHeaderElement useMemo. Pill content:", headerPillContent ? 'Exists' : 'null');
-    return (
-      <View onLayout={(event) => {
-        const { height } = event.nativeEvent.layout;
+  // Create the ListHeaderElement using extracted PerksOverview component
+  const listHeaderElement = useMemo(() => (
+    <PerksOverviewWithRef
+      ref={donutDisplayRef}
+      userCardsWithPerks={userCardsWithPerks}
+      periodAggregates={periodAggregates}
+      redeemedInCurrentCycle={redeemedInCurrentCycle}
+      uniquePerkPeriods={uniquePerkPeriodsForToggle}
+      showAiChatNotification={showAiChatNotification}
+      onOpenAiChat={handleOpenAiChat}
+      onCheckNotificationStatus={checkNotificationStatus}
+      headerPillContent={headerPillContent}
+      onActionHintPress={handleActionHintPress}
+      onListHeaderLayout={(height) => {
         if (height > 0 && height !== listHeaderHeight) {
-          // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
           setListHeaderHeight(height);
         }
-      }}>
-        {headerPillContent && (
-          <ActionHintPill 
-            perk={headerPillContent} 
-            onPress={() => handleActionHintPress(headerPillContent)} 
-            daysRemaining={headerPillContent.daysRemaining} 
-          />
-        )}
-        <View style={styles.summarySection}>
-          <PerkDonutDisplayManager
-            ref={donutDisplayRef}
-            userCardsWithPerks={userCardsWithPerks}
-            periodAggregates={periodAggregates}
-            redeemedInCurrentCycle={redeemedInCurrentCycle}
-            uniquePerkPeriods={uniquePerkPeriodsForToggle}
-            backgroundColor="#FAFAFE"
-          />
-        </View>
-        <View style={styles.cardsSectionHeader}>
-          <Text style={styles.sectionTitle}>Your Cards</Text>
-          <AIChatButton
-            showNotification={showAiChatNotification}
-            onOpen={handleOpenAiChat}
-            onClose={checkNotificationStatus}
-          />
-        </View>
-      </View>
-    );
-  }, [
-    headerPillContent, 
-    handleActionHintPress, 
-    donutDisplayRef, // donutDisplayRef is stable, but including if its .current access implies dependency
+      }}
+    />
+  ), [
     userCardsWithPerks, 
     periodAggregates, 
     redeemedInCurrentCycle, 
     uniquePerkPeriodsForToggle,
-    listHeaderHeight,
     showAiChatNotification,
-    handleOpenAiChat
+    handleOpenAiChat,
+    checkNotificationStatus,
+    headerPillContent,
+    handleActionHintPress,
+    listHeaderHeight
   ]);
 
   const handleManageCards = () => {
@@ -1304,103 +1281,18 @@ export default function Dashboard() {
         translucent={true}
       />
       <View style={styles.mainContainer}>
-        {/* Animated Header */}
-        <Animated.View
-          style={[
-            styles.animatedHeaderContainer,
-            { height: headerHeight },
-          ]}
-        >
-          <BlurView
-            intensity={90}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
+        {/* Extracted Animated Header Component */}
+        <DashboardHeader scrollY={scrollY} user={user} />
 
-          {/* Expanded Header Content (Greeting) */}
-          <Animated.View
-            style={[
-              styles.headerContent,
-              styles.expandedHeaderContent,
-              {
-                paddingTop: insets.top,
-                opacity: expandedContentOpacity,
-                transform: [{ translateY: expandedContentTranslateY }],
-              },
-            ]}
-          >
-            <View>
-              <Text style={styles.welcomeText}>{welcomeText}</Text>
-              <Text style={styles.userNameText}>{userName}</Text>
-            </View>
-          </Animated.View>
-
-          {/* Collapsed Header Content (Summary Title) */}
-          <Animated.View
-            style={[
-              styles.headerContent,
-              styles.collapsedHeaderContent,
-              { 
-                paddingTop: insets.top / 1.3,
-                opacity: collapsedContentOpacity 
-              },
-            ]}
-          >
-            <Text style={styles.collapsedHeaderText}>
-              {collapsedHeaderText}
-            </Text>
-          </Animated.View>
-        </Animated.View>
-
-        {/* Main content area now uses FlatList */}
-        {sortedCards.length > 0 ? (
-          <Animated.FlatList
-            ref={flatListRef}
-            data={cardListItems}
-            renderItem={renderExpandableCardItem}
-            keyExtractor={keyExtractors.cardList}
-            ListHeaderComponent={listHeaderElement}
-            ListFooterComponent={listFooterElement}
-            contentContainerStyle={[
-              styles.flatListContent,
-              { paddingTop: scrollViewPaddingTop }
-            ]}
-            style={styles.flatListOverallStyle}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            extraData={activeCardId}
-            // Performance optimizations
-            removeClippedSubviews={CARD_LIST.REMOVE_CLIPPED_SUBVIEWS}
-            maxToRenderPerBatch={CARD_LIST.MAX_TO_RENDER_PER_BATCH}
-            windowSize={CARD_LIST.WINDOW_SIZE}
-            initialNumToRender={CARD_LIST.INITIAL_NUM_TO_RENDER}
-            updateCellsBatchingPeriod={CARD_LIST.UPDATE_CELLS_BATCH_PERIOD}
-          />
-        ) : (
-          <ScrollView 
-            contentContainerStyle={[
-              styles.scrollContent,
-              { paddingTop: scrollViewPaddingTop }
-            ]}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-          >
-            <View style={styles.noCardsContainer}>
-              <Ionicons name="card-outline" size={48} color="#8e8e93" />
-              <Text style={styles.noCardsText}>
-                No cards selected. Add your first card to start tracking rewards!
-              </Text>
-              <TouchableOpacity
-                style={styles.addFirstCardButton}
-                onPress={() => router.push('/(tabs)/profile/manage_cards')}
-              >
-                <Text style={styles.addFirstCardButtonText}>Add Your First Card</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        )}
+        {/* Extracted Cards Grid Component */}
+        <CardsGrid
+          cardListItems={cardListItems}
+          scrollY={scrollY}
+          activeCardId={activeCardId}
+          onCardExpandChange={handleCardExpandChange}
+          listHeaderElement={listHeaderElement}
+          scrollViewPaddingTop={scrollViewPaddingTop}
+        />
 
         {showCelebration && (
           <LottieView 
@@ -1440,7 +1332,6 @@ export default function Dashboard() {
           }}
           onDismiss={handleWelcomeBackDismiss}
         />
-
 
         {/* Loading overlay */}
         {isUpdatingPerk && (
