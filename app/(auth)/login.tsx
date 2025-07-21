@@ -70,7 +70,9 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [isAppleAuthAvailable, setIsAppleAuthAvailable] = React.useState(false);
   const [selectedCards, setSelectedCards] = React.useState<typeof allCards>([]);
+  const [cardKey, setCardKey] = React.useState(0);
   const translateY = useSharedValue(0);
+  const cardOpacity = useSharedValue(1);
   const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -89,17 +91,25 @@ export default function LoginScreen() {
   // Function to get random cards
   const getRandomCards = () => {
     const shuffled = [...allCards].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 5);
+    return shuffled.slice(0, 3);
   };
 
   useEffect(() => {
     // Set initial random cards
     setSelectedCards(getRandomCards());
     
-    // Rotate cards every 30 seconds
+    // Rotate cards every 5 seconds with simple fade
     const cardInterval = setInterval(() => {
-      setSelectedCards(getRandomCards());
-    }, 30000);
+      // Fade out
+      cardOpacity.value = withTiming(0, { duration: 300 });
+      
+      // Change cards after fade out completes
+      setTimeout(() => {
+        setSelectedCards(getRandomCards());
+        setCardKey(prev => prev + 1); // Force MotiView re-animation
+        cardOpacity.value = withTiming(1, { duration: 300 });
+      }, 300);
+    }, 5000);
 
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
     
@@ -177,8 +187,10 @@ export default function LoginScreen() {
         { translateY: parallaxOffset.value * 0.3 },
         { scale: 1 - parallaxOffset.value * 0.0001 }
       ],
+      opacity: cardOpacity.value,
     };
   });
+
 
   // Loading state morphing
   const loadingAnimatedStyle = useAnimatedStyle(() => {
@@ -330,7 +342,7 @@ export default function LoginScreen() {
           <View style={styles.cardsBackdrop} />
           {selectedCards.map((cardImage, index) => (
             <MotiView
-              key={index}
+              key={`${cardKey}-${index}`}
               from={{
                 opacity: 0,
                 translateY: -100,
@@ -634,6 +646,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 14,
+  },
+  cardsLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   contentContainer: {
     flex: 1,
