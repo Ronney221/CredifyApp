@@ -17,6 +17,7 @@ import {
   useColorScheme,
   InteractionManager,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 import { FlatList } from 'react-native-gesture-handler';
@@ -561,7 +562,7 @@ const performanceMonitor = {
 
 // --- Main Chat Component ---
 const AIChat = ({ onClose }: { onClose: () => void }) => {
-  const [messages, setMessages] = useState<Message[]>(getOnboardingMessages());
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [remainingUses, setRemainingUses] = useState(MONTHLY_CHAT_LIMIT);
@@ -621,6 +622,9 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     let isMounted = true;
 
     const loadChatHistory = async () => {
+      // Add delay to prevent double load animation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       logger.log('[AIChat][useEffect] Attempting to load chat history for chat ID:', currentChatId);
       try {
         const savedHistory = await AsyncStorage.getItem(`@ai_chat_history_${currentChatId}`);
@@ -655,9 +659,13 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           }
           logger.log('[AIChat][useEffect] Successfully loaded', historyWithDates.length, 'messages from history.');
         } else if (isMounted) {
-          // Set initial greeting message for a new chat
-          setMessages(getOnboardingMessages());
-          logger.log('[AIChat][useEffect] No chat history found, setting onboarding messages.');
+          // Set initial greeting message for a new chat with a small delay
+          setTimeout(() => {
+            if (isMounted) {
+              setMessages(getOnboardingMessages());
+              logger.log('[AIChat][useEffect] No chat history found, setting onboarding messages.');
+            }
+          }, 200);
         }
       } catch (error) {
         console.error('[AIChat] Error loading chat history:', error);
@@ -1137,6 +1145,10 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
   const onSend = () => {
     handleSendQuery(inputText);
+    // Keep input focused after sending
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
   };
 
   const handleStartOver = () => {
@@ -1171,7 +1183,12 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      <StatusBar 
+        style="dark"
+        backgroundColor="transparent"
+        translucent={true}
+      />
+      <SafeAreaView style={styles.container} edges={['right', 'left']}>
         <ChatHeader 
           onClose={onClose} 
           onStartOver={handleStartOver}
@@ -1184,6 +1201,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           enabled
+          keyboardShouldPersistTaps="always"
         >
           <FlatList
             ref={flatListRef}
@@ -1193,13 +1211,13 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             style={styles.messageList}
             contentContainerStyle={styles.messageListContent}
             inverted
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
           />
 
           {isTyping && (
             <View style={styles.typingContainer}>
-              <BlurView intensity={50} tint="light" style={styles.typingBlur}>
+              <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.typingBlur}>
                 <View style={styles.typingContent}>
                   <ActivityIndicator size="small" color="#007AFF" style={styles.typingIndicator} />
                   <Text style={styles.typingText}>AI is thinking...</Text>
@@ -1208,7 +1226,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             </View>
           )}
 
-          <BlurView intensity={50} tint="light" style={styles.inputBlur}>
+          <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.inputBlur}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -1219,6 +1237,8 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                 placeholderTextColor="rgba(60, 60, 67, 0.6)"
                 multiline
                 maxLength={200}
+                blurOnSubmit={false}
+                returnKeyType="send"
                 onSubmitEditing={onSend}
               />
               <Animated.View style={{ transform: [{ scale: sendButtonScale }] }}>
@@ -1229,6 +1249,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                     pressed && { opacity: 0.7 }
                   ]}
                   disabled={!inputText.trim()}
+                  hitSlop={8}
                 >
                   <Ionicons
                     name="arrow-up"
@@ -1248,7 +1269,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#FAFAFE',
   },
   flex_1: {
     flex: 1,

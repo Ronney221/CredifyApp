@@ -27,6 +27,7 @@ interface AIChatButtonProps {
 
 export default function AIChatButton({ showNotification, onOpen, onClose }: AIChatButtonProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [showChatContent, setShowChatContent] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const tooltipOpacity = useRef(new Animated.Value(0)).current;
@@ -112,15 +113,18 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
     }
     
     setIsAnimating(true);
-    // Small delay to allow hero animation to start
+    setIsModalVisible(true);
+    
+    // Delay showing the chat content to sync with animation
     setTimeout(() => {
-      setIsModalVisible(true);
-    }, 50);
+      setShowChatContent(true);
+    }, 300);
   };
 
   const handleClose = () => {
     setIsModalVisible(false);
     setIsAnimating(false);
+    setShowChatContent(false);
     if (onClose) {
       onClose();
     }
@@ -201,11 +205,18 @@ export default function AIChatButton({ showNotification, onOpen, onClose }: AICh
             type: 'spring',
             damping: 20,
             stiffness: 300,
+            duration: 300,
           }}
           style={styles.modalContainer}
         >
           <SafeAreaView style={styles.modalContent}>
-            <AIChat onClose={handleClose} />
+            {showChatContent ? (
+              <AIChat onClose={handleClose} />
+            ) : (
+              <View style={styles.loadingContainer}>
+                {/* Empty placeholder that matches the background */}
+              </View>
+            )}
           </SafeAreaView>
         </MotiView>
       </Modal>
@@ -237,7 +248,11 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFF',
   },
   notificationDot: {
     position: 'absolute',
