@@ -50,7 +50,7 @@ const getPeriodDisplayName = (periodMonths: number): string => {
     case 1:
       return 'Month';
     case 3:
-      return 'Quarter';
+      return '3 Month';
     case 6:
       return '6 Month';
     case 12:
@@ -196,7 +196,7 @@ const PerkDonutDisplayManagerInner = (
 
   const activeData = useMemo(() => {
     if (!periodAggregates || typeof periodAggregates !== 'object' || Object.keys(periodAggregates).length === 0) {
-      const defaultDisplayName = activeSegmentKey === -1 ? 'All Perks' : getDonutDisplayName(activeSegmentKey || 1);
+      const defaultDisplayName = activeSegmentKey === -1 ? 'All Time' : getDonutDisplayName(activeSegmentKey || 1);
       return {
         value: 0,
         total: 0,
@@ -253,7 +253,7 @@ const PerkDonutDisplayManagerInner = (
       100 // Cap at 100%
     );
     
-    const displayName = activeSegmentKey === -1 ? 'All Perks' : getDonutDisplayName(activeSegmentKey);
+    const displayName = activeSegmentKey === -1 ? 'All Time' : getDonutDisplayName(activeSegmentKey);
 
     // Format currency values
     const redeemedValueFormatted = currentAggregates.redeemedValue.toLocaleString('en-US', {
