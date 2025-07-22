@@ -316,20 +316,26 @@ export async function trackPerkRedemption(
       startOfPeriod.setMonth(Math.floor(now.getMonth() / perkDef.period_months) * perkDef.period_months);
     }
 
-    const { data: existingRedemption, error: existingError } = await supabase
+    const { data: existingRedemptions, error: existingError } = await supabase
       .from('perk_redemptions')
       .select('id, status, remaining_value, value_redeemed, reset_date')
       .eq('user_id', userId)
       .eq('perk_id', perk.definition_id)
-      .gte('redemption_date', startOfPeriod.toISOString())
-      .lt('reset_date', now.toISOString())
-      .order('redemption_date', { ascending: false })
-      .limit(1)
-      .single();
+      .gt('reset_date', now.toISOString()) // Current period redemptions have reset_date > now
+      .order('redemption_date', { ascending: false });
 
-    if (existingRedemption && !existingError) {
-      return { error: new Error('Perk already redeemed this period') };
+    if (existingError) {
+      console.error('Error checking existing redemptions:', existingError);
     }
+
+    // Check for existing full redemption in current period
+    const existingFullRedemption = existingRedemptions?.find(r => r.status === 'redeemed');
+    if (existingFullRedemption) {
+      return { error: new Error('Perk already fully redeemed this period') };
+    }
+
+    // Check for existing partial redemption that we might be completing
+    const existingPartialRedemption = existingRedemptions?.find(r => r.status === 'partially_redeemed');
 
     // If this is a partial redemption (has parent), verify parent exists and has sufficient remaining value
     if (parentRedemptionId) {
@@ -426,25 +432,40 @@ export async function trackPerkRedemption(
       perkDef.reset_type || 'calendar'
     );
 
+    // Calculate total redemption value including any existing partial redemption
+    let totalValueRedeemed = valueRedeemed;
+    let isCompletingPartialRedemption = false;
+    
+    if (existingPartialRedemption && perk.status === 'partially_redeemed') {
+      // We're adding to an existing partial redemption
+      totalValueRedeemed = existingPartialRedemption.value_redeemed + valueRedeemed;
+      isCompletingPartialRedemption = totalValueRedeemed >= perkDef.value;
+      
+      logger.log('[trackPerkRedemption] Completing partial redemption:', {
+        existingValue: existingPartialRedemption.value_redeemed,
+        newValue: valueRedeemed,
+        totalValue: totalValueRedeemed,
+        perkValue: perkDef.value,
+        isComplete: isCompletingPartialRedemption
+      });
+    }
+
     // Determine redemption status and values
-    const isPartialRedemption = valueRedeemed < perkDef.value;
+    const isPartialRedemption = totalValueRedeemed < perkDef.value;
     const status = isPartialRedemption ? 'partially_redeemed' : 'redeemed';
     const totalValue = perkDef.value;
-    const remainingValue = isPartialRedemption ? perkDef.value - valueRedeemed : 0;
+    const remainingValue = isPartialRedemption ? perkDef.value - totalValueRedeemed : 0;
 
-    // If transitioning from partial to full redemption, delete ONLY the current period partial redemption
-    if (perk.status === 'partially_redeemed' && !isPartialRedemption) {
+    // If transitioning from partial to full redemption, delete the existing partial redemption
+    if (existingPartialRedemption && isCompletingPartialRedemption) {
       const { error: deleteError } = await supabase
         .from('perk_redemptions')
         .delete()
-        .eq('user_id', userId)
-        .eq('perk_id', perk.definition_id)
-        .eq('status', 'partially_redeemed')
-        .gt('reset_date', now.toISOString()); // Only delete current period partial redemptions
+        .eq('id', existingPartialRedemption.id);
 
       if (deleteError) {
-        console.error('Error deleting current period partial redemption:', deleteError);
-        return { error: new Error('Failed to delete current period partial redemption') };
+        console.error('Error deleting existing partial redemption:', deleteError);
+        return { error: new Error('Failed to delete existing partial redemption') };
       }
     }
 
@@ -458,7 +479,7 @@ export async function trackPerkRedemption(
         redemption_date: now.toISOString(),
         reset_date: resetDate.toISOString(),
         status,
-        value_redeemed: valueRedeemed,
+        value_redeemed: totalValueRedeemed, // Use total value including any existing partial
         total_value: totalValue,
         remaining_value: remainingValue,
         parent_redemption_id: parentRedemptionId,
