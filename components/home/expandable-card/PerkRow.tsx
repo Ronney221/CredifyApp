@@ -130,7 +130,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const handlePressIn = () => {
     setIsPressed(true);
     pressOpacity.value = withTiming(1, { duration: 100 });
-    triggerHapticFeedback('light');
+    // Removed haptic feedback on press to reduce excessive haptics
   };
   
   const handlePressOut = () => {
@@ -405,13 +405,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const iconAnimatedStyle = useAnimatedStyle(() => {
     const currentSwipeDistance = Math.abs(translateX.value);
     
-    // Move icon from center to edge when approaching full swipe
-    const iconMoveProgress = interpolate(
-      currentSwipeDistance,
-      [LONG_SWIPE_THRESHOLD - 30, LONG_SWIPE_THRESHOLD],
-      [0, 1],
-      'clamp'
-    );
+    // Only move icon after crossing the full swipe threshold
+    const hasPassedThreshold = currentSwipeDistance >= LONG_SWIPE_THRESHOLD;
     
     // For left action (available perks), move icon to the right
     // For right action (redeemed perks), move icon to the left
@@ -420,7 +415,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
     
     return {
       transform: [
-        { translateX: iconMoveProgress * translateDirection }
+        { translateX: hasPassedThreshold ? translateDirection : 0 }
       ],
     };
   });
@@ -798,6 +793,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 200, // Allow space for max expansion (160px + margins)
     overflow: 'hidden',
+    alignItems: 'flex-end', // Align action to the right side of container
   },
 });
 

@@ -648,7 +648,7 @@ const ExpandableCardComponent = ({
           activeOpacity={0.85} // Subtle press feedback
         >
           <Reanimated.View style={iconAnimatedStyle}>
-            <Ionicons name="plus-circle" size={28} color="#fff" />
+            <Ionicons name="add-circle" size={28} color="#fff" />
           </Reanimated.View>
         </TouchableOpacity>
       </Reanimated.View>
@@ -981,8 +981,8 @@ const styles = StyleSheet.create({
     // Create bubble effect with proper height and positioning
     height: 60, // Smaller height for bubble effect
     marginVertical: 12, // Center vertically within PerkRow
-    marginLeft: 12, // Left padding from screen edge
-    marginRight: 16, // Right padding from PerkRow edge
+    marginRight: 12, // Right padding from screen edge  
+    marginLeft: 0, // No left margin needed - container handles positioning
     // Fully rounded corners for bubble/pill style
     borderRadius: 30, // Half of height for perfect pill shape
     // Layer behind the PerkRow with enhanced shadows
