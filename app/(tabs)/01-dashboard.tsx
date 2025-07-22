@@ -256,6 +256,7 @@ export default function Dashboard() {
   const [userHasSeenSwipeHint, setUserHasSeenSwipeHint] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [isPerkStatusChanging, setIsPerkStatusChanging] = useState(false);
   const [selectedPerk, setSelectedPerk] = useState<CardPerk | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showInfoSheet, setShowInfoSheet] = useState(false);
@@ -1109,7 +1110,8 @@ export default function Dashboard() {
     // console.log(`[Dashboard] handleCardExpandChange: cardId=${cardId}, isExpanded=${isExpanded}, index=${index}`);
     setActiveCardId(isExpanded ? cardId : null);
 
-    if (isExpanded) {
+    // Only auto-scroll if this is a deliberate card expansion (not caused by perk status changes)
+    if (isExpanded && !isPerkStatusChanging) {
       // We use a timeout to ensure the scroll happens *after* the card's expand animation (300ms) has finished.
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({
@@ -1119,11 +1121,19 @@ export default function Dashboard() {
         });
       }, 100);
     }
-  }, [setActiveCardId]);
+  }, [setActiveCardId, isPerkStatusChanging]);
 
   const handlePerkStatusChange = useCallback(() => {
+    // Set flag to prevent auto-scrolling during perk status changes
+    setIsPerkStatusChanging(true);
+    
     refreshSavings(); // Recalculate aggregates and savings
     donutDisplayRef.current?.refresh(); // Refresh donut animation
+    
+    // Reset flag after animations settle
+    setTimeout(() => {
+      setIsPerkStatusChanging(false);
+    }, 500);
   }, [refreshSavings]); // Add refreshSavings to dependency array
 
   const sortedCards = useMemo(() => {

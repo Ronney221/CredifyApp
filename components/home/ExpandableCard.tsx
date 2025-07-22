@@ -177,8 +177,9 @@ const ExpandableCardComponent = ({
   const router = useRouter();
   const { hasRedeemedFirstPerk, markFirstPerkRedeemed } = useOnboardingContext();
   
-  // Ref to track if the card had redeemed perks in the previous render
+  // Refs to track previous state for determining transitions
   const hadRedeemedPerks = useRef(validPerks.some(p => p.status === 'redeemed'));
+  const hadAvailablePerks = useRef(validPerks.some(p => p.status === 'available' || p.status === 'partially_redeemed'));
   
   // When card becomes active (e.g. from action hint pill), ensure it expands
   React.useEffect(() => {
@@ -329,9 +330,10 @@ const ExpandableCardComponent = ({
     }
   }, [showUndoHint, undoNudgeAnimation, undoHintOpacity]);
 
-  // This effect watches for the first perk to be marked as 'redeemed' while the card is open
+  // This effect watches for changes in redeemed perks while the card is open
   useEffect(() => {
     const nowHasRedeemedPerks = validPerks.some(p => p.status === 'redeemed');
+    const nowHasAvailablePerks = validPerks.some(p => p.status === 'available' || p.status === 'partially_redeemed');
 
     // If the card is expanded and we just transitioned from 0 redeemed perks to 1+
     if (isExpanded && nowHasRedeemedPerks && !hadRedeemedPerks.current) {
@@ -343,8 +345,19 @@ const ExpandableCardComponent = ({
       setShowUndoHint(true);
     }
     
-    // Update the ref for the next render
+    // If we transition from all-redeemed state to mixed state, keep redeemed section expanded
+    // This prevents collapse when user marks a perk as available from all-redeemed state
+    const wasAllRedeemed = hadRedeemedPerks.current && !hadAvailablePerks.current;
+    const nowHasMixedState = nowHasRedeemedPerks && nowHasAvailablePerks;
+    
+    if (isExpanded && wasAllRedeemed && nowHasMixedState) {
+      // Keep redeemed section expanded when transitioning from all-redeemed to mixed state
+      setIsRedeemedExpanded(true);
+    }
+    
+    // Update the refs for the next render
     hadRedeemedPerks.current = nowHasRedeemedPerks;
+    hadAvailablePerks.current = nowHasAvailablePerks;
   }, [validPerks, isExpanded]);
 
   const animatedNudgeStyle = useAnimatedStyle(() => ({
