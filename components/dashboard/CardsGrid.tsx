@@ -38,6 +38,7 @@ interface CardListItem {
   onOpenLoggingModal: (perk: CardPerk) => void;
   onInstantLog?: (perk: CardPerk, amount: number) => void;
   onSaveLog?: (amount: number) => void;
+  onInstantMarkAvailable?: (perk: CardPerk) => void;
 }
 
 interface CardsGridProps {
@@ -84,6 +85,7 @@ export default function CardsGrid({
       onOpenLoggingModal={item.onOpenLoggingModal}
       onInstantLog={item.onInstantLog}
       onSaveLog={item.onSaveLog}
+      onInstantMarkAvailable={item.onInstantMarkAvailable}
     />
   );
 

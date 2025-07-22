@@ -95,6 +95,7 @@ export interface ExpandableCardProps {
   onOpenLoggingModal?: (perk: CardPerk) => void;
   onInstantLog?: (perk: CardPerk, amount: number) => void;
   onSaveLog?: (amount: number) => void;
+  onInstantMarkAvailable?: (perk: CardPerk) => void;
 }
 
 // Use our design system's success green - more professional than iOS systemGreen
@@ -134,6 +135,7 @@ const ExpandableCardComponent = ({
   onOpenLoggingModal,
   onInstantLog,
   onSaveLog,
+  onInstantMarkAvailable,
 }: ExpandableCardProps) => {
   logger.log('[ExpandableCard] Rendering card:', {
     cardName: card.name,
@@ -720,6 +722,7 @@ const ExpandableCardComponent = ({
       onInstantLog={onInstantLog}
       onSaveLog={onSaveLog}
       onOpenLoggingModal={onOpenLoggingModal}
+      onInstantMarkAvailable={onInstantMarkAvailable}
     />
     );
   };
@@ -941,9 +944,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow minHeight (72px) + margins (8px) = 80px minimum
-    minHeight: 80, // Flexible height to match PerkRow content + margins
-    marginVertical: 0, // No additional margins - align with PerkRow's outer container
+    // Match PerkRow total height: marginVertical (4px * 2) + minHeight (72px) + paddingVertical (16px * 2) = 112px
+    height: 112, // Fixed height to match PerkRow outer container exactly
+    marginVertical: 0, // No margin needed since we're matching the full height
     marginRight: 0, // No overlap - perfect edge alignment
     // iOS Messages style: only round the exposed LEFT edge
     borderTopLeftRadius: 16,
@@ -972,9 +975,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow minHeight (72px) + margins (8px) = 80px minimum
-    minHeight: 80, // Flexible height to match PerkRow content + margins
-    marginVertical: 0, // No additional margins - align with PerkRow's outer container
+    // Match PerkRow total height: marginVertical (4px * 2) + minHeight (72px) + paddingVertical (16px * 2) = 112px
+    height: 112, // Fixed height to match PerkRow outer container exactly
+    marginVertical: 0, // No margin needed since we're matching the full height
     marginLeft: 0, // No overlap - perfect edge alignment
     // iOS Messages style: only round the exposed RIGHT edge
     borderTopRightRadius: 16,

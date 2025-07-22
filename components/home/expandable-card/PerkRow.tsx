@@ -47,6 +47,7 @@ interface PerkRowProps {
   onInstantLog?: (perk: CardPerk, amount: number) => void;
   onSaveLog?: (amount: number) => void;
   onOpenLoggingModal?: (perk: CardPerk) => void;
+  onInstantMarkAvailable?: (perk: CardPerk) => void;
 }
 
 const PerkRow: React.FC<PerkRowProps> = ({
@@ -69,6 +70,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
   onInstantLog,
   onSaveLog,
   onOpenLoggingModal,
+  onInstantMarkAvailable,
 }) => {
   const isRedeemed = perk.status === 'redeemed';
   const isPartiallyRedeemed = perk.status === 'partially_redeemed';
@@ -199,8 +201,40 @@ const PerkRow: React.FC<PerkRowProps> = ({
     }
   };
   
+  // Handle instant mark available for long swipe on redeemed perks
+  const handleInstantMarkAvailable = () => {
+    logger.log('[PerkRow] handleInstantMarkAvailable called for perk:', perk.name, 'status:', perk.status);
+    
+    if (perk.status === 'redeemed' || perk.status === 'partially_redeemed') {
+      logger.log('[PerkRow] Perk is redeemed, proceeding with instant mark available');
+      
+      // Flash success animation
+      flashOpacity.value = withSequence(
+        withTiming(0.3, { duration: 100 }),
+        withTiming(0, { duration: 200 })
+      );
+      
+      logger.log('[PerkRow] onInstantMarkAvailable available:', !!onInstantMarkAvailable);
+      
+      // Trigger instant mark available
+      if (onInstantMarkAvailable) {
+        logger.log('[PerkRow] Calling onInstantMarkAvailable');
+        onInstantMarkAvailable(perk);
+      } else {
+        logger.log('[PerkRow] No instant mark available method available, falling back to simulating button press');
+        // As a fallback, trigger the right action button which opens the modal
+        onSwipeableOpen('right');
+      }
+    } else {
+      logger.log('[PerkRow] Perk not redeemed for instant mark available, status:', perk.status);
+    }
+  };
+  
   // Pre-calculate status to avoid accessing perk.status in animated context
   const isAvailable = perk.status === 'available' || perk.status === 'partially_redeemed';
+  
+  // Track the starting position for continuous gestures
+  const gestureStartX = useSharedValue(0);
   
   // Gesture handler for pan
   const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent>({
@@ -208,12 +242,17 @@ const PerkRow: React.FC<PerkRowProps> = ({
       isGestureActive.value = true;
       hasTriggeredHaptic.value = false;
       hasTriggeredLongHaptic.value = false;
+      // Remember the current position when starting a new gesture
+      gestureStartX.value = translateX.value;
     },
     onActive: (event) => {
+      // Calculate new position based on starting position + translation
+      const newTranslateX = gestureStartX.value + event.translationX;
+      
       if (isAvailable) {
         // For available perks, allow right swipe only (positive translateX)
         // Allow swipe beyond ACTION_BUTTON_WIDTH for long swipe
-        translateX.value = Math.max(0, event.translationX);
+        translateX.value = Math.max(0, newTranslateX);
         
         // Trigger haptic when crossing short threshold
         if (translateX.value >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
@@ -228,12 +267,19 @@ const PerkRow: React.FC<PerkRowProps> = ({
         }
       } else {
         // For redeemed perks, allow left swipe only (negative translateX)
-        translateX.value = Math.min(0, Math.max(-ACTION_BUTTON_WIDTH, event.translationX));
+        // Allow swipe beyond ACTION_BUTTON_WIDTH for long swipe
+        translateX.value = Math.min(0, newTranslateX);
         
-        // Trigger haptic when crossing threshold
+        // Trigger haptic when crossing short threshold
         if (Math.abs(translateX.value) >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
           hasTriggeredHaptic.value = true;
           runOnJS(triggerHapticFeedback)('light');
+        }
+        
+        // Trigger stronger haptic when crossing long threshold
+        if (Math.abs(translateX.value) >= LONG_SWIPE_THRESHOLD && !hasTriggeredLongHaptic.value) {
+          hasTriggeredLongHaptic.value = true;
+          runOnJS(triggerHapticFeedback)('medium');
         }
       }
     },
@@ -241,12 +287,21 @@ const PerkRow: React.FC<PerkRowProps> = ({
       const absTranslateX = Math.abs(translateX.value);
       
       if (isAvailable && translateX.value >= LONG_SWIPE_THRESHOLD) {
-        // Long swipe detected - trigger instant log
+        // Long swipe right on available perk - trigger instant log
         runOnJS(triggerHapticFeedback)('success');
         runOnJS(handleInstantLog)();
         // Animate back to closed position after a brief pause
         translateX.value = withSequence(
           withTiming(LONG_SWIPE_THRESHOLD + 20, { duration: 100 }),
+          withSpring(0, springConfig)
+        );
+      } else if (!isAvailable && translateX.value <= -LONG_SWIPE_THRESHOLD) {
+        // Long swipe left on redeemed perk - trigger instant mark available
+        runOnJS(triggerHapticFeedback)('success');
+        runOnJS(handleInstantMarkAvailable)();
+        // Animate back to closed position after a brief pause
+        translateX.value = withSequence(
+          withTiming(-LONG_SWIPE_THRESHOLD - 20, { duration: 100 }),
           withSpring(0, springConfig)
         );
       } else if (absTranslateX >= SHORT_SWIPE_THRESHOLD) {
@@ -280,11 +335,43 @@ const PerkRow: React.FC<PerkRowProps> = ({
       'clamp'
     );
     
+    // Dynamic border radius based on swipe position
+    let borderTopLeftRadius = 16; // BorderRadius.xl
+    let borderBottomLeftRadius = 16;
+    let borderTopRightRadius = 16;
+    let borderBottomRightRadius = 16;
+    
+    if (isAvailable) {
+      // For available perks, remove right corners when swiping right
+      const rightRadiusProgress = interpolate(
+        translateX.value,
+        [0, 20],
+        [1, 0],
+        'clamp'
+      );
+      borderTopRightRadius = 16 * rightRadiusProgress;
+      borderBottomRightRadius = 16 * rightRadiusProgress;
+    } else {
+      // For redeemed perks, remove left corners when swiping left
+      const leftRadiusProgress = interpolate(
+        Math.abs(translateX.value),
+        [0, 20],
+        [1, 0],
+        'clamp'
+      );
+      borderTopLeftRadius = 16 * leftRadiusProgress;
+      borderBottomLeftRadius = 16 * leftRadiusProgress;
+    }
+    
     return {
       transform: [
         { translateX: translateX.value },
         { scale }
       ],
+      borderTopLeftRadius,
+      borderBottomLeftRadius,
+      borderTopRightRadius,
+      borderBottomRightRadius,
       zIndex: 10, // Above the action buttons
     };
   });
@@ -489,8 +576,8 @@ const styles = StyleSheet.create({
     backgroundColor: PerkDesign.available.background,
     borderTopLeftRadius: BorderRadius.xl,
     borderBottomLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl, // 16pt
-    borderBottomRightRadius: BorderRadius.xl, // 16pt
+    borderTopRightRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -505,15 +592,15 @@ const styles = StyleSheet.create({
   },
   perkContainerRedeemed: {
     backgroundColor: PerkDesign.redeemed.background,
-    borderTopLeftRadius: BorderRadius.xl, // 16pt
-    borderBottomLeftRadius: BorderRadius.xl, // 16pt
+    borderTopLeftRadius: BorderRadius.xl,
+    borderBottomLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
     borderBottomRightRadius: BorderRadius.xl,
   },
   perkContainerAutoRedeemed: {
     backgroundColor: PerkDesign.autoRedeemed.background,
-    borderTopLeftRadius: BorderRadius.xl, // 16pt
-    borderBottomLeftRadius: BorderRadius.xl, // 16pt
+    borderTopLeftRadius: BorderRadius.xl,
+    borderBottomLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
     borderBottomRightRadius: BorderRadius.xl,
   },
@@ -521,8 +608,8 @@ const styles = StyleSheet.create({
     backgroundColor: PerkDesign.partiallyRedeemed.background,
     borderTopLeftRadius: BorderRadius.xl,
     borderBottomLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl, // 16pt
-    borderBottomRightRadius: BorderRadius.xl, // 16pt
+    borderTopRightRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
     ...Platform.select({
       ios: {
         shadowColor: PerkDesign.partiallyRedeemed.progress,

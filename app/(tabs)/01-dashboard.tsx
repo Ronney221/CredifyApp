@@ -759,7 +759,7 @@ export default function Dashboard() {
     }
 
     dashboardLogger.log('[Dashboard] Starting instant log process');
-    setIsUpdatingPerk(true);
+    // No loading overlay for instant log - keep it seamless
 
     try {
       // Find the card ID for this perk
@@ -769,7 +769,6 @@ export default function Dashboard() {
 
       if (!cardWithPerk) {
         Alert.alert('Error', 'Could not find the card for this perk');
-        setIsUpdatingPerk(false);
         return;
       }
 
@@ -778,7 +777,6 @@ export default function Dashboard() {
       
       if (redeemError) {
         Alert.alert('Error', 'Failed to log perk usage');
-        setIsUpdatingPerk(false);
         return;
       }
 
@@ -807,8 +805,57 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error in instant log:', error);
       Alert.alert('Error', 'Failed to log perk usage');
-    } finally {
-      setIsUpdatingPerk(false);
+    }
+  }, [user, userCardsWithPerks, setPerkStatus, refreshUserCards]);
+
+  const handleInstantMarkAvailable = useCallback(async (perk: CardPerk) => {
+    dashboardLogger.log('[Dashboard] handleInstantMarkAvailable called for perk:', perk.name);
+    
+    if (!user) {
+      dashboardLogger.log('[Dashboard] No user found, returning');
+      return;
+    }
+
+    dashboardLogger.log('[Dashboard] Starting instant mark available process');
+    // No loading overlay for instant action - keep it seamless
+
+    try {
+      // Find the card ID for this perk
+      const cardWithPerk = userCardsWithPerks.find(uc => 
+        uc.perks.some(p => p.id === perk.id)
+      );
+
+      if (!cardWithPerk) {
+        Alert.alert('Error', 'Could not find the card for this perk');
+        return;
+      }
+
+      // Delete the redemption from database
+      const { error: deleteError } = await deletePerkRedemption(user.id, perk.definition_id);
+      
+      if (deleteError) {
+        Alert.alert('Error', 'Failed to mark perk as available');
+        return;
+      }
+
+      // Update the local state to available
+      setPerkStatus(cardWithPerk.card.id, perk.id, 'available');
+
+      // Refresh perks from database
+      refreshUserCards();
+
+      // Success toast
+      setPendingToast({ 
+        message: `${perk.name} marked as available`,
+        onUndo: null 
+      });
+
+      // Show celebration for instant action
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 2000);
+    } catch (error) {
+      console.error('Error in instant mark available:', error);
+      Alert.alert('Error', 'Failed to mark perk as available');
     }
   }, [user, userCardsWithPerks, setPerkStatus, refreshUserCards]);
 
@@ -1147,7 +1194,8 @@ export default function Dashboard() {
       onRenewalDatePress: () => handleRenewalDatePress(cardData.card.id),
       onOpenLoggingModal: handleOpenLoggingModal,
       onInstantLog: handleInstantLog,
-      onSaveLog: handleSaveLog
+      onSaveLog: handleSaveLog,
+      onInstantMarkAvailable: handleInstantMarkAvailable
     };
     
     // Add logging to verify functions are available
@@ -1171,7 +1219,8 @@ export default function Dashboard() {
     handleRenewalDatePress,
     handleOpenLoggingModal,
     handleInstantLog,
-    handleSaveLog
+    handleSaveLog,
+    handleInstantMarkAvailable
   ]);
 
   // renderItem function for the FlatList
