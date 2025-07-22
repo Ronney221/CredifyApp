@@ -781,11 +781,24 @@ export default function Dashboard() {
       }
 
       // Update the local state
-      if (amount >= perk.value) {
-        // Full redemption
+      if (perk.status === 'partially_redeemed') {
+        // For partially redeemed perks, check if the amount being logged completes the redemption
+        const currentUsedAmount = perk.value - (perk.remaining_value || 0);
+        const totalAfterLog = currentUsedAmount + amount;
+        
+        if (totalAfterLog >= perk.value) {
+          // This completes the redemption
+          setPerkStatus(cardWithPerk.card.id, perk.id, 'redeemed');
+        } else {
+          // Still partial redemption
+          const remainingValue = perk.value - totalAfterLog;
+          setPerkStatus(cardWithPerk.card.id, perk.id, 'partially_redeemed', remainingValue);
+        }
+      } else if (amount >= perk.value) {
+        // Full redemption of an available perk
         setPerkStatus(cardWithPerk.card.id, perk.id, 'redeemed');
       } else {
-        // Partial redemption
+        // Partial redemption of an available perk
         const remainingValue = perk.value - amount;
         setPerkStatus(cardWithPerk.card.id, perk.id, 'partially_redeemed', remainingValue);
       }

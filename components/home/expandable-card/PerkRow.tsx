@@ -195,14 +195,14 @@ const PerkRow: React.FC<PerkRowProps> = ({
         withTiming(0, { duration: 200 })
       );
       
-      // Calculate the amount to log
+      // Calculate the amount to log - for partially redeemed perks, only log the remaining amount
       const amountToLog = perk.status === 'partially_redeemed' 
         ? (perk.remaining_value || perk.value)
         : perk.value;
       
       logger.log('[PerkRow] Amount to log:', amountToLog, 'onInstantLog available:', !!onInstantLog, 'onSaveLog available:', !!onSaveLog, 'onOpenLoggingModal available:', !!onOpenLoggingModal);
       
-      // Trigger instant logging with full amount - this should directly save the log
+      // Trigger instant logging with the remaining amount for partially redeemed perks
       if (onInstantLog) {
         logger.log('[PerkRow] Calling onInstantLog');
         onInstantLog(perk, amountToLog);
