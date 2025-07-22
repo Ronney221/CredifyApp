@@ -811,10 +811,6 @@ export default function Dashboard() {
         message: `Logged ${formatCurrency(amount)} for ${perk.name}`,
         onUndo: null 
       });
-
-      // Show celebration for instant log
-      setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 2000);
     } catch (error) {
       console.error('Error in instant log:', error);
       Alert.alert('Error', 'Failed to log perk usage');
@@ -862,10 +858,6 @@ export default function Dashboard() {
         message: `${perk.name} marked as available`,
         onUndo: null 
       });
-
-      // Show celebration for instant action
-      setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 2000);
     } catch (error) {
       console.error('Error in instant mark available:', error);
       Alert.alert('Error', 'Failed to mark perk as available');
