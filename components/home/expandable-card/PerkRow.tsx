@@ -86,6 +86,12 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const ACTION_BUTTON_WIDTH = 120;
   const INSTANT_LOG_ANIMATION_DURATION = 300;
   
+  // Enhanced haptic thresholds for escalating intensity
+  const HAPTIC_THRESHOLD_1 = 45; // 25% - Ultra-light haptic
+  const HAPTIC_THRESHOLD_2 = 80; // 45% - Light haptic  
+  const HAPTIC_THRESHOLD_3 = 135; // 75% - Medium haptic
+  const HAPTIC_THRESHOLD_4 = 180; // 100% - Success haptic
+  
   // Shared values for gesture
   const translateX = useSharedValue(0);
   const isGestureActive = useSharedValue(false);
@@ -106,10 +112,14 @@ const PerkRow: React.FC<PerkRowProps> = ({
     restSpeedThreshold: 0.01,
   };
   
-  // Haptic feedback for different interactions
-  const triggerHapticFeedback = (type: 'light' | 'medium' | 'success' | 'warning') => {
+  // Enhanced haptic feedback for escalating intensity
+  const triggerHapticFeedback = (type: 'ultralight' | 'light' | 'medium' | 'success' | 'warning' | 'completion') => {
     if (Platform.OS === 'ios') {
       switch (type) {
+        case 'ultralight':
+          // Subtle selection feedback for initial engagement
+          Haptics.selectionAsync();
+          break;
         case 'light':
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           break;
@@ -121,6 +131,13 @@ const PerkRow: React.FC<PerkRowProps> = ({
           break;
         case 'warning':
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          break;
+        case 'completion':
+          // Custom pattern: Success + 3 quick light pulses for celebration
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 100);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 200);
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 300);
           break;
       }
     }
@@ -159,9 +176,11 @@ const PerkRow: React.FC<PerkRowProps> = ({
     };
   });
   
-  // Track whether we've crossed the threshold for haptic feedback
-  const hasTriggeredHaptic = useSharedValue(false);
-  const hasTriggeredLongHaptic = useSharedValue(false);
+  // Track which haptic thresholds have been triggered
+  const hasTriggeredHaptic1 = useSharedValue(false); // Ultra-light
+  const hasTriggeredHaptic2 = useSharedValue(false); // Light
+  const hasTriggeredHaptic3 = useSharedValue(false); // Medium
+  const hasTriggeredHaptic4 = useSharedValue(false); // Success
   
   // Handle instant log for long swipe
   const handleInstantLog = () => {
@@ -240,9 +259,11 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent>({
     onStart: () => {
       isGestureActive.value = true;
-      // Always reset haptic flags on gesture start for consistent feedback
-      hasTriggeredHaptic.value = false;
-      hasTriggeredLongHaptic.value = false;
+      // Always reset all haptic flags on gesture start for consistent feedback
+      hasTriggeredHaptic1.value = false;
+      hasTriggeredHaptic2.value = false;
+      hasTriggeredHaptic3.value = false;
+      hasTriggeredHaptic4.value = false;
       // Remember the current position when starting a new gesture
       gestureStartX.value = translateX.value;
     },
@@ -258,20 +279,35 @@ const PerkRow: React.FC<PerkRowProps> = ({
         
         // Reset haptic flags if direction changes or value decreases significantly
         if (translateX.value < previousTranslateX - 10) {
-          hasTriggeredHaptic.value = false;
-          hasTriggeredLongHaptic.value = false;
+          hasTriggeredHaptic1.value = false;
+          hasTriggeredHaptic2.value = false;
+          hasTriggeredHaptic3.value = false;
+          hasTriggeredHaptic4.value = false;
         }
         
-        // Trigger haptic when crossing short threshold
-        if (translateX.value >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
-          hasTriggeredHaptic.value = true;
+        // Escalating haptic feedback system
+        // 25% threshold - Ultra-light haptic (initial engagement)
+        if (translateX.value >= HAPTIC_THRESHOLD_1 && !hasTriggeredHaptic1.value) {
+          hasTriggeredHaptic1.value = true;
+          runOnJS(triggerHapticFeedback)('ultralight');
+        }
+        
+        // 45% threshold - Light haptic (committed to action)
+        if (translateX.value >= HAPTIC_THRESHOLD_2 && !hasTriggeredHaptic2.value) {
+          hasTriggeredHaptic2.value = true;
           runOnJS(triggerHapticFeedback)('light');
         }
         
-        // Trigger stronger haptic when crossing long threshold
-        if (translateX.value >= LONG_SWIPE_THRESHOLD && !hasTriggeredLongHaptic.value) {
-          hasTriggeredLongHaptic.value = true;
+        // 75% threshold - Medium haptic (approaching completion)
+        if (translateX.value >= HAPTIC_THRESHOLD_3 && !hasTriggeredHaptic3.value) {
+          hasTriggeredHaptic3.value = true;
           runOnJS(triggerHapticFeedback)('medium');
+        }
+        
+        // 100% threshold - Success haptic (ready for instant action)
+        if (translateX.value >= HAPTIC_THRESHOLD_4 && !hasTriggeredHaptic4.value) {
+          hasTriggeredHaptic4.value = true;
+          runOnJS(triggerHapticFeedback)('success');
         }
       } else {
         // For redeemed perks, allow left swipe only (negative translateX)
@@ -280,20 +316,37 @@ const PerkRow: React.FC<PerkRowProps> = ({
         
         // Reset haptic flags if direction changes or value increases significantly (less negative)
         if (translateX.value > previousTranslateX + 10) {
-          hasTriggeredHaptic.value = false;
-          hasTriggeredLongHaptic.value = false;
+          hasTriggeredHaptic1.value = false;
+          hasTriggeredHaptic2.value = false;
+          hasTriggeredHaptic3.value = false;
+          hasTriggeredHaptic4.value = false;
         }
         
-        // Trigger haptic when crossing short threshold
-        if (Math.abs(translateX.value) >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
-          hasTriggeredHaptic.value = true;
+        // Escalating haptic feedback system for left swipe
+        const absTranslateX = Math.abs(translateX.value);
+        
+        // 25% threshold - Ultra-light haptic
+        if (absTranslateX >= HAPTIC_THRESHOLD_1 && !hasTriggeredHaptic1.value) {
+          hasTriggeredHaptic1.value = true;
+          runOnJS(triggerHapticFeedback)('ultralight');
+        }
+        
+        // 45% threshold - Light haptic
+        if (absTranslateX >= HAPTIC_THRESHOLD_2 && !hasTriggeredHaptic2.value) {
+          hasTriggeredHaptic2.value = true;
           runOnJS(triggerHapticFeedback)('light');
         }
         
-        // Trigger stronger haptic when crossing long threshold
-        if (Math.abs(translateX.value) >= LONG_SWIPE_THRESHOLD && !hasTriggeredLongHaptic.value) {
-          hasTriggeredLongHaptic.value = true;
+        // 75% threshold - Medium haptic
+        if (absTranslateX >= HAPTIC_THRESHOLD_3 && !hasTriggeredHaptic3.value) {
+          hasTriggeredHaptic3.value = true;
           runOnJS(triggerHapticFeedback)('medium');
+        }
+        
+        // 100% threshold - Success haptic
+        if (absTranslateX >= HAPTIC_THRESHOLD_4 && !hasTriggeredHaptic4.value) {
+          hasTriggeredHaptic4.value = true;
+          runOnJS(triggerHapticFeedback)('success');
         }
       }
     },
@@ -301,8 +354,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
       const absTranslateX = Math.abs(translateX.value);
       
       if (isAvailable && translateX.value >= LONG_SWIPE_THRESHOLD) {
-        // Long swipe right on available perk - trigger instant log
-        runOnJS(triggerHapticFeedback)('success');
+        // Long swipe right on available perk - trigger instant log with celebration haptic
+        runOnJS(triggerHapticFeedback)('completion');
         runOnJS(handleInstantLog)();
         // Animate back to closed position after a brief pause
         translateX.value = withSequence(
@@ -310,8 +363,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
           withSpring(0, springConfig)
         );
       } else if (!isAvailable && translateX.value <= -LONG_SWIPE_THRESHOLD) {
-        // Long swipe left on redeemed perk - trigger instant mark available
-        runOnJS(triggerHapticFeedback)('success');
+        // Long swipe left on redeemed perk - trigger instant mark available with celebration haptic
+        runOnJS(triggerHapticFeedback)('completion');
         runOnJS(handleInstantMarkAvailable)();
         // Animate back to closed position after a brief pause
         translateX.value = withSequence(
@@ -333,9 +386,11 @@ const PerkRow: React.FC<PerkRowProps> = ({
       }
       
       // Reset haptic flags when gesture ends and item returns to closed position
-      if (Math.abs(translateX.value) < SHORT_SWIPE_THRESHOLD) {
-        hasTriggeredHaptic.value = false;
-        hasTriggeredLongHaptic.value = false;
+      if (Math.abs(translateX.value) < HAPTIC_THRESHOLD_1) {
+        hasTriggeredHaptic1.value = false;
+        hasTriggeredHaptic2.value = false;
+        hasTriggeredHaptic3.value = false;
+        hasTriggeredHaptic4.value = false;
       }
       
       isGestureActive.value = false;
@@ -421,9 +476,19 @@ const PerkRow: React.FC<PerkRowProps> = ({
       ? circleSize / 2 // Perfect circle
       : Math.min(expandedWidth / 2, 30); // Transition to pill shape
     
+    // Subtle scale effect only - no glow to keep icons crisp
+    const scale = interpolate(
+      currentSwipeDistance,
+      [LONG_SWIPE_THRESHOLD * 0.85, LONG_SWIPE_THRESHOLD],
+      [1, 1.02], // Subtle scaling for visual feedback
+      'clamp'
+    );
+    
     return {
       width: expandedWidth,
       borderRadius,
+      transform: [{ scale }],
+      // No animated shadows - keep static values from styles for crisp rendering
     };
   });
 
@@ -455,6 +520,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
       ? withTiming(translateDirection, { duration: 200 })
       : withTiming(0, { duration: 200 });
     
+    // Keep icons at fixed scale for crisp rendering - no scaling animation
+    // Only animate position for smooth movement
     return {
       transform: [
         { translateX: animatedTranslateX }

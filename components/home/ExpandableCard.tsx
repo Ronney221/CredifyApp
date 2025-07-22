@@ -644,8 +644,8 @@ const ExpandableCardComponent = ({
           }}
           activeOpacity={0.85} // Subtle press feedback
         >
-          <Reanimated.View style={iconAnimatedStyle}>
-            <Ionicons name="add-circle" size={28} color="#fff" />
+          <Reanimated.View style={[iconAnimatedStyle, { alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="receipt-outline" size={26} color="#fff" />
           </Reanimated.View>
         </TouchableOpacity>
       </Reanimated.View>
@@ -670,8 +670,8 @@ const ExpandableCardComponent = ({
           }}
           activeOpacity={0.85} // Subtle press feedback
         >
-          <Reanimated.View style={iconAnimatedStyle}>
-            <Ionicons name="arrow-undo-circle" size={28} color="#fff" />
+          <Reanimated.View style={[iconAnimatedStyle, { alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="refresh-circle" size={26} color="#fff" />
           </Reanimated.View>
         </TouchableOpacity>
       </Reanimated.View>
