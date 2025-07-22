@@ -41,8 +41,8 @@ interface PerkRowProps {
   onSwipeableWillOpen: (direction: 'left' | 'right') => void;
   onSwipeableOpen: (direction: 'left' | 'right') => void;
   setSwipeableRef: (ref: any) => void;
-  renderLeftActions?: () => React.ReactNode;
-  renderRightActions?: () => React.ReactNode;
+  renderLeftActions?: (animatedActionStyle?: any, iconAnimatedStyle?: any) => React.ReactNode;
+  renderRightActions?: (animatedActionStyle?: any, iconAnimatedStyle?: any) => React.ReactNode;
   onLayout?: (layout: {x: number; y: number; width: number; height: number}) => void;
   onInstantLog?: (perk: CardPerk, amount: number) => void;
   onSaveLog?: (amount: number) => void;
@@ -375,6 +375,55 @@ const PerkRow: React.FC<PerkRowProps> = ({
       zIndex: 10, // Above the action buttons
     };
   });
+
+  // Animated style for action buttons - expands width continuously throughout swipe
+  const animatedActionStyle = useAnimatedStyle(() => {
+    const currentSwipeDistance = Math.abs(translateX.value);
+    
+    // Continuously expand width from 0 to full swipe
+    // Start with minimum visible width at 0, expand to max at long threshold
+    const minWidth = 80; // Minimum visible width when just starting to swipe
+    const maxWidth = 160; // Maximum width at full swipe
+    
+    const expandedWidth = interpolate(
+      currentSwipeDistance,
+      [0, LONG_SWIPE_THRESHOLD],
+      [minWidth, maxWidth],
+      'clamp'
+    );
+    
+    // Also animate the border radius to maintain pill shape
+    const borderRadius = expandedWidth / 2; // Always half of width for perfect pill
+    
+    return {
+      width: expandedWidth,
+      borderRadius: Math.min(borderRadius, 30), // Cap at 30 for reasonable pill shape
+    };
+  });
+
+  // Animated style for icon movement - iOS 26 iMessage style
+  const iconAnimatedStyle = useAnimatedStyle(() => {
+    const currentSwipeDistance = Math.abs(translateX.value);
+    
+    // Move icon from center to edge when approaching full swipe
+    const iconMoveProgress = interpolate(
+      currentSwipeDistance,
+      [LONG_SWIPE_THRESHOLD - 30, LONG_SWIPE_THRESHOLD],
+      [0, 1],
+      'clamp'
+    );
+    
+    // For left action (available perks), move icon to the right
+    // For right action (redeemed perks), move icon to the left
+    const moveDistance = 20; // How far to move the icon
+    const translateDirection = isAvailable ? moveDistance : -moveDistance;
+    
+    return {
+      transform: [
+        { translateX: iconMoveProgress * translateDirection }
+      ],
+    };
+  });
   
   // Flash overlay for success animation
   const flashOverlayStyle = useAnimatedStyle(() => {
@@ -423,13 +472,13 @@ const PerkRow: React.FC<PerkRowProps> = ({
         {/* Left action (Log Usage) - for available perks */}
         {(perk.status === 'available' || perk.status === 'partially_redeemed') && renderLeftActions && (
           <View style={styles.leftActionContainer}>
-            {renderLeftActions()}
+            {renderLeftActions(animatedActionStyle, iconAnimatedStyle)}
           </View>
         )}
         {/* Right action (Available) - for redeemed perks */}
         {perk.status === 'redeemed' && renderRightActions && (
           <View style={styles.rightActionContainer}>
-            {renderRightActions()}
+            {renderRightActions(animatedActionStyle, iconAnimatedStyle)}
           </View>
         )}
       </View>
@@ -739,7 +788,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: 120, // ACTION_BUTTON_WIDTH
+    width: 200, // Allow space for max expansion (160px + margins)
     overflow: 'hidden',
   },
   rightActionContainer: {
@@ -747,7 +796,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: 120, // ACTION_BUTTON_WIDTH  
+    width: 200, // Allow space for max expansion (160px + margins)
     overflow: 'hidden',
   },
 });

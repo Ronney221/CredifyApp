@@ -623,58 +623,64 @@ const ExpandableCardComponent = ({
     }
   };
 
-  const renderLeftActions = (perk: CardPerk) => {
+  const renderLeftActions = (perk: CardPerk, animatedActionStyle?: any, iconAnimatedStyle?: any) => {
     // Left side action = revealed when swiping RIGHT = "Log Usage" action
     return (
-      <TouchableOpacity
-        style={styles.leftAction}
-        onPress={() => {
-          // Success haptic feedback when user commits to action
-          if (Platform.OS === 'ios') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-          // Close the swipeable first
-          swipeableRefs.current[perk.id]?.close();
-          // Open the logging modal
-          onOpenLoggingModal?.(perk);
-        }}
-        onPressIn={() => {
-          // Light haptic feedback on press start
-          if (Platform.OS === 'ios') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-        }}
-        activeOpacity={0.85} // Subtle press feedback
-      >
-        <Ionicons name="add-circle-outline" size={24} color="#fff" />
-        <Text style={styles.actionText}>Log Usage</Text>
-      </TouchableOpacity>
+      <Reanimated.View style={[styles.leftAction, animatedActionStyle]}>
+        <TouchableOpacity
+          style={styles.actionContentView}
+          onPress={() => {
+            // Success haptic feedback when user commits to action
+            if (Platform.OS === 'ios') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            // Close the swipeable first
+            swipeableRefs.current[perk.id]?.close();
+            // Open the logging modal
+            onOpenLoggingModal?.(perk);
+          }}
+          onPressIn={() => {
+            // Light haptic feedback on press start
+            if (Platform.OS === 'ios') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          activeOpacity={0.85} // Subtle press feedback
+        >
+          <Reanimated.View style={iconAnimatedStyle}>
+            <Ionicons name="plus-circle" size={28} color="#fff" />
+          </Reanimated.View>
+        </TouchableOpacity>
+      </Reanimated.View>
     );
   };
 
-  const renderRightActions = (perk: CardPerk) => {
+  const renderRightActions = (perk: CardPerk, animatedActionStyle?: any, iconAnimatedStyle?: any) => {
     // Right side action = revealed when swiping LEFT = BLUE "Available" action
     return (
-      <TouchableOpacity
-        style={styles.rightAction}
-        onPress={() => {
-          // Success haptic feedback when user commits to undo
-          if (Platform.OS === 'ios') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-          executePerkAction(perk, 'available');
-        }}
-        onPressIn={() => {
-          // Light haptic feedback on press start
-          if (Platform.OS === 'ios') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-        }}
-        activeOpacity={0.85} // Subtle press feedback
-      >
-        <Ionicons name="refresh-circle-outline" size={24} color="#fff" />
-        <Text style={styles.actionText}>Available</Text>
-      </TouchableOpacity>
+      <Reanimated.View style={[styles.rightAction, animatedActionStyle]}>
+        <TouchableOpacity
+          style={styles.actionContentView}
+          onPress={() => {
+            // Success haptic feedback when user commits to undo
+            if (Platform.OS === 'ios') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            executePerkAction(perk, 'available');
+          }}
+          onPressIn={() => {
+            // Light haptic feedback on press start
+            if (Platform.OS === 'ios') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
+          activeOpacity={0.85} // Subtle press feedback
+        >
+          <Reanimated.View style={iconAnimatedStyle}>
+            <Ionicons name="arrow-undo-circle" size={28} color="#fff" />
+          </Reanimated.View>
+        </TouchableOpacity>
+      </Reanimated.View>
     );
   };
 
@@ -716,8 +722,8 @@ const ExpandableCardComponent = ({
         // Note: We no longer execute actions immediately on swipe open
         // Actions are now handled by button presses in the revealed panels
       }}
-      renderLeftActions={isAvailable ? () => renderLeftActions(perk) : undefined}
-      renderRightActions={!isAvailable ? () => renderRightActions(perk) : undefined}
+      renderLeftActions={isAvailable ? (animatedActionStyle?: any, iconAnimatedStyle?: any) => renderLeftActions(perk, animatedActionStyle, iconAnimatedStyle) : undefined}
+      renderRightActions={!isAvailable ? (animatedActionStyle?: any, iconAnimatedStyle?: any) => renderRightActions(perk, animatedActionStyle, iconAnimatedStyle) : undefined}
       onLayout={isFirstPerk ? handleFirstPerkLayout : undefined}
       onInstantLog={onInstantLog}
       onSaveLog={onSaveLog}
@@ -939,78 +945,64 @@ const styles = StyleSheet.create({
   },
   leftAction: {
     backgroundColor: systemGreen,
-    width: 120, // Fixed width to match swipe limit
+    width: 80, // Base width - will be animated
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow total height: marginVertical (4px * 2) + minHeight (72px) + paddingVertical (16px * 2) = 112px
-    height: 112, // Fixed height to match PerkRow outer container exactly
-    marginVertical: 0, // No margin needed since we're matching the full height
-    marginRight: 0, // No overlap - perfect edge alignment
-    // iOS Messages style: only round the exposed LEFT edge
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-    // RIGHT edge completely square for seamless connection
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
+    // Create bubble effect with proper height and positioning
+    height: 60, // Smaller height for bubble effect
+    marginVertical: 12, // Center vertically within PerkRow (104px height - 60px = 44px / 2 = 22px, but using 12 for tighter look)
+    marginLeft: 12, // Left padding from screen edge
+    marginRight: 16, // Right padding from PerkRow edge
+    // Fully rounded corners for bubble/pill style
+    borderRadius: 30, // Half of height for perfect pill shape
     // Layer behind the PerkRow with enhanced shadows
     zIndex: 1,
     ...Platform.select({
       ios: {
         shadowColor: systemGreen,
-        shadowOffset: { width: -2, height: 0 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
     }),
   },
   rightAction: {
     backgroundColor: '#007aff', // Keep iOS blue for consistency
-    width: 120, // Fixed width to match swipe limit
+    width: 80, // Base width - will be animated
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
-    // Match PerkRow total height: marginVertical (4px * 2) + minHeight (72px) + paddingVertical (16px * 2) = 112px
-    height: 112, // Fixed height to match PerkRow outer container exactly
-    marginVertical: 0, // No margin needed since we're matching the full height
-    marginLeft: 0, // No overlap - perfect edge alignment
-    // iOS Messages style: only round the exposed RIGHT edge
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    // LEFT edge completely square for seamless connection
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+    // Create bubble effect with proper height and positioning
+    height: 60, // Smaller height for bubble effect
+    marginVertical: 12, // Center vertically within PerkRow
+    marginLeft: 12, // Left padding from screen edge
+    marginRight: 16, // Right padding from PerkRow edge
+    // Fully rounded corners for bubble/pill style
+    borderRadius: 30, // Half of height for perfect pill shape
     // Layer behind the PerkRow with enhanced shadows
     zIndex: 1,
     ...Platform.select({
       ios: {
         shadowColor: '#007aff',
-        shadowOffset: { width: 2, height: 0 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
     }),
   },
-  actionText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
-    marginLeft: 6, // Reduced margin for centered layout
-    opacity: 1,
-  },
   actionContentView: {
-    flexDirection: 'row',
+    flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 20,
-    flexGrow: 1,
+    justifyContent: 'center',
   },
   progressChipContainer: {
     flexDirection: 'row',
