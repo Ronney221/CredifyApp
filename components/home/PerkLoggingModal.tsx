@@ -629,6 +629,7 @@ export default function PerkLoggingModal({
             {/* Success Checkmark Overlay */}
             <Animated.View style={[
               successButtonType === 'full' ? styles.successOverlayFull : styles.successOverlayCustom,
+              { bottom: 85 + insets.bottom / 4 }, // Responsive adjustment based on safe area
               animatedSuccessStyle
             ]}>
               <View style={[styles.successCircle, { backgroundColor: merchantColors.base }]}>
@@ -837,7 +838,6 @@ const styles = StyleSheet.create({
   },
   successOverlayFull: {
     position: 'absolute',
-    bottom: 85, // Positioned right on top of the button
     left: 16,
     right: '50%',
     marginRight: 6, // Half of gap between buttons
@@ -846,7 +846,6 @@ const styles = StyleSheet.create({
   },
   successOverlayCustom: {
     position: 'absolute',
-    bottom: 85, // Positioned right on top of the button
     left: '50%',
     right: 16,
     marginLeft: 6, // Half of gap between buttons
