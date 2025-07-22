@@ -125,9 +125,12 @@ export default function CardsGrid({
     }
   );
 
-  // Scroll to expanded card when needed
+  // Track previous activeCardId to only scroll when it actually changes
+  const prevActiveCardId = React.useRef<string | null>(null);
+  
+  // Scroll to expanded card only when activeCardId actually changes (not on data updates)
   React.useEffect(() => {
-    if (activeCardId && flatListRef.current) {
+    if (activeCardId && activeCardId !== prevActiveCardId.current && flatListRef.current) {
       const index = cardListItems.findIndex(item => item.card.id === activeCardId);
       if (index !== -1) {
         // Use a timeout to ensure the scroll happens after the card's expand animation
@@ -140,6 +143,7 @@ export default function CardsGrid({
         }, 100);
       }
     }
+    prevActiveCardId.current = activeCardId;
   }, [activeCardId, cardListItems]);
 
   if (cardListItems.length === 0) {
