@@ -36,139 +36,30 @@ import { getRelevantPerks, MinifiedCard, MinifiedPerk } from '../../utils/perk-m
 import { useAuth } from '../../contexts/AuthContext';
 import { logger } from '../../utils/logger';
 
-// --- Interfaces ---
-type BenefitRecommendationTuple = [string, string, string, number];
-
-// Reconstructed recommendation object for UI use
-interface UIBenefitRecommendation {
-  benefitName: string;
-  cardName: string;
-  displayText: string;
-  remainingValue: number;
-  perk?: CardPerk;
-}
-
-interface GroupedRecommendation {
-  cardName: string;
-  cardId: string;
-  perks: UIBenefitRecommendation[];
-}
-
-interface AIResponse {
-  responseType: 'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational';
-  recommendations: BenefitRecommendationTuple[];
-}
-
-interface Message {
-  _id: string | number;
-  text: string;
-  createdAt: Date;
-  user: {
-    _id: string | number;
-    name: string;
-  };
-  pending?: boolean;
-  usage?: TokenUsage;
-  structuredResponse?: AIResponse;
-  groupedRecommendations?: GroupedRecommendation[];
-  remainingUses?: number;
-  isUpsell?: boolean;
-  isLimitReached?: boolean;
-  suggestedPrompts?: string[];
-  responseType?: 'BenefitRecommendation' | 'NoBenefitFound' | 'Conversational';
-}
-
-interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-  estimatedCost: number;
-}
-
-interface ChatUsage {
-  remainingUses: number;
-  lastResetDate: string;
-}
-
-interface CardData {
-  card: {
-    id: string;
-    name: string;
-  };
-  perks: CardPerk[];
-}
-
-interface ProcessedCard {
-  id: string;
-  name: string;
-  perks: CardPerk[];
-  card: {
-    id: string;
-    name: string;
-  };
-}
-
-// --- Constants ---
-const USER = { _id: 1, name: 'User' };
-const AI = { _id: 2, name: 'AI Assistant' };
-const CURRENT_CHAT_ID_KEY = '@ai_chat_current_id';
-const CHAT_USAGE_KEY = '@ai_chat_usage';
-const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
-const MONTHLY_CHAT_LIMIT = 30;
-const UPSELL_THRESHOLD = 5;
-
-// Debug flag - set to false for production
-const DEBUG_MODE = true;
-
-const EXAMPLE_QUERIES = [
-  "How should I pay my Disney+ bill?",
-  "I'm booking flights for an international trip to Paris.",
-  "What's the best card to use for my lunch order?",
-  "I need some new clothes for summer.",
-  "Where should I order takeout from tonight?",
-  "I'm planning a weekend trip to Chicago.",
-  "I need a ride to the airport.",
-  "What are the best perks for my vacation to Hawaii?",
-  "I want to treat myself to a nice anniversary dinner.",
-];
-
-const getRandomExamples = (count = 3): string[] => {
-  const shuffled = [...EXAMPLE_QUERIES].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
-};
-
-const getOnboardingMessages = (): Message[] => {
-  const now = new Date();
-  const onboardingMessages: Message[] = [
-    {
-      _id: `onboarding_1_${now.getTime()}`,
-      text: `Welcome to **Credify AI**! I'm your personal assistant for maximizing credit card rewards.`,
-      createdAt: now,
-      user: AI,
-    },
-    {
-      _id: `onboarding_2_${now.getTime()}`,
-      text: `I keep track of all your active perks so you don't have to. Just tell me what you're about to buy, and I'll instantly find the best benefit to use.`,
-      createdAt: new Date(now.getTime() + 100), // slightly later
-      user: AI,
-    },
-    {
-      _id: `onboarding_3_${now.getTime()}`,
-      text: `You get **30 free queries** every month. For unlimited insights, you can upgrade to **Credify Pro** for just $2.99/month.`,
-      createdAt: new Date(now.getTime() + 200),
-      user: AI,
-    },
-    {
-      _id: `onboarding_4_${now.getTime()}`,
-      text: `Here are a few things you can ask:`,
-      createdAt: new Date(now.getTime() + 300),
-      user: AI,
-      suggestedPrompts: getRandomExamples(3),
-    },
-  ];
-  // Return in reverse order for the inverted FlatList
-  return onboardingMessages.reverse();
-};
+// Import new components and hooks
+import { ChatInput } from './chat/ChatInput';
+import { ChatTypingIndicator } from './chat/ChatTypingIndicator';
+import { useChatHistory } from './chat/useChatHistory';
+import { useChatUsage } from './chat/useChatUsage';
+import {
+  Message,
+  UIBenefitRecommendation,
+  GroupedRecommendation,
+  ProcessedCard,
+  CardData,
+  TokenUsage,
+  BenefitRecommendationTuple,
+  AIResponse,
+} from './chat/ChatTypes';
+import {
+  USER,
+  AI,
+  MONTHLY_CHAT_LIMIT,
+  UPSELL_THRESHOLD,
+  performanceMonitor,
+  getRandomExamples,
+  PERFORMANCE_THRESHOLDS,
+} from './chat/ChatConstants';
 
 // Helper function to calculate perk cycle end date and days remaining
 const calculatePerkCycleDetails = (perk: CardPerk, currentDate: Date): { cycleEndDate: Date; daysRemaining: number } => {
@@ -538,38 +429,18 @@ const MessageBubble = ({ isAI, text, pending, usage, remainingUses, groupedRecom
   );
 };
 
-// Performance monitoring constants
-const PERFORMANCE_THRESHOLDS = {
-  messageProcessing: 500, // ms
-  renderTime: 16, // ms (targeting 60fps)
-  memoryCleanup: 30000, // 30 seconds
-} as const;
-
-type PerformanceOperation = keyof typeof PERFORMANCE_THRESHOLDS;
-
-const performanceMonitor = {
-  startTime: 0,
-  start() {
-    this.startTime = performance.now();
-  },
-  end(operation: PerformanceOperation) {
-    const duration = performance.now() - this.startTime;
-    if (duration > PERFORMANCE_THRESHOLDS[operation]) {
-      logger.warn(`Performance warning: ${operation} took ${duration}ms`);
-    }
-  }
-};
 
 // --- Main Chat Component ---
 const AIChat = ({ onClose }: { onClose: () => void }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [remainingUses, setRemainingUses] = useState(MONTHLY_CHAT_LIMIT);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const sendButtonScale = useRef(new Animated.Value(0)).current;
+  
+  // Use custom hooks
+  const { messages, setMessages, currentChatId } = useChatHistory();
+  const { remainingUses, updateChatUsage } = useChatUsage();
   const { userCardsWithPerks } = useUserCards();
   const { userCardsWithPerks: rawCardData } = usePerkStatus(userCardsWithPerks);
   const [processedCards, setProcessedCards] = useState<ProcessedCard[]>([]);
@@ -599,159 +470,6 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     );
   };
 
-  // Load/set the current chat ID on mount
-  useEffect(() => {
-    const getChatId = async () => {
-      logger.log('[AIChat][useEffect] Getting chat ID.');
-      let chatId = await AsyncStorage.getItem(CURRENT_CHAT_ID_KEY);
-      if (!chatId) {
-        chatId = `chat_${Date.now()}`;
-        logger.log('[AIChat][useEffect] No chat ID found, creating new one:', chatId);
-        await AsyncStorage.setItem(CURRENT_CHAT_ID_KEY, chatId);
-      } else {
-        logger.log('[AIChat][useEffect] Found existing chat ID:', chatId);
-      }
-      setCurrentChatId(chatId);
-    };
-    getChatId();
-  }, []);
-
-  // Load chat history when the chat ID changes
-  useEffect(() => {
-    if (!currentChatId) return;
-    let isMounted = true;
-
-    const loadChatHistory = async () => {
-      // Add delay to prevent double load animation
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      logger.log('[AIChat][useEffect] Attempting to load chat history for chat ID:', currentChatId);
-      try {
-        const savedHistory = await AsyncStorage.getItem(`@ai_chat_history_${currentChatId}`);
-        if (!isMounted) return;
-        
-        if (savedHistory) {
-          const parsedHistory = JSON.parse(savedHistory);
-          // Convert string dates back to Date objects
-          const historyWithDates: Message[] = parsedHistory.map((msg: any) => ({
-            ...msg,
-            createdAt: new Date(msg.createdAt)
-          }));
-
-          // Check for inactivity
-          const lastMessage = historyWithDates[0];
-          const now = new Date();
-          if (lastMessage && differenceInHours(now, lastMessage.createdAt) > 48) {
-            const inactivityMessage: Message = {
-              _id: `re-engagement_${Date.now()}`,
-              text: `Ready to find more savings? Here are a few ideas:`,
-              createdAt: new Date(),
-              user: AI,
-              suggestedPrompts: getRandomExamples(3),
-            };
-            if (isMounted) {
-              setMessages([inactivityMessage, ...historyWithDates]);
-              // Set the notification flag
-              await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
-            }
-          } else if (isMounted) {
-            setMessages(historyWithDates);
-          }
-          logger.log('[AIChat][useEffect] Successfully loaded', historyWithDates.length, 'messages from history.');
-        } else if (isMounted) {
-          // Set initial greeting message for a new chat with a small delay
-          setTimeout(() => {
-            if (isMounted) {
-              setMessages(getOnboardingMessages());
-              logger.log('[AIChat][useEffect] No chat history found, setting onboarding messages.');
-            }
-          }, 200);
-        }
-      } catch (error) {
-        console.error('[AIChat] Error loading chat history:', error);
-      }
-    };
-    loadChatHistory();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentChatId]);
-
-  // Save chat history to AsyncStorage when messages or chat ID change
-  useEffect(() => {
-    if (!currentChatId || messages.length === 0) return;
-
-    const saveChatHistory = async () => {
-      logger.log('[AIChat][useEffect] Attempting to save', messages.length, 'messages to history for chat ID:', currentChatId);
-      try {
-        // Don't save history until the user has sent their first message
-        const userHasSentMessage = messages.some(m => m.user._id === USER._id);
-        if (!userHasSentMessage) {
-          logger.log('[AIChat][useEffect] User has not sent a message yet, skipping save.');
-          return;
-        }
-        await AsyncStorage.setItem(`@ai_chat_history_${currentChatId}`, JSON.stringify(messages));
-        logger.log('[AIChat][useEffect] Successfully saved chat history.');
-      } catch (error) {
-        console.error('[AIChat] Error saving chat history:', error);
-      }
-    };
-    saveChatHistory();
-  }, [messages, currentChatId]);
-
-  // Load chat usage from AsyncStorage
-  useEffect(() => {
-    const loadChatUsage = async () => {
-      logger.log('[AIChat][useEffect] Loading chat usage stats.');
-      try {
-        const savedUsage = await AsyncStorage.getItem(CHAT_USAGE_KEY);
-        if (savedUsage) {
-          const usage: ChatUsage = JSON.parse(savedUsage);
-          const lastReset = new Date(usage.lastResetDate);
-          const now = new Date();
-          
-          // Check if we need to reset the counter (new month)
-          if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
-            logger.log('[AIChat][useEffect] New month detected. Resetting chat usage limit.');
-            setRemainingUses(MONTHLY_CHAT_LIMIT);
-            await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
-              remainingUses: MONTHLY_CHAT_LIMIT,
-              lastResetDate: now.toISOString()
-            }));
-          } else {
-            setRemainingUses(usage.remainingUses);
-            logger.log('[AIChat][useEffect] Loaded remaining uses:', usage.remainingUses);
-          }
-        } else {
-          // First time user
-          logger.log('[AIChat][useEffect] No usage stats found. Initializing for first-time user.');
-          setRemainingUses(MONTHLY_CHAT_LIMIT);
-          await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
-            remainingUses: MONTHLY_CHAT_LIMIT,
-            lastResetDate: new Date().toISOString()
-          }));
-        }
-      } catch (error) {
-        console.error('[AIChat] Error loading chat usage:', error);
-      }
-    };
-    loadChatUsage();
-  }, []);
-
-  // Update chat usage after each message
-  const updateChatUsage = async () => {
-    try {
-      const newRemaining = remainingUses - 1;
-      setRemainingUses(newRemaining);
-      await AsyncStorage.setItem(CHAT_USAGE_KEY, JSON.stringify({
-        remainingUses: newRemaining,
-        lastResetDate: new Date().toISOString()
-      }));
-    } catch (error) {
-      console.error('[AIChat] Error updating chat usage:', error);
-    }
-  };
 
   useEffect(() => {
     // Animate send button based on input text
@@ -1215,51 +933,15 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             showsVerticalScrollIndicator={false}
           />
 
-          {isTyping && (
-            <View style={styles.typingContainer}>
-              <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.typingBlur}>
-                <View style={styles.typingContent}>
-                  <ActivityIndicator size="small" color="#007AFF" style={styles.typingIndicator} />
-                  <Text style={styles.typingText}>AI is thinking...</Text>
-                </View>
-              </BlurView>
-            </View>
-          )}
+          <ChatTypingIndicator isVisible={isTyping} />
 
-          <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.inputBlur}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                ref={inputRef}
-                style={styles.textInput}
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Message"
-                placeholderTextColor="rgba(60, 60, 67, 0.6)"
-                multiline
-                maxLength={200}
-                blurOnSubmit={false}
-                returnKeyType="send"
-                onSubmitEditing={onSend}
-              />
-              <Animated.View style={{ transform: [{ scale: sendButtonScale }] }}>
-                <Pressable
-                  onPress={onSend}
-                  style={({ pressed }) => [
-                    styles.sendButton,
-                    pressed && { opacity: 0.7 }
-                  ]}
-                  disabled={!inputText.trim()}
-                  hitSlop={8}
-                >
-                  <Ionicons
-                    name="arrow-up"
-                    size={24}
-                    color="#FFFFFF"
-                  />
-                </Pressable>
-              </Animated.View>
-            </View>
-          </BlurView>
+          <ChatInput
+            inputText={inputText}
+            onChangeText={setInputText}
+            onSend={onSend}
+            sendButtonScale={sendButtonScale}
+            inputRef={inputRef}
+          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -1409,67 +1091,6 @@ const styles = StyleSheet.create({
   },
   boldText: {
     fontWeight: '600',
-  },
-  typingContainer: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-    alignItems: 'center',
-  },
-  typingBlur: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  typingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-  },
-  typingIndicator: {
-    marginRight: 8,
-  },
-  typingText: {
-    fontSize: 15,
-    color: '#3C3C43',
-    opacity: 0.6,
-  },
-  inputBlur: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 12,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 17,
-    lineHeight: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    paddingTop: 8,
-    minHeight: 36,
-    maxHeight: 100,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
   },
   debugContainer: {
     marginTop: 4,
