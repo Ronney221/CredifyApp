@@ -119,16 +119,26 @@ export default function PerkLoggingModal({
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [successButtonType, setSuccessButtonType] = useState<'full' | 'custom'>('full');
   
   const translateY = useSharedValue(screenHeight);
   const context = useSharedValue({ y: 0 });
   const overlayOpacity = useSharedValue(0);
   const heroCardScale = useSharedValue(0.95);
   const heroCardRotation = useSharedValue(-2);
-  const buttonScale = useSharedValue(1);
-  const buttonGlow = useSharedValue(0);
-  const rippleScale = useSharedValue(0);
-  const rippleOpacity = useSharedValue(0);
+  
+  // Separate animation values for each button
+  const fullButtonScale = useSharedValue(1);
+  const fullButtonGlow = useSharedValue(0);
+  const fullRippleScale = useSharedValue(0);
+  const fullRippleOpacity = useSharedValue(0);
+  
+  const customButtonScale = useSharedValue(1);
+  const customButtonGlow = useSharedValue(0);
+  const customRippleScale = useSharedValue(0);
+  const customRippleOpacity = useSharedValue(0);
+  
   const successCheckScale = useSharedValue(0);
   const successCheckOpacity = useSharedValue(0);
   const insets = useSafeAreaInsets();
@@ -138,6 +148,17 @@ export default function PerkLoggingModal({
     : (perk?.value || 0);
   
   const merchantColor = useMemo(() => perk ? getMerchantColor(perk.name) : '#007AFF', [perk]);
+  
+  // Memoized color variations for performance
+  const merchantColors = useMemo(() => ({
+    base: merchantColor,
+    opacity10: merchantColor + '10',
+    opacity15: merchantColor + '15',
+    opacity08: merchantColor + '08',
+    opacity20: merchantColor + '20',
+    opacity30: merchantColor + '30',
+    opacityAA: merchantColor + 'AA',
+  }), [merchantColor]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -161,26 +182,33 @@ export default function PerkLoggingModal({
     };
   });
 
-  const animatedButtonStyle = useAnimatedStyle(() => {
+  const animatedFullButtonGlowStyle = useAnimatedStyle(() => {
     return {
-      transform: [
-        { scale: buttonScale.value },
-      ],
+      shadowOpacity: fullButtonGlow.value * 0.3,
+      shadowRadius: fullButtonGlow.value * 20,
+      elevation: fullButtonGlow.value * 8,
     };
   });
 
-  const animatedButtonGlowStyle = useAnimatedStyle(() => {
+  const animatedFullRippleStyle = useAnimatedStyle(() => {
     return {
-      shadowOpacity: buttonGlow.value * 0.3,
-      shadowRadius: buttonGlow.value * 20,
-      elevation: buttonGlow.value * 8,
+      transform: [{ scale: fullRippleScale.value }],
+      opacity: fullRippleOpacity.value,
     };
   });
 
-  const animatedRippleStyle = useAnimatedStyle(() => {
+  const animatedCustomButtonGlowStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ scale: rippleScale.value }],
-      opacity: rippleOpacity.value,
+      shadowOpacity: customButtonGlow.value * 0.3,
+      shadowRadius: customButtonGlow.value * 20,
+      elevation: customButtonGlow.value * 8,
+    };
+  });
+
+  const animatedCustomRippleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: customRippleScale.value }],
+      opacity: customRippleOpacity.value,
     };
   });
 
@@ -188,6 +216,18 @@ export default function PerkLoggingModal({
     return {
       transform: [{ scale: successCheckScale.value }],
       opacity: successCheckOpacity.value,
+    };
+  });
+
+  const animatedFullButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: fullButtonScale.value }],
+    };
+  });
+
+  const animatedCustomButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: customButtonScale.value }],
     };
   });
 
@@ -236,16 +276,17 @@ export default function PerkLoggingModal({
   const handleLogFullAmount = useCallback(async () => {
     if (isSaving) return;
     setIsSaving(true);
+    setSuccessButtonType('full');
     
     // Epic button animation sequence
-    buttonScale.value = withTiming(0.92, { duration: 100 });
-    buttonGlow.value = withTiming(1, { duration: 100 });
+    fullButtonScale.value = withTiming(0.92, { duration: 100 });
+    fullButtonGlow.value = withTiming(1, { duration: 100 });
     
     // Ripple effect
-    rippleScale.value = 0;
-    rippleOpacity.value = 0.6;
-    rippleScale.value = withTiming(3, { duration: 600 });
-    rippleOpacity.value = withTiming(0, { duration: 600 });
+    fullRippleScale.value = 0;
+    fullRippleOpacity.value = 0.6;
+    fullRippleScale.value = withTiming(3, { duration: 600 });
+    fullRippleOpacity.value = withTiming(0, { duration: 600 });
     
     if (Platform.OS === 'ios') {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -253,7 +294,7 @@ export default function PerkLoggingModal({
     
     // Bounce back with success indication
     setTimeout(() => {
-      buttonScale.value = withSpring(1.05, { damping: 15, stiffness: 300 });
+      fullButtonScale.value = withSpring(1.05, { damping: 15, stiffness: 300 });
       
       // Success checkmark animation
       successCheckScale.value = withSpring(1, { damping: 12, stiffness: 400 });
@@ -266,8 +307,8 @@ export default function PerkLoggingModal({
     
     // Final settle and save
     setTimeout(() => {
-      buttonScale.value = withSpring(1, { damping: 20, stiffness: 300 });
-      buttonGlow.value = withTiming(0, { duration: 200 });
+      fullButtonScale.value = withSpring(1, { damping: 20, stiffness: 300 });
+      fullButtonGlow.value = withTiming(0, { duration: 200 });
       
       successCheckOpacity.value = withTiming(0, { duration: 300 });
       successCheckScale.value = withTiming(0, { duration: 300 });
@@ -276,7 +317,7 @@ export default function PerkLoggingModal({
       onSaveLog(maxValue);
       setIsSaving(false);
     }, 750);
-  }, [maxValue, handleDismiss, onSaveLog, buttonScale, buttonGlow, rippleScale, rippleOpacity, successCheckScale, successCheckOpacity, isSaving]);
+  }, [maxValue, handleDismiss, onSaveLog, fullButtonScale, fullButtonGlow, fullRippleScale, fullRippleOpacity, successCheckScale, successCheckOpacity, isSaving]);
 
   const handleSaveLog = useCallback(async () => {
     if (isSaving) return;
@@ -300,16 +341,17 @@ export default function PerkLoggingModal({
     }
 
     setIsSaving(true);
+    setSuccessButtonType('custom');
     
     // Epic button animation sequence
-    buttonScale.value = withTiming(0.92, { duration: 100 });
-    buttonGlow.value = withTiming(1, { duration: 100 });
+    customButtonScale.value = withTiming(0.92, { duration: 100 });
+    customButtonGlow.value = withTiming(1, { duration: 100 });
     
     // Ripple effect
-    rippleScale.value = 0;
-    rippleOpacity.value = 0.6;
-    rippleScale.value = withTiming(3, { duration: 600 });
-    rippleOpacity.value = withTiming(0, { duration: 600 });
+    customRippleScale.value = 0;
+    customRippleOpacity.value = 0.6;
+    customRippleScale.value = withTiming(3, { duration: 600 });
+    customRippleOpacity.value = withTiming(0, { duration: 600 });
     
     if (Platform.OS === 'ios') {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -317,7 +359,7 @@ export default function PerkLoggingModal({
     
     // Bounce back with success indication
     setTimeout(() => {
-      buttonScale.value = withSpring(1.05, { damping: 15, stiffness: 300 });
+      customButtonScale.value = withSpring(1.05, { damping: 15, stiffness: 300 });
       
       // Success checkmark animation
       successCheckScale.value = withSpring(1, { damping: 12, stiffness: 400 });
@@ -330,8 +372,8 @@ export default function PerkLoggingModal({
     
     // Final settle and save
     setTimeout(() => {
-      buttonScale.value = withSpring(1, { damping: 20, stiffness: 300 });
-      buttonGlow.value = withTiming(0, { duration: 200 });
+      customButtonScale.value = withSpring(1, { damping: 20, stiffness: 300 });
+      customButtonGlow.value = withTiming(0, { duration: 200 });
       
       successCheckOpacity.value = withTiming(0, { duration: 300 });
       successCheckScale.value = withTiming(0, { duration: 300 });
@@ -340,7 +382,7 @@ export default function PerkLoggingModal({
       onSaveLog(amount);
       setIsSaving(false);
     }, 750);
-  }, [inputValue, maxValue, handleDismiss, onSaveLog, buttonScale, buttonGlow, rippleScale, rippleOpacity, successCheckScale, successCheckOpacity, isSaving]);
+  }, [inputValue, maxValue, handleDismiss, onSaveLog, customButtonScale, customButtonGlow, customRippleScale, customRippleOpacity, successCheckScale, successCheckOpacity, isSaving]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -355,27 +397,34 @@ export default function PerkLoggingModal({
         mass: 0.8,
       });
       
-      // Hero card dramatic entrance
+      // Hero card dramatic entrance (faster timing)
       setTimeout(() => {
         heroCardScale.value = withSpring(1, {
-          damping: 15,
-          stiffness: 300,
-        });
-        heroCardRotation.value = withSpring(0, {
-          damping: 20,
+          damping: 12,
           stiffness: 400,
         });
-      }, 100);
+        heroCardRotation.value = withSpring(0, {
+          damping: 15,
+          stiffness: 500,
+        });
+      }, 50);
       
       setInputValue('');
       setError('');
       setIsSaving(false);
+      setSuccessButtonType('full');
       
       // Reset button states
-      buttonScale.value = 1;
-      buttonGlow.value = 0;
-      rippleScale.value = 0;
-      rippleOpacity.value = 0;
+      fullButtonScale.value = 1;
+      fullButtonGlow.value = 0;
+      fullRippleScale.value = 0;
+      fullRippleOpacity.value = 0;
+      
+      customButtonScale.value = 1;
+      customButtonGlow.value = 0;
+      customRippleScale.value = 0;
+      customRippleOpacity.value = 0;
+      
       successCheckScale.value = 0;
       successCheckOpacity.value = 0;
     } else {
@@ -383,7 +432,7 @@ export default function PerkLoggingModal({
       heroCardScale.value = withTiming(0.95, { duration: 200 });
       heroCardRotation.value = withTiming(-2, { duration: 200 });
     }
-  }, [visible, overlayOpacity, heroCardScale, heroCardRotation, buttonScale, buttonGlow, rippleScale, rippleOpacity, successCheckScale, successCheckOpacity]);
+  }, [visible, overlayOpacity, heroCardScale, heroCardRotation, fullButtonScale, fullButtonGlow, fullRippleScale, fullRippleOpacity, customButtonScale, customButtonGlow, customRippleScale, customRippleOpacity, successCheckScale, successCheckOpacity]);
 
   if (!visible || !perk) {
     return null;
@@ -425,8 +474,8 @@ export default function PerkLoggingModal({
               <Animated.View style={[styles.heroCardWrapper, animatedHeroStyle]}>
                 <LinearGradient
                   colors={[
-                    merchantColor + '15', // 15% opacity
-                    merchantColor + '08', // 8% opacity
+                    merchantColors.opacity15, // 15% opacity
+                    merchantColors.opacity08, // 8% opacity
                     '#FFFFFF'
                   ]}
                   start={{ x: 0, y: 0 }}
@@ -438,7 +487,7 @@ export default function PerkLoggingModal({
                       <MerchantLogo perkName={perk.name} size="large" />
                       <View style={styles.merchantInfo}>
                         <Text style={styles.perkName}>{perk.name}</Text>
-                        <Text style={[styles.availableBalance, { color: merchantColor }]}>
+                        <Text style={[styles.availableBalance, { color: merchantColors.base }]}>
                           {formatCurrency(maxValue)} available
                         </Text>
                       </View>
@@ -447,8 +496,8 @@ export default function PerkLoggingModal({
                   
                   {/* Decorative elements */}
                   <View style={styles.heroDecoration}>
-                    <View style={[styles.decorationCircle, { backgroundColor: merchantColor + '20' }]} />
-                    <View style={[styles.decorationCircle, styles.decorationCircleSmall, { backgroundColor: merchantColor + '10' }]} />
+                    <View style={[styles.decorationCircle, { backgroundColor: merchantColors.opacity20 }]} />
+                    <View style={[styles.decorationCircle, styles.decorationCircleSmall, { backgroundColor: merchantColors.opacity10 }]} />
                   </View>
                 </LinearGradient>
               </Animated.View>
@@ -456,7 +505,11 @@ export default function PerkLoggingModal({
               {/* Premium Input Section */}
               <View style={styles.inputSection}>
                 <Text style={styles.inputLabel}>Enter Amount</Text>
-                <View style={[styles.inputWrapper, error ? styles.inputWrapperError : null]}>
+                <View style={[
+                  styles.inputWrapper, 
+                  error ? styles.inputWrapperError : null,
+                  isInputFocused ? { ...styles.inputWrapperFocused, borderColor: merchantColors.base } : null
+                ]}>
                   <LinearGradient
                     colors={error ? ['#FFF5F5', '#FFFFFF'] : ['#F9F9F9', '#FFFFFF']}
                     style={styles.inputGradient}
@@ -466,6 +519,8 @@ export default function PerkLoggingModal({
                       style={styles.input}
                       value={inputValue}
                       onChangeText={handleInputChange}
+                      onFocus={() => setIsInputFocused(true)}
+                      onBlur={() => setIsInputFocused(false)}
                       placeholder="0.00"
                       placeholderTextColor="#C7C7CC"
                       keyboardType="decimal-pad"
@@ -495,25 +550,27 @@ export default function PerkLoggingModal({
                   {/* Ripple Effect */}
                   <Animated.View style={[
                     styles.rippleEffect,
-                    { backgroundColor: merchantColor + '30' },
-                    animatedRippleStyle
+                    { backgroundColor: merchantColors.opacity30 },
+                    animatedFullRippleStyle
                   ]} />
                   
-                  <Animated.View style={[animatedButtonStyle, animatedButtonGlowStyle, styles.flex1]}>
+                  <Animated.View style={[animatedFullButtonGlowStyle, animatedFullButtonStyle, styles.flex1]}>
                     <TouchableOpacity 
-                      style={[styles.actionButton, { backgroundColor: merchantColor + '10', borderColor: merchantColor + '30' }]} 
+                      style={[styles.actionButton, { backgroundColor: merchantColors.opacity10, borderColor: merchantColors.opacity30 }]} 
                       onPress={handleLogFullAmount}
+                      onPressIn={() => { fullButtonScale.value = withSpring(0.95, { damping: 20, stiffness: 400 }); }}
+                      onPressOut={() => { fullButtonScale.value = withSpring(1, { damping: 20, stiffness: 400 }); }}
                       activeOpacity={1}
                       disabled={isSaving}
                     >
                       <View style={styles.actionButtonContent}>
-                        <View style={[styles.iconCircle, { backgroundColor: merchantColor + '20' }]}>
-                          <Ionicons name="checkmark-circle" size={22} color={merchantColor} />
+                        <View style={[styles.iconCircle, { backgroundColor: merchantColors.opacity20 }]}>
+                          <Ionicons name="checkmark-circle" size={22} color={merchantColors.base} />
                         </View>
-                        <Text style={[styles.actionButtonText, { color: merchantColor }]}>
+                        <Text style={[styles.actionButtonText, { color: merchantColors.base }]}>
                           Full Amount
                         </Text>
-                        <Text style={[styles.actionButtonSubtext, { color: merchantColor + 'AA' }]}>
+                        <Text style={[styles.actionButtonSubtext, { color: merchantColors.opacityAA }]}>
                           {formatCurrency(maxValue)}
                         </Text>
                       </View>
@@ -523,16 +580,25 @@ export default function PerkLoggingModal({
 
                 {/* Custom Amount Button */}
                 <View style={styles.actionButtonWrapper}>
-                  <Animated.View style={[animatedButtonStyle, styles.flex1]}>
+                  {/* Ripple Effect */}
+                  <Animated.View style={[
+                    styles.rippleEffect,
+                    { backgroundColor: merchantColors.opacity30 },
+                    animatedCustomRippleStyle
+                  ]} />
+                  
+                  <Animated.View style={[animatedCustomButtonGlowStyle, animatedCustomButtonStyle, styles.flex1]}>
                     <TouchableOpacity 
                       style={[
                         styles.actionButton, 
                         { 
-                          backgroundColor: inputValue ? merchantColor : '#E5E5EA',
+                          backgroundColor: inputValue ? merchantColors.base : '#E5E5EA',
                           borderColor: 'transparent'
                         }
                       ]} 
                       onPress={handleSaveLog}
+                      onPressIn={() => { customButtonScale.value = withSpring(0.95, { damping: 20, stiffness: 400 }); }}
+                      onPressOut={() => { customButtonScale.value = withSpring(1, { damping: 20, stiffness: 400 }); }}
                       disabled={!inputValue || isSaving}
                       activeOpacity={0.8}
                     >
@@ -562,10 +628,10 @@ export default function PerkLoggingModal({
             
             {/* Success Checkmark Overlay */}
             <Animated.View style={[
-              styles.successOverlay,
+              successButtonType === 'full' ? styles.successOverlayFull : styles.successOverlayCustom,
               animatedSuccessStyle
             ]}>
-              <View style={[styles.successCircle, { backgroundColor: merchantColor }]}>
+              <View style={[styles.successCircle, { backgroundColor: merchantColors.base }]}>
                 <Ionicons name="checkmark" size={24} color="#FFFFFF" />
               </View>
             </Animated.View>
@@ -626,7 +692,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   heroCardWrapper: {
-    marginBottom: 12,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -718,6 +784,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FF3B30',
   },
+  inputWrapperFocused: {
+    borderWidth: 2,
+    shadowOpacity: 0.12,
+  },
   currencySymbol: {
     fontSize: 32,
     fontWeight: '300',
@@ -765,12 +835,22 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     zIndex: 1,
   },
-  successOverlay: {
+  successOverlayFull: {
     position: 'absolute',
-    top: '50%',
+    bottom: 85, // Positioned right on top of the button
+    left: 16,
+    right: '50%',
+    marginRight: 6, // Half of gap between buttons
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  successOverlayCustom: {
+    position: 'absolute',
+    bottom: 85, // Positioned right on top of the button
     left: '50%',
-    marginTop: -25,
-    marginLeft: -25,
+    right: 16,
+    marginLeft: 6, // Half of gap between buttons
+    alignItems: 'center',
     zIndex: 3,
   },
   successCircle: {
@@ -823,5 +903,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     letterSpacing: -0.24,
+    minWidth: 110,
+    textAlign: 'center',
   },
 });
