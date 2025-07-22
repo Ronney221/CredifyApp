@@ -221,6 +221,7 @@ interface CardListItem {
   renewalDate?: Date | null;
   onRenewalDatePress?: () => void;
   onOpenLoggingModal: (perk: CardPerk) => void;
+  isUpdating?: boolean;
 }
 
 // Add default notification preferences
@@ -1184,7 +1185,8 @@ export default function Dashboard() {
       onOpenLoggingModal: handleOpenLoggingModal,
       onInstantLog: handleInstantLog,
       onSaveLog: handleSaveLog,
-      onInstantMarkAvailable: handleInstantMarkAvailable
+      onInstantMarkAvailable: handleInstantMarkAvailable,
+      isUpdating: isUpdatingPerk
     };
     
     // Add logging to verify functions are available
@@ -1209,7 +1211,8 @@ export default function Dashboard() {
     handleOpenLoggingModal,
     handleInstantLog,
     handleSaveLog,
-    handleInstantMarkAvailable
+    handleInstantMarkAvailable,
+    isUpdatingPerk
   ]);
 
   // renderItem function for the FlatList
@@ -1231,6 +1234,7 @@ export default function Dashboard() {
       renewalDate={item.renewalDate}
       onRenewalDatePress={item.onRenewalDatePress}
       onOpenLoggingModal={item.onOpenLoggingModal}
+      isUpdating={item.isUpdating}
     />
   );
 

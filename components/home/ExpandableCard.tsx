@@ -29,6 +29,7 @@ import CardHeader from './expandable-card/CardHeader';
 import { useOnboardingContext, useOnboarding } from '../../app/(onboarding)/_context/OnboardingContext';
 import OnboardingOverlay from './OnboardingOverlay';
 import { logger } from '../../utils/logger';
+import PerkSkeleton from './PerkSkeleton';
 
 // Add showToast function
 const showToast = (message: string, onUndo?: () => void) => {
@@ -96,6 +97,7 @@ export interface ExpandableCardProps {
   onInstantLog?: (perk: CardPerk, amount: number) => void;
   onSaveLog?: (amount: number) => void;
   onInstantMarkAvailable?: (perk: CardPerk) => void;
+  isUpdating?: boolean; // Add loading state prop
 }
 
 // Use our design system's success green - more professional than iOS systemGreen
@@ -136,6 +138,7 @@ const ExpandableCardComponent = ({
   onInstantLog,
   onSaveLog,
   onInstantMarkAvailable,
+  isUpdating = false,
 }: ExpandableCardProps) => {
   logger.log('[ExpandableCard] Rendering card:', {
     cardName: card.name,
@@ -258,6 +261,12 @@ const ExpandableCardComponent = ({
   const undoNudgeAnimation = useSharedValue(0);
   const redeemHintOpacity = useSharedValue(0);
   const undoHintOpacity = useSharedValue(0);
+  const loadingOpacity = useSharedValue(isUpdating ? 1 : 0);
+
+  // Animate loading state transitions
+  useEffect(() => {
+    loadingOpacity.value = withTiming(isUpdating ? 1 : 0, { duration: 200 });
+  }, [isUpdating]);
 
   useEffect(() => {
     // This effect creates a three-time haptic/visual nudge for the redeem hint.
@@ -372,6 +381,11 @@ const ExpandableCardComponent = ({
     opacity: undoHintOpacity.value,
     height: interpolate(undoHintOpacity.value, [0, 1], [0, 28]),
     marginTop: interpolate(undoHintOpacity.value, [0, 1], [0, 8]),
+  }));
+
+  const loadingOverlayStyle = useAnimatedStyle(() => ({
+    opacity: loadingOpacity.value,
+    zIndex: loadingOpacity.value > 0 ? 100 : -1,
   }));
 
   const firstAvailablePerkId = useMemo(() => {
@@ -834,6 +848,57 @@ const ExpandableCardComponent = ({
         )}
       </Reanimated.View>
 
+      {/* Loading Overlay with Skeleton */}
+      <Reanimated.View 
+        style={[styles.loadingOverlay, loadingOverlayStyle]}
+        pointerEvents={isUpdating ? 'auto' : 'none'}
+      >
+        <View style={styles.cardContainer}>
+          <CardHeader
+            card={card}
+            isExpanded={isExpanded}
+            isActive={!!isActive}
+            isFullyRedeemed={isFullyRedeemed}
+            cumulativeSavedValue={cumulativeSavedValue}
+            monthlyPerkStats={monthlyPerkStats}
+            otherPerksAvailableCount={otherPerksAvailableCount}
+            onPress={() => {}} // Disabled during loading
+            renewalDate={card.renewalDate || renewalDate}
+            onRenewalDatePress={undefined} // Disabled during loading
+          />
+          
+          {isExpanded && (
+            <View style={styles.perksListContainer}>
+              <View style={styles.perksGroupContainer}>
+                {availablePerks.length > 0 && (
+                  <>
+                    <View style={[styles.sectionLabelSkeleton]} />
+                    {availablePerks.map((p, index) => (
+                      <PerkSkeleton 
+                        key={`skeleton-${p.id}`}
+                        showSwipeActions={index === 0}
+                        isRedeemed={false}
+                      />
+                    ))}
+                  </>
+                )}
+                {redeemedPerks.length > 0 && (
+                  <>
+                    <View style={[styles.sectionLabelSkeleton, { marginTop: 16 }]} />
+                    {redeemedPerks.map((p) => (
+                      <PerkSkeleton 
+                        key={`skeleton-redeemed-${p.id}`}
+                        isRedeemed={true}
+                      />
+                    ))}
+                  </>
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </Reanimated.View>
+
       {/* Tap Onboarding Overlay */}
       <OnboardingOverlay
         visible={isExpanded && isOnboardingFlagsReady && !hasSeenTapOnboarding && !!firstPerkLayout}
@@ -856,6 +921,7 @@ const areEqual = (prevProps: ExpandableCardProps, nextProps: ExpandableCardProps
       prevProps.isActive !== nextProps.isActive ||
       prevProps.sortIndex !== nextProps.sortIndex ||
       prevProps.onRenewalDatePress !== nextProps.onRenewalDatePress ||
+      prevProps.isUpdating !== nextProps.isUpdating ||
       String(prevProps.renewalDate) !== String(nextProps.renewalDate)) {
     return false;
   }
@@ -1162,5 +1228,23 @@ const styles = StyleSheet.create({
   },
   redeemedSection: {
     marginTop: 8,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+  },
+  sectionLabelSkeleton: {
+    height: 16,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 4,
+    width: 120,
+    marginTop: 8,
+    marginBottom: 12,
+    marginHorizontal: 4,
   },
 }); 
