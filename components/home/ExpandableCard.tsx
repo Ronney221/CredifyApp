@@ -640,10 +640,7 @@ const ExpandableCardComponent = ({
             onOpenLoggingModal?.(perk);
           }}
           onPressIn={() => {
-            // Light haptic feedback on press start
-            if (Platform.OS === 'ios') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
+            // No haptic feedback on press start - save stronger feedback for full swipe
           }}
           activeOpacity={0.85} // Subtle press feedback
         >
@@ -669,10 +666,7 @@ const ExpandableCardComponent = ({
             executePerkAction(perk, 'available');
           }}
           onPressIn={() => {
-            // Light haptic feedback on press start
-            if (Platform.OS === 'ios') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
+            // No haptic feedback on press start - save stronger feedback for full swipe
           }}
           activeOpacity={0.85} // Subtle press feedback
         >
@@ -945,7 +939,7 @@ const styles = StyleSheet.create({
   },
   leftAction: {
     backgroundColor: systemGreen,
-    width: 80, // Base width - will be animated
+    width: 100, // Updated base width to match new circle size
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -973,7 +967,7 @@ const styles = StyleSheet.create({
   },
   rightAction: {
     backgroundColor: '#007aff', // Keep iOS blue for consistency
-    width: 80, // Base width - will be animated
+    width: 100, // Updated base width to match new circle size
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',

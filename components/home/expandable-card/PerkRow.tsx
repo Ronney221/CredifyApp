@@ -396,28 +396,34 @@ const PerkRow: React.FC<PerkRowProps> = ({
     };
   });
 
-  // Animated style for action buttons - expands width continuously throughout swipe
+  // Animated style for action buttons - smaller at half swipe, expands at full swipe
   const animatedActionStyle = useAnimatedStyle(() => {
     const currentSwipeDistance = Math.abs(translateX.value);
     
-    // Continuously expand width from 0 to full swipe
-    // Start with minimum visible width at 0, expand to max at long threshold
-    const minWidth = 80; // Minimum visible width when just starting to swipe
-    const maxWidth = 200; // Maximum width at full swipe - increased for larger stretch
+    // Double the circle size and reduce max width by 20px
+    const circleSize = 100; // Double the previous 50px circle button size
+    const maxWidth = 180; // Reduced by 20px from previous 200px
     
-    const expandedWidth = interpolate(
-      currentSwipeDistance,
-      [0, LONG_SWIPE_THRESHOLD],
-      [minWidth, maxWidth],
-      'clamp'
-    );
+    // Two-stage animation: small circle until 3/4 swipe, then expand
+    const expandThreshold = LONG_SWIPE_THRESHOLD * 0.75;
     
-    // Also animate the border radius to maintain pill shape
-    const borderRadius = expandedWidth / 2; // Always half of width for perfect pill
+    const expandedWidth = currentSwipeDistance < expandThreshold
+      ? circleSize // Stay small until 3/4 of the way
+      : interpolate(
+          currentSwipeDistance,
+          [expandThreshold, LONG_SWIPE_THRESHOLD],
+          [circleSize, maxWidth],
+          'clamp'
+        );
+    
+    // Maintain circle shape until expansion
+    const borderRadius = currentSwipeDistance < expandThreshold
+      ? circleSize / 2 // Perfect circle
+      : Math.min(expandedWidth / 2, 30); // Transition to pill shape
     
     return {
       width: expandedWidth,
-      borderRadius: Math.min(borderRadius, 30), // Cap at 30 for reasonable pill shape
+      borderRadius,
     };
   });
 
@@ -429,13 +435,13 @@ const PerkRow: React.FC<PerkRowProps> = ({
     const currentWidth = interpolate(
       currentSwipeDistance,
       [0, LONG_SWIPE_THRESHOLD],
-      [80, 200], // Min to max width
+      [100, 180], // Updated min to max width to match animatedActionStyle
       'clamp'
     );
     
-    // Calculate distance to move icon to the very edge of the button
-    // Button width / 2 gives us center to edge distance, minus some padding for the icon size
-    const edgeDistance = (currentWidth / 2) - 20; // 20px accounts for icon size and padding
+    // Calculate distance to move icon further from edge when fully expanded
+    // Button width / 2 gives us center to edge distance, minus padding for icon size + 5px extra
+    const edgeDistance = (currentWidth / 2) - 25; // 25px = 20px for icon + 5px further from edge
     
     // Only move icon after crossing the full swipe threshold
     const hasPassedThreshold = currentSwipeDistance >= LONG_SWIPE_THRESHOLD;
