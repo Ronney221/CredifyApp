@@ -16,7 +16,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.credifyapp.credify",
       "usesAppleSignIn": true,
       "requireFullScreen": true,
