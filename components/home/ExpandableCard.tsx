@@ -958,7 +958,7 @@ const styles = StyleSheet.create({
     // Fully rounded corners for bubble/pill style
     borderRadius: 30, // Half of height for perfect pill shape
     // Layer behind the PerkRow with enhanced shadows
-    zIndex: 1,
+    zIndex: 10, // High z-index to ensure always visible
     ...Platform.select({
       ios: {
         shadowColor: systemGreen,
@@ -986,7 +986,7 @@ const styles = StyleSheet.create({
     // Fully rounded corners for bubble/pill style
     borderRadius: 30, // Half of height for perfect pill shape
     // Layer behind the PerkRow with enhanced shadows
-    zIndex: 1,
+    zIndex: 10, // High z-index to ensure always visible
     ...Platform.select({
       ios: {
         shadowColor: '#007aff',

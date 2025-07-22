@@ -240,6 +240,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent>({
     onStart: () => {
       isGestureActive.value = true;
+      // Always reset haptic flags on gesture start for consistent feedback
       hasTriggeredHaptic.value = false;
       hasTriggeredLongHaptic.value = false;
       // Remember the current position when starting a new gesture
@@ -248,11 +249,18 @@ const PerkRow: React.FC<PerkRowProps> = ({
     onActive: (event) => {
       // Calculate new position based on starting position + translation
       const newTranslateX = gestureStartX.value + event.translationX;
+      const previousTranslateX = translateX.value;
       
       if (isAvailable) {
         // For available perks, allow right swipe only (positive translateX)
         // Allow swipe beyond ACTION_BUTTON_WIDTH for long swipe
         translateX.value = Math.max(0, newTranslateX);
+        
+        // Reset haptic flags if direction changes or value decreases significantly
+        if (translateX.value < previousTranslateX - 10) {
+          hasTriggeredHaptic.value = false;
+          hasTriggeredLongHaptic.value = false;
+        }
         
         // Trigger haptic when crossing short threshold
         if (translateX.value >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
@@ -269,6 +277,12 @@ const PerkRow: React.FC<PerkRowProps> = ({
         // For redeemed perks, allow left swipe only (negative translateX)
         // Allow swipe beyond ACTION_BUTTON_WIDTH for long swipe
         translateX.value = Math.min(0, newTranslateX);
+        
+        // Reset haptic flags if direction changes or value increases significantly (less negative)
+        if (translateX.value > previousTranslateX + 10) {
+          hasTriggeredHaptic.value = false;
+          hasTriggeredLongHaptic.value = false;
+        }
         
         // Trigger haptic when crossing short threshold
         if (Math.abs(translateX.value) >= SHORT_SWIPE_THRESHOLD && !hasTriggeredHaptic.value) {
@@ -316,6 +330,12 @@ const PerkRow: React.FC<PerkRowProps> = ({
       } else {
         // Didn't pass threshold - snap back to closed
         translateX.value = withSpring(0, springConfig);
+      }
+      
+      // Reset haptic flags when gesture ends and item returns to closed position
+      if (Math.abs(translateX.value) < SHORT_SWIPE_THRESHOLD) {
+        hasTriggeredHaptic.value = false;
+        hasTriggeredLongHaptic.value = false;
       }
       
       isGestureActive.value = false;
@@ -372,7 +392,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
       borderBottomLeftRadius,
       borderTopRightRadius,
       borderBottomRightRadius,
-      zIndex: 10, // Above the action buttons
+      zIndex: 5, // Above the action buttons but allow action items to show
     };
   });
 
@@ -383,7 +403,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
     // Continuously expand width from 0 to full swipe
     // Start with minimum visible width at 0, expand to max at long threshold
     const minWidth = 80; // Minimum visible width when just starting to swipe
-    const maxWidth = 160; // Maximum width at full swipe
+    const maxWidth = 200; // Maximum width at full swipe - increased for larger stretch
     
     const expandedWidth = interpolate(
       currentSwipeDistance,
@@ -405,17 +425,33 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const iconAnimatedStyle = useAnimatedStyle(() => {
     const currentSwipeDistance = Math.abs(translateX.value);
     
+    // Get current button width for calculating edge position
+    const currentWidth = interpolate(
+      currentSwipeDistance,
+      [0, LONG_SWIPE_THRESHOLD],
+      [80, 200], // Min to max width
+      'clamp'
+    );
+    
+    // Calculate distance to move icon to the very edge of the button
+    // Button width / 2 gives us center to edge distance, minus some padding for the icon size
+    const edgeDistance = (currentWidth / 2) - 20; // 20px accounts for icon size and padding
+    
     // Only move icon after crossing the full swipe threshold
     const hasPassedThreshold = currentSwipeDistance >= LONG_SWIPE_THRESHOLD;
     
-    // For left action (available perks), move icon to the right
-    // For right action (redeemed perks), move icon to the left
-    const moveDistance = 20; // How far to move the icon
-    const translateDirection = isAvailable ? moveDistance : -moveDistance;
+    // For left action (available perks), move icon to the right edge
+    // For right action (redeemed perks), move icon to the left edge
+    const translateDirection = isAvailable ? edgeDistance : -edgeDistance;
+    
+    // Add smooth animation with timing
+    const animatedTranslateX = hasPassedThreshold 
+      ? withTiming(translateDirection, { duration: 200 })
+      : withTiming(0, { duration: 200 });
     
     return {
       transform: [
-        { translateX: hasPassedThreshold ? translateDirection : 0 }
+        { translateX: animatedTranslateX }
       ],
     };
   });
@@ -605,7 +641,7 @@ const styles = StyleSheet.create({
   perkContainerOuter: {
     marginVertical: Spacing.xs, // 4pt
     borderRadius: BorderRadius.xl, // 16pt - restore for proper iOS Messages style
-    overflow: 'hidden',
+    overflow: 'visible', // Allow action items to be visible outside container
   },
   perkContainer: {
     flexDirection: 'row',
@@ -776,24 +812,26 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    zIndex: 1, // Behind the main content
+    zIndex: 3, // Higher to ensure visibility
   },
   leftActionContainer: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    width: 200, // Allow space for max expansion (160px + margins)
-    overflow: 'hidden',
+    width: 240, // Allow space for max expansion (200px + margins)
+    overflow: 'visible', // Allow action items to be fully visible
+    zIndex: 4, // Above actions container
   },
   rightActionContainer: {
     position: 'absolute',
     right: 0,
     top: 0,
     bottom: 0,
-    width: 200, // Allow space for max expansion (160px + margins)
-    overflow: 'hidden',
+    width: 240, // Allow space for max expansion (200px + margins)
+    overflow: 'visible', // Allow action items to be fully visible
     alignItems: 'flex-end', // Align action to the right side of container
+    zIndex: 4, // Above actions container
   },
 });
 
