@@ -174,7 +174,7 @@ const ChatHeader = ({ onClose, onStartOver, hasMessages, isTyping, remainingUses
   }, [isTyping, remainingUses]);
 
   return (
-    <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.headerBlur}>
+    <BlurView intensity={20} tint="systemMaterialLight" style={styles.headerBlur}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.headerTitleContainer}>
@@ -951,7 +951,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFE',
+    backgroundColor: '#FFFFFF',
   },
   flex_1: {
     flex: 1,

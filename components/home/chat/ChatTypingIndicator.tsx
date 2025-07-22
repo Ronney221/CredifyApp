@@ -19,7 +19,7 @@ export const ChatTypingIndicator: React.FC<ChatTypingIndicatorProps> = ({
 
   return (
     <View style={styles.typingContainer}>
-      <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.typingBlur}>
+      <BlurView intensity={20} tint="systemMaterialLight" style={styles.typingBlur}>
         <View style={styles.typingContent}>
           <ActivityIndicator size="small" color="#007AFF" style={styles.typingIndicator} />
           <Text style={styles.typingText}>AI is thinking...</Text>

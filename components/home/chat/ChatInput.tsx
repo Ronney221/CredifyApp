@@ -26,7 +26,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   inputRef,
 }) => {
   return (
-    <BlurView intensity={80} tint="systemUltraThinMaterialLight" style={styles.inputBlur}>
+    <BlurView intensity={20} tint="systemMaterialLight" style={styles.inputBlur}>
       <View style={styles.inputContainer}>
         <TextInput
           ref={inputRef}
