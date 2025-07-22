@@ -400,10 +400,7 @@ export default function PerkLoggingModal({
         <Pressable style={styles.overlayPress} onPress={handleDismiss} />
       </View>
       
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-      >
+      <View style={styles.modalWrapper}>
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.container, animatedStyle]}>
             <View style={styles.handle} />
@@ -417,7 +414,7 @@ export default function PerkLoggingModal({
             </View>
 
             {/* Content */}
-            <View style={[styles.content, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={[styles.content, { paddingBottom: 8 }]}>
               {/* Hero Balance Card */}
               <Animated.View style={[styles.heroCardWrapper, animatedHeroStyle]}>
                 <LinearGradient
@@ -568,7 +565,7 @@ export default function PerkLoggingModal({
             </View>
           </Animated.View>
         </GestureDetector>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -581,15 +578,18 @@ const styles = StyleSheet.create({
   overlayPress: {
     flex: 1,
   },
-  keyboardAvoid: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  modalWrapper: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 280 : 0, // Account for iOS keyboard height
+    left: 0,
+    right: 0,
   },
   container: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '65%',
+    maxHeight: '75%',
+    minHeight: 400,
   },
   handle: {
     width: 36,
@@ -603,8 +603,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5EA',
   },
@@ -620,24 +620,24 @@ const styles = StyleSheet.create({
     marginRight: -8,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   heroCardWrapper: {
-    marginBottom: 24,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   heroCard: {
-    borderRadius: 20,
-    padding: 20,
-    minHeight: 120,
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 80,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
     right: 40,
   },
   inputSection: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   inputLabel: {
     fontSize: 17,
@@ -709,8 +709,8 @@ const styles = StyleSheet.create({
   inputGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    height: 64,
+    paddingHorizontal: 16,
+    height: 52,
   },
   inputWrapperError: {
     borderWidth: 2,
@@ -798,8 +798,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   actionButtonContent: {
     alignItems: 'center',
