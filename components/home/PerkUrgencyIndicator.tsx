@@ -18,12 +18,27 @@ const PerkUrgencyIndicator: React.FC<PerkUrgencyIndicatorProps> = ({
 }) => {
   const calculateUrgency = () => {
     if (perk.status === 'redeemed') {
-      // Show reset countdown for monthly perks when requested
-      if (showResetCountdown && perk.periodMonths === 1) {
+      // Show reset countdown for all perks when requested
+      if (showResetCountdown && perk.periodMonths) {
+        // Use the same logic as calculatePerkExpiryDate to get the correct reset date
+        const resetDate = calculatePerkExpiryDate(perk.periodMonths);
         const now = new Date();
-        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const daysUntilReset = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        return { level: 'reset-countdown', text: `${daysUntilReset}d until reset`, icon: 'refresh-circle', daysLeft: daysUntilReset };
+        const daysUntilReset = Math.ceil((resetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysUntilReset <= 0) {
+          // Should have reset already, something might be off
+          return { level: 'reset-countdown', text: 'Should reset soon', icon: 'refresh-circle', daysLeft: 0 };
+        } else if (daysUntilReset <= 7) {
+          // Show days for week or less
+          return { level: 'reset-countdown', text: `${daysUntilReset}d until reset`, icon: 'refresh-circle', daysLeft: daysUntilReset };
+        } else if (daysUntilReset <= 45) {
+          // Show days for 45 days or less
+          return { level: 'reset-countdown', text: `${daysUntilReset}d until reset`, icon: 'refresh-circle', daysLeft: daysUntilReset };
+        } else {
+          // Show months for longer periods
+          const monthsUntilReset = Math.ceil(daysUntilReset / 30);
+          return { level: 'reset-countdown', text: `${monthsUntilReset}mo until reset`, icon: 'refresh-circle', daysLeft: daysUntilReset };
+        }
       }
       return { level: 'redeemed', text: 'Used', icon: 'checkmark-circle', daysLeft: 0 };
     }

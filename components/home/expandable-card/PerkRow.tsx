@@ -611,10 +611,12 @@ const PerkRow: React.FC<PerkRowProps> = ({
             <View style={styles.perkIconContainer}>
               {isRedeemed ? (
                 <View style={styles.redeemedIconWrapper}>
-                  <MerchantLogo 
-                    perkName={perk.name}
-                    size="medium"
-                  />
+                  <View style={styles.merchantIconOverlay}>
+                    <MerchantLogo 
+                      perkName={perk.name}
+                      size="medium"
+                    />
+                  </View>
                   <View style={[
                     styles.redeemedBadge,
                     isAutoRedeemed && styles.autoRedeemedBadge
@@ -797,6 +799,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
   },
+  merchantIconOverlay: {
+    opacity: 0.6, // Slightly grayed out to indicate redeemed state
+  },
   redeemedBadge: {
     position: 'absolute',
     bottom: -2,
@@ -804,7 +809,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: PerkDesign.redeemed.icon,
+    backgroundColor: '#34C759', // iOS system green for checkmark
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
