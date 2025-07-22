@@ -397,10 +397,13 @@ export default function PerkLoggingModal({
       onRequestClose={handleDismiss}
     >
       <View style={styles.overlay}>
-        <Pressable style={styles.overlayPress} onPress={handleDismiss} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
       </View>
       
-      <View style={styles.modalWrapper}>
+      <KeyboardAvoidingView
+        style={styles.modalWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.container, animatedStyle]}>
             <View style={styles.handle} />
@@ -413,8 +416,11 @@ export default function PerkLoggingModal({
               </TouchableOpacity>
             </View>
 
-            {/* Content */}
-            <View style={[styles.content, { paddingBottom: 8 }]}>
+            {/* ScrollView Content */}
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* Hero Balance Card */}
               <Animated.View style={[styles.heroCardWrapper, animatedHeroStyle]}>
                 <LinearGradient
@@ -552,20 +558,20 @@ export default function PerkLoggingModal({
                   </Animated.View>
                 </View>
               </View>
-              
-              {/* Success Checkmark Overlay */}
-              <Animated.View style={[
-                styles.successOverlay,
-                animatedSuccessStyle
-              ]}>
-                <View style={[styles.successCircle, { backgroundColor: merchantColor }]}>
-                  <Ionicons name="checkmark" size={24} color="#FFFFFF" />
-                </View>
-              </Animated.View>
-            </View>
+            </ScrollView>
+            
+            {/* Success Checkmark Overlay */}
+            <Animated.View style={[
+              styles.successOverlay,
+              animatedSuccessStyle
+            ]}>
+              <View style={[styles.successCircle, { backgroundColor: merchantColor }]}>
+                <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+              </View>
+            </Animated.View>
           </Animated.View>
         </GestureDetector>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -575,21 +581,16 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  overlayPress: {
-    flex: 1,
-  },
   modalWrapper: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 280 : 0, // Account for iOS keyboard height
-    left: 0,
-    right: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   container: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '75%',
-    minHeight: 400,
+    maxHeight: '90%',
+    overflow: 'hidden',
   },
   handle: {
     width: 36,
@@ -619,9 +620,10 @@ const styles = StyleSheet.create({
     padding: 8,
     marginRight: -8,
   },
-  content: {
+  scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
+    paddingBottom: 24,
   },
   heroCardWrapper: {
     marginBottom: 12,
