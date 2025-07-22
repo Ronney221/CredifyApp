@@ -610,12 +610,21 @@ const PerkRow: React.FC<PerkRowProps> = ({
         >
             <View style={styles.perkIconContainer}>
               {isRedeemed ? (
-                <View style={styles.redeemedIconContainer}>
-                  <Ionicons 
-                    name={isAutoRedeemed ? 'sync-circle-outline' : 'checkmark-circle-outline'}
-                    size={26} 
-                    color={isAutoRedeemed ? PerkDesign.autoRedeemed.icon : PerkDesign.redeemed.icon}
+                <View style={styles.redeemedIconWrapper}>
+                  <MerchantLogo 
+                    perkName={perk.name}
+                    size="medium"
                   />
+                  <View style={[
+                    styles.redeemedBadge,
+                    isAutoRedeemed && styles.autoRedeemedBadge
+                  ]}>
+                    <Ionicons 
+                      name={isAutoRedeemed ? 'sync' : 'checkmark'}
+                      size={12} 
+                      color="#fff"
+                    />
+                  </View>
                 </View>
               ) : (
                 <MerchantLogo 
@@ -667,12 +676,14 @@ const PerkRow: React.FC<PerkRowProps> = ({
               )}
             </View>
             <View style={styles.perkValueContainer}>
-              {/* Urgency indicator replaces periodText */}
-              {!isRedeemed && (
-                <View style={styles.urgencyIndicatorContainer}>
-                  <PerkUrgencyIndicator perk={perk} size="small" />
-                </View>
-              )}
+              {/* Urgency indicator for available perks, reset indicator for redeemed perks */}
+              <View style={styles.urgencyIndicatorContainer}>
+                <PerkUrgencyIndicator 
+                  perk={perk} 
+                  size="small"
+                  showResetCountdown={isRedeemed}
+                />
+              </View>
               <Text style={[
                 styles.perkValue, 
                 isRedeemed && !isAutoRedeemed && styles.perkValueRedeemed,
@@ -781,13 +792,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  redeemedIconContainer: {
+  redeemedIconWrapper: {
+    position: 'relative',
     width: 48,
     height: 48,
+  },
+  redeemedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: PerkDesign.redeemed.icon,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: ComponentColors.background.tertiary,
-    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  autoRedeemedBadge: {
+    backgroundColor: PerkDesign.autoRedeemed.icon,
   },
   perkTextContainerInsideItem: {
     flex: 1,

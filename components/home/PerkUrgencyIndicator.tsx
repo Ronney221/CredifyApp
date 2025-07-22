@@ -8,14 +8,23 @@ import { PerkDesign } from '../../constants/DesignSystem';
 interface PerkUrgencyIndicatorProps {
   perk: CardPerk;
   size?: 'small' | 'medium';
+  showResetCountdown?: boolean;
 }
 
 const PerkUrgencyIndicator: React.FC<PerkUrgencyIndicatorProps> = ({ 
   perk, 
-  size = 'medium' 
+  size = 'medium',
+  showResetCountdown = false
 }) => {
   const calculateUrgency = () => {
     if (perk.status === 'redeemed') {
+      // Show reset countdown for monthly perks when requested
+      if (showResetCountdown && perk.periodMonths === 1) {
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const daysUntilReset = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return { level: 'reset-countdown', text: `${daysUntilReset}d until reset`, icon: 'refresh-circle', daysLeft: daysUntilReset };
+      }
       return { level: 'redeemed', text: 'Used', icon: 'checkmark-circle', daysLeft: 0 };
     }
 
@@ -54,6 +63,12 @@ const PerkUrgencyIndicator: React.FC<PerkUrgencyIndicatorProps> = ({
           container: { backgroundColor: PerkDesign.urgency.normal.background, borderColor: PerkDesign.urgency.normal.border },
           text: { color: PerkDesign.urgency.normal.text, fontSize: isSmall ? 10 : 11 },
           icon: { color: PerkDesign.urgency.normal.icon, size: isSmall ? 12 : 14 }
+        };
+      case 'reset-countdown':
+        return {
+          container: { backgroundColor: '#E3F2FD', borderColor: '#90CAF9' },
+          text: { color: '#1565C0', fontSize: isSmall ? 10 : 11 },
+          icon: { color: '#1565C0', size: isSmall ? 12 : 14 }
         };
       case 'expired':
         return {
