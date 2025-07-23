@@ -391,7 +391,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                   {
                     width: sectionWidth,
                     alignItems: 'center',
-                    zIndex: 2,
+                    zIndex: selectedBar === index ? 10000 : 2,
                   }
                 ]}
                 activeOpacity={hasData ? 0.7 : 1}
@@ -498,10 +498,12 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 0,
     backgroundColor: Colors.light.background,
+    overflow: 'visible',
   },
   chartContent: {
     flex: 1,
     alignItems: 'center',
+    overflow: 'visible',
   },
   barsContainer: {
     flexDirection: 'row',
@@ -510,6 +512,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
     paddingHorizontal: 15,
     marginHorizontal: 5,
+    overflow: 'visible',
   },
   barColumn: {
     justifyContent: 'flex-end',
@@ -580,10 +583,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 6,
-    elevation: 6,
+    elevation: 8,
     marginBottom: 8,
     minWidth: 130,
-    zIndex: 999,
+    zIndex: 9999,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.04)',
   },

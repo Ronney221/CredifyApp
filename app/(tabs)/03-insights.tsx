@@ -832,7 +832,7 @@ export default function InsightsScreen() {
                       <MiniBarChart
                         data={rightPad(pct, 6, 0)}
                         rawData={raw}
-                        debugMode={true}
+                        debugMode={false}
                         totalAnnualFees={insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0)}
                       />
                     );
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   chartHeader: {
     flexDirection: 'row',
