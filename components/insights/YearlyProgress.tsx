@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import MiniBarChart from './MiniBarChart';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -10,10 +10,16 @@ import Animated, {
   useSharedValue,
   withRepeat,
   withTiming,
-  Easing
+  withSpring,
+  withSequence,
+  withDelay,
+  Easing,
+  runOnJS
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, LinearGradient as SvgLinearGradient, Stop, Circle, Defs, RadialGradient } from 'react-native-svg';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 // Performance tier definitions
 interface PerformanceTier {
@@ -67,103 +73,248 @@ interface WaveProgressProps {
   collapsed?: boolean;
 }
 
-const WaveProgress: React.FC<WaveProgressProps> = ({ progress, tier, collapsed = false }) => {
-  const waveAnimation = useSharedValue(0);
+const PremiumProgressBar: React.FC<WaveProgressProps> = ({ progress, tier, collapsed = false }) => {
+  const progressAnimation = useSharedValue(0);
+  const glowAnimation = useSharedValue(0);
+  const pressScale = useSharedValue(1);
+  const particleAnimation = useSharedValue(0);
+  const shimmerAnimation = useSharedValue(0);
+  const pulseAnimation = useSharedValue(1);
   
   useEffect(() => {
-    // Reset animation value to 0 to avoid jumps
-    waveAnimation.value = 0;
-    
-    // Start continuous animation
-    waveAnimation.value = withRepeat(
+    // Sophisticated staggered entrance animation
+    progressAnimation.value = withDelay(
+      300,
+      withSpring(progress, {
+        damping: 20,
+        stiffness: 100,
+        mass: 1,
+      })
+    );
+
+    // Premium shimmer effect
+    shimmerAnimation.value = withRepeat(
       withTiming(1, {
-        duration: tier.animationSpeed,
-        easing: Easing.linear,
+        duration: 2500,
+        easing: Easing.bezier(0.4, 0, 0.6, 1),
       }),
       -1,
       false
     );
-  }, [tier.animationSpeed]);
 
-  const waveHeight = collapsed ? 15 : 60;
+    // High-performance tier effects
+    if (progress >= 90) {
+      // Sophisticated glow with easing
+      glowAnimation.value = withRepeat(
+        withTiming(1, {
+          duration: 3000,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        }),
+        -1,
+        true
+      );
+
+      // Particle celebration effect
+      particleAnimation.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 2000 }),
+          withTiming(0, { duration: 1000 })
+        ),
+        -1,
+        false
+      );
+    }
+
+    // Subtle pulse for mid-tier performance
+    if (progress >= 50 && progress < 90) {
+      pulseAnimation.value = withRepeat(
+        withTiming(1.02, {
+          duration: 4000,
+          easing: Easing.inOut(Easing.sin),
+        }),
+        -1,
+        true
+      );
+    }
+  }, [progress]);
+
   const containerHeight = collapsed ? 30 : 120;
   
-  // Simplified approach: Use transform instead of complex SVG path animation
-  const animatedStyle = useAnimatedStyle(() => {
-    // Create smooth, continuous translation that loops seamlessly
-    const translateX = interpolate(waveAnimation.value, [0, 1], [0, -40]);
+  const progressStyle = useAnimatedStyle(() => {
+    const width = interpolate(
+      progressAnimation.value,
+      [0, 100],
+      [0, 100],
+      Extrapolate.CLAMP
+    );
+    
+    const scale = interpolate(
+      pulseAnimation.value,
+      [1, 1.02],
+      [1, 1.008]
+    );
+    
     return {
-      transform: [{ translateX }],
+      width: `${width}%`,
+      transform: [{ scale: scale * pressScale.value }],
     };
   });
 
-  // Static wave paths - much simpler and performant
-  const createStaticWavePath = (phase: number, amplitude: number) => {
-    // Use wider SVG width to account for animation translation
-    const svgWidth = 720;
-    const frequency = 2;
+  const glowStyle = useAnimatedStyle(() => {
+    if (progress < 90) return { opacity: 0, transform: [{ scale: 0 }] };
     
-    // Fix: Clamp progress to reasonable range and ensure accurate calculation
-    const clampedProgress = Math.max(0, Math.min(100, progress));
+    const opacity = interpolate(
+      glowAnimation.value,
+      [0, 1],
+      [0.2, 0.6]
+    );
     
-    // Calculate fill height - this should be from bottom up
-    const fillPercentage = clampedProgress / 100;
-    const fillHeight = fillPercentage * containerHeight;
+    const scale = interpolate(
+      glowAnimation.value,
+      [0, 1],
+      [0.98, 1.04]
+    );
     
-    // Wave baseline should be at the fill level (from bottom)
-    const waveBaseline = containerHeight - fillHeight;
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
+
+  const shimmerStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(
+      shimmerAnimation.value,
+      [0, 1],
+      [-screenWidth, screenWidth]
+    );
     
-    // Start path from bottom left
-    let path = `M 0 ${containerHeight}`;
+    const opacity = interpolate(
+      shimmerAnimation.value,
+      [0, 0.3, 0.7, 1],
+      [0, 0.8, 0.8, 0]
+    );
     
-    // Create wave at the fill level - use proper SVG width
-    for (let x = 0; x <= svgWidth; x += 4) {
-      const waveOffset = Math.sin((x / svgWidth) * Math.PI * frequency + phase) * amplitude;
-      const y = Math.max(0, waveBaseline + waveOffset); // Ensure y doesn't go negative
-      path += ` L ${x} ${y}`;
-    }
+    return {
+      transform: [{ translateX }],
+      opacity: progress > 20 ? opacity : 0,
+    };
+  });
+
+  const particleStyle = useAnimatedStyle(() => {
+    if (progress < 90) return { opacity: 0 };
     
-    // Close the path back to bottom right and bottom left
-    path += ` L ${svgWidth} ${containerHeight} L 0 ${containerHeight} Z`;
-    return path;
+    const translateY = interpolate(
+      particleAnimation.value,
+      [0, 1],
+      [0, -50]
+    );
+    
+    const opacity = interpolate(
+      particleAnimation.value,
+      [0, 0.3, 0.7, 1],
+      [0, 1, 1, 0]
+    );
+    
+    const scale = interpolate(
+      particleAnimation.value,
+      [0, 0.5, 1],
+      [0.5, 1, 0.3]
+    );
+    
+    return {
+      transform: [{ translateY }, { scale }],
+      opacity,
+    };
+  });
+
+  const handlePressIn = () => {
+    pressScale.value = withSpring(0.98, { damping: 15, stiffness: 300 });
   };
 
-  const wavePath1 = createStaticWavePath(0, collapsed ? 2 : 4);
-  const wavePath2 = createStaticWavePath(Math.PI / 2, collapsed ? 1 : 2);
+  const handlePressOut = () => {
+    pressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  };
 
   return (
-    <View style={[styles.waveContainer, { height: containerHeight }]}>
-      <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
-        <Svg height={containerHeight} width={180} style={StyleSheet.absoluteFill}>
-          <SvgLinearGradient
-            id="waveGradient"
-            x1="0%"
-            y1="0%"
-            x2="0%"
-            y2="100%"
-          >
-            {tier.colors.map((color, index) => (
-              <Stop
-                key={index}
-                offset={`${(index / (tier.colors.length - 1)) * 100}%`}
-                stopColor={color}
-                stopOpacity="1"
-              />
-            ))}
-          </SvgLinearGradient>
-          <Path
-            d={wavePath1}
-            fill="url(#waveGradient)"
-            opacity={0.8}
-          />
-          <Path
-            d={wavePath2}
-            fill={tier.colors[0]}
-            opacity={0.6}
-          />
-        </Svg>
+    <Pressable 
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.progressContainer, { height: containerHeight }]}
+    >
+      {/* Enhanced background with subtle gradient */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.02)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.progressTrack}
+      />
+      
+      {/* Premium glow effect for top performers */}
+      <Animated.View style={[
+        styles.progressGlow,
+        progressStyle,
+        glowStyle,
+        {
+          backgroundColor: tier.colors[0],
+        }
+      ]}>
+        <LinearGradient
+          colors={[tier.colors[0], tier.colors[tier.colors.length - 1] || tier.colors[0]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
       </Animated.View>
-    </View>
+      
+      {/* Main progress fill with sophisticated gradient */}
+      <Animated.View style={[
+        styles.progressFill,
+        progressStyle,
+      ]}>
+        <LinearGradient
+          colors={[
+            tier.colors[0],
+            tier.colors[tier.colors.length - 1] || tier.colors[0]
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        {/* Premium shimmer effect */}
+        <Animated.View style={[styles.shimmerOverlay, shimmerStyle]}>
+          <LinearGradient
+            colors={[
+              'transparent',
+              'rgba(255,255,255,0.3)',
+              'rgba(255,255,255,0.6)',
+              'rgba(255,255,255,0.3)',
+              'transparent'
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      </Animated.View>
+
+      {/* Celebration particles for top performance */}
+      {progress >= 90 && (
+        <Animated.View style={[styles.particleContainer, particleStyle]}>
+          <Svg height={40} width={40} style={styles.particleSvg}>
+            <Defs>
+              <RadialGradient id="particle" cx="50%" cy="50%" r="50%">
+                <Stop offset="0%" stopColor={tier.colors[0]} stopOpacity="0.8" />
+                <Stop offset="100%" stopColor={tier.colors[0]} stopOpacity="0" />
+              </RadialGradient>
+            </Defs>
+            <Circle cx="20" cy="20" r="8" fill="url(#particle)" />
+            <Circle cx="12" cy="12" r="4" fill="url(#particle)" />
+            <Circle cx="28" cy="15" r="3" fill="url(#particle)" />
+          </Svg>
+        </Animated.View>
+      )}
+    </Pressable>
   );
 };
 
@@ -264,9 +415,9 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
       <Animated.View style={[styles.mainContent, mainContentStyle]}>
         <Text style={styles.yearTitle}>{year} Return on Investment</Text>
         
-        {/* Wave Progress Container */}
-        <View style={styles.waveProgressContainer}>
-          <WaveProgress progress={clampedRoi} tier={tier} collapsed={false} />
+        {/* Premium Progress Bar Container */}
+        <View style={styles.progressBarContainer}>
+          <PremiumProgressBar progress={clampedRoi} tier={tier} collapsed={false} />
           
           {/* Floating Metrics */}
           <View style={styles.floatingMetrics}>
@@ -287,7 +438,7 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
                     style={styles.floatingIcon}
                   />
                 )}
-                <Text style={[styles.floatingRoi, { color: tier.colors[0] }]}>
+                <Text style={styles.floatingRoi}>
                   {Math.round(roi)}%
                 </Text>
               </View>
@@ -358,25 +509,65 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   yearTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: Colors.light.text,
-    marginBottom: 12,
+    marginBottom: 16,
+    letterSpacing: -0.5,
+    lineHeight: 34,
   },
   
-  // Wave Progress Styles
-  waveProgressContainer: {
+  // Progress Bar Styles
+  progressBarContainer: {
     position: 'relative',
     height: 120,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F2F2F7',
   },
-  waveContainer: {
+  progressContainer: {
     width: '100%',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: 'transparent',
+    position: 'relative',
+  },
+  progressTrack: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 16,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 16,
+    position: 'relative',
+  },
+  progressGlow: {
+    position: 'absolute',
+    height: '100%',
+    borderRadius: 16,
+    shadowColor: '#FFD60A',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  shimmerOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  particleContainer: {
+    position: 'absolute',
+    top: -20,
+    right: 20,
+    width: 40,
+    height: 40,
+  },
+  particleSvg: {
+    position: 'absolute',
   },
   
   // Floating Metrics Styles
@@ -402,26 +593,36 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   floatingRoi: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '900',
+    color: Colors.light.text,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   floatingTier: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: Colors.light.icon,
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   floatingAmounts: {
     alignItems: 'flex-end',
   },
   floatingAmountPrimary: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: Colors.light.text,
+    letterSpacing: -0.3,
   },
   floatingAmountSecondary: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '500',
     color: Colors.light.icon,
-    marginTop: 2,
+    marginTop: 3,
+    letterSpacing: 0.1,
   },
   
   // Enhanced Collapsed State Styles
