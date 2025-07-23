@@ -192,11 +192,11 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
   });
 
   const expandedContentStyle = useAnimatedStyle(() => {
-    // Fixed height calculation for consistent spacing
-    const tierInsightText = 42; // insight text with lineHeight + margins
-    const breakEvenText = roi.roiPercentage < 100 ? 20 : 0; // conditional break even text
-    const detailRows = 3 * 28; // 3 rows × consistent height
-    const containerPadding = 20; // consistent bottom padding
+    // Calculate height based on actual content with proper multi-line support
+    const tierInsightText = 60; // increased for potential multi-line text
+    const breakEvenText = roi.roiPercentage < 100 ? 22 : 0; // conditional break even text
+    const detailRows = 3 * 32; // 3 rows × increased height for better spacing
+    const containerPadding = 24; // increased bottom padding for safety
     
     const dynamicHeight = tierInsightText + breakEvenText + detailRows + containerPadding;
     
@@ -352,7 +352,10 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
                     styles.cardNetBenefit,
                     { color: (roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30' }
                   ]}>
-                    Net ${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)}
+                    {(roi.totalRedeemed - roi.annualFee) >= 0 
+                      ? `$${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)} profit`
+                      : `$${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)} until break even`
+                    }
                   </Text>
                 </View>
               </View>
@@ -434,7 +437,7 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
                 styles.expandedNetValue,
                 { color: (roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30' }
               ]}>
-                ${(roi.totalRedeemed - roi.annualFee) >= 0 ? '+' : '-'}${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)}
+                ${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)}
               </Text>
             </View>
           </View>
@@ -849,8 +852,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 4,
+    lineHeight: 20,
+    marginBottom: 6,
+    paddingHorizontal: 4,
   },
   breakEvenText: {
     fontSize: 11,
@@ -862,7 +866,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 6,
+    minHeight: 32,
   },
   detailLabel: {
     fontSize: 14,
