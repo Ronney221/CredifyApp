@@ -511,6 +511,7 @@ const EmptyState: React.FC<{ cardCount: number }> = ({ cardCount }) => {
 
 const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => {
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [showAllCards, setShowAllCards] = useState<boolean>(false);
   
   
   const handleCardPress = (cardId: string) => {
@@ -541,16 +542,25 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
   }
 
   const sortedRois = [...cardRois].sort((a, b) => b.roiPercentage - a.roiPercentage);
+  const topThreeCards = sortedRois.slice(0, 3);
+  const remainingCards = sortedRois.slice(3);
+  const hasMoreCards = remainingCards.length > 0;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Card Performance Leaderboard</Text>
-        <Text style={styles.subtitle}>{sortedRois.length} cards competing</Text>
+        <Text style={styles.subtitle}>
+          {hasMoreCards && !showAllCards 
+            ? `Top 3 of ${sortedRois.length} cards` 
+            : `${sortedRois.length} cards competing`
+          }
+        </Text>
       </View>
       
       <View style={styles.cardDeck}>
-        {sortedRois.map((roi, index) => (
+        {/* Always show top 3 cards */}
+        {topThreeCards.map((roi, index) => (
           <CardItem
             key={roi.id}
             roi={roi}
@@ -559,6 +569,41 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
             onPress={() => handleCardPress(roi.id)}
           />
         ))}
+        
+        {/* Show remaining cards if expanded */}
+        {showAllCards && remainingCards.map((roi, index) => (
+          <CardItem
+            key={roi.id}
+            roi={roi}
+            index={index + 3} // Maintain correct ranking
+            isExpanded={expandedCardId === roi.id}
+            onPress={() => handleCardPress(roi.id)}
+          />
+        ))}
+        
+        {/* Show/Hide remaining cards button */}
+        {hasMoreCards && (
+          <TouchableOpacity 
+            style={styles.expandButton}
+            onPress={() => setShowAllCards(!showAllCards)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.expandButtonContent}>
+              <MaterialCommunityIcons 
+                name={showAllCards ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={Colors.light.tint}
+                style={styles.expandIcon}
+              />
+              <Text style={styles.expandButtonText}>
+                {showAllCards 
+                  ? `Hide ${remainingCards.length} other cards` 
+                  : `Show ${remainingCards.length} more cards`
+                }
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -936,6 +981,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5EA',
     opacity: 0.5,
     width: '100%',
+  },
+  
+  // Expand/Collapse Button Styles
+  expandButton: {
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    alignItems: 'center',
+  },
+  expandButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  expandIcon: {
+    marginRight: 4,
+  },
+  expandButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.light.tint,
   },
 });
 
