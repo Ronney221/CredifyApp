@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, useWindowDimensions, TouchableOpacity, Animated } from 'react-native';
 import { Colors } from '../../constants/Colors';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { calculateRedemptionValues } from '../../utils/insights-calculations';
 import { logger } from '../../utils/logger';
 
@@ -12,58 +12,59 @@ interface MiniBarChartProps {
   barColor?: string;
   barWidth?: number;
   barSpacing?: number;
+  debugMode?: boolean;
 }
 
-/** Pads the front of `arr` with `fillValue` so the result length == size.
- *  Result is *right-aligned* (latest item is last in the array). */
-function rightPad<T>(arr: T[] = [], size = 6, fillValue: T) {
-  const res = new Array(size).fill(fillValue);
-  const slice = arr.slice(-size);          // take the newest ≤ size items
-  const offset = size - slice.length;      // how many we must pad on the left
-  slice.forEach((v, i) => (res[offset + i] = v));
-  return res;
-}
+const getAdaptiveMonthsToShow = (data: any[]) => {
+  const monthsWithData = data.filter(d => d.redeemed > 0 || d.partial > 0).length;
+  if (monthsWithData === 0) return 3; // Show at least 3 months for context
+  if (monthsWithData <= 2) return 3;
+  if (monthsWithData <= 4) return 4;
+  return Math.min(monthsWithData, 6);
+};
 
 const MiniBarChart: React.FC<MiniBarChartProps> = ({
   data = [],
   rawData = [],
-  height = 100,
+  height = 120,
   barColor = Colors.light.tint,
-  barWidth = 16,
-  barSpacing = 16,
+  barWidth = 20,
+  barSpacing = 12,
+  debugMode = false,
 }) => {
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
+  const [debugMonthsToShow, setDebugMonthsToShow] = useState<number | null>(null);
   const { width: screenWidth } = useWindowDimensions();
-  const chartWidth = screenWidth - 60;
-  const chartHeight = height - 40;
+  
+  const actualMonthsToShow = getAdaptiveMonthsToShow(rawData);
+  const monthsToShow = debugMonthsToShow || actualMonthsToShow;
+  const chartWidth = screenWidth - 60; // More conservative padding
+  const chartHeight = height - 60;
+  const sectionWidth = chartWidth / monthsToShow;
 
-  // Calculate the width each bar section takes up
-  const sectionWidth = chartWidth / 6; // Always 6 sections
-
-  // Get last 6 months abbreviated names with keys
-  const getLastSixMonths = () => {
+  const getAdaptiveMonths = () => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const today = new Date();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
-    const lastSixMonths = [];
+    const adaptiveMonths = [];
     
-    // Start from 5 months ago and go forward to current month
-    for (let i = 5; i >= 0; i--) {
+    // Start from (monthsToShow - 1) months ago and go forward to current month
+    for (let i = monthsToShow - 1; i >= 0; i--) {
       const monthIndex = (currentMonth - i + 12) % 12;
       const yearOffset = monthIndex > currentMonth ? -1 : 0;
       const year = currentYear + yearOffset;
       const monthKey = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
-      lastSixMonths.push({
+      adaptiveMonths.push({
         label: months[monthIndex],
         key: monthKey
       });
     }
     
-    return lastSixMonths;
+    return adaptiveMonths;
   };
 
-  const monthLabels = getLastSixMonths();
+  const monthLabels = getAdaptiveMonths();
   
   // Align data with month keys
   const alignedData = monthLabels.map(month => {
@@ -91,7 +92,30 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
 
   // Count months with actual data (non-zero values)
   const monthsWithData = normalizedData.filter(value => value > 0).length;
-  const showSparseDataMessage = monthsWithData > 0 && monthsWithData <= 2;
+  const showSparseDataMessage = monthsWithData > 0 && monthsWithData <= 1;
+
+  // Create animated values for each bar
+  const [animatedValues] = useState(() => 
+    Array.from({ length: 6 }, () => new Animated.Value(0))
+  );
+
+  // Animation effect
+  useEffect(() => {
+    const animations = normalizedData.map((value, index) => {
+      if (animatedValues[index]) {
+        return Animated.timing(animatedValues[index], {
+          toValue: value,
+          duration: 600 + (index * 80),
+          useNativeDriver: false,
+        });
+      }
+      return null;
+    }).filter(Boolean);
+
+    if (animations.length > 0) {
+      Animated.stagger(80, animations).start();
+    }
+  }, [normalizedData, animatedValues]);
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
@@ -138,10 +162,13 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
     const points: { x: number, y: number }[] = [];
     
     normalizedData.forEach((value, index) => {
-      // Center of each bar section
-      const x = (sectionWidth * index) + (sectionWidth / 2);
-      const y = chartHeight - (Math.max(4, (Math.min(value, maxValue) / maxValue) * chartHeight)) + 20;
-      points.push({ x, y });
+      // Only add points for months with data
+      if (value > 0) {
+        // Center of each bar section
+        const x = (sectionWidth * index) + (sectionWidth / 2);
+        const y = chartHeight - (Math.max(6, (Math.min(value, maxValue) / maxValue) * chartHeight)) + 25;
+        points.push({ x, y });
+      }
     });
     
     return points;
@@ -168,29 +195,89 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const pathData = generatePath(linePoints);
 
   return (
-    <View style={[styles.container, { width: screenWidth - 30, height: height + (showSparseDataMessage ? 60 : 20) }]}>
+    <View style={[styles.container, { width: screenWidth - 30, height: height + (showSparseDataMessage ? 80 : 40) }]}>
+      {debugMode && (
+        <View style={styles.debugContainer}>
+          <Text style={styles.debugText}>Debug: Months to show</Text>
+          <View style={styles.debugButtons}>
+            {[3, 4, 5, 6].map(months => (
+              <TouchableOpacity
+                key={months}
+                style={[
+                  styles.debugButton,
+                  debugMonthsToShow === months && styles.debugButtonActive
+                ]}
+                onPress={() => setDebugMonthsToShow(debugMonthsToShow === months ? null : months)}
+              >
+                <Text style={[
+                  styles.debugButtonText,
+                  debugMonthsToShow === months && styles.debugButtonTextActive
+                ]}>{months}M</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.debugInfo}>
+            Auto: {actualMonthsToShow} | Current: {monthsToShow} | Data points: {monthsWithData}
+          </Text>
+        </View>
+      )}
+      
       <View style={styles.chartContent}>
         <View style={[styles.barsContainer, { width: chartWidth }]}>
-          {/* Line chart overlay - Moved BEHIND bars */}
-          <View style={[StyleSheet.absoluteFill, { zIndex: 1 }]}>
-            <Svg width={chartWidth} height={chartHeight + 20}>
-              <Path
-                d={pathData}
-                stroke={Colors.light.tint}
-                strokeWidth="2"
-                fill="none"
-                opacity={0.8}
-              />
-            </Svg>
-          </View>
+          {/* Modern gradient background - only show line if we have multiple data points */}
+          {linePoints.length > 1 && (
+            <View style={[StyleSheet.absoluteFill, { zIndex: 0 }]}>
+              <Svg width={chartWidth} height={chartHeight + 30}>
+                <Defs>
+                  <LinearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <Stop offset="0%" stopColor={barColor} stopOpacity="0.4" />
+                    <Stop offset="50%" stopColor={barColor} stopOpacity="0.8" />
+                    <Stop offset="100%" stopColor={barColor} stopOpacity="0.4" />
+                  </LinearGradient>
+                </Defs>
+                <Path
+                  d={pathData}
+                  stroke="url(#lineGradient)"
+                  strokeWidth="2.5"
+                  fill="none"
+                  opacity={0.8}
+                />
+              </Svg>
+            </View>
+          )}
 
           {normalizedData.map((value, index) => {
-            const barHeight = Math.max(4, (Math.min(value, maxValue) / maxValue) * chartHeight);
-            const isLastBar = index === normalizedData.length - 1;
+            const barHeight = Math.max(6, (Math.min(value, maxValue) / maxValue) * chartHeight);
+            const isCurrentMonth = index === normalizedData.length - 1;
             const hasData = value > 0;
             const percentage = normalizedRaw[index].potential > 0 
               ? ((normalizedRaw[index].redeemed + normalizedRaw[index].partial) / normalizedRaw[index].potential) * 100 
               : 0;
+
+            const getBarStyle = () => {
+              if (!hasData) {
+                return {
+                  backgroundColor: Colors.light.icon,
+                  opacity: 0.1,
+                };
+              }
+              
+              if (isCurrentMonth) {
+                return {
+                  backgroundColor: barColor,
+                  shadowColor: barColor,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 6,
+                };
+              }
+              
+              return {
+                backgroundColor: Colors.light.icon,
+                opacity: 0.6,
+              };
+            };
 
             return (
               <TouchableOpacity
@@ -204,42 +291,45 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                     zIndex: 2,
                   }
                 ]}
+                activeOpacity={hasData ? 0.7 : 1}
               >
                 <View style={styles.valueLabelContainer}>
-                  <Text style={[
-                    styles.valueLabel,
-                    !hasData && styles.emptyValueLabel
-                  ]}>{formatCurrency(value)}</Text>
+                  {hasData && (
+                    <Text style={[
+                      styles.valueLabel,
+                      isCurrentMonth && styles.currentMonthLabel
+                    ]}>{formatCurrency(value)}</Text>
+                  )}
                 </View>
                 <View style={[styles.barContainer, { height: chartHeight }]}>
                   <View
                     style={[
-                      styles.bar,
+                      styles.modernBar,
                       {
-                        width: barWidth,
+                        width: Math.max(Math.min(barWidth, sectionWidth * 0.6), 12),
                         height: barHeight,
-                        backgroundColor: isLastBar ? barColor : Colors.light.icon,
-                        opacity: hasData ? (isLastBar ? 1 : 0.3) : 0.1,
+                        ...getBarStyle(),
                       },
                     ]}
                   />
                 </View>
                 <Text style={[
                   styles.monthLabel,
-                  !hasData && styles.emptyMonthLabel
+                  !hasData && styles.emptyMonthLabel,
+                  isCurrentMonth && styles.currentMonthLabel
                 ]} numberOfLines={1}>{monthLabels[index].label}</Text>
                 
                 {selectedBar === index && hasData && (
                   <View style={getTooltipStyle(index)}>
-                    <Text style={styles.tooltipTitle}>{monthLabels[index].label} Details</Text>
+                    <Text style={styles.tooltipTitle}>{monthLabels[index].label} Savings</Text>
                     <Text style={styles.tooltipText}>
-                      Saved: {formatCurrency(normalizedRaw[index].redeemed + normalizedRaw[index].partial)}
+                      💰 Saved: {formatCurrency(normalizedRaw[index].redeemed + normalizedRaw[index].partial)}
                     </Text>
                     <Text style={styles.tooltipText}>
-                      Available: {formatCurrency(normalizedRaw[index].potential)}
+                      🎯 Available: {formatCurrency(normalizedRaw[index].potential)}
                     </Text>
                     <Text style={styles.tooltipPercentage}>
-                      {percentage.toFixed(0)}% of monthly perks redeemed
+                      {percentage.toFixed(0)}% utilization rate
                     </Text>
                   </View>
                 )}
@@ -247,29 +337,41 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
             );
           })}
 
-          {/* Dots overlay - Moved to TOP layer */}
-          <View style={[StyleSheet.absoluteFill, { zIndex: 3, pointerEvents: 'none' }]}>
-            <Svg width={chartWidth} height={chartHeight + 20}>
-              {linePoints.map((point, index) => (
-                <Circle
-                  key={index}
-                  cx={point.x}
-                  cy={point.y}
-                  r="3"
-                  fill={Colors.light.background}
-                  stroke={Colors.light.tint}
-                  strokeWidth="1.5"
-                />
-              ))}
-            </Svg>
-          </View>
+          {/* Modern dots overlay - only show if we have line data */}
+          {linePoints.length > 1 && (
+            <View style={[StyleSheet.absoluteFill, { zIndex: 3, pointerEvents: 'none' }]}>
+              <Svg width={chartWidth} height={chartHeight + 30}>
+                {linePoints.map((point, index) => (
+                  <Circle
+                    key={index}
+                    cx={point.x}
+                    cy={point.y}
+                    r="4"
+                    fill={Colors.light.background}
+                    stroke={barColor}
+                    strokeWidth="2"
+                    opacity={0.9}
+                  />
+                ))}
+              </Svg>
+            </View>
+          )}
         </View>
       </View>
       <View style={styles.legendContainer}>
-        <Text style={styles.legendText}>Monthly savings including expiring perks</Text>
+        <Text style={styles.legendText}>
+          {monthsWithData === 0 
+            ? "Start using your perks to see your savings grow!" 
+            : `${monthsWithData === 1 ? 'First month' : `${monthsWithData} months`} of perk redemption tracking`}
+        </Text>
         {showSparseDataMessage && (
           <Text style={styles.encouragementText}>
-            Keep tracking your perks to see your progress over time!
+            🚀 You're just getting started! Keep redeeming perks to unlock insights.
+          </Text>
+        )}
+        {monthsWithData >= 3 && (
+          <Text style={styles.trendText}>
+            💡 Tip: Tap any bar to see detailed breakdown
           </Text>
         )}
       </View>
@@ -280,6 +382,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 15,
+    backgroundColor: Colors.light.background,
   },
   chartContent: {
     flex: 1,
@@ -288,17 +391,19 @@ const styles = StyleSheet.create({
   barsContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.light.background, // Ensure white background
+    justifyContent: 'space-around',
+    backgroundColor: Colors.light.background,
+    paddingHorizontal: 4,
   },
   barColumn: {
     justifyContent: 'flex-end',
     position: 'relative',
-    minWidth: 32,
+    flex: 1,
     alignItems: 'center',
+    maxWidth: 80,
   },
   valueLabelContainer: {
-    height: 16,
+    height: 18,
     justifyContent: 'center',
     marginBottom: 4,
     alignItems: 'center',
@@ -306,49 +411,61 @@ const styles = StyleSheet.create({
   valueLabel: {
     fontSize: 10,
     color: Colors.light.icon,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  currentMonthLabel: {
+    color: Colors.light.text,
+    fontWeight: '700',
   },
   monthLabel: {
     fontSize: 10,
     color: Colors.light.icon,
     marginTop: 4,
     textAlign: 'center',
-    width: '100%',
+    fontWeight: '600',
   },
   barContainer: {
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
-  bar: {
-    backgroundColor: Colors.light.icon,
-    borderRadius: 3,
+  modernBar: {
+    borderRadius: 4,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
   },
   legendContainer: {
     alignItems: 'center',
     paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   legendText: {
     fontSize: 11,
     color: Colors.light.icon,
-    fontStyle: 'italic',
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 16,
   },
   tooltip: {
     position: 'absolute',
     bottom: '100%',
     backgroundColor: Colors.light.background,
-    padding: 8,
-    borderRadius: 8,
+    padding: 10,
+    borderRadius: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 6,
     marginBottom: 8,
-    minWidth: 120,
+    minWidth: 130,
     zIndex: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
   },
   tooltipTitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.light.text,
     marginBottom: 4,
     textAlign: 'center',
@@ -357,25 +474,81 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.light.text,
     textAlign: 'center',
+    marginBottom: 1,
+    fontWeight: '500',
   },
   encouragementText: {
     fontSize: 12,
     color: Colors.light.tint,
-    fontStyle: 'italic',
-    marginTop: 8,
+    marginTop: 4,
     textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  trendText: {
+    fontSize: 10,
+    color: Colors.light.icon,
+    marginTop: 2,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    opacity: 0.7,
   },
   emptyValueLabel: {
     opacity: 0.3,
   },
   emptyMonthLabel: {
-    opacity: 0.3,
+    opacity: 0.4,
   },
   tooltipPercentage: {
+    fontSize: 10,
+    color: Colors.light.tint,
+    textAlign: 'center',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  debugContainer: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  debugText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  debugButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  debugButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: Colors.light.background,
+    borderWidth: 1,
+    borderColor: Colors.light.icon,
+  },
+  debugButtonActive: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  debugButtonText: {
     fontSize: 11,
+    fontWeight: '600',
+    color: Colors.light.icon,
+  },
+  debugButtonTextActive: {
+    color: Colors.light.background,
+  },
+  debugInfo: {
+    fontSize: 10,
     color: Colors.light.icon,
     textAlign: 'center',
-    marginTop: 4,
     fontStyle: 'italic',
   },
 });
