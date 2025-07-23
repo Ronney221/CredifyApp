@@ -266,10 +266,9 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
   const rankDisplay = getRankDisplay(index);
   
   React.useEffect(() => {
-    animatedValue.value = withSpring(isExpanded ? 1 : 0, {
-      damping: 20,
-      stiffness: 300,
-      mass: 0.8,
+    animatedValue.value = withTiming(isExpanded ? 1 : 0, {
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
     });
   }, [isExpanded]);
 
@@ -294,14 +293,19 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
     const dynamicHeight = tierInsightText + breakEvenText + detailRows + containerPadding;
     
     const height = interpolate(animatedValue.value, [0, 1], [0, dynamicHeight]);
-    const opacity = interpolate(animatedValue.value, [0, 0.2, 1], [0, 0, 1]);
-    const scale = interpolate(animatedValue.value, [0, 1], [0.95, 1]);
     
     return {
       height,
-      opacity,
       overflow: 'hidden',
-      transform: [{ scaleY: scale }],
+    };
+  });
+
+  const textContentStyle = useAnimatedStyle(() => {
+    // Hide text much earlier when closing to prevent squishing
+    const opacity = interpolate(animatedValue.value, [0, 0.15, 0.85, 1], [0, 0, 1, 1]);
+    
+    return {
+      opacity,
     };
   });
 
@@ -492,54 +496,56 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
 
         {/* Expandable Details */}
         <Animated.View style={[styles.expandedContent, expandedContentStyle]}>
-          {/* Tier-specific motivational message */}
-          <View style={styles.tierInsightContainer}>
-            <Text style={[styles.tierInsightText, { color: tier.borderColor }]}>
-              {roi.roiPercentage >= 150 ? "Exceptional performance! You're maximizing every dollar." :
-               roi.roiPercentage >= 100 ? "Outstanding results! This card is a profit machine." :
-               roi.roiPercentage >= 75 ? "Solid performer! Almost at maximum efficiency." :
-               roi.roiPercentage >= 50 ? "Great momentum! You're building real value." :
-               roi.roiPercentage >= 25 ? "Good foundation! Keep adding high-value perks." :
-               roi.roiPercentage >= 10 ? "Early stages! Focus on your best earning categories." :
-               "Hidden gem! This card has untapped opportunities."}
-            </Text>
-            {roi.roiPercentage < 100 && (
-              <Text style={styles.breakEvenText}>
-                ${Math.round((roi.annualFee - roi.totalRedeemed))} to break even
+          <Animated.View style={textContentStyle}>
+            {/* Tier-specific motivational message */}
+            <View style={styles.tierInsightContainer}>
+              <Text style={[styles.tierInsightText, { color: tier.borderColor }]}>
+                {roi.roiPercentage >= 150 ? "Exceptional performance! You're maximizing every dollar." :
+                 roi.roiPercentage >= 100 ? "Outstanding results! This card is a profit machine." :
+                 roi.roiPercentage >= 75 ? "Solid performer! Almost at maximum efficiency." :
+                 roi.roiPercentage >= 50 ? "Great momentum! You're building real value." :
+                 roi.roiPercentage >= 25 ? "Good foundation! Keep adding high-value perks." :
+                 roi.roiPercentage >= 10 ? "Early stages! Focus on your best earning categories." :
+                 "Hidden gem! This card has untapped opportunities."}
               </Text>
-            )}
-          </View>
-          
-          <View style={styles.detailsRow}>
-            <Text style={styles.detailLabel}>Redeemed:</Text>
-            <Text style={styles.detailValue}>${roi.totalRedeemed.toFixed(0)}</Text>
-          </View>
-          <View style={styles.detailsRow}>
-            <Text style={styles.detailLabel}>Annual Fee:</Text>
-            <Text style={styles.detailValue}>
-              ${roi.annualFee.toFixed(0)}
-            </Text>
-          </View>
-          <View style={styles.detailsRow}>
-            <Text style={styles.detailLabel}>Net Benefit:</Text>
-            <View style={[
-              styles.expandedNetBenefitContainer,
-              (roi.totalRedeemed - roi.annualFee) >= 0 ? styles.expandedNetPositive : styles.expandedNetNegative
-            ]}>
-              <MaterialCommunityIcons 
-                name={(roi.totalRedeemed - roi.annualFee) >= 0 ? 'cash-plus' : 'cash-minus'}
-                size={16}
-                color={(roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30'}
-                style={styles.expandedNetIcon}
-              />
-              <Text style={[
-                styles.expandedNetValue,
-                { color: (roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30' }
-              ]}>
-                ${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)}
+              {roi.roiPercentage < 100 && (
+                <Text style={styles.breakEvenText}>
+                  ${Math.round((roi.annualFee - roi.totalRedeemed))} to break even
+                </Text>
+              )}
+            </View>
+            
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailLabel}>Redeemed:</Text>
+              <Text style={styles.detailValue}>${roi.totalRedeemed.toFixed(0)}</Text>
+            </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailLabel}>Annual Fee:</Text>
+              <Text style={styles.detailValue}>
+                ${roi.annualFee.toFixed(0)}
               </Text>
             </View>
-          </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailLabel}>Net Benefit:</Text>
+              <View style={[
+                styles.expandedNetBenefitContainer,
+                (roi.totalRedeemed - roi.annualFee) >= 0 ? styles.expandedNetPositive : styles.expandedNetNegative
+              ]}>
+                <MaterialCommunityIcons 
+                  name={(roi.totalRedeemed - roi.annualFee) >= 0 ? 'cash-plus' : 'cash-minus'}
+                  size={16}
+                  color={(roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30'}
+                  style={styles.expandedNetIcon}
+                />
+                <Text style={[
+                  styles.expandedNetValue,
+                  { color: (roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30' }
+                ]}>
+                  ${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)}
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
         </Animated.View>
       </Animated.View>
     </TouchableOpacity>
