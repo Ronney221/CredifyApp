@@ -252,13 +252,22 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const getLinePoints = () => {
     const points: { x: number, y: number }[] = [];
     
+    // Account for the container padding and margins
+    const containerPadding = 15; // paddingHorizontal from barsContainer
+    const containerMargin = 5;   // marginHorizontal from barsContainer
+    const availableWidth = chartWidth - (containerPadding * 2);
+    
     normalizedData.forEach((value, index) => {
       // Only add points for months with data
       if (value > 0) {
-        // Center of each bar section
-        const x = (sectionWidth * index) + (sectionWidth / 2);
-        const y = chartHeight - (Math.max(6, (Math.min(value, maxValue) / maxValue) * chartHeight)) + 25;
-        points.push({ x, y });
+        // Calculate bar center using same logic as flex layout
+        // Each bar gets equal space, centered within that space
+        const barSpaceWidth = availableWidth / monthsToShow;
+        const barCenterX = containerPadding + (barSpaceWidth * index) + (barSpaceWidth / 2);
+        
+        const barHeight = Math.max(6, (Math.min(value, maxValue) / maxValue) * chartHeight);
+        const pointY = chartHeight - barHeight + 25;
+        points.push({ x: barCenterX, y: pointY });
       }
     });
     
@@ -707,17 +716,20 @@ const styles = StyleSheet.create({
   },
   compactDescription: {
     fontSize: 12,
-    color: Colors.light.icon,
+    color: Colors.light.text,
     lineHeight: 17,
-    marginBottom: 3,
+    marginBottom: 4,
     letterSpacing: -0.1,
+    fontWeight: '500',
+    opacity: 0.8,
   },
   compactHint: {
     fontSize: 11,
-    color: Colors.light.icon,
+    color: Colors.light.tint,
     fontStyle: 'italic',
-    opacity: 0.75,
+    opacity: 0.85,
     letterSpacing: -0.1,
+    fontWeight: '500',
   },
 });
 
