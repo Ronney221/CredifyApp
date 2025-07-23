@@ -13,6 +13,7 @@ interface MiniBarChartProps {
   barWidth?: number;
   barSpacing?: number;
   debugMode?: boolean;
+  totalAnnualFees?: number; // Add annual fees for calculating monthly target
 }
 
 const getAdaptiveMonthsToShow = (data: any[]) => {
@@ -31,6 +32,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   barWidth = 20,
   barSpacing = 12,
   debugMode = false,
+  totalAnnualFees = 0,
 }) => {
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
   const [debugMonthsToShow, setDebugMonthsToShow] = useState<number | null>(null);
@@ -38,7 +40,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   
   const actualMonthsToShow = getAdaptiveMonthsToShow(rawData);
   const monthsToShow = debugMonthsToShow || actualMonthsToShow;
-  const chartWidth = screenWidth - 60; // More conservative padding
+  const chartWidth = screenWidth - 70; // Account for card margins + internal padding
   const chartHeight = height - 60;
   const sectionWidth = chartWidth / monthsToShow;
 
@@ -93,6 +95,12 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   // Count months with actual data (non-zero values)
   const monthsWithData = normalizedData.filter(value => value > 0).length;
   const showSparseDataMessage = monthsWithData > 0 && monthsWithData <= 1;
+  
+  // Calculate user's performance metrics for dynamic messaging
+  const totalSaved = normalizedData.reduce((sum, value) => sum + value, 0);
+  const monthlyBreakEvenTarget = Math.round(totalAnnualFees / 12);
+  const averageMonthlySavings = monthsWithData > 0 ? totalSaved / monthsWithData : 0;
+  const isOnTrack = averageMonthlySavings >= monthlyBreakEvenTarget * 0.8; // 80% threshold
 
   // Create animated values for each bar
   const [animatedValues] = useState(() => 
@@ -125,6 +133,89 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
       maximumFractionDigits: 0
     });
   };
+
+  // Dynamic messaging system based on user journey stage
+  const getSmartMessaging = () => {
+    // Stage 1: Complete beginner (0 months)
+    if (monthsWithData === 0) {
+      return {
+        title: "Ready to maximize your cards?",
+        description: "Track your perk redemptions to see how much you can save each month!",
+        cta: "🚀 Start redeeming perks",
+        hint: `Your monthly target: ${formatCurrency(monthlyBreakEvenTarget)} to break even on fees`,
+        stage: "beginner"
+      };
+    }
+
+    // Stage 2: Getting started (1 month)
+    if (monthsWithData === 1) {
+      const currentSavings = normalizedData.find(d => d > 0) || 0;
+      const progressPercent = Math.round((currentSavings / monthlyBreakEvenTarget) * 100);
+      
+      return {
+        title: "Great start!",
+        description: `You've saved ${formatCurrency(currentSavings)} in your first tracked month`,
+        cta: progressPercent >= 100 
+          ? "🎉 You're crushing it! Keep it up" 
+          : "💪 Keep tracking to build momentum",
+        hint: progressPercent >= 80 
+          ? "You're on track to beat your annual fees!" 
+          : `${formatCurrency(monthlyBreakEvenTarget - currentSavings)} more to hit monthly target`,
+        stage: "starter"
+      };
+    }
+
+    // Stage 3: Building habits (2-3 months)
+    if (monthsWithData >= 2 && monthsWithData <= 3) {
+      const progressPercent = Math.round((averageMonthlySavings / monthlyBreakEvenTarget) * 100);
+      
+      return {
+        title: "Building your streak",
+        description: `Averaging ${formatCurrency(averageMonthlySavings)}/month across ${monthsWithData} months`,
+        cta: isOnTrack 
+          ? "🔥 Excellent pace! Stay consistent" 
+          : "📈 Time to optimize your strategy",
+        hint: isOnTrack 
+          ? "You're beating your break-even target!" 
+          : "Focus on high-value perks to catch up",
+        stage: "building"
+      };
+    }
+
+    // Stage 4: Experienced user (4-5 months)
+    if (monthsWithData >= 4 && monthsWithData <= 5) {
+      const trendDirection = normalizedData.slice(-2).every((val, i, arr) => i === 0 || val >= arr[i-1]);
+      const progressPercent = Math.round((averageMonthlySavings / monthlyBreakEvenTarget) * 100);
+      
+      return {
+        title: "You're getting the hang of this",
+        description: `${monthsWithData} months tracked • ${formatCurrency(totalSaved)} total saved`,
+        cta: trendDirection 
+          ? "📊 Analyze your patterns for insights" 
+          : "🎯 Fine-tune your perk strategy",
+        hint: progressPercent >= 100 
+          ? `You're ${progressPercent - 100}% ahead of break-even!` 
+          : "Consider which perks drive the most value",
+        stage: "experienced"
+      };
+    }
+
+    // Stage 5: Power user (6+ months)
+    const yearlyProjection = averageMonthlySavings * 12;
+    const roiPercent = Math.round((yearlyProjection / totalAnnualFees) * 100);
+    
+    return {
+      title: "Perk optimization master",
+      description: `${monthsWithData} months of data • Projected ${roiPercent}% annual ROI`,
+      cta: roiPercent >= 120 
+        ? "🏆 Share your success story" 
+        : "⚡ Discover advanced optimization tips",
+      hint: `On pace for ${formatCurrency(yearlyProjection)} annually vs ${formatCurrency(totalAnnualFees)} in fees`,
+      stage: "master"
+    };
+  };
+
+  const smartMessage = getSmartMessaging();
 
   // Calculate tooltip position based on bar index
   const getTooltipStyle = (index: number) => {
@@ -195,7 +286,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
   const pathData = generatePath(linePoints);
 
   return (
-    <View style={[styles.container, { width: screenWidth - 30, height: height + (showSparseDataMessage ? 80 : 40) }]}>
+    <View style={[styles.container, { width: '100%' }]}>
       {debugMode && (
         <View style={styles.debugContainer}>
           <Text style={styles.debugText}>Debug: Months to show</Text>
@@ -250,8 +341,11 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
             const barHeight = Math.max(6, (Math.min(value, maxValue) / maxValue) * chartHeight);
             const isCurrentMonth = index === normalizedData.length - 1;
             const hasData = value > 0;
-            const percentage = normalizedRaw[index].potential > 0 
-              ? ((normalizedRaw[index].redeemed + normalizedRaw[index].partial) / normalizedRaw[index].potential) * 100 
+            
+            // Calculate monthly break-even target (annual fees ÷ 12)
+            const monthlyBreakEvenTarget = Math.round(totalAnnualFees / 12);
+            const utilizationRate = monthlyBreakEvenTarget > 0 
+              ? ((normalizedRaw[index].redeemed + normalizedRaw[index].partial) / monthlyBreakEvenTarget) * 100 
               : 0;
 
             const getBarStyle = () => {
@@ -321,15 +415,15 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
                 
                 {selectedBar === index && hasData && (
                   <View style={getTooltipStyle(index)}>
-                    <Text style={styles.tooltipTitle}>{monthLabels[index].label} Savings</Text>
+                    <Text style={styles.tooltipTitle}>{monthLabels[index].label} Performance</Text>
                     <Text style={styles.tooltipText}>
                       💰 Saved: {formatCurrency(normalizedRaw[index].redeemed + normalizedRaw[index].partial)}
                     </Text>
                     <Text style={styles.tooltipText}>
-                      🎯 Available: {formatCurrency(normalizedRaw[index].potential)}
+                      📊 Break-even target: {formatCurrency(monthlyBreakEvenTarget)}
                     </Text>
                     <Text style={styles.tooltipPercentage}>
-                      {percentage.toFixed(0)}% utilization rate
+                      {utilizationRate.toFixed(0)}% of monthly target achieved
                     </Text>
                   </View>
                 )}
@@ -358,22 +452,34 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
           )}
         </View>
       </View>
-      <View style={styles.legendContainer}>
-        <Text style={styles.legendText}>
-          {monthsWithData === 0 
-            ? "Start using your perks to see your savings grow!" 
-            : `${monthsWithData === 1 ? 'First month' : `${monthsWithData} months`} of perk redemption tracking`}
-        </Text>
-        {showSparseDataMessage && (
-          <Text style={styles.encouragementText}>
-            🚀 You're just getting started! Keep redeeming perks to unlock insights.
-          </Text>
-        )}
-        {monthsWithData >= 3 && (
-          <Text style={styles.trendText}>
-            💡 Tip: Tap any bar to see detailed breakdown
-          </Text>
-        )}
+      <View style={styles.compactMessageContainer}>
+        <View style={styles.messageRow}>
+          <Text style={styles.compactTitle}>{smartMessage.title}</Text>
+          <View style={[
+            styles.compactCta,
+            { backgroundColor: 
+              smartMessage.stage === 'beginner' ? 'rgba(0, 122, 255, 0.15)' :
+              smartMessage.stage === 'starter' ? 'rgba(52, 199, 89, 0.15)' :
+              smartMessage.stage === 'building' ? 'rgba(255, 149, 0, 0.15)' :
+              smartMessage.stage === 'experienced' ? 'rgba(88, 86, 214, 0.15)' :
+              'rgba(255, 45, 85, 0.15)'
+            }
+          ]}>
+            <Text style={[
+              styles.compactCtaText,
+              { color:
+                smartMessage.stage === 'beginner' ? '#007AFF' :
+                smartMessage.stage === 'starter' ? '#34C759' :
+                smartMessage.stage === 'building' ? '#FF9500' :
+                smartMessage.stage === 'experienced' ? '#5856D6' :
+                '#FF2D55'
+              }
+            ]}>{smartMessage.cta}</Text>
+          </View>
+        </View>
+        
+        <Text style={styles.compactDescription}>{smartMessage.description}</Text>
+        <Text style={styles.compactHint}>{smartMessage.hint}</Text>
       </View>
     </View>
   );
@@ -381,7 +487,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 0,
     backgroundColor: Colors.light.background,
   },
   chartContent: {
@@ -393,7 +499,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-around',
     backgroundColor: Colors.light.background,
-    paddingHorizontal: 4,
+    paddingHorizontal: 15,
+    marginHorizontal: 5,
   },
   barColumn: {
     justifyContent: 'flex-end',
@@ -411,28 +518,36 @@ const styles = StyleSheet.create({
   valueLabel: {
     fontSize: 10,
     color: Colors.light.icon,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: -0.2,
   },
   currentMonthLabel: {
     color: Colors.light.text,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   monthLabel: {
     fontSize: 10,
     color: Colors.light.icon,
-    marginTop: 4,
+    marginTop: 5,
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   barContainer: {
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
   modernBar: {
-    borderRadius: 4,
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
+    borderRadius: 3,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   legendContainer: {
     alignItems: 'center',
@@ -507,10 +622,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   debugContainer: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    marginHorizontal: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
   },
   debugText: {
     fontSize: 12,
@@ -550,6 +668,56 @@ const styles = StyleSheet.create({
     color: Colors.light.icon,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  compactMessageContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: Colors.light.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  messageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 7,
+  },
+  compactTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.light.text,
+    flex: 1,
+    letterSpacing: -0.2,
+  },
+  compactCta: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    marginLeft: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  compactCtaText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  compactDescription: {
+    fontSize: 12,
+    color: Colors.light.icon,
+    lineHeight: 17,
+    marginBottom: 3,
+    letterSpacing: -0.1,
+  },
+  compactHint: {
+    fontSize: 11,
+    color: Colors.light.icon,
+    fontStyle: 'italic',
+    opacity: 0.75,
+    letterSpacing: -0.1,
   },
 });
 
