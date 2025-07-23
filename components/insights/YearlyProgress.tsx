@@ -31,37 +31,85 @@ interface PerformanceTier {
 }
 
 const getPerformanceTier = (roi: number): PerformanceTier => {
-  if (roi >= 100) {
+  if (roi >= 200) {
     return {
-      name: 'Profit Zone',
-      icon: 'fire',
+      name: 'Legendary Master',
+      icon: 'crown',
+      iconFamily: 'MaterialCommunityIcons',
+      colors: ['#FFD700', '#FFA500', '#FF6B35'],
+      animationSpeed: 800
+    };
+  } else if (roi >= 150) {
+    return {
+      name: 'Elite Optimizer',
+      icon: 'diamond',
+      iconFamily: 'MaterialCommunityIcons',
+      colors: ['#9D4EDD', '#FFD60A', '#FF6B6B'],
+      animationSpeed: 900
+    };
+  } else if (roi >= 120) {
+    return {
+      name: 'Profit Wizard',
+      icon: 'magic-staff',
+      iconFamily: 'MaterialCommunityIcons',
+      colors: ['#06FFA5', '#FFD60A', '#FF9F0A'],
+      animationSpeed: 1000
+    };
+  } else if (roi >= 100) {
+    return {
+      name: 'ROI Champion',
+      icon: 'trophy-award',
       iconFamily: 'MaterialCommunityIcons',
       colors: ['#34C759', '#FFD60A', '#FF9F0A'],
-      animationSpeed: 1200
+      animationSpeed: 1100
     };
-  } else if (roi >= 90) {
+  } else if (roi >= 80) {
     return {
-      name: 'Fee Crusher',
-      icon: 'trophy',
+      name: 'Fee Destroyer',
+      icon: 'target',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#5856D6', '#34C759'],
+      colors: ['#5856D6', '#34C759', '#30D158'],
+      animationSpeed: 1300
+    };
+  } else if (roi >= 60) {
+    return {
+      name: 'Smart Spender',
+      icon: 'brain',
+      iconFamily: 'MaterialCommunityIcons',
+      colors: ['#007AFF', '#5856D6', '#AF52DE'],
       animationSpeed: 1500
     };
-  } else if (roi >= 50) {
+  } else if (roi >= 40) {
     return {
-      name: 'Making Waves',
+      name: 'Rising Star',
+      icon: 'star-shooting',
+      iconFamily: 'MaterialCommunityIcons',
+      colors: ['#007AFF', '#5AC8FA', '#64D2FF'],
+      animationSpeed: 1800
+    };
+  } else if (roi >= 25) {
+    return {
+      name: 'Building Momentum',
       icon: 'trending-up',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#007AFF', '#5856D6'],
-      animationSpeed: 2000
+      colors: ['#007AFF', '#5AC8FA'],
+      animationSpeed: 2100
+    };
+  } else if (roi >= 10) {
+    return {
+      name: 'Getting Started',
+      icon: 'rocket-launch',
+      iconFamily: 'MaterialCommunityIcons',
+      colors: ['#007AFF', '#48CAE4'],
+      animationSpeed: 2400
     };
   } else {
     return {
-      name: 'Getting Started',
-      icon: 'water-outline',
-      iconFamily: 'Ionicons',
-      colors: ['#007AFF', '#5AC8FA'],
-      animationSpeed: 2500
+      name: 'First Steps',
+      icon: 'compass-outline',
+      iconFamily: 'MaterialCommunityIcons',
+      colors: ['#8E8E93', '#007AFF'],
+      animationSpeed: 2700
     };
   }
 };
@@ -102,35 +150,61 @@ const PremiumProgressBar: React.FC<WaveProgressProps> = ({ progress, tier, colla
       false
     );
 
-    // High-performance tier effects
-    if (progress >= 90) {
-      // Sophisticated glow with easing
+    // Tier-specific animation effects
+    if (progress >= 120) {
+      // Elite tier: Intense glow + particles
       glowAnimation.value = withRepeat(
         withTiming(1, {
-          duration: 3000,
+          duration: tier.animationSpeed,
           easing: Easing.bezier(0.4, 0, 0.2, 1),
         }),
         -1,
         true
       );
 
-      // Particle celebration effect
       particleAnimation.value = withRepeat(
         withSequence(
-          withTiming(1, { duration: 2000 }),
-          withTiming(0, { duration: 1000 })
+          withTiming(1, { duration: 1500 }),
+          withTiming(0, { duration: 800 })
         ),
         -1,
         false
       );
-    }
+    } else if (progress >= 80) {
+      // High performance: Strong glow
+      glowAnimation.value = withRepeat(
+        withTiming(1, {
+          duration: tier.animationSpeed,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        }),
+        -1,
+        true
+      );
 
-    // Subtle pulse for mid-tier performance
-    if (progress >= 50 && progress < 90) {
+      particleAnimation.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 2500 }),
+          withTiming(0, { duration: 1200 })
+        ),
+        -1,
+        false
+      );
+    } else if (progress >= 40) {
+      // Mid-tier: Subtle pulse
       pulseAnimation.value = withRepeat(
-        withTiming(1.02, {
-          duration: 4000,
+        withTiming(1.015, {
+          duration: tier.animationSpeed * 1.5,
           easing: Easing.inOut(Easing.sin),
+        }),
+        -1,
+        true
+      );
+    } else if (progress >= 10) {
+      // Beginner: Very gentle pulse
+      pulseAnimation.value = withRepeat(
+        withTiming(1.008, {
+          duration: tier.animationSpeed * 2,
+          easing: Easing.inOut(Easing.quad),
         }),
         -1,
         true
@@ -161,18 +235,22 @@ const PremiumProgressBar: React.FC<WaveProgressProps> = ({ progress, tier, colla
   });
 
   const glowStyle = useAnimatedStyle(() => {
-    if (progress < 90) return { opacity: 0, transform: [{ scale: 0 }] };
+    if (progress < 80) return { opacity: 0, transform: [{ scale: 0 }] };
+    
+    // More intense glow for higher tiers
+    const baseOpacity = progress >= 120 ? [0.3, 0.8] : [0.2, 0.6];
+    const baseScale = progress >= 120 ? [0.96, 1.06] : [0.98, 1.04];
     
     const opacity = interpolate(
       glowAnimation.value,
       [0, 1],
-      [0.2, 0.6]
+      baseOpacity
     );
     
     const scale = interpolate(
       glowAnimation.value,
       [0, 1],
-      [0.98, 1.04]
+      baseScale
     );
     
     return {
@@ -201,12 +279,16 @@ const PremiumProgressBar: React.FC<WaveProgressProps> = ({ progress, tier, colla
   });
 
   const particleStyle = useAnimatedStyle(() => {
-    if (progress < 90) return { opacity: 0 };
+    if (progress < 80) return { opacity: 0 };
+    
+    // More dynamic particles for elite tiers
+    const translateRange = progress >= 120 ? [0, -60] : [0, -45];
+    const scaleRange = progress >= 120 ? [0.3, 1.2, 0.2] : [0.5, 1, 0.3];
     
     const translateY = interpolate(
       particleAnimation.value,
       [0, 1],
-      [0, -50]
+      translateRange
     );
     
     const opacity = interpolate(
@@ -218,7 +300,7 @@ const PremiumProgressBar: React.FC<WaveProgressProps> = ({ progress, tier, colla
     const scale = interpolate(
       particleAnimation.value,
       [0, 0.5, 1],
-      [0.5, 1, 0.3]
+      scaleRange
     );
     
     return {
@@ -298,8 +380,8 @@ const PremiumProgressBar: React.FC<WaveProgressProps> = ({ progress, tier, colla
         </Animated.View>
       </Animated.View>
 
-      {/* Celebration particles for top performance */}
-      {progress >= 90 && (
+      {/* Celebration particles for high performance */}
+      {progress >= 80 && (
         <Animated.View style={[styles.particleContainer, particleStyle]}>
           <Svg height={40} width={40} style={styles.particleSvg}>
             <Defs>
