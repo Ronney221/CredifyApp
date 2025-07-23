@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import MiniBarChart from './MiniBarChart';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Animated, { 
   useAnimatedStyle, 
   interpolate, 
@@ -17,7 +18,8 @@ import Svg, { Path, LinearGradient as SvgLinearGradient, Stop } from 'react-nati
 // Performance tier definitions
 interface PerformanceTier {
   name: string;
-  emoji: string;
+  icon: string;
+  iconFamily: 'MaterialCommunityIcons' | 'Ionicons';
   colors: string[];
   animationSpeed: number;
 }
@@ -26,28 +28,32 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
   if (roi >= 100) {
     return {
       name: 'Profit Zone',
-      emoji: '🔥',
+      icon: 'fire',
+      iconFamily: 'MaterialCommunityIcons',
       colors: ['#34C759', '#FFD60A', '#FF9F0A'],
       animationSpeed: 1200
     };
   } else if (roi >= 90) {
     return {
       name: 'Fee Crusher',
-      emoji: '🏆',
+      icon: 'trophy',
+      iconFamily: 'MaterialCommunityIcons',
       colors: ['#5856D6', '#34C759'],
       animationSpeed: 1500
     };
   } else if (roi >= 50) {
     return {
       name: 'Making Waves',
-      emoji: '💫',
+      icon: 'trending-up',
+      iconFamily: 'MaterialCommunityIcons',
       colors: ['#007AFF', '#5856D6'],
       animationSpeed: 2000
     };
   } else {
     return {
       name: 'Getting Started',
-      emoji: '🌊',
+      icon: 'water-outline',
+      iconFamily: 'Ionicons',
       colors: ['#007AFF', '#5AC8FA'],
       animationSpeed: 2500
     };
@@ -65,10 +71,14 @@ const WaveProgress: React.FC<WaveProgressProps> = ({ progress, tier, collapsed =
   const waveAnimation = useSharedValue(0);
   
   useEffect(() => {
+    // Reset animation value to 0 to avoid jumps
+    waveAnimation.value = 0;
+    
+    // Start continuous animation
     waveAnimation.value = withRepeat(
       withTiming(1, {
         duration: tier.animationSpeed,
-        easing: Easing.inOut(Easing.sin),
+        easing: Easing.linear,
       }),
       -1,
       false
@@ -78,32 +88,53 @@ const WaveProgress: React.FC<WaveProgressProps> = ({ progress, tier, collapsed =
   const waveHeight = collapsed ? 15 : 60;
   const containerHeight = collapsed ? 30 : 120;
   
-  const createWavePath = (phase: number, amplitude: number) => {
-    const width = 300;
-    const frequency = 2;
-    const waveY = containerHeight - (progress / 100) * waveHeight;
-    
-    let path = `M 0 ${containerHeight}`;
-    
-    for (let x = 0; x <= width; x += 2) {
-      const y = waveY + Math.sin((x / width) * Math.PI * frequency + phase) * amplitude;
-      path += ` L ${x} ${y}`;
-    }
-    
-    path += ` L ${width} ${containerHeight} Z`;
-    return path;
-  };
-
-  const animatedWaveStyle = useAnimatedStyle(() => {
+  // Simplified approach: Use transform instead of complex SVG path animation
+  const animatedStyle = useAnimatedStyle(() => {
+    // Create smooth, continuous translation that loops seamlessly
+    const translateX = interpolate(waveAnimation.value, [0, 1], [0, -40]);
     return {
-      transform: [{ translateX: interpolate(waveAnimation.value, [0, 1], [0, -20]) }],
+      transform: [{ translateX }],
     };
   });
 
+  // Static wave paths - much simpler and performant
+  const createStaticWavePath = (phase: number, amplitude: number) => {
+    // Use wider SVG width to account for animation translation
+    const svgWidth = 720;
+    const frequency = 2;
+    
+    // Fix: Clamp progress to reasonable range and ensure accurate calculation
+    const clampedProgress = Math.max(0, Math.min(100, progress));
+    
+    // Calculate fill height - this should be from bottom up
+    const fillPercentage = clampedProgress / 100;
+    const fillHeight = fillPercentage * containerHeight;
+    
+    // Wave baseline should be at the fill level (from bottom)
+    const waveBaseline = containerHeight - fillHeight;
+    
+    // Start path from bottom left
+    let path = `M 0 ${containerHeight}`;
+    
+    // Create wave at the fill level - use proper SVG width
+    for (let x = 0; x <= svgWidth; x += 4) {
+      const waveOffset = Math.sin((x / svgWidth) * Math.PI * frequency + phase) * amplitude;
+      const y = Math.max(0, waveBaseline + waveOffset); // Ensure y doesn't go negative
+      path += ` L ${x} ${y}`;
+    }
+    
+    // Close the path back to bottom right and bottom left
+    path += ` L ${svgWidth} ${containerHeight} L 0 ${containerHeight} Z`;
+    return path;
+  };
+
+  const wavePath1 = createStaticWavePath(0, collapsed ? 2 : 4);
+  const wavePath2 = createStaticWavePath(Math.PI / 2, collapsed ? 1 : 2);
+
   return (
     <View style={[styles.waveContainer, { height: containerHeight }]}>
-      <Animated.View style={[StyleSheet.absoluteFill, animatedWaveStyle]}>
-        <Svg height={containerHeight} width={320} style={StyleSheet.absoluteFill}>
+      <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
+        <Svg height={containerHeight} width={180} style={StyleSheet.absoluteFill}>
           <SvgLinearGradient
             id="waveGradient"
             x1="0%"
@@ -121,12 +152,12 @@ const WaveProgress: React.FC<WaveProgressProps> = ({ progress, tier, collapsed =
             ))}
           </SvgLinearGradient>
           <Path
-            d={createWavePath(0, collapsed ? 2 : 4)}
+            d={wavePath1}
             fill="url(#waveGradient)"
             opacity={0.8}
           />
           <Path
-            d={createWavePath(Math.PI / 2, collapsed ? 1 : 2)}
+            d={wavePath2}
             fill={tier.colors[0]}
             opacity={0.6}
           />
@@ -240,9 +271,26 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
           {/* Floating Metrics */}
           <View style={styles.floatingMetrics}>
             <View style={styles.floatingMetricsContent}>
-              <Text style={[styles.floatingRoi, { color: tier.colors[0] }]}>
-                {tier.emoji} {Math.round(roi)}%
-              </Text>
+              <View style={styles.floatingRoiContainer}>
+                {tier.iconFamily === 'MaterialCommunityIcons' ? (
+                  <MaterialCommunityIcons 
+                    name={tier.icon as any} 
+                    size={20} 
+                    color={tier.colors[0]} 
+                    style={styles.floatingIcon}
+                  />
+                ) : (
+                  <Ionicons 
+                    name={tier.icon as any} 
+                    size={20} 
+                    color={tier.colors[0]} 
+                    style={styles.floatingIcon}
+                  />
+                )}
+                <Text style={[styles.floatingRoi, { color: tier.colors[0] }]}>
+                  {Math.round(roi)}%
+                </Text>
+              </View>
               <Text style={styles.floatingTier}>{tier.name}</Text>
             </View>
             <View style={styles.floatingAmounts}>
@@ -256,9 +304,26 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
       {/* Collapsed/Sticky State */}
       <Animated.View style={[styles.collapsedContent, collapsedContentStyle]}>
         <View style={styles.collapsedLeft}>
-          <Text style={styles.collapsedTitle}>
-            {tier.emoji} {year} ROI: {Math.round(roi)}%
-          </Text>
+          <View style={styles.collapsedTitleContainer}>
+            {tier.iconFamily === 'MaterialCommunityIcons' ? (
+              <MaterialCommunityIcons 
+                name={tier.icon as any} 
+                size={16} 
+                color={tier.colors[0]} 
+                style={styles.collapsedIcon}
+              />
+            ) : (
+              <Ionicons 
+                name={tier.icon as any} 
+                size={16} 
+                color={tier.colors[0]} 
+                style={styles.collapsedIcon}
+              />
+            )}
+            <Text style={styles.collapsedTitle}>
+              {year} ROI: {Math.round(roi)}%
+            </Text>
+          </View>
           <View style={styles.collapsedProgressPill}>
             <View style={[
               styles.collapsedProgressFill,
@@ -328,10 +393,17 @@ const styles = StyleSheet.create({
   floatingMetricsContent: {
     alignItems: 'flex-start',
   },
+  floatingRoiContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  floatingIcon: {
+    marginRight: 6,
+  },
   floatingRoi: {
     fontSize: 28,
     fontWeight: '700',
-    marginBottom: 2,
   },
   floatingTier: {
     fontSize: 14,
@@ -367,11 +439,18 @@ const styles = StyleSheet.create({
   collapsedLeft: {
     flex: 1,
   },
+  collapsedTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  collapsedIcon: {
+    marginRight: 6,
+  },
   collapsedTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.light.text,
-    marginBottom: 4,
   },
   collapsedProgressPill: {
     height: 6,
