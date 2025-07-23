@@ -1,6 +1,89 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Colors } from '../../constants/Colors';
+
+// Premium Design System - matching CardRoiLeaderboard
+const PremiumColors = {
+  // Primary Accent - Vibrant Green for positive metrics
+  accent: '#00D4AA', // Modern teal-green accent
+  accentLight: '#E6FBF7',
+  
+  // Neutrals - Professional gray scale
+  gray900: '#1C1C1E', // Near black for primary text
+  gray800: '#2C2C2E', // Dark gray for secondary text
+  gray600: '#636366', // Medium gray for tertiary text
+  gray400: '#8E8E93', // Light gray for captions
+  gray200: '#E5E5EA', // Very light gray for borders
+  gray100: '#F2F2F7', // Background gray
+  gray50: '#FAFAFA',  // Card backgrounds
+  
+  // Semantic colors - used sparingly
+  success: '#34C759',
+  successLight: '#E8F5E8',
+  warning: '#FF9500',
+  warningLight: '#FFF4E6',
+  error: '#FF3B30',
+  errorLight: '#FFEBEA',
+};
+
+// Typography Scale - Based on SF Pro
+const Typography = {
+  largeTitle: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    letterSpacing: -0.8,
+    lineHeight: 38,
+  },
+  title1: {
+    fontSize: 26,
+    fontWeight: '700' as const,
+    letterSpacing: -0.6,
+    lineHeight: 32,
+  },
+  title2: {
+    fontSize: 22,
+    fontWeight: '600' as const,
+    letterSpacing: -0.4,
+    lineHeight: 28,
+  },
+  headline: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    letterSpacing: -0.2,
+    lineHeight: 22,
+  },
+  body: {
+    fontSize: 17,
+    fontWeight: '400' as const,
+    letterSpacing: -0.2,
+    lineHeight: 22,
+  },
+  subhead: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    letterSpacing: -0.1,
+    lineHeight: 20,
+  },
+  footnote: {
+    fontSize: 13,
+    fontWeight: '400' as const,
+    letterSpacing: 0,
+    lineHeight: 18,
+  },
+  caption1: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 0.6,
+    lineHeight: 16,
+    textTransform: 'uppercase' as const,
+  },
+  caption2: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+    letterSpacing: 0.4,
+    lineHeight: 13,
+  },
+};
 import MiniBarChart from './MiniBarChart';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Animated, { 
@@ -36,7 +119,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Legendary Master',
       icon: 'crown',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#FFD700', '#FFA500', '#FF6B35'],
+      colors: [PremiumColors.success, PremiumColors.accent],
       animationSpeed: 800
     };
   } else if (roi >= 150) {
@@ -44,7 +127,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Elite Optimizer',
       icon: 'diamond',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#9D4EDD', '#FFD60A', '#FF6B6B'],
+      colors: [PremiumColors.success, PremiumColors.accent],
       animationSpeed: 900
     };
   } else if (roi >= 120) {
@@ -52,7 +135,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Profit Wizard',
       icon: 'magic-staff',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#06FFA5', '#FFD60A', '#FF9F0A'],
+      colors: [PremiumColors.success, PremiumColors.accent],
       animationSpeed: 1000
     };
   } else if (roi >= 100) {
@@ -60,7 +143,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'ROI Champion',
       icon: 'trophy-award',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#34C759', '#FFD60A', '#FF9F0A'],
+      colors: [PremiumColors.success, PremiumColors.accent],
       animationSpeed: 1100
     };
   } else if (roi >= 80) {
@@ -68,7 +151,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Fee Destroyer',
       icon: 'target',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#5856D6', '#34C759', '#30D158'],
+      colors: [PremiumColors.accent, PremiumColors.success],
       animationSpeed: 1300
     };
   } else if (roi >= 60) {
@@ -76,7 +159,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Smart Spender',
       icon: 'brain',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#007AFF', '#5856D6', '#AF52DE'],
+      colors: [PremiumColors.accent, PremiumColors.gray600],
       animationSpeed: 1500
     };
   } else if (roi >= 40) {
@@ -84,7 +167,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Rising Star',
       icon: 'star-shooting',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#007AFF', '#5AC8FA', '#64D2FF'],
+      colors: [PremiumColors.accent, PremiumColors.gray600],
       animationSpeed: 1800
     };
   } else if (roi >= 25) {
@@ -92,7 +175,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Building Momentum',
       icon: 'trending-up',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#007AFF', '#5AC8FA'],
+      colors: [PremiumColors.gray600, PremiumColors.accent],
       animationSpeed: 2100
     };
   } else if (roi >= 10) {
@@ -100,7 +183,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'Getting Started',
       icon: 'rocket-launch',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#007AFF', '#48CAE4'],
+      colors: [PremiumColors.gray600, PremiumColors.gray400],
       animationSpeed: 2400
     };
   } else {
@@ -108,7 +191,7 @@ const getPerformanceTier = (roi: number): PerformanceTier => {
       name: 'First Steps',
       icon: 'compass-outline',
       iconFamily: 'MaterialCommunityIcons',
-      colors: ['#8E8E93', '#007AFF'],
+      colors: [PremiumColors.gray400, PremiumColors.gray600],
       animationSpeed: 2700
     };
   }
@@ -495,7 +578,7 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
     ]}>
       {/* Expanded State */}
       <Animated.View style={[styles.mainContent, mainContentStyle]}>
-        <Text style={styles.yearTitle}>{year} Return on Investment</Text>
+        <Text style={[Typography.footnote, styles.yearTitle]}>{year} Return on Investment</Text>
         
         {/* Premium Progress Bar Container */}
         <View style={styles.progressBarContainer}>
@@ -520,15 +603,15 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
                     style={styles.floatingIcon}
                   />
                 )}
-                <Text style={styles.floatingRoi}>
+                <Text style={[Typography.largeTitle, styles.floatingRoi]}>
                   {Math.round(roi)}%
                 </Text>
               </View>
-              <Text style={styles.floatingTier}>{tier.name}</Text>
+              <Text style={[Typography.caption1, styles.floatingTier]}>{tier.name}</Text>
             </View>
             <View style={styles.floatingAmounts}>
-              <Text style={styles.floatingAmountPrimary}>{amountSaved}</Text>
-              <Text style={styles.floatingAmountSecondary}>of {totalFees} fees</Text>
+              <Text style={[Typography.title2, styles.floatingAmountPrimary]}>{amountSaved}</Text>
+              <Text style={[Typography.footnote, styles.floatingAmountSecondary]}>of {totalFees} fees</Text>
             </View>
           </View>
         </View>
@@ -553,20 +636,27 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
                 style={styles.collapsedIcon}
               />
             )}
-            <Text style={styles.collapsedTitle}>
+            <Text style={[
+              Typography.headline,
+              styles.collapsedTitle,
+              { color: roi >= 100 ? PremiumColors.success : PremiumColors.accent }
+            ]}>
               {year} ROI: {Math.round(roi)}%
             </Text>
           </View>
           <View style={styles.collapsedProgressPill}>
             <View style={[
               styles.collapsedProgressFill,
-              { width: `${Math.min(clampedRoi, 100)}%`, backgroundColor: tier.colors[0] }
+              { 
+                width: `${Math.min(clampedRoi, 100)}%`, 
+                backgroundColor: roi >= 100 ? PremiumColors.success : PremiumColors.accent 
+              }
             ]} />
           </View>
         </View>
         <View style={styles.collapsedRight}>
-          <Text style={styles.collapsedAmount}>{amountSaved}</Text>
-          <Text style={styles.collapsedLabel}>saved</Text>
+          <Text style={[Typography.headline, styles.collapsedAmount]}>{amountSaved}</Text>
+          <Text style={[Typography.caption2, styles.collapsedLabel]}>saved</Text>
         </View>
       </Animated.View>
     </Animated.View>
@@ -575,8 +665,15 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.background,
-    paddingHorizontal: 15,
+    marginHorizontal: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    overflow: 'hidden',
   },
   stickyContainer: {
     shadowColor: "#000",
@@ -586,26 +683,28 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
+    backgroundColor: Colors.light.background,
+    borderRadius: 0,
+    marginHorizontal: 0,
   },
   mainContent: {
     flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   yearTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.light.text,
-    marginBottom: 16,
-    letterSpacing: -0.5,
-    lineHeight: 34,
+    color: PremiumColors.gray600,
+    marginBottom: 8,
   },
   
   // Progress Bar Styles
   progressBarContainer: {
     position: 'relative',
-    height: 120,
-    borderRadius: 16,
+    height: 100,
+    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: PremiumColors.gray100,
+    marginBottom: 16,
   },
   progressContainer: {
     width: '100%',
@@ -655,7 +754,7 @@ const styles = StyleSheet.create({
   // Floating Metrics Styles
   floatingMetrics: {
     position: 'absolute',
-    top: 15,
+    top: 12,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -668,43 +767,33 @@ const styles = StyleSheet.create({
   },
   floatingRoiContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
+    alignItems: 'baseline',
+    marginBottom: 4,
   },
   floatingIcon: {
-    marginRight: 6,
+    marginRight: 8,
+    marginTop: 8,
   },
   floatingRoi: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: Colors.light.text,
-    letterSpacing: -1,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: PremiumColors.gray900,
   },
   floatingTier: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.light.icon,
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
+    color: PremiumColors.gray600,
+    backgroundColor: PremiumColors.gray200,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   floatingAmounts: {
     alignItems: 'flex-end',
   },
   floatingAmountPrimary: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.light.text,
-    letterSpacing: -0.3,
+    color: PremiumColors.gray900,
   },
   floatingAmountSecondary: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Colors.light.icon,
-    marginTop: 3,
-    letterSpacing: 0.1,
+    color: PremiumColors.gray600,
+    marginTop: 4,
   },
   
   // Enhanced Collapsed State Styles
@@ -731,13 +820,11 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   collapsedTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
+    // Typography applied inline
   },
   collapsedProgressPill: {
     height: 6,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: PremiumColors.gray200,
     borderRadius: 3,
     overflow: 'hidden',
     width: '80%',
@@ -750,13 +837,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   collapsedAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
+    color: PremiumColors.gray900,
   },
   collapsedLabel: {
-    fontSize: 12,
-    color: Colors.light.icon,
+    color: PremiumColors.gray400,
     marginTop: 2,
   },
 });

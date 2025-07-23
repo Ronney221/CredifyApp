@@ -1,6 +1,98 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
+
+// Premium Design System
+const PremiumColors = {
+  // Primary Accent - Vibrant Green for positive metrics
+  accent: '#00D4AA', // Modern teal-green accent
+  accentLight: '#E6FBF7',
+  
+  // Neutrals - Professional gray scale
+  gray900: '#1C1C1E', // Near black for primary text
+  gray800: '#2C2C2E', // Dark gray for secondary text
+  gray600: '#636366', // Medium gray for tertiary text
+  gray400: '#8E8E93', // Light gray for captions
+  gray200: '#E5E5EA', // Very light gray for borders
+  gray100: '#F2F2F7', // Background gray
+  gray50: '#FAFAFA',  // Card backgrounds
+  
+  // Semantic colors - used sparingly
+  success: '#34C759',
+  successLight: '#E8F5E8',
+  warning: '#FF9500',
+  warningLight: '#FFF4E6',
+  error: '#FF3B30',
+  errorLight: '#FFEBEA',
+  
+  // Status colors - muted and sophisticated
+  podium: '#D4A574',      // Muted bronze/gold
+  podiumLight: '#FAF6F1',
+  elite: '#8B7B9B',       // Muted purple
+  eliteLight: '#F5F3F7',
+  building: '#7B8C98',    // Muted blue-gray
+  buildingLight: '#F1F4F6',
+};
+
+// Typography Scale - Based on SF Pro
+const Typography = {
+  largeTitle: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    letterSpacing: -0.8,
+    lineHeight: 38,
+  },
+  title1: {
+    fontSize: 26,
+    fontWeight: '700' as const,
+    letterSpacing: -0.6,
+    lineHeight: 32,
+  },
+  title2: {
+    fontSize: 22,
+    fontWeight: '600' as const,
+    letterSpacing: -0.4,
+    lineHeight: 28,
+  },
+  headline: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    letterSpacing: -0.2,
+    lineHeight: 22,
+  },
+  body: {
+    fontSize: 17,
+    fontWeight: '400' as const,
+    letterSpacing: -0.2,
+    lineHeight: 22,
+  },
+  subhead: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    letterSpacing: -0.1,
+    lineHeight: 20,
+  },
+  footnote: {
+    fontSize: 13,
+    fontWeight: '400' as const,
+    letterSpacing: 0,
+    lineHeight: 18,
+  },
+  caption1: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 0.6,
+    lineHeight: 16,
+    textTransform: 'uppercase' as const,
+  },
+  caption2: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+    letterSpacing: 0.4,
+    lineHeight: 13,
+  },
+};
 import { CardROI } from '../../src/data/dummy-insights';
 import { allCards } from '../../src/data/card-data-original';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -52,8 +144,8 @@ const getCardTier = (roi: number): CardTier => {
       name: 'Champion',
       icon: 'crown',
       iconFamily: 'MaterialCommunityIcons',
-      borderColor: '#FFD700',
-      backgroundColor: '#FFFDF0',
+      borderColor: PremiumColors.podium,
+      backgroundColor: PremiumColors.podiumLight,
       cardSize: { width: 280, height: 180 },
       shadowElevation: 8
     };
@@ -62,8 +154,8 @@ const getCardTier = (roi: number): CardTier => {
       name: 'Elite',
       icon: 'trophy',
       iconFamily: 'MaterialCommunityIcons',
-      borderColor: '#FF6B35',
-      backgroundColor: '#FFF8F5',
+      borderColor: PremiumColors.elite,
+      backgroundColor: PremiumColors.eliteLight,
       cardSize: { width: 260, height: 160 },
       shadowElevation: 6
     };
@@ -72,8 +164,8 @@ const getCardTier = (roi: number): CardTier => {
       name: 'Strong',
       icon: 'medal',
       iconFamily: 'MaterialCommunityIcons',
-      borderColor: '#8B5A2B',
-      backgroundColor: '#FFF9F5',
+      borderColor: PremiumColors.building,
+      backgroundColor: PremiumColors.buildingLight,
       cardSize: { width: 240, height: 140 },
       shadowElevation: 4
     };
@@ -82,8 +174,8 @@ const getCardTier = (roi: number): CardTier => {
       name: 'Building',
       icon: 'trending-up',
       iconFamily: 'MaterialCommunityIcons',
-      borderColor: '#FF8C42',
-      backgroundColor: '#FFF9F5',
+      borderColor: PremiumColors.building,
+      backgroundColor: PremiumColors.buildingLight,
       cardSize: { width: 225, height: 125 },
       shadowElevation: 3
     };
@@ -92,8 +184,8 @@ const getCardTier = (roi: number): CardTier => {
       name: 'Developing',
       icon: 'chart-line',
       iconFamily: 'MaterialCommunityIcons',
-      borderColor: '#4169E1',
-      backgroundColor: '#F0F8FF',
+      borderColor: PremiumColors.gray600,
+      backgroundColor: PremiumColors.gray50,
       cardSize: { width: 220, height: 120 },
       shadowElevation: 2
     };
@@ -102,8 +194,8 @@ const getCardTier = (roi: number): CardTier => {
       name: 'Starting',
       icon: 'sprout',
       iconFamily: 'MaterialCommunityIcons',
-      borderColor: '#9370DB',
-      backgroundColor: '#F8F7FF',
+      borderColor: PremiumColors.gray600,
+      backgroundColor: PremiumColors.gray50,
       cardSize: { width: 215, height: 115 },
       shadowElevation: 2
     };
@@ -112,8 +204,8 @@ const getCardTier = (roi: number): CardTier => {
       name: 'Potential',
       icon: 'seed',
       iconFamily: 'MaterialCommunityIcons',
-      borderColor: '#20B2AA',
-      backgroundColor: '#F0FFFF',
+      borderColor: PremiumColors.gray400,
+      backgroundColor: PremiumColors.gray50,
       cardSize: { width: 210, height: 110 },
       shadowElevation: 1
     };
@@ -141,42 +233,43 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
       case 0: return { 
         icon: 'crown', 
         iconFamily: 'MaterialCommunityIcons', 
-        color: '#FFD700', 
+        color: PremiumColors.podium, 
         text: '#1', 
         badge: 'CHAMPION',
-        gradient: ['#FFD700', '#FFA500'],
-        shadow: '#FFD700'
+        gradient: [PremiumColors.podium, PremiumColors.podium],
+        shadow: PremiumColors.podium
       };
       case 1: return { 
         icon: 'medal', 
         iconFamily: 'MaterialCommunityIcons', 
-        color: '#E5E4E2', 
+        color: PremiumColors.elite, 
         text: '#2', 
         badge: 'ELITE',
-        gradient: ['#E5E4E2', '#C0C0C0'],
-        shadow: '#C0C0C0'
+        gradient: [PremiumColors.elite, PremiumColors.elite],
+        shadow: PremiumColors.elite
       };
       case 2: return { 
         icon: 'trophy-variant', 
         iconFamily: 'MaterialCommunityIcons', 
-        color: '#CD7F32', 
+        color: PremiumColors.building, 
         text: '#3', 
         badge: 'PODIUM',
-        gradient: ['#CD7F32', '#B87333'],
-        shadow: '#CD7F32'
+        gradient: [PremiumColors.building, PremiumColors.building],
+        shadow: PremiumColors.building
       };
-      case 3: return { icon: 'trending-up', iconFamily: 'MaterialCommunityIcons', color: '#007AFF', text: '#4', badge: 'TOP 5' };
-      case 4: return { icon: 'trending-up', iconFamily: 'MaterialCommunityIcons', color: '#007AFF', text: '#5', badge: 'TOP 5' };
-      default: return { icon: 'chart-line', iconFamily: 'MaterialCommunityIcons', color: '#8E8E93', text: `#${index + 1}`, badge: null };
+      case 3: return { icon: 'trending-up', iconFamily: 'MaterialCommunityIcons', color: PremiumColors.gray600, text: '#4', badge: 'TOP 5' };
+      case 4: return { icon: 'trending-up', iconFamily: 'MaterialCommunityIcons', color: PremiumColors.gray600, text: '#5', badge: 'TOP 5' };
+      default: return { icon: 'chart-line', iconFamily: 'MaterialCommunityIcons', color: PremiumColors.gray400, text: `#${index + 1}`, badge: null };
     }
   };
   
   const rankDisplay = getRankDisplay(index);
   
   React.useEffect(() => {
-    animatedValue.value = withTiming(isExpanded ? 1 : 0, {
-      duration: 300,
-      easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+    animatedValue.value = withSpring(isExpanded ? 1 : 0, {
+      damping: 20,
+      stiffness: 300,
+      mass: 0.8,
     });
   }, [isExpanded]);
 
@@ -201,12 +294,14 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
     const dynamicHeight = tierInsightText + breakEvenText + detailRows + containerPadding;
     
     const height = interpolate(animatedValue.value, [0, 1], [0, dynamicHeight]);
-    const opacity = interpolate(animatedValue.value, [0, 0.3, 1], [0, 0, 1]);
+    const opacity = interpolate(animatedValue.value, [0, 0.2, 1], [0, 0, 1]);
+    const scale = interpolate(animatedValue.value, [0, 1], [0.95, 1]);
     
     return {
       height,
       opacity,
       overflow: 'hidden',
+      transform: [{ scaleY: scale }],
     };
   });
 
@@ -217,7 +312,9 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
         cardStyle,
         {
           backgroundColor: tier.backgroundColor,
-          borderColor: tier.borderColor,
+          // Only add subtle border for top 3 cards
+          borderWidth: index < 3 ? 1 : 0,
+          borderColor: index < 3 ? `${tier.borderColor}30` : 'transparent',
           shadowOpacity: tier.shadowElevation / 20,
           elevation: tier.shadowElevation,
         }
@@ -336,7 +433,7 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
               )}
             </View>
             <View style={[styles.cardTextInfo, !cardImage && styles.cardTextInfoFullWidth]}>
-              <Text style={styles.cardName} numberOfLines={1}>{roi.name}</Text>
+              <Text style={[styles.cardName, Typography.headline]} numberOfLines={1}>{roi.name}</Text>
               <View style={styles.cardMetrics}>
                 <View style={[
                   styles.netBenefitContainer,
@@ -345,12 +442,13 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
                   <MaterialCommunityIcons 
                     name={(roi.totalRedeemed - roi.annualFee) >= 0 ? 'trending-up' : 'trending-down'}
                     size={12}
-                    color={(roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30'}
+                    color={(roi.totalRedeemed - roi.annualFee) >= 0 ? PremiumColors.success : PremiumColors.error}
                     style={styles.netBenefitIcon}
                   />
                   <Text style={[
+                    Typography.subhead,
                     styles.cardNetBenefit,
-                    { color: (roi.totalRedeemed - roi.annualFee) >= 0 ? '#34C759' : '#FF3B30' }
+                    { color: (roi.totalRedeemed - roi.annualFee) >= 0 ? PremiumColors.success : PremiumColors.error }
                   ]}>
                     {(roi.totalRedeemed - roi.annualFee) >= 0 
                       ? `$${Math.abs(roi.totalRedeemed - roi.annualFee).toFixed(0)} profit`
@@ -363,12 +461,13 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
           </View>
           <View style={styles.roiDisplay}>
             <Text style={[
+              Typography.title1,
               styles.roiPercentage,
-              { color: roi.roiPercentage >= 100 ? '#34C759' : tier.borderColor }
+              { color: roi.roiPercentage >= 100 ? PremiumColors.success : PremiumColors.gray900 }
             ]}>
               {Math.round(roi.roiPercentage)}%
             </Text>
-            <Text style={styles.roiSubtext}>ROI</Text>
+            <Text style={[Typography.caption2, styles.roiSubtext]}>ROI</Text>
           </View>
         </View>
 
@@ -376,13 +475,13 @@ const CardItem: React.FC<CardItemProps> = ({ roi, index, isExpanded, onPress }) 
         {/* Enhanced Progress Bar with Tier Styling */}
         <View style={[
           styles.cardProgressContainer,
-          { backgroundColor: `${tier.borderColor}20` } // 20% opacity background
+          { backgroundColor: PremiumColors.gray100 } // Neutral background
         ]}>
           <View style={[
             styles.cardProgressFill,
             { 
               width: `${Math.min(roi.roiPercentage, 100)}%`,
-              backgroundColor: roi.roiPercentage >= 100 ? '#34C759' : tier.borderColor
+              backgroundColor: roi.roiPercentage >= 100 ? PremiumColors.success : PremiumColors.accent
             }
           ]} />
           {/* Only show 100% break-even line */}
@@ -515,6 +614,10 @@ const CardRoiLeaderboard: React.FC<CardRoiLeaderboardProps> = ({ cardRois }) => 
   
   
   const handleCardPress = (cardId: string) => {
+    // Add haptic feedback
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     setExpandedCardId(current => current === cardId ? null : cardId);
   };
 
@@ -613,27 +716,26 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 8,
     marginHorizontal: 15,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 15,
+    backgroundColor: PremiumColors.gray50,
+    borderRadius: 16,
+    padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   header: {
     marginBottom: 20,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.light.text,
+    ...Typography.title2,
+    color: PremiumColors.gray900,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
-    color: Colors.light.icon,
+    ...Typography.footnote,
+    color: PremiumColors.gray600,
   },
   
   // Card Deck Styles
@@ -641,13 +743,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardItem: {
-    borderWidth: 2,
+    borderWidth: 0, // Remove thick borders
     borderRadius: 16,
-    padding: 18,
+    padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-    marginHorizontal: 2, // Add horizontal margin for better shadow visibility
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    shadowOpacity: 0.08,
+    marginHorizontal: 2,
+    elevation: 4,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -726,10 +830,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: PremiumColors.gray100,
+    borderWidth: 1,
+    borderColor: PremiumColors.gray200,
   },
   tierIcon: {
     marginRight: 4,
@@ -781,40 +887,37 @@ const styles = StyleSheet.create({
     marginLeft: 0,
   },
   cardName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 2,
+    // Typography applied inline - keeping base styles minimal
+    color: PremiumColors.gray900,
+    marginBottom: 4,
   },
   cardMetrics: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   
-  // Enhanced Net Benefit Styles
+  // Enhanced Net Benefit Styles - Modern pill design
   netBenefitContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    borderWidth: 0, // Remove border for cleaner look
   },
   netBenefitPositive: {
-    backgroundColor: 'rgba(52, 199, 89, 0.08)',
-    borderColor: 'rgba(52, 199, 89, 0.2)',
+    backgroundColor: PremiumColors.successLight,
   },
   netBenefitNegative: {
-    backgroundColor: 'rgba(255, 59, 48, 0.08)',
-    borderColor: 'rgba(255, 59, 48, 0.2)',
+    backgroundColor: PremiumColors.errorLight,
   },
   netBenefitIcon: {
     marginRight: 4,
   },
   cardNetBenefit: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontSize: 13,
+    fontWeight: '600', // Medium weight as recommended
+    letterSpacing: 0.1,
   },
   
   // Expanded Net Benefit Styles
@@ -853,13 +956,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   roiPercentage: {
-    fontSize: 24,
-    fontWeight: '700',
+    // Typography applied inline
+    marginTop: 2,
   },
   roiSubtext: {
-    fontSize: 12,
-    color: Colors.light.icon,
-    marginTop: 2,
+    color: PremiumColors.gray400,
+    marginTop: 4,
   },
   
   // Enhanced Progress Bar Styles
@@ -879,7 +981,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: '#34C759',
+    backgroundColor: PremiumColors.success,
     transform: [{ translateX: -0.5 }],
     opacity: 0.6,
   },

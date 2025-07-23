@@ -5,7 +5,7 @@ import { Colors } from '../../constants/Colors';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card, Benefit, allCards, CardPerk } from '../../src/data/card-data'; // Assuming path
-import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming, useAnimatedScrollHandler, interpolate } from 'react-native-reanimated'; // Added Reanimated imports
+import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, withTiming, useAnimatedScrollHandler, interpolate, Easing } from 'react-native-reanimated'; // Added Reanimated imports
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 import YearlyProgress from '../../components/insights/YearlyProgress'; // Import the new component
@@ -253,12 +253,16 @@ export default function InsightsScreen() {
   const scrollY = useSharedValue(0);
   const headerScrollProgress = useSharedValue(0);
 
-  // Add scroll handler
+  // Add scroll handler with smoother easing
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
-      // Transition over HEADER_SCROLL_DISTANCE pixels of scroll
-      headerScrollProgress.value = Math.min(1, Math.max(0, scrollY.value / HEADER_SCROLL_DISTANCE));
+      // Smooth transition with easing curve
+      const rawProgress = Math.min(1, Math.max(0, scrollY.value / HEADER_SCROLL_DISTANCE));
+      headerScrollProgress.value = withTiming(rawProgress, {
+        duration: 50,
+        easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+      });
     },
   });
 
@@ -707,9 +711,28 @@ export default function InsightsScreen() {
         ]}>
           <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
           <View style={styles.collapsedHeaderContent}>
-            <Text style={styles.collapsedHeaderTitle}>
-              {currentYearData && `${currentYearData.year} ROI: ${Math.round((currentYearData.totalRedeemed / currentYearData.totalAnnualFees) * 100)}%`}
-            </Text>
+            <Animated.View style={[
+              styles.collapsedRoiContainer,
+              {
+                transform: [{
+                  scale: interpolate(
+                    headerScrollProgress.value,
+                    [0, 1],
+                    [0.8, 1],
+                    'clamp'
+                  )
+                }],
+              }
+            ]}>
+              <Text style={[
+                styles.collapsedHeaderTitle,
+                currentYearData && {
+                  color: Math.round((currentYearData.totalRedeemed / currentYearData.totalAnnualFees) * 100) >= 100 ? '#34C759' : Colors.light.tint
+                }
+              ]}>
+                {currentYearData && `${currentYearData.year} ROI: ${Math.round((currentYearData.totalRedeemed / currentYearData.totalAnnualFees) * 100)}%`}
+              </Text>
+            </Animated.View>
             <View style={styles.headerButtonsContainer}>
               <TouchableOpacity 
                 onPress={() => setHelpModalVisible(true)}
@@ -1137,11 +1160,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: COLLAPSED_HEADER_HEIGHT,
   },
+  collapsedRoiContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   collapsedHeaderTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: '#1C1C1E',
-    flex: 1,
+    letterSpacing: -0.2,
   },
   sectionHeaderContainer: {
   },
