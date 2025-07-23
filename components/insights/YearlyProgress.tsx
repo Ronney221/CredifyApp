@@ -525,14 +525,14 @@ const YearlyProgress: React.FC<YearlyProgressProps> = ({
     const height = interpolate(
       scrollProgress.value,
       [0, 1],
-      [160, 60], // Reduced from 200 to 160
+      [160, 44], // Further reduced collapsed height from 60 to 44
       Extrapolate.CLAMP
     );
 
     const paddingVertical = interpolate(
       scrollProgress.value,
       [0, 1],
-      [12, 8], // Reduced from 20,10 to 12,8
+      [12, 4], // Further reduced collapsed padding from 8 to 4
       Extrapolate.CLAMP
     );
 
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 60,
+    height: 44,
     paddingHorizontal: 15,
   },
   collapsedLeft: {
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   collapsedTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   collapsedIcon: {
     marginRight: 6,
@@ -823,15 +823,15 @@ const styles = StyleSheet.create({
     // Typography applied inline
   },
   collapsedProgressPill: {
-    height: 6,
+    height: 4,
     backgroundColor: PremiumColors.gray200,
-    borderRadius: 3,
+    borderRadius: 2,
     overflow: 'hidden',
     width: '80%',
   },
   collapsedProgressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
   collapsedRight: {
     alignItems: 'flex-end',
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
   collapsedLabel: {
     color: PremiumColors.gray400,
-    marginTop: 2,
+    marginTop: 1,
   },
 });
 
