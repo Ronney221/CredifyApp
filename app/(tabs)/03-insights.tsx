@@ -549,9 +549,39 @@ export default function InsightsScreen() {
 
   if (isLoadingUserCards || !isDataLoaded) {
     return (
-      <View style={styles.container}>
-        <InsightsLoadingState onRetry={refreshUserCards} />
-      </View>
+      <SafeAreaView style={styles.container} edges={['right', 'left']}>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <View style={styles.container}>
+          <BlurView intensity={80} tint="extraLight" style={styles.fixedHeader}>
+            <Text style={styles.screenTitle}>Insights</Text>
+            <View style={styles.headerButtonsContainer}>
+              <TouchableOpacity 
+                onPress={() => setHelpModalVisible(true)}
+                style={[styles.headerButton, styles.helpButton]}
+              >
+                <Ionicons 
+                  name="help-circle-outline" 
+                  size={24} 
+                  color={Colors.light.text} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.headerButton, styles.filterButton]}
+                onPress={() => setFilterModalVisible(true)}
+              >
+                <Ionicons 
+                  name="funnel-outline" 
+                  size={24} 
+                  color={Colors.light.text} 
+                />
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+          <View style={styles.loadingStateContainer}>
+            <InsightsLoadingState onRetry={refreshUserCards} />
+          </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -566,10 +596,10 @@ export default function InsightsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['right', 'left']}>
-      <StatusBar style="dark" />
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <View style={styles.container}>
-        {/* Simple fixed header with help and filter */}
-        <View style={styles.fixedHeader}>
+        {/* Blurred header with help and filter */}
+        <BlurView intensity={80} tint="extraLight" style={styles.fixedHeader}>
           <Text style={styles.screenTitle}>Insights</Text>
           <View style={styles.headerButtonsContainer}>
             <TouchableOpacity 
@@ -598,7 +628,7 @@ export default function InsightsScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </BlurView>
 
         {insightsData.yearSections.length > 0 ? (
           <ScrollView
@@ -781,10 +811,12 @@ export default function InsightsScreen() {
             </View>
           </ScrollView>
         ) : (
-          <InsightsEmptyState
-            selectedCardCount={selectedCardIds.length}
-            activeFilterCount={activeFilterCount}
-          />
+          <View style={styles.loadingStateContainer}>
+            <InsightsEmptyState
+              selectedCardCount={selectedCardIds.length}
+              activeFilterCount={activeFilterCount}
+            />
+          </View>
         )}
 
         <InsightsFilterSheet
@@ -819,9 +851,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FAFAFE',
+    paddingTop: Platform.OS === 'ios' ? 54 : 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
   },
   screenTitle: {
     fontSize: 28,
@@ -833,6 +870,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingTop: Platform.OS === 'ios' ? 100 : 80,
     paddingBottom: TAB_BAR_OFFSET,
   },
   tabContent: {
@@ -935,10 +973,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     zIndex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: TAB_BAR_OFFSET,
   },
   roiSection: {
     marginTop: 0,
@@ -1084,5 +1118,9 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     backgroundColor: 'rgba(142, 142, 147, 0.12)',
+  },
+  loadingStateContainer: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 100 : 80,
   },
 }); 
