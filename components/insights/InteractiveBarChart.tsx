@@ -72,11 +72,10 @@ export default function InteractiveBarChart({
   height = 200,
 }: InteractiveBarChartProps) {
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
-  const [showTrend, setShowTrend] = useState(true);
   
   const monthsToShow = 6;
   const chartWidth = screenWidth - 32; // Account for padding
-  const chartHeight = height - 100;
+  const chartHeight = height - 80; // Reduced padding for tighter layout
   
   // Get months and align data
   const months = useMemo(() => getAdaptiveMonths(monthsToShow), [monthsToShow]);
@@ -92,10 +91,18 @@ export default function InteractiveBarChart({
     });
   }, [months, rawData]);
 
-  // Calculate maxValue with proper padding for visual clarity
+  // Calculate maxValue with consistent height capping
   const dataMaxValue = Math.max(...alignedData.map(d => d.value), 1);
   const monthlyTarget = totalAnnualFees / 12;
-  const maxValue = Math.max(dataMaxValue, monthlyTarget, 100) * 1.2; // Add 20% padding
+  
+  // Determine the reasonable maximum value for display
+  // Cap at 3x target or $500, whichever is higher, but must include the target
+  const displayCap = Math.max(monthlyTarget * 3, 500);
+  const cappedDataMax = Math.min(dataMaxValue, displayCap);
+  
+  // Final maxValue for chart scaling - must accommodate target line and data, with padding
+  // Ensure minimum value to prevent division by zero
+  const maxValue = Math.max(cappedDataMax, monthlyTarget, 100) * 1.1 || 110; // Reduced padding from 1.2 to 1.1
   
   // Calculate performance metrics
   const totalSaved = alignedData.reduce((sum, d) => sum + d.value, 0);
@@ -108,58 +115,18 @@ export default function InteractiveBarChart({
   
   useEffect(() => {
     barAnimations.forEach((animation, index) => {
+      // Use display cap for consistent height calculation
+      const cappedValue = Math.min(alignedData[index].value, displayCap);
       animation.value = withDelay(
         index * 100,
-        withSpring(alignedData[index].value / maxValue, {
+        withSpring(cappedValue / maxValue, {
           damping: 15,
           stiffness: 150,
         })
       );
     });
-  }, [alignedData, maxValue]);
+  }, [alignedData, maxValue, displayCap]);
 
-  // Generate trend line path with proper alignment to bars (only connects actual data)
-  const trendPath = useMemo(() => {
-    const dataPoints = alignedData.filter(d => d.value > 0);
-    if (dataPoints.length < 2) return '';
-
-    const barWidth = chartWidth / monthsToShow;
-    const points = dataPoints.map((d) => {
-      const originalIndex = alignedData.indexOf(d);
-      // Center the point exactly on the bar
-      const x = barWidth * originalIndex + barWidth / 2;
-      
-      // Use the same height calculation as bars, accounting for container padding
-      const normalizedValue = Math.min(d.value / maxValue, 1);
-      const barHeight = normalizedValue * (chartHeight - 20); // Account for paddingTop
-      const y = chartHeight - barHeight;
-      
-      return { x, y, originalIndex };
-    });
-
-    if (points.length < 2) return '';
-
-    // Only connect consecutive data points, don't extrapolate
-    let path = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1];
-      const currPoint = points[i];
-      
-      // Check if points are consecutive months - if not, create separate path segments
-      const monthGap = currPoint.originalIndex - prevPoint.originalIndex;
-      if (monthGap === 1) {
-        // Consecutive months - draw smooth curve
-        const controlX1 = prevPoint.x + (currPoint.x - prevPoint.x) * 0.4;
-        const controlX2 = currPoint.x - (currPoint.x - prevPoint.x) * 0.4;
-        path += ` C ${controlX1} ${prevPoint.y} ${controlX2} ${currPoint.y} ${currPoint.x} ${currPoint.y}`;
-      } else {
-        // Gap in data - start new path segment
-        path += ` M ${currPoint.x} ${currPoint.y}`;
-      }
-    }
-
-    return path;
-  }, [alignedData, chartWidth, chartHeight, maxValue, monthsToShow]);
 
   const handleBarPress = async (index: number) => {
     if (Platform.OS === 'ios') {
@@ -230,53 +197,20 @@ export default function InteractiveBarChart({
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.trendToggle}
-          onPress={() => setShowTrend(!showTrend)}
-          activeOpacity={0.7}
-        >
-          <Ionicons 
-            name={showTrend ? 'analytics' : 'analytics-outline'} 
-            size={20} 
-            color={showTrend ? '#007AFF' : '#8E8E93'} 
-          />
-        </TouchableOpacity>
       </View>
 
       {/* Chart */}
-      <View style={[styles.chartContainer, { height: chartHeight + 40 }]}>
-        {/* Trend line */}
-        {showTrend && trendPath && (
-          <View style={[StyleSheet.absoluteFill, { top: 20, zIndex: 5 }]}>
-            <Svg width={chartWidth} height={chartHeight}>
-              <Defs>
-                <SvgLinearGradient id="trendGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <Stop offset="0%" stopColor="#007AFF" stopOpacity="0.3" />
-                  <Stop offset="50%" stopColor="#007AFF" stopOpacity="0.8" />
-                  <Stop offset="100%" stopColor="#007AFF" stopOpacity="0.3" />
-                </SvgLinearGradient>
-              </Defs>
-              <Path
-                d={trendPath}
-                stroke="url(#trendGradient)"
-                strokeWidth="3"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
-        )}
+      <View style={[styles.chartContainer, { height: chartHeight + 20 }]}>
 
         {/* Target line */}
         {monthlyTarget > 0 && (
           <View style={[
             styles.targetLine,
             { 
-              bottom: 20 + (monthlyTarget / maxValue) * (chartHeight - 20)
+              bottom: 40 + (monthlyTarget / maxValue) * (chartHeight - 40)
             }
           ]}>
-            <Svg width={chartWidth} height={2} style={styles.targetLineSvg}>
+            <Svg width="100%" height={2} style={styles.targetLineSvg}>
               <Defs>
                 <SvgLinearGradient id="dashGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <Stop offset="0%" stopColor="#34C759" stopOpacity="0.8" />
@@ -292,9 +226,6 @@ export default function InteractiveBarChart({
                 strokeLinecap="round"
               />
             </Svg>
-            <Text style={styles.targetLineLabel}>
-              Monthly Target: {formatCurrency(monthlyTarget)}
-            </Text>
           </View>
         )}
 
@@ -307,7 +238,7 @@ export default function InteractiveBarChart({
 
             const animatedStyle = useAnimatedStyle(() => {
               const normalizedValue = Math.min(barAnimations[index].value, 1); // Ensure value doesn't exceed 1
-              const availableHeight = chartHeight - 20; // Account for container paddingTop
+              const availableHeight = chartHeight - 20; // Increased buffer for labels
               const barHeight = Math.max(normalizedValue * availableHeight, hasValue ? 4 : 2); // Minimum height for visibility
               return {
                 height: Math.min(barHeight, availableHeight), // Constrain to available height
@@ -317,24 +248,40 @@ export default function InteractiveBarChart({
             return (
               <TouchableOpacity
                 key={monthData.key}
-                style={styles.barColumn}
-                onPress={() => hasValue && handleBarPress(index)}
-                activeOpacity={hasValue ? 0.7 : 1}
+                style={[
+                  styles.barColumn, 
+                  styles.clickableArea,
+                  isSelected && styles.selectedBarColumn
+                ]}
+                onPress={() => handleBarPress(index)}
+                activeOpacity={0.7}
               >
                 {/* Value label */}
-                <View style={styles.valueLabelContainer}>
-                  {hasValue && (
-                    <Animated.Text 
-                      entering={FadeIn.delay(index * 100 + 300)}
-                      style={[
-                        styles.valueLabel,
-                        isCurrentMonth && styles.currentValueLabel
-                      ]}
-                    >
+                {hasValue && (
+                  <Animated.View 
+                    entering={FadeIn.delay(index * 100 + 300)}
+                    style={[
+                      styles.dynamicValueLabel,
+                      {
+                        // Position labels above bars with increased clearance
+                        bottom: Math.min(
+                          (Math.min(monthData.value, displayCap) / maxValue) * (chartHeight - 20) + 35,
+                          chartHeight - 5
+                        )
+                      }
+                    ]}
+                  >
+                    <Text style={[
+                      styles.valueLabel,
+                      isCurrentMonth && styles.currentValueLabel
+                    ]}>
                       {formatCurrency(monthData.value)}
-                    </Animated.Text>
-                  )}
-                </View>
+                      {monthData.value > displayCap && (
+                        <Text style={styles.cappedIndicator}>+</Text>
+                      )}
+                    </Text>
+                  </Animated.View>
+                )}
 
                 {/* Stacked Bar */}
                 <View style={styles.barContainer}>
@@ -409,57 +356,69 @@ export default function InteractiveBarChart({
                   )}
                 </Text>
 
-                {/* Tooltip */}
-                {isSelected && hasValue && (
-                  <Animated.View 
-                    entering={FadeIn.duration(200)}
-                    style={[
-                      styles.tooltip,
-                      index <= 1 && styles.tooltipLeft,
-                      index >= alignedData.length - 2 && styles.tooltipRight,
-                    ]}
-                  >
-                    <View style={styles.tooltipHeader}>
-                      <Text style={styles.tooltipTitle}>{monthData.label} Summary</Text>
-                      <TouchableOpacity 
-                        style={styles.helpIcon}
-                        onPress={() => {
-                          // Could implement help modal here
-                        }}
-                      >
-                        <Ionicons name="help-circle-outline" size={14} color="rgba(255,255,255,0.7)" />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.tooltipRow}>
-                      <Text style={styles.tooltipLabel}>Fully Used:</Text>
-                      <Text style={styles.tooltipValue}>
-                        {formatCurrency(monthData.raw.redeemed)}
-                      </Text>
-                    </View>
-                    {monthData.raw.partial > 0 && (
-                      <View style={styles.tooltipRow}>
-                        <Text style={styles.tooltipLabel}>Partially Used:</Text>
-                        <Text style={styles.tooltipValue}>
-                          {formatCurrency(monthData.raw.partial)}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.tooltipDivider} />
-                    <View style={styles.tooltipRow}>
-                      <Text style={styles.tooltipLabel}>vs Target:</Text>
-                      <Text style={[
-                        styles.tooltipValue,
-                        { color: monthData.value >= monthlyTarget ? '#34C759' : '#FF9500' }
-                      ]}>
-                        {Math.round((monthData.value / monthlyTarget) * 100)}%
-                      </Text>
-                    </View>
-                  </Animated.View>
-                )}
               </TouchableOpacity>
             );
           })}
         </View>
+
+        {/* Dynamic Tooltip */}
+        {selectedBar !== null && (
+          <Animated.View 
+            entering={FadeIn.duration(200)}
+            style={[
+              styles.tooltip,
+              {
+                left: selectedBar <= 1 ? 10 : 
+                      selectedBar >= alignedData.length - 2 ? chartWidth - 140 :
+                      (selectedBar / (alignedData.length - 1)) * chartWidth - 65,
+              }
+            ]}
+          >
+            <View style={styles.tooltipHeader}>
+              <Text style={styles.tooltipTitle}>{alignedData[selectedBar].label} Summary</Text>
+              <TouchableOpacity 
+                style={styles.helpIcon}
+                onPress={() => {
+                  // Could implement help modal here
+                }}
+              >
+                <Ionicons name="help-circle-outline" size={14} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            </View>
+            {alignedData[selectedBar].value > 0 ? (
+              <>
+                <View style={styles.tooltipRow}>
+                  <Text style={styles.tooltipLabel}>Fully Used:</Text>
+                  <Text style={styles.tooltipValue}>
+                    {formatCurrency(alignedData[selectedBar].raw.redeemed)}
+                  </Text>
+                </View>
+                {alignedData[selectedBar].raw.partial > 0 && (
+                  <View style={styles.tooltipRow}>
+                    <Text style={styles.tooltipLabel}>Partially Used:</Text>
+                    <Text style={styles.tooltipValue}>
+                      {formatCurrency(alignedData[selectedBar].raw.partial)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.tooltipDivider} />
+                <View style={styles.tooltipRow}>
+                  <Text style={styles.tooltipLabel}>vs Target:</Text>
+                  <Text style={[
+                    styles.tooltipValue,
+                    { color: alignedData[selectedBar].value >= monthlyTarget ? '#34C759' : '#FF9500' }
+                  ]}>
+                    {Math.round((alignedData[selectedBar].value / monthlyTarget) * 100)}%
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.tooltipRow}>
+                <Text style={styles.tooltipLabel}>No activity this month</Text>
+              </View>
+            )}
+          </Animated.View>
+        )}
       </View>
 
       {/* Legend */}
@@ -476,6 +435,12 @@ export default function InteractiveBarChart({
           <View style={[styles.legendColor, { backgroundColor: '#007AFF' }]} />
           <Text style={styles.legendText}>Current Month</Text>
         </View>
+        {monthlyTarget > 0 && (
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDash]} />
+            <Text style={styles.legendText}>{formatCurrency(monthlyTarget)} Target</Text>
+          </View>
+        )}
       </View>
 
       {/* Performance summary */}
@@ -575,14 +540,6 @@ const styles = StyleSheet.create({
   statusTextStart: {
     color: '#007AFF',
   },
-  trendToggle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   chartContainer: {
     position: 'relative',
     marginBottom: 16,
@@ -596,18 +553,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   targetLineSvg: {
-    position: 'absolute',
-  },
-  targetLineLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#34C759',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 4,
-    textAlign: 'center',
+    width: '100%',
   },
   barsContainer: {
     flexDirection: 'row',
@@ -622,10 +568,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-  valueLabelContainer: {
-    height: 20,
-    justifyContent: 'flex-end',
-    marginBottom: 8,
+  clickableArea: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    minHeight: 80,
+  },
+  selectedBarColumn: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 8,
+  },
+  dynamicValueLabel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 10,
   },
   valueLabel: {
     fontSize: 10,
@@ -635,6 +592,10 @@ const styles = StyleSheet.create({
   },
   currentValueLabel: {
     color: '#007AFF',
+    fontWeight: '700',
+  },
+  cappedIndicator: {
+    color: '#FF9500',
     fontWeight: '700',
   },
   barContainer: {
@@ -701,48 +662,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    gap: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 3,
+    paddingHorizontal: 2,
+    paddingVertical: 1,
   },
   legendColor: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
+  legendDash: {
+    width: 12,
+    height: 2,
+    backgroundColor: '#34C759',
+    borderRadius: 1,
+  },
   legendText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
     color: '#8E8E93',
   },
   tooltip: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 110,
     backgroundColor: '#1C1C1E',
     borderRadius: 8,
     padding: 12,
     minWidth: 130,
-    left: '50%',
-    marginLeft: -65,
-    zIndex: 9999,
+    maxWidth: 160,
+    zIndex: 20000,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 8,
-  },
-  tooltipLeft: {
-    left: -10,
-    marginLeft: 0,
-  },
-  tooltipRight: {
-    right: -10,
-    left: 'auto',
-    marginLeft: 0,
   },
   tooltipHeader: {
     flexDirection: 'row',
