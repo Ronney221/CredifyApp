@@ -9,7 +9,7 @@ import Animated, { FadeIn, FadeOut, Layout, useSharedValue, useAnimatedStyle, wi
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added AsyncStorage
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 import YearlyProgress from '../../components/insights/YearlyProgress'; // Import the new component
-import CardRoiLeaderboard from '../../components/insights/CardRoiLeaderboard'; // Import the new component
+import CardRoiLeaderboard from '../../components/insights/CardRoiLeaderboardNew'; // Import the new component
 import MiniBarChart from '../../components/insights/MiniBarChart';
 import HeroInsightCard from '../../components/insights/HeroInsightCard';
 import InsightsSegmentedControl, { InsightTab } from '../../components/insights/InsightsSegmentedControl';
