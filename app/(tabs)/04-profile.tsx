@@ -485,8 +485,8 @@ const ProfileScreen = () => {
           <>
             {/* <ProfileStatsCards userId={user.id} /> */}
             {/* <QuickInsights userId={user.id} /> */}
-            <PersonalJourney userId={user.id} />
             <AchievementsSection userId={user.id} />
+            <PersonalJourney userId={user.id} />
           </>
         )}
       </ScrollView>

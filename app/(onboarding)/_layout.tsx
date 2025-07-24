@@ -27,7 +27,7 @@ export default function OnboardingLayout() {
         <Stack.Screen
           name="card-select"
           options={{
-            gestureEnabled: true,PowerToys_Paste_20250723201438.png
+            gestureEnabled: true,
           }}
         />
         <Stack.Screen
