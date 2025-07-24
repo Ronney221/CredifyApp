@@ -2,7 +2,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { Card, allCards, Benefit } from '../src/data/card-data';
+import { Card, Benefit } from '../src/data/card-data';
+import { CardService } from '../lib/card-service';
 import { getUserCards, getRedemptionsForPeriod } from '../lib/database';
 import { scheduleNotificationAsync } from '../utils/notification-scheduler';
 import { NotificationPreferences } from '../types/notification-types';
@@ -247,7 +248,11 @@ export const schedulePerkExpiryNotifications = async (
       if (!dbUserCards || dbUserCards.length === 0) return [];
       
       const userCardSet = new Set(dbUserCards.map((c: { card_name: string }) => c.card_name));
-      const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
+      
+      // Get cards from CardService instead of empty allCards array
+      const cardService = CardService.getInstance();
+      const allAppCards = await cardService.getAllCards();
+      const currentUserAppCards = allAppCards.filter((appCard: Card) => userCardSet.has(appCard.name));
       const userPerkDefinitionIds = currentUserAppCards
         .flatMap((card: Card) => card.benefits.map((benefit: Benefit) => benefit.definition_id));
   

@@ -357,5 +357,6 @@ export const useNotificationPreferences = (userId?: string) => {
   return {
     buildNotificationItems,
     sendTestNotification: testNotifications,
+    preferences: getPreferences(),
   };
 };

@@ -2,7 +2,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { Card, allCards, Benefit } from '../src/data/card-data';
+import { Card, Benefit } from '../src/data/card-data';
+import { CardService } from '../lib/card-service';
 import { getUserCards } from '../lib/database';
 import { NotificationPreferences } from '../types/notification-types';
 import { scheduleNotificationAsync } from './notification-scheduler';
@@ -111,7 +112,11 @@ function generateRenewalTitle(daysBeforeRenewal: number): string {
 
 async function generateRenewalBody(cardName: string, renewalDate: Date, daysBeforeRenewal: number): Promise<{ body: string; data: any }> {
   const formattedDate = renewalDate.toLocaleDateString();
-  const card = allCards.find(c => c.name === cardName);
+  
+  // Get cards from CardService instead of undefined allCards
+  const cardService = CardService.getInstance();
+  const allAppCards = await cardService.getAllCards();
+  const card = allAppCards.find(c => c.name === cardName);
   const annualFee = card?.annualFee || 0;
   
   const notificationData = {
@@ -249,7 +254,11 @@ export const scheduleFirstOfMonthReminder = async (
     }
 
     const userCardSet = new Set(dbUserCards.map((c: UserCard) => c.card_name));
-    const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
+    
+    // Get cards from CardService instead of empty allCards array
+    const cardService = CardService.getInstance();
+    const allAppCards = await cardService.getAllCards();
+    const currentUserAppCards = allAppCards.filter((appCard: Card) => userCardSet.has(appCard.name));
 
     // Calculate total value of monthly perks
     let totalMonthlyValue = 0;
@@ -354,7 +363,11 @@ export const schedulePerkResetNotification = async (
     }
 
     const userCardSet = new Set(dbUserCards.map((c: UserCard) => c.card_name));
-    const currentUserAppCards = allCards.filter((appCard: Card) => userCardSet.has(appCard.name));
+    
+    // Get cards from CardService instead of empty allCards array
+    const cardService = CardService.getInstance();
+    const allAppCards = await cardService.getAllCards();
+    const currentUserAppCards = allAppCards.filter((appCard: Card) => userCardSet.has(appCard.name));
 
     // Group perks by their reset period
     const perksByPeriod: Record<number, { totalValue: number, count: number, perks: string[] }> = {

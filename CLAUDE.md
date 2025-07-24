@@ -108,3 +108,6 @@ This is a React Native mobile app built with Expo (SDK 53) and TypeScript. The a
 - Supabase RLS (Row Level Security) for data access control
 - Secure storage for sensitive user data
 - Proper authentication flows with social login support
+
+## Commit Message Guidelines
+- Exclude claude and ai mentions when creating commit messages
