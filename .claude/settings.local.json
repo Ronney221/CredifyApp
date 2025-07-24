@@ -11,7 +11,8 @@
       "Bash(npm run lint)",
       "Bash(npm run monitor-schemes:*)",
       "Bash(wc:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }

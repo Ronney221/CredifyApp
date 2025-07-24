@@ -21,7 +21,7 @@ import {
   Achievement,
   PerkStatusFilter,
 } from '../../src/data/dummy-insights';
-import { MonthSummaryCard } from '../../components/insights/MonthSummaryCard';
+import MonthSummaryCardNew from '../../components/insights/MonthSummaryCardNew';
 import { StreakBadge } from '../../components/insights/StreakBadge';
 import { FeeCoverageMeterChip } from '../../components/insights/FeeCoverageMeterChip';
 import { useAuth } from '../../contexts/AuthContext';
@@ -516,7 +516,7 @@ export default function InsightsScreen() {
                                section.year === insightsData.yearSections[0].year && 
                                index === 0;
     return (
-        <MonthSummaryCard
+        <MonthSummaryCardNew
         summary={item}
         isExpanded={expandedMonthKey === item.monthKey}
         onToggleExpand={() => handleToggleMonth(item.monthKey)}
@@ -848,7 +848,7 @@ export default function InsightsScreen() {
                   </View>
                   {currentYearSection?.data.slice(0, 3).map((month, index) => (
                     <ErrorBoundary key={month.monthKey}>
-                      <MonthSummaryCard
+                      <MonthSummaryCardNew
                         summary={month}
                         isExpanded={expandedMonthKey === month.monthKey}
                         onToggleExpand={() => handleToggleMonth(month.monthKey)}
