@@ -169,18 +169,42 @@ export default function MonthSummaryCardNew({
     };
   }, [actionablePerks]);
 
+  // Smart sorting function for perks
+  const sortPerks = (perks: PerkDetail[]) => {
+    return perks.sort((a, b) => {
+      // 1. Sort by urgency (expiring this month first, then next month)
+      if (a.expiresThisMonth && !b.expiresThisMonth) return -1;
+      if (!a.expiresThisMonth && b.expiresThisMonth) return 1;
+      if (a.expiresNextMonth && !b.expiresNextMonth) return -1;
+      if (!a.expiresNextMonth && b.expiresNextMonth) return 1;
+      
+      // 2. Sort by status priority (available/missed first, then redeemed/partial)
+      const statusPriority = { 'available': 0, 'missed': 1, 'partial': 2, 'redeemed': 3 };
+      const statusDiff = statusPriority[a.status] - statusPriority[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      
+      // 3. Sort by period (monthly first, then by frequency)
+      const periodPriority = { 'monthly': 0, 'quarterly': 1, 'semi_annual': 2, 'annual': 3 };
+      const periodDiff = periodPriority[a.period] - periodPriority[b.period];
+      if (periodDiff !== 0) return periodDiff;
+      
+      // 4. Finally sort by value (highest first)
+      return b.value - a.value;
+    });
+  };
+
   // Filter perks for display based on status filter
   const displayPerks = useMemo(() => {
     // For display, we want to show different categories:
     // 1. Actionable perks (monthly + expiring non-monthly)
     // 2. Bonus redemptions (non-monthly perks redeemed early)
     
-    const actionableForDisplay = actionablePerks.filter(perk => {
+    const actionableFiltered = actionablePerks.filter(perk => {
       if (perkStatusFilter === 'all') return true;
       return perk.status === perkStatusFilter;
     });
 
-    const bonusRedemptions = summary.perkDetails.filter(perk => {
+    const bonusFiltered = summary.perkDetails.filter(perk => {
       // Non-monthly perks that were redeemed but didn't expire this month
       return perk.period !== 'monthly' && 
              !perk.expiresThisMonth && 
@@ -188,8 +212,23 @@ export default function MonthSummaryCardNew({
              (perkStatusFilter === 'all' || perk.status === perkStatusFilter);
     });
 
-    return { actionableForDisplay, bonusRedemptions };
+    return { 
+      actionableForDisplay: sortPerks(actionableFiltered), 
+      bonusRedemptions: sortPerks(bonusFiltered) 
+    };
   }, [actionablePerks, summary.perkDetails, perkStatusFilter]);
+
+  // Calculate actual stats including bonus redemptions for display
+  const displayStats = useMemo(() => {
+    const allRelevantPerks = [...displayPerks.actionableForDisplay, ...displayPerks.bonusRedemptions];
+    
+    return {
+      redeemed: allRelevantPerks.filter(p => p.status === 'redeemed').length,
+      partial: allRelevantPerks.filter(p => p.status === 'partial').length,
+      available: actionablePerks.filter(p => p.status === 'available').length,
+      missed: actionablePerks.filter(p => p.status === 'missed').length,
+    };
+  }, [displayPerks, actionablePerks]);
 
   // Performance metrics based on actionable perks only
   const performanceScore = useMemo(() => {
@@ -302,14 +341,22 @@ export default function MonthSummaryCardNew({
           
           <View style={styles.perkValue}>
             {perk.status === 'partial' && perk.partialValue ? (
-              <>
+              perk.period !== 'monthly' ? (
+                // Two-line format for non-monthly partial redemptions
+                <>
+                  <Text style={[styles.valueText, { color: statusColor }]}>
+                    {formatCurrency(perk.partialValue)}
+                  </Text>
+                  <Text style={styles.totalValueText}>
+                    / {formatCurrency(perk.value)}
+                  </Text>
+                </>
+              ) : (
+                // Single-line format for monthly partial redemptions
                 <Text style={[styles.valueText, { color: statusColor }]}>
-                  {formatCurrency(perk.partialValue)}
+                  {formatCurrency(perk.partialValue)} / {formatCurrency(perk.value)}
                 </Text>
-                <Text style={styles.totalValueText}>
-                  / {formatCurrency(perk.value)}
-                </Text>
-              </>
+              )
             ) : (
               <Text style={[styles.valueText, { color: statusColor }]}>
                 {formatCurrency(perk.value)}
@@ -423,34 +470,29 @@ export default function MonthSummaryCardNew({
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
-                {actionablePerks.filter(p => p.status === 'redeemed').length}
+                {displayStats.redeemed}
               </Text>
-              <Text style={styles.statLabel}>Redeemed</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>Redeemed</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
-                {actionablePerks.filter(p => p.status === 'partial').length}
+                {displayStats.partial}
               </Text>
-              <Text style={styles.statLabel}>Partial</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>Partial</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
-                {isCurrentMonth 
-                  ? actionablePerks.filter(p => p.status === 'available').length
-                  : actionablePerks.filter(p => p.status === 'missed').length
-                }
+                {isCurrentMonth ? displayStats.available : displayStats.missed}
               </Text>
-              <Text style={styles.statLabel}>
+              <Text style={styles.statLabel} numberOfLines={1}>
                 {isCurrentMonth ? 'Available' : 'Missed'}
               </Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
-                {actionablePerks.length}
+                {formatCurrency(actionableCalculations.totalActionableValue)}
               </Text>
-              <Text style={styles.statLabel}>
-                {actionablePerks.length === 0 ? 'None Due' : 'Actionable'}
-              </Text>
+              <Text style={styles.statLabel} numberOfLines={1}>Due</Text>
             </View>
           </View>
 
@@ -658,11 +700,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#8E8E93',
     fontWeight: '500',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
   expandedContent: {
     marginTop: 20,
