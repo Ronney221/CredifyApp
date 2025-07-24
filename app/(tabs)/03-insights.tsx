@@ -31,7 +31,6 @@ import { useRouter } from 'expo-router';
 import LottieView from 'lottie-react-native';
 
 import { BlurView } from 'expo-blur';
-import InsightsHelpModal from '../../components/insights/InsightsHelpModal';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import InsightsEmptyState from '../../components/insights/InsightsEmptyState';
 import InsightsLoadingState from '../../components/insights/InsightsLoadingState';
@@ -214,7 +213,6 @@ export default function InsightsScreen() {
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [isHelpModalVisible, setHelpModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<InsightTab>('summary');
 
   // Add scroll animation values
@@ -556,16 +554,6 @@ export default function InsightsScreen() {
             <Text style={styles.screenTitle}>Insights</Text>
             <View style={styles.headerButtonsContainer}>
               <TouchableOpacity 
-                onPress={() => setHelpModalVisible(true)}
-                style={[styles.headerButton, styles.helpButton]}
-              >
-                <Ionicons 
-                  name="help-circle-outline" 
-                  size={24} 
-                  color={Colors.light.text} 
-                />
-              </TouchableOpacity>
-              <TouchableOpacity 
                 style={[styles.headerButton, styles.filterButton]}
                 onPress={() => setFilterModalVisible(true)}
               >
@@ -602,16 +590,6 @@ export default function InsightsScreen() {
         <BlurView intensity={80} tint="extraLight" style={styles.fixedHeader}>
           <Text style={styles.screenTitle}>Insights</Text>
           <View style={styles.headerButtonsContainer}>
-            <TouchableOpacity 
-              onPress={() => setHelpModalVisible(true)}
-              style={[styles.headerButton, styles.helpButton]}
-            >
-              <Ionicons 
-                name="help-circle-outline" 
-                size={24} 
-                color={Colors.light.text} 
-              />
-            </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.headerButton, styles.filterButton]}
               onPress={() => setFilterModalVisible(true)}
@@ -834,10 +812,6 @@ export default function InsightsScreen() {
           availableCardsForFilter={availableCardsForFilter}
           toggleCardSelection={toggleCardSelection}
           activeFilterCount={activeFilterCount}
-        />
-        <InsightsHelpModal 
-          isVisible={isHelpModalVisible}
-          onClose={() => setHelpModalVisible(false)}
         />
       </View>
     </SafeAreaView>
@@ -1116,9 +1090,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 18,
     marginLeft: 8,
-  },
-  helpButton: {
-    backgroundColor: 'rgba(142, 142, 147, 0.12)',
   },
   filterButton: {
     backgroundColor: 'rgba(142, 142, 147, 0.12)',

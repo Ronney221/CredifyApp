@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -79,6 +79,8 @@ export default function InsightsFilterSheet({
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(screenHeight);
   const opacity = useSharedValue(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   React.useEffect(() => {
     if (isVisible) {
@@ -87,11 +89,15 @@ export default function InsightsFilterSheet({
         damping: 20,
         stiffness: 300,
       });
+      // Restore scroll position after a small delay to ensure the sheet is fully rendered
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: scrollPosition, animated: false });
+      }, 100);
     } else {
       opacity.value = withTiming(0, { duration: 150 });
       translateY.value = withTiming(screenHeight, { duration: 200 });
     }
-  }, [isVisible]);
+  }, [isVisible, scrollPosition]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -135,6 +141,10 @@ export default function InsightsFilterSheet({
     }
     setSelectedCardIds([]);
   }, [setSelectedCardIds]);
+
+  const handleScroll = useCallback((event: any) => {
+    setScrollPosition(event.nativeEvent.contentOffset.y);
+  }, []);
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
@@ -194,9 +204,14 @@ export default function InsightsFilterSheet({
               </View>
 
               <ScrollView 
+                ref={scrollViewRef}
                 style={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                bounces={false}
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+                contentContainerStyle={styles.scrollContentContainer}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                nestedScrollEnabled={true}
               >
                 {/* Perk Status Section */}
                 <View style={styles.section}>
@@ -341,7 +356,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: screenHeight * 0.85,
+    height: screenHeight * 0.9,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
@@ -352,6 +367,7 @@ const styles = StyleSheet.create({
   sheetContent: {
     flex: 1,
     paddingTop: 8,
+    maxHeight: '100%',
   },
   handleBar: {
     width: 36,
@@ -402,7 +418,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flex: 1,
+    maxHeight: '100%',
+  },
+  scrollContentContainer: {
     paddingHorizontal: 20,
+    paddingBottom: 100,
   },
   section: {
     marginBottom: 32,
