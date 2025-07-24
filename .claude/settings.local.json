@@ -10,7 +10,8 @@
       "Bash(node:*)",
       "Bash(npm run lint)",
       "Bash(npm run monitor-schemes:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
