@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'; // Added A
 import { Svg, Polyline, Circle, Path, G, Text as SvgText } from 'react-native-svg'; // Added Circle, Path, G for gauge and SvgText
 import YearlyProgress from '../../components/insights/YearlyProgress'; // Import the new component
 import CardRoiLeaderboard from '../../components/insights/CardRoiLeaderboardNew'; // Import the new component
-import MiniBarChart from '../../components/insights/MiniBarChart';
+import InteractiveBarChart from '../../components/insights/InteractiveBarChart';
 import HeroInsightCard from '../../components/insights/HeroInsightCard';
 import InsightsSegmentedControl, { InsightTab } from '../../components/insights/InsightsSegmentedControl';
 import {
@@ -808,40 +808,33 @@ export default function InsightsScreen() {
 
               {activeTab === 'trends' && (
                 <Animated.View entering={FadeIn.duration(300)}>
-                  <View style={styles.chartSection}>
-                    <View style={styles.chartHeader}>
-                      <Text style={styles.chartTitle}>Monthly Performance</Text>
-                    </View>
-                    {currentYearSection && (
-                      <MiniBarChart
-                        data={rightPad((() => {
-                          const monthsChrono = [...currentYearSection.data]
-                            .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
-                          return monthsChrono.map(m => {
-                            const calculations = calculateRedemptionValues(m, false, false);
-                            return m.totalPotentialValue > 0 
-                              ? (calculations.totalRedeemedValue / m.totalPotentialValue) * 100 
-                              : 0;
-                          });
-                        })(), 6, 0)}
-                        rawData={(() => {
-                          const monthsChrono = [...currentYearSection.data]
-                            .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
-                          return monthsChrono.map(m => {
-                            const calculations = calculateRedemptionValues(m, false, false);
-                            return {
-                              redeemed: calculations.redeemedValue,
-                              partial: calculations.partialValue,
-                              potential: m.totalPotentialValue,
-                              monthKey: m.monthKey
-                            };
-                          });
-                        })()}
-                        debugMode={false}
-                        totalAnnualFees={insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0)}
-                      />
-                    )}
-                  </View>
+                  {currentYearSection && (
+                    <InteractiveBarChart
+                      data={(() => {
+                        const monthsChrono = [...currentYearSection.data]
+                          .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
+                        return monthsChrono.map(m => {
+                          const calculations = calculateRedemptionValues(m, false, false);
+                          return calculations.redeemedValue + calculations.partialValue;
+                        }).slice(-6);
+                      })()}
+                      rawData={(() => {
+                        const monthsChrono = [...currentYearSection.data]
+                          .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime());
+                        return monthsChrono.map(m => {
+                          const calculations = calculateRedemptionValues(m, false, false);
+                          return {
+                            redeemed: calculations.redeemedValue,
+                            partial: calculations.partialValue,
+                            potential: m.totalPotentialValue,
+                            monthKey: m.monthKey
+                          };
+                        }).slice(-6);
+                      })()}
+                      totalAnnualFees={insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0)}
+                      height={280}
+                    />
+                  )}
                 </Animated.View>
               )}
 
