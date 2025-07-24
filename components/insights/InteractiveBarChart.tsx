@@ -92,8 +92,10 @@ export default function InteractiveBarChart({
     });
   }, [months, rawData]);
 
-  const maxValue = Math.max(...alignedData.map(d => d.value), totalAnnualFees / 12, 100);
+  // Calculate maxValue with proper padding for visual clarity
+  const dataMaxValue = Math.max(...alignedData.map(d => d.value), 1);
   const monthlyTarget = totalAnnualFees / 12;
+  const maxValue = Math.max(dataMaxValue, monthlyTarget, 100) * 1.2; // Add 20% padding
   
   // Calculate performance metrics
   const totalSaved = alignedData.reduce((sum, d) => sum + d.value, 0);
@@ -116,7 +118,7 @@ export default function InteractiveBarChart({
     });
   }, [alignedData, maxValue]);
 
-  // Generate trend line path with proper alignment
+  // Generate trend line path with proper alignment to bars (only connects actual data)
   const trendPath = useMemo(() => {
     const dataPoints = alignedData.filter(d => d.value > 0);
     if (dataPoints.length < 2) return '';
@@ -126,21 +128,34 @@ export default function InteractiveBarChart({
       const originalIndex = alignedData.indexOf(d);
       // Center the point exactly on the bar
       const x = barWidth * originalIndex + barWidth / 2;
-      const y = chartHeight - (d.value / maxValue) * chartHeight;
-      return { x, y };
+      
+      // Use the same height calculation as bars, accounting for container padding
+      const normalizedValue = Math.min(d.value / maxValue, 1);
+      const barHeight = normalizedValue * (chartHeight - 20); // Account for paddingTop
+      const y = chartHeight - barHeight;
+      
+      return { x, y, originalIndex };
     });
 
     if (points.length < 2) return '';
 
-    // Create smooth curve connecting actual data points
+    // Only connect consecutive data points, don't extrapolate
     let path = `M ${points[0].x} ${points[0].y}`;
     for (let i = 1; i < points.length; i++) {
       const prevPoint = points[i - 1];
       const currPoint = points[i];
-      // Use control points for smoother curves
-      const controlX1 = prevPoint.x + (currPoint.x - prevPoint.x) * 0.4;
-      const controlX2 = currPoint.x - (currPoint.x - prevPoint.x) * 0.4;
-      path += ` C ${controlX1} ${prevPoint.y} ${controlX2} ${currPoint.y} ${currPoint.x} ${currPoint.y}`;
+      
+      // Check if points are consecutive months - if not, create separate path segments
+      const monthGap = currPoint.originalIndex - prevPoint.originalIndex;
+      if (monthGap === 1) {
+        // Consecutive months - draw smooth curve
+        const controlX1 = prevPoint.x + (currPoint.x - prevPoint.x) * 0.4;
+        const controlX2 = currPoint.x - (currPoint.x - prevPoint.x) * 0.4;
+        path += ` C ${controlX1} ${prevPoint.y} ${controlX2} ${currPoint.y} ${currPoint.x} ${currPoint.y}`;
+      } else {
+        // Gap in data - start new path segment
+        path += ` M ${currPoint.x} ${currPoint.y}`;
+      }
     }
 
     return path;
@@ -232,8 +247,8 @@ export default function InteractiveBarChart({
       <View style={[styles.chartContainer, { height: chartHeight + 40 }]}>
         {/* Trend line */}
         {showTrend && trendPath && (
-          <View style={StyleSheet.absoluteFill}>
-            <Svg width={chartWidth} height={chartHeight + 40}>
+          <View style={[StyleSheet.absoluteFill, { top: 20, zIndex: 5 }]}>
+            <Svg width={chartWidth} height={chartHeight}>
               <Defs>
                 <SvgLinearGradient id="trendGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <Stop offset="0%" stopColor="#007AFF" stopOpacity="0.3" />
@@ -257,7 +272,9 @@ export default function InteractiveBarChart({
         {monthlyTarget > 0 && (
           <View style={[
             styles.targetLine,
-            { bottom: (monthlyTarget / maxValue) * chartHeight + 20 }
+            { 
+              bottom: 20 + (monthlyTarget / maxValue) * (chartHeight - 20)
+            }
           ]}>
             <Svg width={chartWidth} height={2} style={styles.targetLineSvg}>
               <Defs>
@@ -282,18 +299,20 @@ export default function InteractiveBarChart({
         )}
 
         {/* Bars */}
-        <View style={styles.barsContainer}>
+        <View style={[styles.barsContainer, { height: chartHeight }]}>
           {alignedData.map((monthData, index) => {
-            const animatedStyle = useAnimatedStyle(() => {
-              const barHeight = barAnimations[index].value * chartHeight;
-              return {
-                height: barHeight,
-              };
-            });
-
             const isSelected = selectedBar === index;
             const hasValue = monthData.value > 0;
             const isCurrentMonth = monthData.isCurrent;
+
+            const animatedStyle = useAnimatedStyle(() => {
+              const normalizedValue = Math.min(barAnimations[index].value, 1); // Ensure value doesn't exceed 1
+              const availableHeight = chartHeight - 20; // Account for container paddingTop
+              const barHeight = Math.max(normalizedValue * availableHeight, hasValue ? 4 : 2); // Minimum height for visibility
+              return {
+                height: Math.min(barHeight, availableHeight), // Constrain to available height
+              };
+            });
 
             return (
               <TouchableOpacity
@@ -505,6 +524,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
+    overflow: 'visible',
   },
   header: {
     flexDirection: 'row',
@@ -566,7 +586,7 @@ const styles = StyleSheet.create({
   chartContainer: {
     position: 'relative',
     marginBottom: 16,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   targetLine: {
     position: 'absolute',
@@ -593,8 +613,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    height: '100%',
+    flex: 1,
     paddingTop: 20,
+    overflow: 'visible',
   },
   barColumn: {
     flex: 1,
@@ -700,19 +721,19 @@ const styles = StyleSheet.create({
   },
   tooltip: {
     position: 'absolute',
-    bottom: '110%',
+    bottom: 30,
     backgroundColor: '#1C1C1E',
     borderRadius: 8,
     padding: 12,
     minWidth: 130,
     left: '50%',
     marginLeft: -65,
-    zIndex: 10,
+    zIndex: 9999,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 8,
   },
   tooltipLeft: {
     left: -10,

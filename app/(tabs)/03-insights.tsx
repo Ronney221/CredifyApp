@@ -640,17 +640,13 @@ export default function InsightsScreen() {
             <HeroInsightCard
               totalEarned={currentYearData?.totalRedeemed || 0}
               totalAnnualFees={currentYearData?.totalAnnualFees || 0}
-              monthlyTrend={(() => {
-                if (!currentYearSection) return [];
-                const monthsChrono = [...currentYearSection.data]
-                  .sort((a, b) => parseMonthKey(a.monthKey).getTime() - parseMonthKey(b.monthKey).getTime())
-                  .slice(-6);
-                return monthsChrono.map(m => {
-                  const calculations = calculateRedemptionValues(m, false, false);
-                  return m.totalPotentialValue > 0 
-                    ? (calculations.totalRedeemedValue / m.totalPotentialValue) * 100 
-                    : 0;
-                });
+              monthsWithData={(() => {
+                if (!currentYearSection) return 0;
+                // Count months that have actual redemptions (not just potential value)
+                return currentYearSection.data.filter(month => {
+                  const calculations = calculateRedemptionValues(month, false, false);
+                  return calculations.totalRedeemedValue > 0;
+                }).length;
               })()}
               onPress={() => setActiveTab('trends')}
             />
@@ -673,7 +669,15 @@ export default function InsightsScreen() {
                     <View style={styles.metricCard}>
                       <Text style={styles.metricLabel}>Monthly Average</Text>
                       <Text style={styles.metricValue}>
-                        ${Math.round((currentYearData?.totalRedeemed || 0) / 12)}
+                        {(() => {
+                          if (!currentYearSection) return '$0';
+                          const monthsWithData = currentYearSection.data.filter(month => {
+                            const calculations = calculateRedemptionValues(month, false, false);
+                            return calculations.totalRedeemedValue > 0;
+                          }).length;
+                          const monthlyAvg = monthsWithData > 0 ? (currentYearData?.totalRedeemed || 0) / monthsWithData : 0;
+                          return `${formatCurrency(monthlyAvg)}`;
+                        })()}
                       </Text>
                     </View>
                     <View style={styles.metricCard}>
@@ -881,13 +885,13 @@ const styles = StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   metricCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
+    padding: 18,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -911,12 +915,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   sectionContainer: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionSubtitle: {
     fontSize: 14,
     color: '#8E8E93',
-    marginBottom: 16,
+    marginBottom: 12,
     letterSpacing: -0.08,
   },
   successCard: {

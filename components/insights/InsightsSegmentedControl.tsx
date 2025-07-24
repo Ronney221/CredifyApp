@@ -35,11 +35,14 @@ const tabs: TabConfig[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'cards', label: 'Cards' },
   { id: 'trends', label: 'Trends' },
-  { id: 'tips', label: 'Tips' },
+  { id: 'tips', label: 'History' },
 ];
 
 const { width: screenWidth } = Dimensions.get('window');
-const SEGMENT_WIDTH = (screenWidth - 32) / tabs.length; // Account for padding
+const CONTAINER_PADDING = 32; // 16px left + 16px right
+const CONTROL_PADDING = 8; // 4px left + 4px right inside control
+const AVAILABLE_WIDTH = screenWidth - CONTAINER_PADDING - CONTROL_PADDING;
+const SEGMENT_WIDTH = AVAILABLE_WIDTH / tabs.length;
 
 export default function InsightsSegmentedControl({
   activeTab,
@@ -144,15 +147,17 @@ const AnimatedTabLabel: React.FC<{
   });
 
   return (
-    <Animated.Text 
-      style={[
-        styles.tabLabel,
-        isActive && styles.tabLabelActive,
-        animatedLabelStyle,
-      ]}
-    >
-      {label}
-    </Animated.Text>
+    <Animated.View style={{ width: '100%', alignItems: 'center' }}>
+      <Animated.Text 
+        style={[
+          styles.tabLabel,
+          isActive && styles.tabLabelActive,
+          animatedLabelStyle,
+        ]}
+      >
+        {label}
+      </Animated.Text>
+    </Animated.View>
   );
 };
 
@@ -186,10 +191,9 @@ const styles = StyleSheet.create({
   indicator: {
     position: 'absolute',
     top: 4,
+    bottom: 4,
     left: 4,
     width: SEGMENT_WIDTH,
-    height: '100%',
-    paddingBottom: 8,
   },
   indicatorInner: {
     flex: 1,
@@ -210,19 +214,27 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+    minHeight: 40,
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
+    flex: 1,
   },
   tabLabel: {
     fontSize: 15,
     fontWeight: '600',
     color: '#666666',
     letterSpacing: -0.24,
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    width: '100%',
   },
   tabLabelActive: {
     color: '#1C1C1E',

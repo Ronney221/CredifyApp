@@ -28,7 +28,7 @@ import * as Haptics from 'expo-haptics';
 interface HeroInsightCardProps {
   totalEarned: number;
   totalAnnualFees: number;
-  monthlyTrend: number[]; // Last 6 months percentage data
+  monthsWithData: number; // Number of months user has been active
   onPress?: () => void;
   scrollProgress?: Animated.SharedValue<number>;
 }
@@ -38,7 +38,7 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function HeroInsightCard({
   totalEarned,
   totalAnnualFees,
-  monthlyTrend = [],
+  monthsWithData,
   onPress,
   scrollProgress,
 }: HeroInsightCardProps) {
@@ -49,6 +49,22 @@ export default function HeroInsightCard({
   const roi = totalAnnualFees > 0 ? Math.round((totalEarned / totalAnnualFees) * 100) : 0;
   const netGain = totalEarned - totalAnnualFees;
   const isPositiveROI = roi >= 100;
+  
+  // Calculate monthly average based on actual months with data
+  const monthlyAverage = monthsWithData > 0 ? totalEarned / monthsWithData : 0;
+  const monthlyTarget = totalAnnualFees / 12;
+  const isOnTrack = monthlyAverage >= monthlyTarget * 0.8; // 80% threshold for being "on track"
+  
+  // Calculate break-even and remaining metrics
+  const remainingToBreakEven = Math.max(0, totalAnnualFees - totalEarned);
+  const surplusAmount = totalEarned > totalAnnualFees ? totalEarned - totalAnnualFees : 0;
+  const progressToBreakEven = totalAnnualFees > 0 ? Math.min(1, totalEarned / totalAnnualFees) : 0;
+  
+  // Calculate time context (months remaining in year)
+  const now = new Date();
+  const monthsElapsed = now.getMonth() + 1; // January = 1
+  const monthsRemaining = 12 - monthsElapsed;
+  const monthlyPaceNeeded = monthsRemaining > 0 ? remainingToBreakEven / monthsRemaining : 0;
   
   // Format currency with proper styling
   const formatCurrency = (amount: number) => {
@@ -148,13 +164,18 @@ export default function HeroInsightCard({
     onPress?.();
   };
 
-  // Calculate trend direction
-  const trendDirection = useMemo(() => {
-    if (monthlyTrend.length < 2) return 'neutral';
-    const recent = monthlyTrend[monthlyTrend.length - 1];
-    const previous = monthlyTrend[monthlyTrend.length - 2];
-    return recent > previous ? 'up' : recent < previous ? 'down' : 'neutral';
-  }, [monthlyTrend]);
+  // Determine track status for display
+  const getTrackStatus = () => {
+    if (isPositiveROI) {
+      return { text: 'Excellent ROI', color: '#34C759', icon: 'trending-up' };
+    } else if (isOnTrack) {
+      return { text: 'On Track', color: '#007AFF', icon: 'checkmark-circle' };
+    } else {
+      return { text: 'Below Target', color: '#FF9500', icon: 'time' };
+    }
+  };
+  
+  const trackStatus = getTrackStatus();
 
   return (
     <TouchableOpacity
@@ -189,18 +210,19 @@ export default function HeroInsightCard({
                 </Text>
               </View>
               
-              {trendDirection !== 'neutral' && (
-                <View style={[
-                  styles.trendIndicator,
-                  trendDirection === 'up' ? styles.trendUp : styles.trendDown
-                ]}>
-                  <Ionicons 
-                    name={trendDirection === 'up' ? 'trending-up' : 'trending-down'} 
-                    size={16} 
-                    color={trendDirection === 'up' ? '#34C759' : '#FF3B30'} 
-                  />
-                </View>
-              )}
+              <View style={[
+                styles.trackIndicator,
+                { backgroundColor: trackStatus.color + '15' }
+              ]}>
+                <Ionicons 
+                  name={trackStatus.icon as any} 
+                  size={14} 
+                  color={trackStatus.color} 
+                />
+                <Text style={[styles.trackText, { color: trackStatus.color }]}>
+                  {trackStatus.text}
+                </Text>
+              </View>
             </View>
 
             {/* Primary metric */}
@@ -229,29 +251,62 @@ export default function HeroInsightCard({
                 </LinearGradient>
               </Animated.View>
 
-              {/* Net gain/loss */}
+              {/* Break-even status */}
               <View style={styles.netGainContainer}>
-                <Text style={[
-                  styles.netGainValue,
-                  { color: netGain >= 0 ? '#34C759' : '#FF3B30' }
-                ]}>
-                  {netGain >= 0 ? '+' : ''}{formatCurrency(Math.abs(netGain))}
-                </Text>
-                <Text style={styles.netGainLabel}>
-                  {netGain >= 0 ? 'Above Fees' : 'Below Fees'}
-                </Text>
+                {isPositiveROI ? (
+                  <>
+                    <Text style={[styles.netGainValue, { color: '#34C759' }]}>
+                      +{formatCurrency(surplusAmount)}
+                    </Text>
+                    <Text style={styles.netGainLabel}>Above Fees</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.netGainValue, { color: '#FF9500' }]}>
+                      {formatCurrency(remainingToBreakEven)}
+                    </Text>
+                    <Text style={styles.netGainLabel}>
+                      Needed to Break Even
+                    </Text>
+                  </>
+                )}
               </View>
             </Animated.View>
 
-            {/* Mini sparkline */}
-            {monthlyTrend.length > 0 && (
+            {/* Progress toward break-even */}
+            {totalAnnualFees > 0 && (
               <Animated.View 
                 entering={FadeIn.delay(300).duration(500)}
-                style={styles.sparklineContainer}
+                style={styles.progressSection}
               >
-                <MiniSparkline data={monthlyTrend} color={isPositiveROI ? '#34C759' : '#FF9500'} />
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressLabel}>
+                    Progress to Break Even ({formatCurrency(totalAnnualFees)})
+                  </Text>
+                  <Text style={styles.progressPercentage}>
+                    {Math.round(progressToBreakEven * 100)}%
+                  </Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <Animated.View 
+                    style={[
+                      styles.progressFill,
+                      { 
+                        width: `${progressToBreakEven * 100}%`,
+                        backgroundColor: isPositiveROI ? '#34C759' : '#007AFF'
+                      }
+                    ]}
+                    entering={FadeIn.delay(400).duration(800)}
+                  />
+                </View>
+                {!isPositiveROI && monthsRemaining > 0 && (
+                  <Text style={styles.paceHint}>
+                    Need {formatCurrency(monthlyPaceNeeded)}/month for remaining {monthsRemaining} months
+                  </Text>
+                )}
               </Animated.View>
             )}
+
           </View>
 
           {/* Decorative elements */}
@@ -271,47 +326,12 @@ export default function HeroInsightCard({
   );
 }
 
-// Mini sparkline component
-const MiniSparkline: React.FC<{ data: number[], color: string }> = ({ data, color }) => {
-  const width = 80;
-  const height = 30;
-  const padding = 2;
-  
-  const points = useMemo(() => {
-    if (data.length === 0) return '';
-    
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const range = max - min || 1;
-    
-    return data.map((value, index) => {
-      const x = padding + (index / (data.length - 1)) * (width - padding * 2);
-      const y = padding + (1 - (value - min) / range) * (height - padding * 2);
-      return `${x},${y}`;
-    }).join(' ');
-  }, [data, width, height]);
-
-  return (
-    <View style={{ width, height }}>
-      <Svg width={width} height={height}>
-        <Polyline
-          points={points}
-          fill="none"
-          stroke={color}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    </View>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
   cardWrapper: {
     shadowColor: '#000',
@@ -324,8 +344,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   card: {
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 20,
+    padding: 20,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -339,7 +359,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   yearBadge: {
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
@@ -354,18 +374,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  trendIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
+  trackIndicator: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
   },
-  trendUp: {
-    backgroundColor: 'rgba(52, 199, 89, 0.1)',
-  },
-  trendDown: {
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+  trackText: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: -0.08,
   },
   totalEarnedLabel: {
     fontSize: 16,
@@ -375,11 +395,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.24,
   },
   totalEarnedValue: {
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: '800',
     color: '#1C1C1E',
-    letterSpacing: -2,
-    marginBottom: 20,
+    letterSpacing: -1.5,
+    marginBottom: 16,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -424,9 +444,43 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     letterSpacing: -0.08,
   },
-  sparklineContainer: {
-    marginTop: 20,
-    alignItems: 'flex-end',
+  progressSection: {
+    marginTop: 16,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666666',
+    letterSpacing: -0.14,
+  },
+  progressPercentage: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    letterSpacing: -0.14,
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  paceHint: {
+    fontSize: 11,
+    color: '#8E8E93',
+    marginTop: 6,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   decoration: {
     position: 'absolute',
