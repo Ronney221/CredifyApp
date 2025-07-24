@@ -56,9 +56,9 @@ export default function InsightsSegmentedControl({
     const isMovingRight = activeIndex > previousIndex;
     
     translateX.value = withSpring(activeIndex * SEGMENT_WIDTH, {
-      damping: 20,
-      stiffness: 300,
-      mass: 0.8,
+      damping: 15,
+      stiffness: 400,
+      mass: 0.6,
     });
     
     previousTab.current = activeTab;
@@ -74,7 +74,7 @@ export default function InsightsSegmentedControl({
     if (tab === activeTab) return;
     
     if (Platform.OS === 'ios') {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Haptics.selectionAsync();
     }
     
     onTabChange(tab);

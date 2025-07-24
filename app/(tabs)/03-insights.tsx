@@ -634,7 +634,10 @@ export default function InsightsScreen() {
             {/* Tab Content */}
             <View style={styles.tabContent}>
               {activeTab === 'summary' && (
-                <Animated.View entering={FadeIn.duration(300)}>
+                <Animated.View 
+                  entering={FadeIn.duration(400).delay(100)}
+                  key="summary-tab"
+                >
                   {/* Key metrics in a clean grid */}
                   <View style={styles.metricsGrid}>
                     <View style={styles.metricCard}>
@@ -707,13 +710,19 @@ export default function InsightsScreen() {
               )}
 
               {activeTab === 'cards' && (
-                <Animated.View entering={FadeIn.duration(300)}>
+                <Animated.View 
+                  entering={FadeIn.duration(400).delay(100)}
+                  key="cards-tab"
+                >
                   <CardRoiLeaderboard cardRois={insightsData.cardRois} />
                 </Animated.View>
               )}
 
               {activeTab === 'trends' && (
-                <Animated.View entering={FadeIn.duration(300)}>
+                <Animated.View 
+                  entering={FadeIn.duration(400).delay(100)}
+                  key="trends-tab"
+                >
                   {currentYearSection && (
                     <InteractiveBarChart
                       data={(() => {
@@ -745,7 +754,10 @@ export default function InsightsScreen() {
               )}
 
               {activeTab === 'tips' && (
-                <Animated.View entering={FadeIn.duration(300)}>
+                <Animated.View 
+                  entering={FadeIn.duration(400).delay(100)}
+                  key="tips-tab"
+                >
                   <View style={styles.monthlyHistoryHeader}>
                     <Text style={styles.sectionTitle}>Monthly History</Text>
                     <Text style={styles.filterHintText}>
