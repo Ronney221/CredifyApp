@@ -116,27 +116,31 @@ export default function InteractiveBarChart({
     });
   }, [alignedData, maxValue]);
 
-  // Generate trend line path
+  // Generate trend line path with proper alignment
   const trendPath = useMemo(() => {
     const dataPoints = alignedData.filter(d => d.value > 0);
     if (dataPoints.length < 2) return '';
 
     const barWidth = chartWidth / monthsToShow;
-    const points = dataPoints.map((d, index) => {
+    const points = dataPoints.map((d) => {
       const originalIndex = alignedData.indexOf(d);
-      const x = barWidth * (originalIndex + 0.5);
+      // Center the point exactly on the bar
+      const x = barWidth * originalIndex + barWidth / 2;
       const y = chartHeight - (d.value / maxValue) * chartHeight;
       return { x, y };
     });
 
     if (points.length < 2) return '';
 
+    // Create smooth curve connecting actual data points
     let path = `M ${points[0].x} ${points[0].y}`;
     for (let i = 1; i < points.length; i++) {
       const prevPoint = points[i - 1];
       const currPoint = points[i];
-      const midX = (prevPoint.x + currPoint.x) / 2;
-      path += ` Q ${midX} ${prevPoint.y} ${currPoint.x} ${currPoint.y}`;
+      // Use control points for smoother curves
+      const controlX1 = prevPoint.x + (currPoint.x - prevPoint.x) * 0.4;
+      const controlX2 = currPoint.x - (currPoint.x - prevPoint.x) * 0.4;
+      path += ` C ${controlX1} ${prevPoint.y} ${controlX2} ${currPoint.y} ${currPoint.x} ${currPoint.y}`;
     }
 
     return path;
@@ -253,11 +257,26 @@ export default function InteractiveBarChart({
         {monthlyTarget > 0 && (
           <View style={[
             styles.targetLine,
-            { bottom: (monthlyTarget / maxValue) * chartHeight }
+            { bottom: (monthlyTarget / maxValue) * chartHeight + 20 }
           ]}>
-            <View style={styles.targetLineDash} />
+            <Svg width={chartWidth} height={2} style={styles.targetLineSvg}>
+              <Defs>
+                <SvgLinearGradient id="dashGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <Stop offset="0%" stopColor="#34C759" stopOpacity="0.8" />
+                  <Stop offset="50%" stopColor="#34C759" stopOpacity="1" />
+                  <Stop offset="100%" stopColor="#34C759" stopOpacity="0.8" />
+                </SvgLinearGradient>
+              </Defs>
+              <Path
+                d={`M 0 1 L ${chartWidth} 1`}
+                stroke="url(#dashGradient)"
+                strokeWidth="2"
+                strokeDasharray="6 4"
+                strokeLinecap="round"
+              />
+            </Svg>
             <Text style={styles.targetLineLabel}>
-              Target {formatCurrency(monthlyTarget)}
+              Monthly Target: {formatCurrency(monthlyTarget)}
             </Text>
           </View>
         )}
@@ -298,23 +317,64 @@ export default function InteractiveBarChart({
                   )}
                 </View>
 
-                {/* Bar */}
+                {/* Stacked Bar */}
                 <View style={styles.barContainer}>
                   <Animated.View style={[styles.barWrapper, animatedStyle]}>
-                    <LinearGradient
-                      colors={
-                        isCurrentMonth ? ['#007AFF', '#0056CC'] :
-                        hasValue ? ['#34C759', '#32D74B'] :
-                        ['#F2F2F7', '#E5E5EA']
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[
-                        styles.bar,
-                        isSelected && styles.selectedBar,
-                        isCurrentMonth && styles.currentBar,
-                      ]}
-                    />
+                    {hasValue ? (
+                      <View style={styles.stackContainer}>
+                        {/* Redeemed portion (bottom) */}
+                        {monthData.raw.redeemed > 0 && (
+                          <LinearGradient
+                            colors={
+                              isCurrentMonth ? ['#007AFF', '#0056CC'] : ['#34C759', '#2D7D42']
+                            }
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={[
+                              styles.stackedBarSegment,
+                              {
+                                flex: monthData.raw.redeemed,
+                                borderBottomLeftRadius: 4,
+                                borderBottomRightRadius: 4,
+                                borderTopLeftRadius: monthData.raw.partial > 0 ? 0 : 6,
+                                borderTopRightRadius: monthData.raw.partial > 0 ? 0 : 6,
+                              },
+                              isSelected && styles.selectedBar,
+                              isCurrentMonth && styles.currentBar,
+                            ]}
+                          />
+                        )}
+                        {/* Partial portion (top) */}
+                        {monthData.raw.partial > 0 && (
+                          <LinearGradient
+                            colors={
+                              isCurrentMonth ? ['#5AC8FA', '#4A90E2'] : ['#85E085', '#4CD964']
+                            }
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={[
+                              styles.stackedBarSegment,
+                              {
+                                flex: monthData.raw.partial,
+                                borderTopLeftRadius: 6,
+                                borderTopRightRadius: 6,
+                                borderBottomLeftRadius: monthData.raw.redeemed > 0 ? 0 : 4,
+                                borderBottomRightRadius: monthData.raw.redeemed > 0 ? 0 : 4,
+                              },
+                              isSelected && styles.selectedBar,
+                              isCurrentMonth && styles.currentBar,
+                            ]}
+                          />
+                        )}
+                      </View>
+                    ) : (
+                      <LinearGradient
+                        colors={['#F2F2F7', '#E5E5EA']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={[styles.bar]}
+                      />
+                    )}
                   </Animated.View>
                 </View>
 
@@ -325,6 +385,9 @@ export default function InteractiveBarChart({
                   !hasValue && styles.emptyMonthLabel
                 ]}>
                   {monthData.label}
+                  {isCurrentMonth && (
+                    <Text style={styles.currentMonthIndicator}> •</Text>
+                  )}
                 </Text>
 
                 {/* Tooltip */}
@@ -333,25 +396,36 @@ export default function InteractiveBarChart({
                     entering={FadeIn.duration(200)}
                     style={[
                       styles.tooltip,
-                      index === 0 && styles.tooltipLeft,
-                      index === alignedData.length - 1 && styles.tooltipRight,
+                      index <= 1 && styles.tooltipLeft,
+                      index >= alignedData.length - 2 && styles.tooltipRight,
                     ]}
                   >
-                    <Text style={styles.tooltipTitle}>{monthData.label} Summary</Text>
+                    <View style={styles.tooltipHeader}>
+                      <Text style={styles.tooltipTitle}>{monthData.label} Summary</Text>
+                      <TouchableOpacity 
+                        style={styles.helpIcon}
+                        onPress={() => {
+                          // Could implement help modal here
+                        }}
+                      >
+                        <Ionicons name="help-circle-outline" size={14} color="rgba(255,255,255,0.7)" />
+                      </TouchableOpacity>
+                    </View>
                     <View style={styles.tooltipRow}>
-                      <Text style={styles.tooltipLabel}>Redeemed:</Text>
+                      <Text style={styles.tooltipLabel}>Fully Used:</Text>
                       <Text style={styles.tooltipValue}>
                         {formatCurrency(monthData.raw.redeemed)}
                       </Text>
                     </View>
                     {monthData.raw.partial > 0 && (
                       <View style={styles.tooltipRow}>
-                        <Text style={styles.tooltipLabel}>Partial:</Text>
+                        <Text style={styles.tooltipLabel}>Partially Used:</Text>
                         <Text style={styles.tooltipValue}>
                           {formatCurrency(monthData.raw.partial)}
                         </Text>
                       </View>
                     )}
+                    <View style={styles.tooltipDivider} />
                     <View style={styles.tooltipRow}>
                       <Text style={styles.tooltipLabel}>vs Target:</Text>
                       <Text style={[
@@ -366,6 +440,22 @@ export default function InteractiveBarChart({
               </TouchableOpacity>
             );
           })}
+        </View>
+      </View>
+
+      {/* Legend */}
+      <View style={styles.legend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendColor, { backgroundColor: '#34C759' }]} />
+          <Text style={styles.legendText}>Redeemed</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendColor, { backgroundColor: '#85E085' }]} />
+          <Text style={styles.legendText}>Partial</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendColor, { backgroundColor: '#007AFF' }]} />
+          <Text style={styles.legendText}>Current Month</Text>
         </View>
       </View>
 
@@ -476,28 +566,28 @@ const styles = StyleSheet.create({
   chartContainer: {
     position: 'relative',
     marginBottom: 16,
+    overflow: 'hidden',
   },
   targetLine: {
     position: 'absolute',
     left: 0,
     right: 0,
-    flexDirection: 'row',
     alignItems: 'center',
     zIndex: 1,
   },
-  targetLineDash: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#34C759',
-    opacity: 0.6,
+  targetLineSvg: {
+    position: 'absolute',
   },
   targetLineLabel: {
-    fontSize: 10,
-    fontWeight: '500',
+    fontSize: 9,
+    fontWeight: '600',
     color: '#34C759',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 4,
-    marginLeft: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+    textAlign: 'center',
   },
   barsContainer: {
     flexDirection: 'row',
@@ -512,9 +602,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   valueLabelContainer: {
-    height: 16,
-    justifyContent: 'center',
-    marginBottom: 4,
+    height: 20,
+    justifyContent: 'flex-end',
+    marginBottom: 8,
   },
   valueLabel: {
     fontSize: 10,
@@ -546,6 +636,14 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
   },
+  stackContainer: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'column-reverse',
+  },
+  stackedBarSegment: {
+    width: '100%',
+  },
   selectedBar: {
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 2 },
@@ -574,32 +672,76 @@ const styles = StyleSheet.create({
   emptyMonthLabel: {
     opacity: 0.5,
   },
+  currentMonthIndicator: {
+    color: '#007AFF',
+    fontWeight: '700',
+  },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 16,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendColor: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#8E8E93',
+  },
   tooltip: {
     position: 'absolute',
     bottom: '110%',
     backgroundColor: '#1C1C1E',
     borderRadius: 8,
-    padding: 10,
-    minWidth: 120,
+    padding: 12,
+    minWidth: 130,
     left: '50%',
-    marginLeft: -60,
+    marginLeft: -65,
     zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   tooltipLeft: {
-    left: 0,
+    left: -10,
     marginLeft: 0,
   },
   tooltipRight: {
-    right: 0,
+    right: -10,
     left: 'auto',
     marginLeft: 0,
+  },
+  tooltipHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   tooltipTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 6,
+    flex: 1,
+  },
+  helpIcon: {
+    padding: 2,
+  },
+  tooltipDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginVertical: 6,
   },
   tooltipRow: {
     flexDirection: 'row',
@@ -629,10 +771,17 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
   },
   metric: {
     alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    marginHorizontal: 4,
   },
   metricValue: {
     fontSize: 18,
