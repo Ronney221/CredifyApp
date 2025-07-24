@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     lineHeight: 22,
     paddingHorizontal: 16,
-    maxWidth: 280,
+    maxWidth: 320,
     minHeight: 44,
   },
 });

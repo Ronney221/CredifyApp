@@ -278,8 +278,8 @@ const PerkDonutDisplayManagerInner = (
 
     // Format the combined stats text with proper currency formatting and non-breaking spaces
     const combinedStatsText = activeSegmentKey === -1 
-      ? `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks\nAll time periods`
-      : `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount} perks\nResets in ${daysUntilReset}\u00A0days`;
+      ? `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount}\u00A0perks\nAll time periods`
+      : `${redeemedValueFormatted} of ${possibleValueFormatted} used • ${fullyRedeemedCount} of ${currentAggregates.totalCount}\u00A0perks\nResets in ${daysUntilReset}\u00A0days`;
 
     return {
       value: currentAggregates.redeemedValue,
