@@ -35,6 +35,7 @@ import InsightsHelpModal from '../../components/insights/InsightsHelpModal';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import InsightsEmptyState from '../../components/insights/InsightsEmptyState';
 import InsightsLoadingState from '../../components/insights/InsightsLoadingState';
+import InsightsFilterSheet from '../../components/insights/InsightsFilterSheet';
 import { calculateRedemptionValues } from '../../utils/insights-calculations';
 import { logger } from '../../utils/logger';
 
@@ -103,52 +104,16 @@ const Sparkline: React.FC<SparklineProps> = ({ data, height, width, color }) => 
 
 const ASYNC_STORAGE_FILTER_KEY = '@insights_filters';
 
-// --- NEW PLACEHOLDER COMPONENTS ---
-
-const HeatMapPlaceholder: React.FC = () => {
-  return (
-    <View style={[styles.placeholderModuleContainer, styles.skeletonStub]}>
-      <Text style={styles.skeletonStubText}>Missed-value heat-map is cooking – track unredeemed perks by day soon!</Text>
-    </View>
-  );
+// Format currency helper
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
 };
 
-const ForecastDialPlaceholder: React.FC = () => {
-  const size = 50; // Reduced size
-  const strokeWidth = 5;
-  const radius = (size - strokeWidth) / 2;
-  const progress = 0.6; // Static progress
-  const circumference = radius * Math.PI * 2;
-
-  // Calculate arc path coordinates more safely
-  const angleToRadians = (angle: number) => (angle * Math.PI) / 180;
-  const startAngle = angleToRadians(45);
-  const endAngle = angleToRadians(315);
-  
-  const startX = size / 2 - radius * Math.cos(startAngle);
-  const startY = size / 2 + radius * Math.sin(startAngle);
-  const endX = size / 2 + radius * Math.cos(startAngle);
-  const endY = size / 2 + radius * Math.sin(startAngle);
-
-  const arcPath = `M ${startX.toFixed(2)} ${startY.toFixed(2)} A ${radius} ${radius} 0 1 1 ${endX.toFixed(2)} ${endY.toFixed(2)}`;
-
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ width: size, height: size * 0.85, alignItems: 'center', justifyContent: 'center' }}>
-        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <G transform={`rotate(-225 ${size/2} ${size/2})`}>
-            <Path d={arcPath} stroke={Colors.light.icon} strokeWidth={strokeWidth} strokeOpacity={0.3} fill="none" />
-            <Path d={arcPath} stroke={Colors.light.tint} strokeWidth={strokeWidth} strokeDasharray={`${circumference}`} strokeDashoffset={`${circumference * (1 - progress * (4/3))}`} fill="none" strokeLinecap="round"/>
-          </G>
-          <SvgText x={size/2} y={(size/2) + 4} fill={Colors.light.tint} fontSize="10" fontWeight="bold" textAnchor="middle">
-            {`${Math.round(progress * 100)}%`}
-          </SvgText>
-        </Svg>
-      </View>
-      <Text style={{ fontSize: 12, color: Colors.light.tint, marginTop: 4 }}>Break-Even</Text>
-    </View>
-  );
-};
 
 const OnboardingHint: React.FC<{ 
   perkStatusFilter: PerkStatusFilter; 
@@ -598,106 +563,6 @@ export default function InsightsScreen() {
     totalAnnualFees: insightsData.cardRois.reduce((sum, card) => sum + (card.annualFee || 0), 0),
   } : null;
 
-  // Update the collapsed header content to include the filter button
- 
-  // Filter Modal Content
-  const renderFilterModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={isFilterModalVisible}
-      onRequestClose={() => setFilterModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter Performance Data</Text>
-            <TouchableOpacity 
-              onPress={() => setFilterModalVisible(false)}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color={Colors.light.text} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.filterSectionTitle}>PERK STATUS</Text>
-          <View style={styles.perkStatusContainer}>
-            {(['all', 'redeemed', 'partial', 'missed'] as PerkStatusFilter[]).map(status => (
-              <TouchableOpacity
-                key={status}
-                style={[styles.perkStatusChip, perkStatusFilter === status && styles.perkStatusChipSelected]}
-                onPress={() => setPerkStatusFilter(status)}
-              >
-                <Text style={[styles.perkStatusChipText, perkStatusFilter === status && styles.perkStatusChipTextSelected]}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.filterSectionTitle}>SHOW CARDS</Text>
-          <View style={styles.selectAllRow}>
-            <TouchableOpacity 
-              style={styles.selectAllButton}
-              onPress={() => setSelectedCardIds(availableCardsForFilter.map(c => c.id))}
-            >
-              <Text style={styles.selectButtonText}>Select All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.selectAllButton}
-              onPress={() => setSelectedCardIds([])}
-            >
-              <Text style={styles.selectButtonText}>Deselect All</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.cardsScrollView}>
-            {ISSUER_ORDER.map(issuer => {
-              const cards = groupedCards[issuer] || [];
-              if (cards.length === 0) return null;
-              
-              return (
-                <View key={`issuer-${issuer}`} style={styles.issuerSection}>
-                  <Text style={styles.issuerTitle}>{issuer}</Text>
-                  {cards.map(card => {
-                    const isSelected = selectedCardIds.includes(card.id);
-                    return (
-                      <TouchableOpacity 
-                        key={`card-${card.id}`}
-                        style={styles.cardFilterRow} 
-                        onPress={() => toggleCardSelection(card.id)}
-                      >
-                        <View style={styles.checkboxContainer}>
-                          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                            {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                          </View>
-                        </View>
-                        <View style={styles.cardNameContainer}>
-                          <Text style={styles.cardFilterName}>{card.name}</Text>
-                          {card.activityCount > 0 && (
-                            <Text style={styles.cardActivityLabel}>
-                              {card.activityCount} redemption{card.activityCount > 1 ? 's' : ''}
-                            </Text>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              );
-            })}
-          </ScrollView>
-
-          <TouchableOpacity 
-            style={styles.applyButton}
-            onPress={() => setFilterModalVisible(false)}
-          >
-            <Text style={styles.applyButtonText}>Apply Filters</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
 
   return (
     <SafeAreaView style={styles.container} edges={['right', 'left']}>
@@ -786,16 +651,57 @@ export default function InsightsScreen() {
                     </View>
                   </View>
                   
-                  {/* Top performing perks */}
+                  {/* Quick insights */}
                   <View style={styles.sectionContainer}>
-                    <Text style={styles.sectionTitle}>Top Opportunities</Text>
+                    <Text style={styles.sectionTitle}>This Month's Focus</Text>
                     <Text style={styles.sectionSubtitle}>
-                      Perks expiring soon or with high value
+                      Your most impactful opportunities
                     </Text>
-                    {/* Placeholder for now */}
-                    <View style={styles.placeholderCard}>
-                      <Text style={styles.placeholderText}>Coming soon...</Text>
-                    </View>
+                    {currentYearSection?.data[0] && (() => {
+                      const currentMonth = currentYearSection.data[0];
+                      const urgentPerks = currentMonth.perkDetails
+                        .filter(perk => 
+                          (perk.period === 'monthly' || perk.expiresThisMonth) && 
+                          perk.status === 'available'
+                        )
+                        .sort((a, b) => b.value - a.value)
+                        .slice(0, 3);
+
+                      if (urgentPerks.length === 0) {
+                        return (
+                          <View style={styles.successCard}>
+                            <Ionicons name="checkmark-circle" size={24} color="#34C759" />
+                            <Text style={styles.successText}>
+                              All due perks redeemed! 🎉
+                            </Text>
+                          </View>
+                        );
+                      }
+
+                      return (
+                        <View style={styles.opportunitiesList}>
+                          {urgentPerks.map((perk, index) => (
+                            <View key={perk.id} style={styles.opportunityItem}>
+                              <View style={styles.opportunityIcon}>
+                                <Ionicons 
+                                  name={perk.period === 'monthly' ? 'calendar' : 'time'} 
+                                  size={16} 
+                                  color="#FF9500" 
+                                />
+                              </View>
+                              <View style={styles.opportunityContent}>
+                                <Text style={styles.opportunityName} numberOfLines={1}>
+                                  {perk.name}
+                                </Text>
+                                <Text style={styles.opportunityMeta}>
+                                  {perk.period === 'monthly' ? 'Monthly' : 'Expires this month'} • {formatCurrency(perk.value)}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      );
+                    })()}
                   </View>
                 </Animated.View>
               )}
@@ -869,7 +775,18 @@ export default function InsightsScreen() {
           />
         )}
 
-        {renderFilterModal()}
+        <InsightsFilterSheet
+          isVisible={isFilterModalVisible}
+          onClose={() => setFilterModalVisible(false)}
+          perkStatusFilter={perkStatusFilter}
+          setPerkStatusFilter={setPerkStatusFilter}
+          selectedCardIds={selectedCardIds}
+          setSelectedCardIds={setSelectedCardIds}
+          groupedCards={groupedCards}
+          availableCardsForFilter={availableCardsForFilter}
+          toggleCardSelection={toggleCardSelection}
+          activeFilterCount={activeFilterCount}
+        />
         <InsightsHelpModal 
           isVisible={isHelpModalVisible}
           onClose={() => setHelpModalVisible(false)}
@@ -952,16 +869,52 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     letterSpacing: -0.08,
   },
-  placeholderCard: {
-    backgroundColor: '#F2F2F7',
+  successCard: {
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 80,
+    flexDirection: 'row',
+    gap: 12,
   },
-  placeholderText: {
+  successText: {
     fontSize: 15,
+    color: '#34C759',
+    fontWeight: '600',
+  },
+  opportunitiesList: {
+    gap: 8,
+  },
+  opportunityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 149, 0, 0.2)',
+    gap: 12,
+  },
+  opportunityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  opportunityContent: {
+    flex: 1,
+  },
+  opportunityName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 2,
+  },
+  opportunityMeta: {
+    fontSize: 13,
     color: '#8E8E93',
     fontWeight: '500',
   },
@@ -970,111 +923,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     zIndex: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FAFAFE',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  closeButton: {
-    padding: 5,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginTop: 15,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  selectAllRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  selectAllButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: Colors.light.background,
-    borderWidth: 1,
-    borderColor: Colors.light.tint,
-  },
-  selectButtonText: {
-    color: Colors.light.tint,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  cardsScrollView: {
-    maxHeight: 250,
-    marginVertical: 10,
-  },
-  issuerSection: {
-    marginBottom: 10,
-  },
-  issuerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    marginBottom: 5,
-  },
-  cardFilterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
-    alignItems: 'center',
-  },
-  checkboxContainer: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    margin: -10,
-    marginRight: 0,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#BDBDBD',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: Colors.light.tint,
-    borderColor: Colors.light.tint,
-  },
-  cardNameContainer: {
-    flex: 1,
-  },
-  cardFilterName: {
-    fontSize: 15,
-    color: Colors.light.text,
-  },
-  cardActivityLabel: {
-    fontSize: 12,
-    color: Colors.light.icon,
-    marginTop: 2,
   },
   scrollContent: {
     flexGrow: 1,
@@ -1144,37 +992,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  placeholderModuleContainer: {
-    width: '100%',
-    justifyContent: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
-    borderRadius: 8,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  skeletonStub: {
-    height: 48,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: CARD_BACKGROUND_COLOR,
-    borderRadius: 8,
-    marginVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  skeletonStubText: {
-    fontSize: 14,
-    color: Colors.light.icon, 
-    textAlign: 'center',
-  },
   onboardingHintContainer: {
     paddingHorizontal: 15,
     paddingVertical: 10,
@@ -1185,25 +1002,6 @@ const styles = StyleSheet.create({
     color: Colors.light.icon,
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  applyButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 24,
-    marginHorizontal: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  applyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
   },
   stickyHeader: {
     position: 'absolute',
@@ -1274,32 +1072,5 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     backgroundColor: 'rgba(142, 142, 147, 0.12)',
-  },
-  perkStatusContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 20,
-    gap: 8,
-  },
-  perkStatusChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.light.icon,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-  },
-  perkStatusChipSelected: {
-    backgroundColor: Colors.light.tint,
-    borderColor: Colors.light.tint,
-  },
-  perkStatusChipText: {
-    fontSize: 14,
-    color: Colors.light.text,
-    fontWeight: '500',
-  },
-  perkStatusChipTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
 }); 
