@@ -3,12 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  SectionList,
-  TouchableOpacity,
+  ScrollView,
   Alert,
-  SectionListRenderItemInfo,
-  StyleProp,
-  ViewStyle,
   Pressable,
   Platform,
   Modal,
@@ -19,6 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { ProfileHeader } from '../../components/profile/ProfileHeader';
+import { ProfileStatsCards } from '../../components/profile/ProfileStatsCards';
+import { AchievementsSection } from '../../components/profile/AchievementsSection';
+import { QuickInsights } from '../../components/profile/QuickInsights';
+import { PersonalJourney } from '../../components/profile/PersonalJourney';
+import { SettingsSection } from '../../components/profile/SettingsSection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { schedulePerkExpiryNotifications } from '../../services/notification-perk-expiry';
 import { scheduleCardRenewalNotifications, scheduleFirstOfMonthReminder, schedulePerkResetNotification } from '../../utils/notifications';
@@ -36,20 +37,6 @@ const CURRENT_CHAT_ID_KEY = '@ai_chat_current_id';
 const CHAT_NOTIFICATION_KEY = '@ai_chat_notification_active';
 const CHAT_USAGE_KEY = '@ai_chat_usage';
 
-interface ProfileRow {
-  id: string;
-  title: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  isDestructive?: boolean;
-  onPress: () => void;
-  subtitle?: string;
-}
-
-interface ProfileSection {
-  title: string;
-  data: ProfileRow[];
-  footer?: string;
-}
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -322,60 +309,57 @@ const ProfileScreen = () => {
     );
   };
 
-  const sections: ProfileSection[] = [
+  // Convert to new settings format
+  const accountSettings = [
     {
-      title: 'Account',
-      data: [
-        {
-          id: 'manage-cards',
-          title: 'Manage Cards',
-          icon: 'card-outline',
-          onPress: () => router.push('/(tabs)/profile/manage_cards'),
-        },
-        {
-          id: 'preferences',
-          title: 'Notification Preferences',
-          icon: 'notifications-outline',
-          subtitle: 'Customize your notification settings',
-          onPress: () => router.push('/(tabs)/profile/notifications')
-        },
-      ],
+      id: 'manage-cards',
+      title: 'Manage Cards',
+      subtitle: 'Add, remove, and organize your credit cards',
+      icon: 'card-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => router.push('/(tabs)/profile/manage_cards'),
     },
     {
-      title: 'Support',
-      data: [
-        {
-          id: 'replay-tutorial',
-          title: 'Replay Tutorial',
-          icon: 'school-outline',
-          subtitle: 'Learn about tap and swipe gestures again',
-          onPress: handleResetTapOnboarding
-        },
-        {
-          id: 'help-faq',
-          title: 'Help & FAQ',
-          icon: 'help-circle-outline',
-          subtitle: 'Get answers to common questions',
-          onPress: () => router.push('/(tabs)/profile/help-faq')
-        },
-        {
-          id: 'legal',
-          title: 'Legal',
-          icon: 'document-text-outline',
-          subtitle: 'Privacy Policy and Terms of Service',
-          onPress: () => router.push('/(legal)/terms')
-        },
-        {
-          id: 'sign-out',
-          title: 'Sign Out',
-          icon: 'log-out-outline',
-          isDestructive: true,
-          onPress: handleSignOut
-        },
-      ],
-      footer: 'Get help with your account, cards, and more.',
+      id: 'preferences',
+      title: 'Notification Preferences',
+      subtitle: 'Customize your notification settings',
+      icon: 'notifications-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => router.push('/(tabs)/profile/notifications')
     },
-    // {
+  ];
+
+  const supportSettings = [
+    {
+      id: 'replay-tutorial',
+      title: 'Replay Tutorial',
+      subtitle: 'Learn about tap and swipe gestures again',
+      icon: 'school-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleResetTapOnboarding
+    },
+    {
+      id: 'help-faq',
+      title: 'Help & FAQ',
+      subtitle: 'Get answers to common questions',
+      icon: 'help-circle-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => router.push('/(tabs)/profile/help-faq')
+    },
+    {
+      id: 'legal',
+      title: 'Legal',
+      subtitle: 'Privacy Policy and Terms of Service',
+      icon: 'document-text-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => router.push('/(legal)/terms')
+    },
+    {
+      id: 'sign-out',
+      title: 'Sign Out',
+      icon: 'log-out-outline' as keyof typeof Ionicons.glyphMap,
+      isDestructive: true,
+      showChevron: false,
+      onPress: handleSignOut
+    },
+  ];
+
+     // {
     //   title: 'Developer',
     //   data: [
     //     // {
@@ -452,75 +436,7 @@ const ProfileScreen = () => {
     //   ],
     //   footer: 'Development tools and testing options.',
     // },
-  ];
 
-  const renderItem = ({ item, index, section }: SectionListRenderItemInfo<ProfileRow, ProfileSection>) => {
-    const isFirstItem = index === 0;
-    const isLastItem = index === section.data.length - 1;
-
-    const rowStyle: StyleProp<ViewStyle> = [styles.row];
-    if (isFirstItem && isLastItem) {
-      rowStyle.push(styles.rowSingle);
-    } else if (isFirstItem) {
-      rowStyle.push(styles.rowFirst);
-    } else if (isLastItem) {
-      rowStyle.push(styles.rowLast);
-    }
-
-    return (
-      <Pressable
-        onPress={item.onPress}
-        style={({ pressed }) => [
-          rowStyle,
-          pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] }
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel={item.title}
-        accessibilityHint={item.subtitle || `Navigate to ${item.title}`}
-        hitSlop={8}
-      >
-        {item.icon && (
-          <View style={[
-            styles.icon, 
-            item.isDestructive && { backgroundColor: Colors.light.error + '15', borderRadius: 8 }
-          ]}>
-            <Ionicons
-              name={item.icon}
-              size={20}
-              color={item.isDestructive ? Colors.light.error : Colors.light.tint}
-            />
-          </View>
-        )}
-        <View style={styles.textContainer}>
-          <Text style={[
-            styles.rowText,
-            item.isDestructive && styles.destructiveText
-          ]}>
-            {item.title}
-          </Text>
-          {item.subtitle && !item.isDestructive && (
-            <Text style={styles.subtitleText}>{item.subtitle}</Text>
-          )}
-        </View>
-        {!item.isDestructive && (
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={Colors.light.tertiaryLabel}
-            style={styles.chevron}
-          />
-        )}
-      </Pressable>
-    );
-  };
-
-  const renderSectionHeader = ({ section }: { section: ProfileSection }) => (
-    <Text style={styles.sectionHeader}>{section.title}</Text>
-  );
-
-  const renderSectionFooter = ({ section }: { section: ProfileSection }) => (
-    section.footer ? <Text style={styles.sectionFooter}>{section.footer}</Text> : null
-  );
 
   // Extract first and last name from email (temporary)
   const name = user?.email ? user.email.split('@')[0].split('.').map(
@@ -529,29 +445,53 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ProfileHeader
-        name={name}
-        email={user?.email || ''}
-        avatarUrl={user?.user_metadata?.avatar_url}
-        onPress={() => router.push('/(tabs)/profile/edit-profile')}
-      />
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
-        renderSectionFooter={renderSectionFooter}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[
-          styles.listContent,
+          styles.scrollContent,
           { paddingBottom: TAB_BAR_OFFSET }
         ]}
-        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
         bounces
         alwaysBounceVertical
-        overScrollMode="never"
-      />
+      >
+        <ProfileHeader
+          name={name}
+          email={user?.email || ''}
+          avatarUrl={user?.user_metadata?.avatar_url}
+          onPress={() => router.push('/(tabs)/profile/edit-profile')}
+        />
+        
+        {user?.id && (
+          <>
+            {/* <ProfileStatsCards userId={user.id} /> */}
+            <QuickInsights userId={user.id} />
+            {/* <PersonalJourney userId={user.id} /> */}
+            {/* <AchievementsSection userId={user.id} /> */}
+          </>
+        )}
+
+        <SettingsSection 
+          title="Account" 
+          items={accountSettings}
+        />
+        
+        <SettingsSection 
+          title="Support" 
+          items={supportSettings}
+        />
+
+        {user?.id && (
+          <>
+            {/* <ProfileStatsCards userId={user.id} /> */}
+            {/* <QuickInsights userId={user.id} /> */}
+            <PersonalJourney userId={user.id} />
+            <AchievementsSection userId={user.id} />
+          </>
+        )}
+      </ScrollView>
+
+      
       
       <Modal
         visible={showTester}
@@ -574,93 +514,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.systemGroupedBackground,
   },
-  listContent: {
-    paddingHorizontal: 16,
-  },
-  sectionHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.light.secondaryLabel,
-    textTransform: 'uppercase',
-    marginTop: 40,
-    marginBottom: 12,
-    marginLeft: 20,
-    letterSpacing: 0.5,
-  },
-  sectionFooter: {
-    fontSize: 13,
-    color: Colors.light.tertiaryLabel,
-    marginTop: 12,
-    marginBottom: 20,
-    marginLeft: 20,
-    lineHeight: 18,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.light.background,
-    paddingHorizontal: 20,
-    minHeight: 56,
-  },
-  rowSingle: {
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  rowFirst: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  rowLast: {
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-  },
-  icon: {
-    marginRight: 18,
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textContainer: {
+  scrollView: {
     flex: 1,
-    paddingVertical: 14,
   },
-  rowText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.light.text,
-    letterSpacing: -0.2,
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: Colors.light.secondaryLabel,
-    marginTop: 3,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-  destructiveText: {
-    color: Colors.light.error,
-    fontWeight: '600',
-  },
-  chevron: {
-    marginLeft: 'auto',
-    marginRight: 4,
-    opacity: 0.5,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.light.separator,
-    marginLeft: 64,
-    opacity: 0.6,
+  scrollContent: {
+    // No padding needed since each component handles its own margins
   },
 });
 
