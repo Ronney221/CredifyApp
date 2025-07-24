@@ -119,40 +119,88 @@ export default function MonthSummaryCardNew({
            yearStr === now.getFullYear().toString();
   }, [summary.monthYear]);
 
-  // Calculate redemption values
-  const calculations = useMemo(() => 
-    calculateRedemptionValues(summary, true, isCurrentMonth), 
-    [summary, isCurrentMonth]
-  );
+  // Helper function to determine if a perk was actionable this month
+  const isPerkActionableThisMonth = (perk: PerkDetail) => {
+    // Monthly perks are always actionable
+    if (perk.period === 'monthly') return true;
+    
+    // Non-monthly perks are only actionable if they were expiring this month
+    if (perk.expiresThisMonth === true) return true;
+    
+    // For current month, also include perks expiring next month as "actionable" for awareness
+    if (isCurrentMonth && perk.expiresNextMonth === true) return true;
+    
+    return false;
+  };
 
-  // Filter and categorize perks
-  const relevantPerks = useMemo(() => {
-    return summary.perkDetails.filter(perk => {
+  // Get actionable perks (the ones that mattered for this month's completion)
+  const actionablePerks = useMemo(() => {
+    return summary.perkDetails.filter(isPerkActionableThisMonth);
+  }, [summary.perkDetails]);
+
+  // Calculate completion based only on actionable perks
+  const actionableCalculations = useMemo(() => {
+    const redeemedValue = actionablePerks
+      .filter(perk => perk.status === 'redeemed')
+      .reduce((sum, perk) => sum + perk.value, 0);
+
+    const partialValue = actionablePerks
+      .filter(perk => perk.status === 'partial')
+      .reduce((sum, perk) => sum + (perk.partialValue || 0), 0);
+
+    const availableValue = actionablePerks
+      .filter(perk => perk.status === 'available')
+      .reduce((sum, perk) => sum + perk.value, 0);
+
+    const missedValue = actionablePerks
+      .filter(perk => perk.status === 'missed')
+      .reduce((sum, perk) => sum + perk.value, 0);
+
+    const totalActionableValue = actionablePerks
+      .reduce((sum, perk) => sum + perk.value, 0);
+
+    return {
+      redeemedValue,
+      partialValue,
+      totalRedeemedValue: redeemedValue + partialValue,
+      availableValue,
+      missedValue,
+      totalActionableValue,
+    };
+  }, [actionablePerks]);
+
+  // Filter perks for display based on status filter
+  const displayPerks = useMemo(() => {
+    // For display, we want to show different categories:
+    // 1. Actionable perks (monthly + expiring non-monthly)
+    // 2. Bonus redemptions (non-monthly perks redeemed early)
+    
+    const actionableForDisplay = actionablePerks.filter(perk => {
       if (perkStatusFilter === 'all') return true;
       return perk.status === perkStatusFilter;
     });
-  }, [summary.perkDetails, perkStatusFilter]);
 
-  const monthlyPerks = useMemo(() => 
-    relevantPerks.filter(perk => perk.period === 'monthly'),
-    [relevantPerks]
-  );
+    const bonusRedemptions = summary.perkDetails.filter(perk => {
+      // Non-monthly perks that were redeemed but didn't expire this month
+      return perk.period !== 'monthly' && 
+             !perk.expiresThisMonth && 
+             (perk.status === 'redeemed' || perk.status === 'partial') &&
+             (perkStatusFilter === 'all' || perk.status === perkStatusFilter);
+    });
 
-  const nonMonthlyPerks = useMemo(() => 
-    relevantPerks.filter(perk => perk.period !== 'monthly'),
-    [relevantPerks]
-  );
+    return { actionableForDisplay, bonusRedemptions };
+  }, [actionablePerks, summary.perkDetails, perkStatusFilter]);
 
-  // Performance metrics
+  // Performance metrics based on actionable perks only
   const performanceScore = useMemo(() => {
-    const totalPerks = relevantPerks.length;
-    if (totalPerks === 0) return 0;
+    const totalActionable = actionablePerks.length;
+    if (totalActionable === 0) return 100; // No actionable perks = perfect month
     
-    const redeemedCount = relevantPerks.filter(p => p.status === 'redeemed').length;
-    const partialCount = relevantPerks.filter(p => p.status === 'partial').length;
+    const redeemedCount = actionablePerks.filter(p => p.status === 'redeemed').length;
+    const partialCount = actionablePerks.filter(p => p.status === 'partial').length;
     
-    return Math.round(((redeemedCount + (partialCount * 0.5)) / totalPerks) * 100);
-  }, [relevantPerks]);
+    return Math.round(((redeemedCount + (partialCount * 0.5)) / totalActionable) * 100);
+  }, [actionablePerks]);
 
   const getPerformanceStatus = () => {
     if (performanceScore >= 90) return { text: 'Excellent', color: '#34C759', icon: 'trophy' };
@@ -192,18 +240,17 @@ export default function MonthSummaryCardNew({
     transform: [{ rotate: `${chevronRotation.value}deg` }],
   }));
 
-  // Progress calculation
+  // Progress calculation based on actionable perks only
   const getProgressData = () => {
-    const totalValue = calculations.totalRedeemedValue + calculations.partialValue + 
-                      calculations.availableValue + calculations.missedValue;
+    const totalValue = actionableCalculations.totalActionableValue;
     
-    if (totalValue === 0) return { redeemed: 0, partial: 0, available: 1, missed: 0 };
+    if (totalValue === 0) return { redeemed: 1, partial: 0, available: 0, missed: 0 };
     
     return {
-      redeemed: calculations.totalRedeemedValue / totalValue,
-      partial: calculations.partialValue / totalValue,
-      available: calculations.availableValue / totalValue,
-      missed: calculations.missedValue / totalValue,
+      redeemed: actionableCalculations.redeemedValue / totalValue,
+      partial: actionableCalculations.partialValue / totalValue,
+      available: actionableCalculations.availableValue / totalValue,
+      missed: actionableCalculations.missedValue / totalValue,
     };
   };
 
@@ -321,9 +368,11 @@ export default function MonthSummaryCardNew({
             
             <View style={styles.headerRight}>
               <Text style={styles.totalSaved}>
-                {formatCurrency(calculations.totalRedeemedValue + calculations.partialValue)}
+                {formatCurrency(actionableCalculations.totalRedeemedValue)}
               </Text>
-              <Text style={styles.totalLabel}>Saved</Text>
+              <Text style={styles.totalLabel}>
+                {actionablePerks.length > 0 ? 'Saved' : 'No Action Needed'}
+              </Text>
             </View>
           </View>
 
@@ -374,21 +423,21 @@ export default function MonthSummaryCardNew({
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
-                {relevantPerks.filter(p => p.status === 'redeemed').length}
+                {actionablePerks.filter(p => p.status === 'redeemed').length}
               </Text>
               <Text style={styles.statLabel}>Redeemed</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
-                {relevantPerks.filter(p => p.status === 'partial').length}
+                {actionablePerks.filter(p => p.status === 'partial').length}
               </Text>
               <Text style={styles.statLabel}>Partial</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
                 {isCurrentMonth 
-                  ? relevantPerks.filter(p => p.status === 'available').length
-                  : relevantPerks.filter(p => p.status === 'missed').length
+                  ? actionablePerks.filter(p => p.status === 'available').length
+                  : actionablePerks.filter(p => p.status === 'missed').length
                 }
               </Text>
               <Text style={styles.statLabel}>
@@ -397,9 +446,11 @@ export default function MonthSummaryCardNew({
             </View>
             <View style={styles.stat}>
               <Text style={styles.statValue}>
-                {formatCurrency(summary.totalPotentialValue)}
+                {actionablePerks.length}
               </Text>
-              <Text style={styles.statLabel}>Potential</Text>
+              <Text style={styles.statLabel}>
+                {actionablePerks.length === 0 ? 'None Due' : 'Actionable'}
+              </Text>
             </View>
           </View>
 
@@ -410,27 +461,52 @@ export default function MonthSummaryCardNew({
               exiting={FadeOut.duration(200)}
               style={styles.expandedContent}
             >
-              {/* Monthly perks */}
-              {monthlyPerks.length > 0 && (
-                <View style={styles.perkSection}>
-                  <Text style={styles.sectionTitle}>
-                    Monthly Perks ({monthlyPerks.length})
+              {/* Show explanation when no actionable perks */}
+              {actionablePerks.length === 0 && (
+                <View style={styles.noActionSection}>
+                  <Ionicons name="checkmark-circle" size={32} color="#34C759" />
+                  <Text style={styles.noActionTitle}>Perfect Month!</Text>
+                  <Text style={styles.noActionText}>
+                    No perks were expiring this month, so there was nothing urgent to redeem.
                   </Text>
-                  {monthlyPerks.map((perk, index) => renderPerkItem(perk, index))}
                 </View>
               )}
 
-              {/* Non-monthly perks */}
-              {nonMonthlyPerks.length > 0 && (
+              {/* Actionable perks that were due this month */}
+              {displayPerks.actionableForDisplay.length > 0 && (
                 <View style={styles.perkSection}>
                   <Text style={styles.sectionTitle}>
-                    Other Perks ({nonMonthlyPerks.length})  
+                    {isCurrentMonth ? 'Due This Month' : 'Were Due This Month'} ({displayPerks.actionableForDisplay.length})
                   </Text>
-                  {nonMonthlyPerks.map((perk, index) => renderPerkItem(perk, index + monthlyPerks.length))}
+                  <Text style={styles.sectionSubtitle}>
+                    {isCurrentMonth 
+                      ? 'Monthly perks + perks expiring this month'
+                      : 'Monthly perks + perks that expired this month'
+                    }
+                  </Text>
+                  {displayPerks.actionableForDisplay.map((perk, index) => renderPerkItem(perk, index))}
                 </View>
               )}
 
-              {relevantPerks.length === 0 && (
+              {/* Bonus redemptions (early non-monthly perks) */}
+              {displayPerks.bonusRedemptions.length > 0 && (
+                <View style={styles.perkSection}>
+                  <Text style={styles.sectionTitle}>
+                    Bonus Redemptions ({displayPerks.bonusRedemptions.length})
+                  </Text>
+                  <Text style={styles.sectionSubtitle}>
+                    {isCurrentMonth 
+                      ? 'Non-monthly perks redeemed early (not expiring yet)'
+                      : 'Non-monthly perks redeemed (were not expiring this month)'
+                    }
+                  </Text>
+                  {displayPerks.bonusRedemptions.map((perk, index) => 
+                    renderPerkItem(perk, index + displayPerks.actionableForDisplay.length)
+                  )}
+                </View>
+              )}
+
+              {displayPerks.actionableForDisplay.length === 0 && displayPerks.bonusRedemptions.length === 0 && actionablePerks.length > 0 && (
                 <View style={styles.emptyState}>
                   <Ionicons name="filter" size={24} color="#8E8E93" />
                   <Text style={styles.emptyText}>No perks match your current filter</Text>
@@ -601,8 +677,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1C1C1E',
-    marginBottom: 12,
+    marginBottom: 4,
     letterSpacing: -0.32,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#8E8E93',
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  noActionSection: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  noActionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#34C759',
+  },
+  noActionText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   perkItem: {
     marginBottom: 12,
