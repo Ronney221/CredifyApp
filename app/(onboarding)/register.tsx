@@ -229,7 +229,7 @@ export default function RegisterScreen() {
       const { data, error } = await signInGoogle();
       if (error) {
         // Only throw if it's not a cancellation
-        if (error.message !== 'User cancelled') {
+        if (error?.message !== 'User cancelled') {
           console.error('[Register] Google Sign In Error:', error);
           throw error;
         }
@@ -267,7 +267,7 @@ export default function RegisterScreen() {
       const { data, error } = await signInApple();
       if (error) {
         // Only throw if it's not a cancellation
-        if (error.message !== 'User cancelled') {
+        if (error?.message !== 'User cancelled') {
           console.error('[Register] Apple Sign In Error:', error);
           throw error;
         }
