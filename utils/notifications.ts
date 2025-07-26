@@ -33,7 +33,23 @@ export async function getNotificationPermissions(): Promise<boolean> {
     });
   }
 
-  const { status } = await Notifications.requestPermissionsAsync();
+  // First check existing permissions
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  if (existingStatus === 'granted') {
+    return true;
+  }
+
+  // Only request if not already denied
+  if (existingStatus === 'undetermined') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === 'granted';
+  }
+
+  return false;
+};
+
+export async function checkNotificationPermissions(): Promise<boolean> {
+  const { status } = await Notifications.getPermissionsAsync();
   return status === 'granted';
 };
 

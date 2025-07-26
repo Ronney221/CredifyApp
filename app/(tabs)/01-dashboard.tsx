@@ -56,6 +56,7 @@ import { PerksOverviewWithRef } from '../../components/dashboard/PerksOverview';
 // Import notification functions
 import {
   getNotificationPermissions,
+  checkNotificationPermissions,
   scheduleCardRenewalReminder,
   cancelNotification,
 } from '../../utils/notifications';
@@ -666,12 +667,9 @@ export default function Dashboard() {
 
   // Function to set up notifications
   const setupNotifications = async (periodsToSchedule: number[]) => {
-    const hasPermission = await getNotificationPermissions();
+    const hasPermission = await checkNotificationPermissions();
     if (!hasPermission) {
-      Alert.alert(
-        "Permissions Required",
-        "Please enable notifications in settings to receive reminders.",
-      );
+      // Don't show alert on every dashboard entry - just return silently
       return;
     }
 
