@@ -40,6 +40,7 @@ import { useUserCards } from '../../hooks/useUserCards';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { useAutoRedemptions } from '../../hooks/useAutoRedemptions';
 import { usePerkRedemption } from '../../hooks/usePerkRedemption';
+import { useSmartNotificationPrompts } from '../../hooks/useSmartNotificationPrompts';
 import { format, differenceInDays, endOfMonth, endOfYear, addMonths, getMonth, getYear } from 'date-fns';
 import { Card, CardPerk, openPerkTarget } from '../../src/data/card-data';
 import { trackPerkRedemption, deletePerkRedemption, setAutoRedemption, checkAutoRedemptionByCardId } from '../../lib/database';
@@ -322,6 +323,7 @@ export default function Dashboard() {
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
+  const { promptAfterFirstPerk, checkNotificationStatus: checkSmartNotificationStatus } = useSmartNotificationPrompts();
   
   // Initialize perk redemption hook (will set onPerkStatusChange later)
   const { handleMarkRedeemed: perkRedemptionMarkRedeemed, handleMarkAvailable: perkRedemptionMarkAvailable } = usePerkRedemption({
@@ -581,11 +583,23 @@ export default function Dashboard() {
           }
         };
         savePeriods();
-        // Move the scheduling call here to ensure it uses the updated periods
-        setupNotifications(sortedPeriods);
+        // Only setup notifications if user has enabled them
+        const setupNotificationsIfEnabled = async () => {
+          const hasNotificationPermissions = await checkSmartNotificationStatus();
+          if (hasNotificationPermissions) {
+            setupNotifications(sortedPeriods);
+          }
+        };
+        setupNotificationsIfEnabled();
       } else {
-        // If there are no periods, still run setup to handle card renewal notifications
-        setupNotifications([]);
+        // If there are no periods, still run setup to handle card renewal notifications (if permissions granted)
+        const setupNotificationsIfEnabled = async () => {
+          const hasNotificationPermissions = await checkSmartNotificationStatus();
+          if (hasNotificationPermissions) {
+            setupNotifications([]);
+          }
+        };
+        setupNotificationsIfEnabled();
       }
     }
   }, [userCardsWithPerks]);
@@ -1040,6 +1054,11 @@ export default function Dashboard() {
             await markFirstPerkRedeemed();
             setShowAiChatNotification(true);
             await AsyncStorage.setItem(CHAT_NOTIFICATION_KEY, 'true');
+            
+            // Trigger smart notification prompt after a short delay
+            setTimeout(() => {
+                promptAfterFirstPerk();
+            }, 2000);
         }
 
     } catch (err) {
