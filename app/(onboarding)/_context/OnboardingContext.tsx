@@ -7,6 +7,8 @@ export const HAS_REDEEMED_FIRST_PERK_KEY = '@has_redeemed_first_perk';
 export const HAS_SEEN_ONBOARDING_SHEET_KEY = '@has_seen_onboarding_sheet';
 export const HAS_SEEN_TAP_ONBOARDING_KEY = '@has_seen_tap_onboarding';
 export const HAS_SEEN_SWIPE_ONBOARDING_KEY = '@has_seen_swipe_onboarding';
+export const NOTIFICATION_CHOICE_KEY = '@notification_choice';
+export const NOTIFICATION_REQUEST_COUNT_KEY = '@notification_request_count';
 
 interface OnboardingContextType {
   // Card Management
@@ -40,6 +42,12 @@ interface OnboardingContextType {
   markTapOnboardingAsSeen: () => Promise<void>;
   markSwipeOnboardingAsSeen: () => Promise<void>;
   reloadOnboardingFlags: () => Promise<void>;
+
+  // Notification Preferences
+  notificationChoice: 'enable' | 'later' | 'declined' | null;
+  notificationRequestCount: number;
+  setNotificationChoice: (choice: 'enable' | 'later' | 'declined') => Promise<void>;
+  shouldShowNotificationPrompt: () => boolean;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -67,27 +75,37 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
   const [hasSeenTapOnboarding, setHasSeenTapOnboarding] = useState(false);
   const [hasSeenSwipeOnboarding, setHasSeenSwipeOnboarding] = useState(false);
 
+  // Notification Preferences State
+  const [notificationChoice, setNotificationChoiceState] = useState<'enable' | 'later' | 'declined' | null>(null);
+  const [notificationRequestCount, setNotificationRequestCount] = useState(0);
+
   // Load initial state
   useEffect(() => {
     const loadFlags = async () => {
       try {
         logger.log('[OnboardingContext] Loading onboarding flags');
-        const [[, redeemedVal], [, seenVal], [, tapVal], [, swipeVal]] = await AsyncStorage.multiGet([
+        const [[, redeemedVal], [, seenVal], [, tapVal], [, swipeVal], [, notifChoiceVal], [, notifCountVal]] = await AsyncStorage.multiGet([
           HAS_REDEEMED_FIRST_PERK_KEY,
           HAS_SEEN_ONBOARDING_SHEET_KEY,
           HAS_SEEN_TAP_ONBOARDING_KEY,
           HAS_SEEN_SWIPE_ONBOARDING_KEY,
+          NOTIFICATION_CHOICE_KEY,
+          NOTIFICATION_REQUEST_COUNT_KEY,
         ]);
 
         const redeemedBool = redeemedVal === 'true';
         const seenBool = seenVal === 'true';
         const tapBool = tapVal === 'true';
         const swipeBool = swipeVal === 'true';
+        const notifChoice = notifChoiceVal as 'enable' | 'later' | 'declined' | null;
+        const notifCount = parseInt(notifCountVal || '0', 10);
 
         setHasRedeemedFirstPerk(redeemedBool);
         setHasSeenOnboardingSheet(seenBool);
         setHasSeenTapOnboarding(tapBool);
         setHasSeenSwipeOnboarding(swipeBool);
+        setNotificationChoiceState(notifChoice);
+        setNotificationRequestCount(notifCount);
       } catch (err) {
         console.error('[OnboardingContext] Failed to load onboarding flags', err);
       } finally {
@@ -197,6 +215,36 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     });
   }, [hasRedeemedFirstPerk]);
 
+  // Notification Management Functions
+  const setNotificationChoice = useCallback(async (choice: 'enable' | 'later' | 'declined') => {
+    try {
+      await AsyncStorage.setItem(NOTIFICATION_CHOICE_KEY, choice);
+      setNotificationChoiceState(choice);
+      
+      // Increment request count if user declined or chose later
+      if (choice === 'declined' || choice === 'later') {
+        const newCount = notificationRequestCount + 1;
+        await AsyncStorage.setItem(NOTIFICATION_REQUEST_COUNT_KEY, newCount.toString());
+        setNotificationRequestCount(newCount);
+      }
+      
+      logger.log('[OnboardingContext] Set notification choice:', choice);
+    } catch (err) {
+      console.error('[OnboardingContext] Failed to save notification choice', err);
+    }
+  }, [notificationRequestCount]);
+
+  const shouldShowNotificationPrompt = useCallback(() => {
+    // Don't show if user already enabled
+    if (notificationChoice === 'enable') return false;
+    
+    // Don't show if user declined and we've asked too many times (max 3)
+    if (notificationChoice === 'declined' && notificationRequestCount >= 3) return false;
+    
+    // Show if user chose "later" or if we haven't asked before
+    return notificationChoice === 'later' || notificationChoice === null || notificationRequestCount < 3;
+  }, [notificationChoice, notificationRequestCount]);
+
   // Card Management Functions
   const addCard = useCallback((cardId: string) => {
     setSelectedCards(prev => {
@@ -263,6 +311,12 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     markTapOnboardingAsSeen,
     markSwipeOnboardingAsSeen,
     reloadOnboardingFlags,
+
+    // Notification Preferences
+    notificationChoice,
+    notificationRequestCount,
+    setNotificationChoice,
+    shouldShowNotificationPrompt,
   };
 
   return (
