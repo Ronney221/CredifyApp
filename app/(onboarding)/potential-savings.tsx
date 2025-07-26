@@ -166,7 +166,7 @@ export default function PotentialSavingsScreen() {
       // Round down to nearest dollar by using Math.floor
       const roundedNetValue = Math.floor(netValue);
       router.push({
-        pathname: '/(onboarding)/register',
+        pathname: '/(onboarding)/notifications-intro',
         params: { potentialSavings: roundedNetValue }
       });
     } catch (e) {

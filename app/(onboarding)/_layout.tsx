@@ -6,6 +6,7 @@ export const onboardingScreenNames = [
   'card-select',
   'why-this-matters',
   'potential-savings',
+  'notifications-intro',
   'register',
 ] as const;
 
@@ -38,6 +39,12 @@ export default function OnboardingLayout() {
         />
         <Stack.Screen
           name="potential-savings"
+          options={{
+            gestureEnabled: true,
+          }}
+        />
+        <Stack.Screen
+          name="notifications-intro"
           options={{
             gestureEnabled: true,
           }}
