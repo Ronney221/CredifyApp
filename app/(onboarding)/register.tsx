@@ -144,21 +144,28 @@ export default function RegisterScreen() {
     }, 5000);
     
     // Start the floating animation with a small delay to ensure component is mounted
-    setTimeout(() => {
-      translateY.value = withRepeat(
-        withSequence(
-          withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        true
-      );
+    const animationTimeout = setTimeout(() => {
+      if (translateY) {
+        translateY.value = withRepeat(
+          withSequence(
+            withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+          ),
+          -1,
+          true
+        );
+      }
     }, 100);
     
     return () => {
       clearInterval(interval);
+      clearTimeout(animationTimeout);
+      // Cancel any ongoing animation to prevent errors
+      if (translateY) {
+        translateY.value = 0;
+      }
     };
-  }, [shuffledTestimonials.length]);
+  }, [shuffledTestimonials.length, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -168,7 +175,7 @@ export default function RegisterScreen() {
         },
       ],
     };
-  });
+  }, [translateY]);
 
 
   // Get the selected card objects with proper typing
