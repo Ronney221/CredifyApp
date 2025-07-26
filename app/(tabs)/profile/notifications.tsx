@@ -24,6 +24,7 @@ import { BlurView } from 'expo-blur';
 import BackButton from '../../../components/ui/BackButton';
 import { logger } from '../../../utils/logger';
 import { NotificationPreviews } from '../../../components/notifications/NotificationPreviews';
+import NotificationPromptBanner from '../../../components/notifications/NotificationPromptBanner';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -203,6 +204,11 @@ export default function NotificationSettingsScreen() {
       <Stack.Screen options={{ title: 'Notification Preferences', headerShown: true, headerLeft: () => <BackButton label="Profile" /> }} />
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {/* Smart notification prompt banner */}
+          <NotificationPromptBanner 
+            context="profile"
+          />
+          
           {user?.id && preferences && (
             <NotificationPreviews 
               userId={user.id} 
