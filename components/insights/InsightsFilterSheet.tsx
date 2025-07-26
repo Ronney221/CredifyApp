@@ -80,7 +80,6 @@ export default function InsightsFilterSheet({
   const translateY = useSharedValue(screenHeight);
   const opacity = useSharedValue(0);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
 
   React.useEffect(() => {
     if (isVisible) {
@@ -89,15 +88,11 @@ export default function InsightsFilterSheet({
         damping: 20,
         stiffness: 300,
       });
-      // Restore scroll position after a small delay to ensure the sheet is fully rendered
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: scrollPosition, animated: false });
-      }, 100);
     } else {
       opacity.value = withTiming(0, { duration: 150 });
       translateY.value = withTiming(screenHeight, { duration: 200 });
     }
-  }, [isVisible, scrollPosition]);
+  }, [isVisible]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -143,10 +138,12 @@ export default function InsightsFilterSheet({
   }, [setSelectedCardIds]);
 
   const handleScroll = useCallback((event: any) => {
-    setScrollPosition(event.nativeEvent.contentOffset.y);
+    // Optional: Add any scroll handling logic here if needed
   }, []);
 
   const panGesture = Gesture.Pan()
+    .enableTrackpadTwoFingerGesture(true)
+    .shouldCancelWhenOutside(false)
     .onUpdate((event) => {
       if (event.translationY > 0) {
         translateY.value = event.translationY;
@@ -160,7 +157,8 @@ export default function InsightsFilterSheet({
         translateY.value = withSpring(0);
         opacity.value = withTiming(1);
       }
-    });
+    })
+    .simultaneousWithExternalGesture();
 
   if (!isVisible) return null;
 
@@ -174,15 +172,18 @@ export default function InsightsFilterSheet({
         />
       </Animated.View>
 
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.sheet, sheetStyle]}>
-          <BlurView intensity={95} style={styles.blurContainer}>
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.95)', 'rgba(248, 248, 252, 0.98)']}
-              style={[styles.sheetContent, { paddingBottom: insets.bottom + 20 }]}
-            >
-              {/* Handle bar */}
-              <View style={styles.handleBar} />
+      <Animated.View style={[styles.sheet, sheetStyle]}>
+        <BlurView intensity={95} style={styles.blurContainer}>
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.95)', 'rgba(248, 248, 252, 0.98)']}
+            style={[styles.sheetContent, { paddingBottom: insets.bottom + 20 }]}
+          >
+            {/* Handle bar with gesture */}
+            <GestureDetector gesture={panGesture}>
+              <View style={styles.dragHandle}>
+                <View style={styles.handleBar} />
+              </View>
+            </GestureDetector>
 
               {/* Header */}
               <View style={styles.header}>
@@ -211,7 +212,8 @@ export default function InsightsFilterSheet({
                 contentContainerStyle={styles.scrollContentContainer}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
-                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
+                scrollIndicatorInsets={{ right: 1 }}
               >
                 {/* Perk Status Section */}
                 <View style={styles.section}>
@@ -337,7 +339,6 @@ export default function InsightsFilterSheet({
             </LinearGradient>
           </BlurView>
         </Animated.View>
-      </GestureDetector>
     </View>
   );
 }
@@ -369,13 +370,16 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     maxHeight: '100%',
   },
+  dragHandle: {
+    paddingTop: 8,
+    paddingBottom: 16,
+    alignItems: 'center',
+  },
   handleBar: {
     width: 36,
     height: 4,
     backgroundColor: 'rgba(142, 142, 147, 0.3)',
     borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
   },
   header: {
     flexDirection: 'row',
