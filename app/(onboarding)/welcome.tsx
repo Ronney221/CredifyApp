@@ -152,7 +152,7 @@ export default function WelcomeScreen() {
       <StatusBar barStyle="dark-content" />
       
       <LinearGradient
-        colors={['#ffffff', '#f9fafb']}
+        colors={['#FAFAFE', '#F0F0F5']}
         style={styles.gradient}
       >
         <MotiView
@@ -221,7 +221,12 @@ export default function WelcomeScreen() {
               accessibilityLabel="Let's Do the Math"
               accessibilityHint="Opens card selection screen"
             >
-              <Text style={styles.getStartedText}>Let&apos;s Do the Math</Text>
+              <LinearGradient
+                colors={['#007AFF', '#0051D5']}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.getStartedText}>Let&apos;s Do the Math</Text>
+              </LinearGradient>
             </TouchableOpacity>
             
             <MotiView
@@ -309,15 +314,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   getStartedButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 18,
     borderRadius: 14,
-    alignItems: 'center',
     shadowColor: Colors.light.tint,
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   getStartedText: {
     color: '#ffffff',

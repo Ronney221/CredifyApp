@@ -19,14 +19,14 @@ import { getNotificationPermissions } from '../../utils/notifications';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Sample notification data based on your SQL file
+// Sample notification data with real perk values from benefit_definitions_rows.sql
 const sampleNotifications = [
   {
     id: '1',
     icon: '🍩',
     title: '🚨 LAST DAY for your Dunkin\' Credit',
     subtitle: 'Your monthly Dunkin\' credit is here to make your day sweeter. You literally can\'t say no.',
-    amount: '$15',
+    amount: '$7',
     timeLeft: 'Today',
     type: 'urgent'
   },
@@ -35,7 +35,7 @@ const sampleNotifications = [
     icon: '🚗',
     title: 'Don\'t Forget Your Uber Credit!',
     subtitle: 'Fueling your boba cravings or a late-night snack run. Your Uber Cash is about to vanish.',
-    amount: '$25',
+    amount: '$15',
     timeLeft: '3 days left',
     type: 'warning'
   },
@@ -43,7 +43,7 @@ const sampleNotifications = [
     id: '3',
     icon: '💳',
     title: 'Card Review Time',
-    subtitle: 'Your Chase Sapphire annual fee of $95 is due in 3 months. You\'ve redeemed $180 in benefits (189% ROI)! 🎯',
+    subtitle: 'Your Chase Sapphire annual fee of $95 is due in 3 months. You\'ve redeemed $325 in benefits (342% ROI)! 🎯',
     amount: '$95 fee',
     timeLeft: '90 days',
     type: 'info'
@@ -52,21 +52,30 @@ const sampleNotifications = [
     id: '4',
     icon: '🎉',
     title: 'New Month, Fresh Benefits!',
-    subtitle: 'Your monthly perks worth $150 have reset. Start the month right by planning how to use your benefits!',
-    amount: '$150',
+    subtitle: 'Your monthly perks worth $189 have reset. Start the month right by planning how to use your benefits!',
+    amount: '$189',
     timeLeft: 'Available now',
     type: 'success'
   },
   {
     id: '5',
     icon: '🍽️',
-    title: 'Your Monthly Food Perk is Expiring',
-    subtitle: 'Sushi, tacos, or boba? Your DoorDash restaurant credit is getting cold. Order something delicious tonight!',
-    amount: '$30',
+    title: 'Your Grubhub Credit is Expiring',
+    subtitle: 'Sushi, tacos, or boba? Your $10 Grubhub credit is getting cold. Order something delicious tonight!',
+    amount: '$10',
     timeLeft: '1 week left',
     type: 'warning'
+  },
+  {
+    id: '6',
+    icon: '✈️',
+    title: 'CLEAR Plus Renewal Due',
+    subtitle: 'Your $189 CLEAR credit covers the full membership. Skip the security lines all year - renew today!',
+    amount: '$189',
+    timeLeft: '2 weeks',
+    type: 'info'
   }
-];
+].sort(() => Math.random() - 0.5); // Randomize order each time
 
 const NotificationCard = ({ notification, isVisible }: { notification: any, isVisible: boolean }) => {
   const getTypeColor = (type: string) => {
@@ -126,6 +135,15 @@ export default function NotificationsIntro() {
   const [choice, setChoice] = useState<'enable' | 'later' | null>(null);
   const { setNotificationChoice } = useOnboardingContext();
 
+  // Auto-scroll through notifications
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % sampleNotifications.length);
+    }, 3000); // Change every 3 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleScroll = (event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollPosition / (screenWidth - 40));
@@ -160,15 +178,11 @@ export default function NotificationsIntro() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         {/* Header Section */}
         <View style={styles.header}>
           <LinearGradient
-            colors={['#667eea', '#764ba2']}
+            colors={['#007AFF', '#0051D5']}
             style={styles.iconBackground}
           >
             <Ionicons name="notifications" size={32} color="#FFFFFF" />
@@ -181,26 +195,14 @@ export default function NotificationsIntro() {
           </Text>
         </View>
 
-        {/* Sample Notifications Carousel */}
+        {/* Single Notification Display with Auto-Change */}
         <View style={styles.notificationsSection}>
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            contentContainerStyle={styles.notificationsContainer}
-          >
-            {sampleNotifications.map((notification, index) => (
-              <View key={notification.id} style={styles.notificationSlide}>
-                <NotificationCard 
-                  notification={notification} 
-                  isVisible={index === currentIndex}
-                />
-              </View>
-            ))}
-          </ScrollView>
+          <View style={styles.notificationContainer}>
+            <NotificationCard 
+              notification={sampleNotifications[currentIndex]} 
+              isVisible={true}
+            />
+          </View>
           
           {/* Pagination Dots */}
           <View style={styles.pagination}>
@@ -219,15 +221,15 @@ export default function NotificationsIntro() {
         {/* Value Proposition */}
         <View style={styles.valueSection}>
           <View style={styles.valueItem}>
-            <Ionicons name="time-outline" size={24} color="#667eea" />
+            <Ionicons name="time-outline" size={24} color="#007AFF" />
             <Text style={styles.valueText}>Perfect timing for each perk</Text>
           </View>
           <View style={styles.valueItem}>
-            <Ionicons name="cash-outline" size={24} color="#667eea" />
+            <Ionicons name="cash-outline" size={24} color="#007AFF" />
             <Text style={styles.valueText}>Save $100s in unused benefits</Text>
           </View>
           <View style={styles.valueItem}>
-            <Ionicons name="checkmark-circle-outline" size={24} color="#667eea" />
+            <Ionicons name="checkmark-circle-outline" size={24} color="#007AFF" />
             <Text style={styles.valueText}>Smart, non-spammy reminders</Text>
           </View>
         </View>
@@ -243,7 +245,7 @@ export default function NotificationsIntro() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={choice === 'enable' ? ['#4CAF50', '#45a049'] : ['#667eea', '#764ba2']}
+              colors={choice === 'enable' ? ['#34C759', '#28A745'] : ['#007AFF', '#0051D5']}
               style={styles.buttonGradient}
             >
               <Ionicons name="notifications" size={20} color="#FFFFFF" style={styles.buttonIcon} />
@@ -262,7 +264,7 @@ export default function NotificationsIntro() {
             <Text style={styles.secondaryButtonText}>Maybe Later</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -274,10 +276,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  contentContainer: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+    justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
@@ -309,12 +310,9 @@ const styles = StyleSheet.create({
   notificationsSection: {
     marginBottom: 32,
   },
-  notificationsContainer: {
+  notificationContainer: {
     paddingHorizontal: 0,
-  },
-  notificationSlide: {
-    width: screenWidth - 40,
-    paddingHorizontal: 5,
+    marginBottom: 20,
   },
   notificationCard: {
     borderRadius: 16,
@@ -388,7 +386,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   paginationDotActive: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#007AFF',
     width: 20,
   },
   valueSection: {

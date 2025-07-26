@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { MotiView } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { CardPerks } from '../../components/onboarding/CardPerks';
@@ -270,9 +271,14 @@ export default function PotentialSavingsScreen() {
           <TouchableOpacity
             style={styles.ctaButton}
             onPress={handleStartTracking}
-            activeOpacity={0.6}
+            activeOpacity={0.8}
           >
-            <Text style={styles.ctaButtonText}>Start Tracking My Perks</Text>
+            <LinearGradient
+              colors={['#007AFF', '#0051D5']}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.ctaButtonText}>Start Tracking My Perks</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </MotiView>
       </View>
@@ -386,16 +392,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   ctaButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
     width: '100%',
     shadowColor: Colors.light.tint,
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   ctaButtonText: {
     color: '#ffffff',

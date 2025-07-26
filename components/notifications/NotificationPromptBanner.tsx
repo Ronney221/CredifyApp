@@ -74,7 +74,7 @@ export default function NotificationPromptBanner({
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={['#007AFF', '#0051D5']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -96,7 +96,7 @@ export default function NotificationPromptBanner({
               onPress={handleEnableNotifications}
               activeOpacity={0.8}
             >
-              <Ionicons name="notifications" size={16} color="#667eea" />
+              <Ionicons name="notifications" size={16} color="#007AFF" />
               <Text style={styles.enableButtonText}>Enable</Text>
             </TouchableOpacity>
             
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   enableButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#667eea',
+    color: '#007AFF',
   },
   dismissButton: {
     width: 32,

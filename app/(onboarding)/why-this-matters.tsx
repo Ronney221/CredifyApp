@@ -205,8 +205,13 @@ export default function WhyThisMattersScreen() {
               accessibilityLabel="Calculate My Potential"
               accessibilityHint="Proceeds to calculate your potential savings"
             >
-              <Text style={styles.continueButtonText}>Calculate My Potential</Text>
-              <Ionicons name="arrow-forward" size={20} color="#ffffff" style={styles.buttonIcon} />
+              <LinearGradient
+                colors={['#007AFF', '#0051D5']}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.continueButtonText}>Calculate My Potential</Text>
+                <Ionicons name="arrow-forward" size={20} color="#ffffff" style={styles.buttonIcon} />
+              </LinearGradient>
             </TouchableOpacity>
           </MotiView>
         </View>
@@ -316,18 +321,23 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 20 : 16,
   },
   continueButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 18,
-    paddingHorizontal: TOKENS.spacing.lg,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
     shadowColor: Colors.light.tint,
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: TOKENS.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    width: '100%',
   },
   continueButtonText: {
     color: '#ffffff',

@@ -21,6 +21,7 @@ import { Colors } from '../../constants/Colors';
 import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 import { MotiView } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useOnboardingContext } from './_context/OnboardingContext';
 import { onboardingScreenNames } from './_layout';
 import { WIZARD_HEADER_HEIGHT } from './WizardHeader';
@@ -420,9 +421,14 @@ export default function OnboardingCardSelectScreen() {
           <TouchableOpacity
             style={styles.nextButton}
             onPress={handleNext}
-            activeOpacity={0.6}
+            activeOpacity={0.8}
           >
-            <Text style={styles.nextButtonText}>Crunch My Numbers</Text>
+            <LinearGradient
+              colors={['#007AFF', '#0051D5']}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.nextButtonText}>Crunch My Numbers</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </MotiView>
       )}
@@ -500,16 +506,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nextButton: {
-    backgroundColor: Colors.light.tint,
-    paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
     width: '100%',
     shadowColor: Colors.light.tint,
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  buttonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   nextButtonText: {
     color: '#ffffff',

@@ -35,16 +35,32 @@ export async function getNotificationPermissions(): Promise<boolean> {
 
   // First check existing permissions
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  console.log('[Notifications] Current permission status:', existingStatus);
+  
   if (existingStatus === 'granted') {
     return true;
   }
 
   // Only request if not already denied
   if (existingStatus === 'undetermined') {
-    const { status } = await Notifications.requestPermissionsAsync();
+    console.log('[Notifications] Requesting permissions...');
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+        allowDisplayInCarPlay: true,
+        allowCriticalAlerts: false,
+        provideAppNotificationSettings: false,
+        allowProvisional: false,
+        allowAnnouncements: false,
+      },
+    });
+    console.log('[Notifications] Permission request result:', status);
     return status === 'granted';
   }
 
+  console.log('[Notifications] Permissions already denied or unknown status');
   return false;
 };
 
