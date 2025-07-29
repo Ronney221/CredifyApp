@@ -1,3 +1,6 @@
+// Global variables
+(global as any).__DEV__ = true;
+
 // Mock supabase client
 jest.mock('./lib/supabase', () => ({
   supabase: {
@@ -10,4 +13,12 @@ jest.mock('./lib/supabase', () => ({
       single: jest.fn().mockReturnThis(),
     })),
   },
+}));
+
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
 })); 
