@@ -801,6 +801,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1C1C1E',
     letterSpacing: -0.8,
+    textAlignVertical: 'center',
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   helperText: {
     fontSize: 14,
