@@ -13,6 +13,7 @@ import {
   Alert,
   ScrollView,
   KeyboardAvoidingView,
+  PixelRatio,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link, useLocalSearchParams } from 'expo-router';
@@ -39,7 +40,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { onboardingScreenNames } from './_layout';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const fontScale = PixelRatio.getFontScale();
+const isLargeText = fontScale > 1.2;
+const isExtraLargeText = fontScale > 1.4;
+
+// Temporarily disable floating animation to fix translateY error
+const ENABLE_FLOATING_ANIMATION = false;
 
 const testimonials = [
   {
@@ -110,7 +117,36 @@ export default function RegisterScreen() {
   const [currentTestimonial, setCurrentTestimonial] = React.useState(0);
   const [shuffledTestimonials, setShuffledTestimonials] = React.useState(testimonials);
   const [allCards, setAllCards] = React.useState<Card[]>([]);
-  const translateY = useSharedValue(0);
+  const translateY = useRef(useSharedValue(0)).current;
+  const isMounted = useRef(true);
+  const testimonialIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Backup function to restart testimonials if they stop
+  const startTestimonialRotation = useCallback(() => {
+    if (testimonialIntervalRef.current) {
+      clearInterval(testimonialIntervalRef.current);
+    }
+    testimonialIntervalRef.current = setInterval(() => {
+      try {
+        setCurrentTestimonial((prev) => (prev + 1) % shuffledTestimonials.length);
+      } catch (error) {
+        console.log('Testimonial rotation error:', error);
+      }
+    }, 5000);
+  }, [shuffledTestimonials.length]);
+  
+  // Watchdog to restart testimonials if they stop
+  useEffect(() => {
+    const watchdog = setInterval(() => {
+      // Check if testimonials are still rotating by restarting them
+      // This is a failsafe in case the interval gets killed by JS engine errors
+      if (isMounted.current) {
+        startTestimonialRotation();
+      }
+    }, 15000); // Check every 15 seconds
+    
+    return () => clearInterval(watchdog);
+  }, [startTestimonialRotation]);
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
@@ -138,44 +174,76 @@ export default function RegisterScreen() {
     
     loadCards();
     
-    // Rotate testimonials every 5 seconds  
-    const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % shuffledTestimonials.length);
-    }, 5000);
+    // Start testimonial rotation using the safe function
+    startTestimonialRotation();
     
-    // Start the floating animation with a small delay to ensure component is mounted
-    const animationTimeout = setTimeout(() => {
-      if (translateY) {
-        translateY.value = withRepeat(
-          withSequence(
-            withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-            withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-          ),
-          -1,
-          true
-        );
-      }
-    }, 100);
+    let animationTimeout: NodeJS.Timeout | null = null;
+    if (ENABLE_FLOATING_ANIMATION) {
+      // Start the floating animation with a small delay - completely isolated
+      animationTimeout = setTimeout(() => {
+        try {
+          if (isMounted.current && translateY && translateY.value !== undefined && typeof translateY.value === 'number') {
+            translateY.value = withRepeat(
+              withSequence(
+                withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+                withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+              ),
+              -1,
+              true
+            );
+          }
+        } catch (error) {
+          console.log('Animation setup error (safe to ignore):', error);
+          // Don't let animation errors affect other functionality
+        }
+      }, 200);
+    }
     
     return () => {
-      clearInterval(interval);
-      clearTimeout(animationTimeout);
+      isMounted.current = false;
+      if (testimonialIntervalRef.current) {
+        clearInterval(testimonialIntervalRef.current);
+        testimonialIntervalRef.current = null;
+      }
+      if (animationTimeout) {
+        clearTimeout(animationTimeout);
+      }
       // Cancel any ongoing animation to prevent errors
-      if (translateY) {
-        translateY.value = 0;
+      if (ENABLE_FLOATING_ANIMATION) {
+        try {
+          if (translateY && typeof translateY.value === 'number') {
+            translateY.value = 0;
+          }
+        } catch (error) {
+          // Ignore cleanup errors - component is unmounting
+        }
       }
     };
-  }, [shuffledTestimonials.length, translateY]);
+  }, []); // Remove dependency to prevent unnecessary re-runs
 
   const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateY: translateY?.value ?? 0,
-        },
-      ],
-    };
-  }, [translateY]);
+    'worklet';
+    try {
+      // Additional safety check for shared value existence and type
+      if (!translateY || typeof translateY.value !== 'number') {
+        return {
+          transform: [{ translateY: 0 }],
+        };
+      }
+      
+      return {
+        transform: [
+          {
+            translateY: translateY.value,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        transform: [{ translateY: 0 }],
+      };
+    }
+  }, []);
 
 
   // Get the selected card objects with proper typing
@@ -308,7 +376,11 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Premium Card Display with Glassmorphism */}
         <View style={styles.cardsContainer}>
           <View style={styles.cardsBackdrop} />
@@ -406,6 +478,10 @@ export default function RegisterScreen() {
                 onPress={handleGoogleSignIn}
                 disabled={isLoading}
                 activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Google"
+                accessibilityHint="Sign in using your Google account to access Credify"
+                accessibilityState={{ disabled: isLoading }}
               >
                 <View style={styles.socialButtonContent}>
                   <View style={styles.iconContainer}>
@@ -555,11 +631,11 @@ export default function RegisterScreen() {
         </MotiView>
 
         {/* Security Badge */}
-        <View style={styles.securityContainer}>
+        <View style={[styles.securityContainer, isLargeText && styles.securityContainerLarge]}>
           <Ionicons name="lock-closed" size={16} color={Colors.light.secondaryLabel} />
-          <Text style={styles.securityText}>256-bit AES encryption • TLS 1.3</Text>
+          <Text style={[styles.securityText, isLargeText && styles.securityTextLarge]}>256-bit AES encryption • TLS 1.3</Text>
         </View>
-      </View>
+      </ScrollView>
 
       {/* Terms at bottom */}
       <View style={styles.bottomTermsContainer}>
@@ -590,6 +666,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 100,
   },
   cardsContainer: {
     height: 140,
@@ -653,29 +733,29 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logoImage: {
-    width: 320,
-    height: 64,
-    marginBottom: 16,
+    width: Math.min(320, SCREEN_WIDTH * 0.8),
+    height: Math.min(64, SCREEN_WIDTH * 0.16),
+    marginBottom: isLargeText ? 24 : 16,
     alignSelf: 'center',
   },
   title: {
-    fontSize: 26,
+    fontSize: isExtraLargeText ? 24 : isLargeText ? 25 : 26,
     fontWeight: '700',
     color: Colors.light.text,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: isLargeText ? 16 : 12,
     letterSpacing: -0.5,
-    lineHeight: 32,
+    lineHeight: isExtraLargeText ? 30 : isLargeText ? 31 : 32,
   },
   titleHighlight: {
     color: '#007AFF',
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 17,
+    fontSize: isLargeText ? 16 : 17,
     color: Colors.light.secondaryLabel,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: isLargeText ? 24 : 22,
     letterSpacing: -0.2,
     paddingHorizontal: 16,
     fontWeight: '500',
@@ -745,12 +825,12 @@ const styles = StyleSheet.create({
   testimonialCard: {
     backgroundColor: 'rgba(248, 249, 250, 0.8)',
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: isLargeText ? 20 : 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.04)',
     marginBottom: 10,
-    minHeight: 120,
+    minHeight: isExtraLargeText ? 140 : isLargeText ? 130 : 120,
   },
   testimonialHeader: {
     flexDirection: 'row',
@@ -780,7 +860,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   testimonialName: {
-    fontSize: 16,
+    fontSize: isLargeText ? 15 : 16,
     fontWeight: '600',
     color: Colors.light.text,
     marginBottom: 4,
@@ -793,9 +873,9 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   testimonialText: {
-    fontSize: 14,
+    fontSize: isLargeText ? 13 : 14,
     color: Colors.light.secondaryLabel,
-    lineHeight: 20,
+    lineHeight: isLargeText ? 22 : 20,
     fontWeight: '500',
     fontStyle: 'italic',
   },
@@ -803,14 +883,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: isLargeText ? 32 : 20,
     marginBottom: 12,
     opacity: 0.7,
+  },
+  securityContainerLarge: {
+    marginTop: 40,
+    marginBottom: 16,
   },
   securityText: {
     fontSize: 14,
     color: Colors.light.secondaryLabel,
     marginLeft: 6,
+  },
+  securityTextLarge: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   bottomTermsContainer: {
     paddingHorizontal: 24,
