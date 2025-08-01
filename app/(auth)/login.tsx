@@ -79,6 +79,7 @@ export default function LoginScreen() {
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const passwordInputRef = useRef<TextInput | null>(null);
+  const isMounted = useRef(true);
   
   // Micro-interaction values
   const googleButtonScale = useSharedValue(1);
@@ -95,112 +96,190 @@ export default function LoginScreen() {
   };
 
   useEffect(() => {
+    isMounted.current = true;
+    
     // Set initial random cards
     setSelectedCards(getRandomCards());
     
     // Rotate cards every 7 seconds with simple fade
     const cardInterval = setInterval(() => {
-      // Fade out
-      cardOpacity.value = withTiming(0, { duration: 300 });
-      
-      // Change cards after fade out completes
-      setTimeout(() => {
-        setSelectedCards(getRandomCards());
-        setCardKey(prev => prev + 1); // Force MotiView re-animation
-        cardOpacity.value = withTiming(1, { duration: 300 });
-      }, 300);
+      try {
+        if (isMounted.current && cardOpacity && cardOpacity.value !== undefined) {
+          // Fade out
+          cardOpacity.value = withTiming(0, { duration: 300 });
+          
+          // Change cards after fade out completes
+          setTimeout(() => {
+            if (isMounted.current) {
+              setSelectedCards(getRandomCards());
+              setCardKey(prev => prev + 1); // Force MotiView re-animation
+              if (cardOpacity && cardOpacity.value !== undefined) {
+                cardOpacity.value = withTiming(1, { duration: 300 });
+              }
+            }
+          }, 300);
+        }
+      } catch (error) {
+        console.log('Card animation error (safe to ignore):', error);
+      }
     }, 7000);
 
     AppleAuthentication.isAvailableAsync().then(setIsAppleAuthAvailable);
     
-    
-    // Start the floating animation
-    translateY.value = withRepeat(
-      withSequence(
-        withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
+    // Start the floating animation with delay to ensure component is mounted
+    const animationTimeout = setTimeout(() => {
+      try {
+        if (isMounted.current && translateY && translateY.value !== undefined) {
+          translateY.value = withRepeat(
+            withSequence(
+              withTiming(-10, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+              withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+            ),
+            -1,
+            true
+          );
+        }
 
-    // Start subtle parallax drift
-    parallaxOffset.value = withRepeat(
-      withSequence(
-        withTiming(5, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-5, { duration: 3000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
+        if (isMounted.current && parallaxOffset && parallaxOffset.value !== undefined) {
+          // Start subtle parallax drift
+          parallaxOffset.value = withRepeat(
+            withSequence(
+              withTiming(5, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+              withTiming(-5, { duration: 3000, easing: Easing.inOut(Easing.ease) })
+            ),
+            -1,
+            true
+          );
+        }
+      } catch (error) {
+        console.log('Animation setup error (safe to ignore):', error);
+      }
+    }, 100);
     
     return () => {
+      isMounted.current = false;
       clearInterval(cardInterval);
+      clearTimeout(animationTimeout);
+      // Cancel any ongoing animations to prevent errors
+      try {
+        if (translateY && translateY.value !== undefined) {
+          translateY.value = 0;
+        }
+        if (parallaxOffset && parallaxOffset.value !== undefined) {
+          parallaxOffset.value = 0;
+        }
+        if (cardOpacity && cardOpacity.value !== undefined) {
+          cardOpacity.value = 1;
+        }
+        if (loadingProgress && loadingProgress.value !== undefined) {
+          loadingProgress.value = 0;
+        }
+      } catch (error) {
+        // Ignore cleanup errors - component is unmounting
+      }
     };
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateY: translateY.value,
-        },
-      ],
-    };
-  });
+    try {
+      return {
+        transform: [
+          {
+            translateY: translateY?.value ?? 0,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        transform: [{ translateY: 0 }],
+      };
+    }
+  }, []);
 
   // Button animation styles with depth
   const googleButtonAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { scale: googleButtonScale.value },
-        { translateY: googleButtonDepth.value }
-      ],
-      shadowOpacity: interpolate(googleButtonDepth.value, [0, 4], [0.1, 0.25]),
-      shadowOffset: {
-        width: 0,
-        height: interpolate(googleButtonDepth.value, [0, 4], [2, 8]),
-      },
-      shadowRadius: interpolate(googleButtonDepth.value, [0, 4], [4, 12]),
-    };
-  });
+    try {
+      return {
+        transform: [
+          { scale: googleButtonScale?.value ?? 1 },
+          { translateY: googleButtonDepth?.value ?? 0 }
+        ],
+        shadowOpacity: interpolate(googleButtonDepth?.value ?? 0, [0, 4], [0.1, 0.25]),
+        shadowOffset: {
+          width: 0,
+          height: interpolate(googleButtonDepth?.value ?? 0, [0, 4], [2, 8]),
+        },
+        shadowRadius: interpolate(googleButtonDepth?.value ?? 0, [0, 4], [4, 12]),
+      };
+    } catch (error) {
+      return {
+        transform: [{ scale: 1 }, { translateY: 0 }],
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
+      };
+    }
+  }, []);
 
   const emailButtonAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { scale: emailButtonScale.value },
-        { translateY: emailButtonDepth.value }
-      ],
-      shadowOpacity: interpolate(emailButtonDepth.value, [0, 4], [0.1, 0.25]),
-      shadowOffset: {
-        width: 0,
-        height: interpolate(emailButtonDepth.value, [0, 4], [2, 8]),
-      },
-      shadowRadius: interpolate(emailButtonDepth.value, [0, 4], [4, 12]),
-    };
-  });
+    try {
+      return {
+        transform: [
+          { scale: emailButtonScale?.value ?? 1 },
+          { translateY: emailButtonDepth?.value ?? 0 }
+        ],
+        shadowOpacity: interpolate(emailButtonDepth?.value ?? 0, [0, 4], [0.1, 0.25]),
+        shadowOffset: {
+          width: 0,
+          height: interpolate(emailButtonDepth?.value ?? 0, [0, 4], [2, 8]),
+        },
+        shadowRadius: interpolate(emailButtonDepth?.value ?? 0, [0, 4], [4, 12]),
+      };
+    } catch (error) {
+      return {
+        transform: [{ scale: 1 }, { translateY: 0 }],
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
+      };
+    }
+  }, []);
 
   // Parallax effect for cards
   const cardsParallaxStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateY: parallaxOffset.value * 0.3 },
-        { scale: 1 - parallaxOffset.value * 0.0001 }
-      ],
-      opacity: cardOpacity.value,
-    };
-  });
+    try {
+      return {
+        transform: [
+          { translateY: (parallaxOffset?.value ?? 0) * 0.3 },
+          { scale: 1 - (parallaxOffset?.value ?? 0) * 0.0001 }
+        ],
+        opacity: cardOpacity?.value ?? 1,
+      };
+    } catch (error) {
+      return {
+        transform: [{ translateY: 0 }, { scale: 1 }],
+        opacity: 1,
+      };
+    }
+  }, []);
 
 
   // Loading state morphing
   const loadingAnimatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(loadingProgress.value, [0, 0.5, 1], [1, 1.1, 1]);
-    const opacity = interpolate(loadingProgress.value, [0, 0.3, 0.7, 1], [1, 0.8, 0.8, 1]);
-    
-    return {
-      transform: [{ scale }],
-      opacity,
-    };
+    try {
+      const scale = interpolate(loadingProgress?.value ?? 0, [0, 0.5, 1], [1, 1.1, 1]);
+      const opacity = interpolate(loadingProgress?.value ?? 0, [0, 0.3, 0.7, 1], [1, 0.8, 0.8, 1]);
+      
+      return {
+        transform: [{ scale }],
+        opacity,
+      };
+    } catch (error) {
+      return {
+        transform: [{ scale: 1 }],
+        opacity: 1,
+      };
+    }
   });
 
 
@@ -229,17 +308,29 @@ export default function LoginScreen() {
           throw error;
         }
         // If it's a cancellation, just return without navigation
+        loadingProgress.value = 0;
+        setIsLoading(false);
         return;
       }
       
+      // Cancel animations before navigation
       loadingProgress.value = 0;
+      translateY.value = 0;
+      parallaxOffset.value = 0;
+      cardOpacity.value = 1;
+      
       await playSuccessHapticPattern();
-      router.replace('/(tabs)/01-dashboard' as any);
+      
+      // Small delay to ensure animations are cancelled
+      setTimeout(() => {
+        if (isMounted.current) {
+          router.replace('/(tabs)/01-dashboard' as any);
+        }
+      }, 100);
     } catch (error) {
       console.error('Google sign in error:', error);
       loadingProgress.value = 0;
       await playErrorHapticPattern();
-    } finally {
       setIsLoading(false);
     }
   };
@@ -257,17 +348,29 @@ export default function LoginScreen() {
           throw error;
         }
         // If it's a cancellation, just return without navigation
+        loadingProgress.value = 0;
+        setIsLoading(false);
         return;
       }
       
+      // Cancel animations before navigation
       loadingProgress.value = 0;
+      translateY.value = 0;
+      parallaxOffset.value = 0;
+      cardOpacity.value = 1;
+      
       await playSuccessHapticPattern();
-      router.replace('/(tabs)/01-dashboard' as any);
+      
+      // Small delay to ensure animations are cancelled
+      setTimeout(() => {
+        if (isMounted.current) {
+          router.replace('/(tabs)/01-dashboard' as any);
+        }
+      }, 100);
     } catch (error) {
       console.error('Apple sign in error:', error);
       loadingProgress.value = 0;
       await playErrorHapticPattern();
-    } finally {
       setIsLoading(false);
     }
   };
