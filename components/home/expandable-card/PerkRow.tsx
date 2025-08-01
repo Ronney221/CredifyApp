@@ -417,55 +417,42 @@ const PerkRow: React.FC<PerkRowProps> = ({
       ? circleSize / 2 // Perfect circle
       : Math.min(expandedWidth / 2, 30); // Transition to pill shape
     
-    // Subtle scale effect only - no glow to keep icons crisp
-    const scale = interpolate(
-      currentSwipeDistance,
-      [LONG_SWIPE_THRESHOLD * 0.85, LONG_SWIPE_THRESHOLD],
-      [1, 1.02], // Subtle scaling for visual feedback
-      'clamp'
-    );
-    
+    // No scale effect to keep icons perfectly crisp
     return {
       width: expandedWidth,
       borderRadius,
-      transform: [{ scale }],
+      // No transform animations to prevent blur
       // No animated shadows - keep static values from styles for crisp rendering
     };
   });
 
-  // Animated style for icon movement - iOS 26 iMessage style
+  // Icon bounce animation - spring towards user's finger at full swipe only
   const iconAnimatedStyle = useAnimatedStyle(() => {
     const currentSwipeDistance = Math.abs(translateX.value);
     
-    // Get current button width for calculating edge position
-    const currentWidth = interpolate(
-      currentSwipeDistance,
-      [0, LONG_SWIPE_THRESHOLD],
-      [100, 180], // Updated min to max width to match animatedActionStyle
-      'clamp'
-    );
+    // Only bounce when reaching full swipe threshold
+    const hasReachedFullSwipe = currentSwipeDistance >= LONG_SWIPE_THRESHOLD;
     
-    // Calculate distance to move icon further from edge when fully expanded
-    // Button width / 2 gives us center to edge distance, minus padding for icon size + 5px extra
-    const edgeDistance = (currentWidth / 2) - 25; // 25px = 20px for icon + 5px further from edge
+    // Calculate bounce distance - icons move towards the user's finger
+    const maxBounceDistance = 15; // Maximum distance to bounce
     
-    // Only move icon after crossing the full swipe threshold
-    const hasPassedThreshold = currentSwipeDistance >= LONG_SWIPE_THRESHOLD;
+    // For available perks (right swipe), bounce icon to the right
+    // For redeemed perks (left swipe), bounce icon to the left
+    const bounceDirection = isAvailable ? 1 : -1;
+    const bounceDistance = hasReachedFullSwipe ? maxBounceDistance * bounceDirection : 0;
     
-    // For left action (available perks), move icon to the right edge
-    // For right action (redeemed perks), move icon to the left edge
-    const translateDirection = isAvailable ? edgeDistance : -edgeDistance;
+    // Use spring animation for smooth, crisp movement
+    const animatedBounce = withSpring(bounceDistance, {
+      damping: 15, // Higher damping for crisper movement
+      stiffness: 400, // Higher stiffness for snappier response
+      mass: 0.8, // Lower mass for quicker response
+      restDisplacementThreshold: 0.1, // Prevent sub-pixel jitter
+      restSpeedThreshold: 0.1, // Prevent sub-pixel movement
+    });
     
-    // Add smooth animation with timing
-    const animatedTranslateX = hasPassedThreshold 
-      ? withTiming(translateDirection, { duration: 200 })
-      : withTiming(0, { duration: 200 });
-    
-    // Keep icons at fixed scale for crisp rendering - no scaling animation
-    // Only animate position for smooth movement
     return {
       transform: [
-        { translateX: animatedTranslateX }
+        { translateX: animatedBounce }
       ],
     };
   });
