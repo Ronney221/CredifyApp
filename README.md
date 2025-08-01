@@ -106,6 +106,28 @@ This major release marks Credify's official App Store launch with significant ne
 
 ---
 
+### **Update: Version 2.1 Features (Released 8/1/2025)**
+
+This release focuses on enhanced user experience with refined interactions and improved notification engagement.
+
+🎯 **Enhanced User Experience**
+* **iOS-Style Swipe Interactions:** Refined swipe gestures to mimic iOS Messages - single haptic feedback at full swipe threshold for more intuitive perk management
+* **Improved Icon Clarity:** Fixed blurry icon issues during swipe animations while maintaining smooth spring bounce effects toward user's finger
+* **Better Responsiveness:** Enhanced dynamic screen dimension handling and smoother animations throughout the app
+
+🔔 **Smart Notification System**
+* **Contextual Notification Prompts:** Intelligent notification setup that appears at optimal times based on user behavior
+* **Enhanced Onboarding:** New notification education screen helps users understand the value of timely perk reminders
+* **Re-engagement Features:** Smart banner system to help users who disabled notifications get back on track
+* **Improved Permission Handling:** Fixed bugs where notification permissions were incorrectly required for all actions
+
+♿ **Accessibility & Polish**
+* **Accessibility Improvements:** Enhanced app accessibility for better user experience across all interactions
+* **UI Refinements:** Fixed scrolling issues in filter sheets and various visual bugs
+* **Stability Fixes:** Resolved animation crashes, OAuth error handling, and general stability improvements
+
+---
+
 ## Core Features ✨
 
 ### 🧠 AI-Powered Financial Assistant
