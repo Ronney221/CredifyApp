@@ -4,6 +4,7 @@ import { Colors } from '../../constants/Colors';
 import { usePerkStatus } from '../../hooks/usePerkStatus';
 import { useUserCards } from '../../hooks/useUserCards';
 import { calculateCurrentStreak } from '../../utils/streak-calculator';
+import { useResponsiveStyles, getResponsiveFontSize, getResponsiveSpacing } from '../../hooks/useResponsiveStyles';
 
 interface StatsCardProps {
   title: string;
@@ -12,17 +13,21 @@ interface StatsCardProps {
   isLoading?: boolean;
 }
 
-const StatsCard = ({ title, value, subtitle, isLoading }: StatsCardProps) => (
-  <View style={styles.card}>
-    <Text style={styles.cardTitle}>{title}</Text>
-    <Text style={[styles.cardValue, isLoading && styles.loadingText]}>
-      {isLoading ? '...' : value}
-    </Text>
-    {subtitle && !isLoading && (
-      <Text style={styles.cardSubtitle}>{subtitle}</Text>
-    )}
-  </View>
-);
+const StatsCard = ({ title, value, subtitle, isLoading }: StatsCardProps) => {
+  const { isLargeText } = useResponsiveStyles();
+  
+  return (
+    <View style={[styles.card, isLargeText && styles.cardLarge]}>
+      <Text style={[styles.cardTitle, isLargeText && styles.cardTitleLarge]}>{title}</Text>
+      <Text style={[styles.cardValue, isLoading && styles.loadingText, isLargeText && styles.cardValueLarge]}>
+        {isLoading ? '...' : value}
+      </Text>
+      {subtitle && !isLoading && (
+        <Text style={[styles.cardSubtitle, isLargeText && styles.cardSubtitleLarge]}>{subtitle}</Text>
+      )}
+    </View>
+  );
+};
 
 interface ProfileStatsCardsProps {
   userId: string;
@@ -32,6 +37,7 @@ export const ProfileStatsCards = ({ userId }: ProfileStatsCardsProps) => {
   const { userCardsWithPerks, isLoading: cardsLoading } = useUserCards();
   const { periodAggregates, cumulativeValueSavedPerCard, isLoading: perkLoading } = usePerkStatus(userCardsWithPerks || []);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const { isLargeText } = useResponsiveStyles();
 
   const isLoading = perkLoading || cardsLoading;
 
@@ -78,8 +84,8 @@ export const ProfileStatsCards = ({ userId }: ProfileStatsCardsProps) => {
   const redemptionStreak = currentStreak;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.row}>
+    <View style={[styles.container, isLargeText && styles.containerLarge]}>
+      <View style={[styles.row, isLargeText && styles.rowLarge]}>
         <StatsCard
           title="Value Redeemed"
           value={`$${Math.round(yearlyValue).toLocaleString()}`}
@@ -93,7 +99,7 @@ export const ProfileStatsCards = ({ userId }: ProfileStatsCardsProps) => {
           isLoading={isLoading}
         />
       </View>
-      <View style={styles.row}>
+      <View style={[styles.row, isLargeText && styles.rowLarge]}>
         <StatsCard
           title="Streak"
           value={redemptionStreak.toString()}
@@ -116,10 +122,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
   },
+  containerLarge: {
+    marginBottom: 20,
+  },
   row: {
     flexDirection: 'row',
     marginBottom: 8,
     gap: 8,
+  },
+  rowLarge: {
+    marginBottom: 12,
+    gap: 10,
   },
   card: {
     flex: 1,
@@ -132,6 +145,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
+  cardLarge: {
+    padding: 18,
+    minHeight: 80,
+  },
   cardTitle: {
     fontSize: 13,
     fontWeight: '600',
@@ -140,6 +157,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 8,
   },
+  cardTitleLarge: {
+    fontSize: 12,
+    marginBottom: 10,
+    lineHeight: 16,
+  },
   cardValue: {
     fontSize: 20,
     fontWeight: '700',
@@ -147,10 +169,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     marginBottom: 2,
   },
+  cardValueLarge: {
+    fontSize: 18,
+    lineHeight: 22,
+    marginBottom: 4,
+  },
   cardSubtitle: {
     fontSize: 12,
     color: Colors.light.tertiaryLabel,
     fontWeight: '500',
+  },
+  cardSubtitleLarge: {
+    fontSize: 11,
+    lineHeight: 14,
   },
   loadingText: {
     color: Colors.light.tertiaryLabel,

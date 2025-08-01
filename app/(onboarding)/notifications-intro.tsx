@@ -8,6 +8,7 @@ import {
   Dimensions,
   Platform,
   SafeAreaView,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,7 +78,12 @@ const sampleNotifications = [
   }
 ].sort(() => Math.random() - 0.5); // Randomize order each time
 
-const NotificationCard = ({ notification, isVisible }: { notification: any, isVisible: boolean }) => {
+const NotificationCard = ({ notification, isVisible, animatedOpacity, animatedTranslateY }: { 
+  notification: any, 
+  isVisible: boolean,
+  animatedOpacity: Animated.Value,
+  animatedTranslateY: Animated.Value
+}) => {
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'urgent': return '#FF3B30';
@@ -97,13 +103,13 @@ const NotificationCard = ({ notification, isVisible }: { notification: any, isVi
   };
 
   return (
-    <View 
+    <Animated.View 
       style={[
         styles.notificationCard,
         { 
           backgroundColor: getBackgroundColor(notification.type),
-          opacity: isVisible ? 1 : 0.3,
-          transform: [{ scale: isVisible ? 1 : 0.95 }]
+          opacity: animatedOpacity,
+          transform: [{ translateY: animatedTranslateY }]
         }
       ]}
     >
@@ -112,19 +118,34 @@ const NotificationCard = ({ notification, isVisible }: { notification: any, isVi
           <Text style={styles.notificationIcon}>{notification.icon}</Text>
         </View>
         <View style={styles.notificationContent}>
-          <Text style={[styles.notificationTitle, { color: getTypeColor(notification.type) }]}>
+          <Text 
+            style={[styles.notificationTitle, { color: getTypeColor(notification.type) }]}
+            numberOfLines={2}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.8}
+          >
             {notification.title}
           </Text>
           <Text style={styles.notificationTime}>{notification.timeLeft}</Text>
         </View>
         <View style={styles.amountContainer}>
-          <Text style={[styles.notificationAmount, { color: getTypeColor(notification.type) }]}>
+          <Text 
+            style={[styles.notificationAmount, { color: getTypeColor(notification.type) }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.9}
+          >
             {notification.amount}
           </Text>
         </View>
       </View>
-      <Text style={styles.notificationSubtitle}>{notification.subtitle}</Text>
-    </View>
+      <Text 
+        style={styles.notificationSubtitle}
+        numberOfLines={3}
+      >
+        {notification.subtitle}
+      </Text>
+    </Animated.View>
   );
 };
 
@@ -134,12 +155,46 @@ export default function NotificationsIntro() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [choice, setChoice] = useState<'enable' | 'later' | null>(null);
   const { setNotificationChoice } = useOnboardingContext();
+  
+  // Animation values
+  const animatedOpacity = useRef(new Animated.Value(1)).current;
+  const animatedTranslateY = useRef(new Animated.Value(0)).current;
 
-  // Auto-scroll through notifications
+  // Auto-scroll through notifications with smooth animations
   React.useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % sampleNotifications.length);
-    }, 3000); // Change every 3 seconds
+      // Animate out current notification
+      Animated.parallel([
+        Animated.timing(animatedOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animatedTranslateY, {
+          toValue: -20,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Change to next notification
+        setCurrentIndex((prev) => (prev + 1) % sampleNotifications.length);
+        
+        // Reset position and animate in new notification
+        animatedTranslateY.setValue(20);
+        Animated.parallel([
+          Animated.timing(animatedOpacity, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedTranslateY, {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    }, 3500); // Slightly longer to account for animation time
 
     return () => clearInterval(interval);
   }, []);
@@ -178,7 +233,11 @@ export default function NotificationsIntro() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.scrollContent}
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header Section */}
         <View style={styles.header}>
           <LinearGradient
@@ -201,6 +260,8 @@ export default function NotificationsIntro() {
             <NotificationCard 
               notification={sampleNotifications[currentIndex]} 
               isVisible={true}
+              animatedOpacity={animatedOpacity}
+              animatedTranslateY={animatedTranslateY}
             />
           </View>
           
@@ -233,8 +294,10 @@ export default function NotificationsIntro() {
             <Text style={styles.valueText}>Smart, non-spammy reminders</Text>
           </View>
         </View>
+      </ScrollView>
 
-        {/* Choice Buttons */}
+      {/* Fixed Bottom Buttons */}
+      <View style={styles.bottomContainer}>
         <View style={styles.choiceSection}>
           <TouchableOpacity
             style={[
@@ -274,11 +337,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFE',
   },
-  content: {
+  scrollContent: {
     flex: 1,
+  },
+  scrollContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 160, // Space for fixed bottom buttons
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FAFAFE',
     paddingHorizontal: 20,
     paddingBottom: 40,
-    justifyContent: 'space-between',
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
   },
   header: {
     alignItems: 'center',
@@ -313,11 +389,13 @@ const styles = StyleSheet.create({
   notificationContainer: {
     paddingHorizontal: 0,
     marginBottom: 20,
+    minHeight: 120, // Fixed minimum height to prevent layout jumps
   },
   notificationCard: {
     borderRadius: 16,
     padding: 16,
     marginHorizontal: 5,
+    minHeight: 120, // Consistent height for all notifications
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -349,11 +427,13 @@ const styles = StyleSheet.create({
   },
   notificationContent: {
     flex: 1,
+    marginRight: 8,
   },
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
+    lineHeight: 20,
   },
   notificationTime: {
     fontSize: 12,
@@ -361,10 +441,13 @@ const styles = StyleSheet.create({
   },
   amountContainer: {
     alignItems: 'flex-end',
+    minWidth: 60,
+    justifyContent: 'center',
   },
   notificationAmount: {
     fontSize: 16,
     fontWeight: '700',
+    textAlign: 'right',
   },
   notificationSubtitle: {
     fontSize: 14,

@@ -52,6 +52,7 @@ import { dashboardLogger } from '../../utils/logger';
 import { PERFORMANCE_CONFIGS, keyExtractors, PerformanceMonitor } from '../../utils/performance';
 import DashboardHeader from '../../components/dashboard/DashboardHeader';
 import CardsGrid from '../../components/dashboard/CardsGrid';
+import NotificationPromptBanner from '../../components/notifications/NotificationPromptBanner';
 import { PerksOverviewWithRef } from '../../components/dashboard/PerksOverview';
 
 // Import notification functions
@@ -269,6 +270,8 @@ export default function Dashboard() {
   const maxRetries = 5; // Maximum number of retry attempts
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
+  
+  // Smart notification prompts (will be declared below with other hooks)
 
   // Move all useEffects to the top level, right after state declarations
   useEffect(() => {
@@ -323,7 +326,7 @@ export default function Dashboard() {
     processNewMonth,
   } = usePerkStatus(userCardsWithPerks);
   const { getAutoRedemptionByPerkName, refreshAutoRedemptions } = useAutoRedemptions();
-  const { promptAfterFirstPerk, checkNotificationStatus: checkSmartNotificationStatus } = useSmartNotificationPrompts();
+  const { promptAfterFirstPerk, promptAfterViewingSavings, checkNotificationStatus: checkSmartNotificationStatus } = useSmartNotificationPrompts();
   
   // Initialize perk redemption hook (will set onPerkStatusChange later)
   const { handleMarkRedeemed: perkRedemptionMarkRedeemed, handleMarkAvailable: perkRedemptionMarkAvailable } = usePerkRedemption({
@@ -552,6 +555,24 @@ export default function Dashboard() {
   useEffect(() => {
     // console.log('[Dashboard] uniquePerkPeriodsForToggle updated:', uniquePerkPeriodsForToggle);
   }, [uniquePerkPeriodsForToggle]);
+
+  // Calculate total savings and trigger smart notification prompt
+  const totalSavings = useMemo(() => {
+    if (!cumulativeValueSavedPerCard) return 0;
+    return Object.values(cumulativeValueSavedPerCard).reduce((sum, value) => sum + value, 0);
+  }, [cumulativeValueSavedPerCard]);
+
+  // Trigger notification prompt when user has significant savings to show value
+  useEffect(() => {
+    if (totalSavings > 50 && !isCalculatingSavings) { // Only prompt if they have meaningful savings
+      // Add a small delay to let the user see their dashboard first
+      const timer = setTimeout(() => {
+        promptAfterViewingSavings(totalSavings);
+      }, 2000); // 2 second delay
+      
+      return () => clearTimeout(timer);
+    }
+  }, [totalSavings, isCalculatingSavings, promptAfterViewingSavings]);
 
   // Update unique perk periods when userCardsWithPerks changes
   useEffect(() => {
@@ -1429,6 +1450,15 @@ export default function Dashboard() {
       <View style={styles.mainContainer}>
         {/* Extracted Animated Header Component */}
         <DashboardHeader scrollY={scrollY} user={user} />
+
+        {/* Smart Notification Banner */}
+        {totalSavings > 0 && (
+          <NotificationPromptBanner 
+            totalSavings={totalSavings}
+            context="savings"
+            onDismiss={() => {/* Banner will handle its own dismissal logic */}}
+          />
+        )}
 
         {/* Extracted Cards Grid Component */}
         <CardsGrid

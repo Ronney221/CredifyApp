@@ -37,6 +37,8 @@ import InsightsLoadingState from '../../components/insights/InsightsLoadingState
 import InsightsFilterSheet from '../../components/insights/InsightsFilterSheet';
 import { calculateRedemptionValues } from '../../utils/insights-calculations';
 import { logger } from '../../utils/logger';
+import { useSmartNotificationPrompts } from '../../hooks/useSmartNotificationPrompts';
+import NotificationPromptBanner from '../../components/notifications/NotificationPromptBanner';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -214,6 +216,9 @@ export default function InsightsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<InsightTab>('summary');
+  
+  // Smart notification prompts
+  const { promptAfterViewingSavings } = useSmartNotificationPrompts();
 
   // Add scroll animation values
   const scrollY = useSharedValue(0);
@@ -452,6 +457,25 @@ export default function InsightsScreen() {
     loadInsightsData();
   }, [selectedCardIds, isDataLoaded, userCardsWithPerks, user?.id]);
 
+  // Calculate total savings across all years and trigger notification prompt
+  const totalSavings = useMemo(() => {
+    return insightsData.yearSections.reduce((total, yearSection) => {
+      return total + (yearSection.totalRedeemedForYear || 0);
+    }, 0);
+  }, [insightsData]);
+
+  // Trigger notification prompt when user views their insights with meaningful savings
+  useEffect(() => {
+    if (totalSavings > 50 && insightsData.yearSections.length > 0) {
+      // Add delay to let user see their insights first
+      const timer = setTimeout(() => {
+        promptAfterViewingSavings(totalSavings);
+      }, 3000); // 3 second delay for insights screen
+      
+      return () => clearTimeout(timer);
+    }
+  }, [totalSavings, insightsData.yearSections.length, promptAfterViewingSavings]);
+
   // Set the default expanded month when data loads
   useEffect(() => {
     if (insightsData.yearSections.length > 0 && insightsData.yearSections[0].data.length > 0) {
@@ -614,6 +638,15 @@ export default function InsightsScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
+            {/* Smart Notification Banner */}
+            {totalSavings > 0 && (
+              <NotificationPromptBanner 
+                totalSavings={totalSavings}
+                context="insights"
+                onDismiss={() => {/* Banner will handle its own dismissal logic */}}
+              />
+            )}
+
             {/* Hero Insight Card */}
             <HeroInsightCard
               totalEarned={currentYearData?.totalRedeemed || 0}

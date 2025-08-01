@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { format } from 'date-fns';
+import { useResponsiveStyles, getResponsiveFontSize, getResponsiveHeight } from '../../hooks/useResponsiveStyles';
 
 // Header Animation Constants
 const EXPANDED_HEADER_CONTENT_HEIGHT = 60;
@@ -16,6 +17,7 @@ interface DashboardHeaderProps {
 
 export default function DashboardHeader({ scrollY, user }: DashboardHeaderProps) {
   const insets = useSafeAreaInsets();
+  const { isLargeText, fontScale } = useResponsiveStyles();
 
   // Dynamic text for collapsed header
   const currentMonthName = useMemo(() => format(new Date(), 'MMMM'), []);
@@ -75,31 +77,34 @@ export default function DashboardHeader({ scrollY, user }: DashboardHeaderProps)
     return 'Late night savings?';
   }, []);
 
-  // Derived Heights
-  const totalHeaderHeight = EXPANDED_HEADER_CONTENT_HEIGHT + insets.top;
+  // Derived Heights - make responsive
+  const expandedHeight = getResponsiveHeight(EXPANDED_HEADER_CONTENT_HEIGHT, isLargeText);
+  const collapsedHeight = getResponsiveHeight(COLLAPSED_HEADER_CONTENT_HEIGHT, isLargeText);
+  const totalHeaderHeight = expandedHeight + insets.top;
+  const headerScrollDistance = expandedHeight - collapsedHeight;
 
-  // Animated values for header styles
+  // Animated values for header styles - use responsive heights
   const expandedContentOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2],
+    inputRange: [0, headerScrollDistance / 2],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
   const expandedContentTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    inputRange: [0, headerScrollDistance],
     outputRange: [0, -10],
     extrapolate: 'clamp',
   });
 
   const collapsedContentOpacity = scrollY.interpolate({
-    inputRange: [HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+    inputRange: [headerScrollDistance / 2, headerScrollDistance],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
 
   const headerHeight = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [totalHeaderHeight, COLLAPSED_HEADER_CONTENT_HEIGHT + insets.top],
+    inputRange: [0, headerScrollDistance],
+    outputRange: [totalHeaderHeight, collapsedHeight + insets.top],
     extrapolate: 'clamp',
   });
 
@@ -129,8 +134,8 @@ export default function DashboardHeader({ scrollY, user }: DashboardHeaderProps)
         ]}
       >
         <View>
-          <Text style={styles.welcomeText}>{welcomeText}</Text>
-          <Text style={styles.userNameText}>{userName}</Text>
+          <Text style={[styles.welcomeText, isLargeText && styles.welcomeTextLarge]}>{welcomeText}</Text>
+          <Text style={[styles.userNameText, isLargeText && styles.userNameTextLarge]}>{userName}</Text>
         </View>
       </Animated.View>
 
@@ -145,7 +150,7 @@ export default function DashboardHeader({ scrollY, user }: DashboardHeaderProps)
           },
         ]}
       >
-        <Text style={styles.collapsedHeaderText}>
+        <Text style={[styles.collapsedHeaderText, isLargeText && styles.collapsedHeaderTextLarge]}>
           {collapsedHeaderText}
         </Text>
       </Animated.View>
@@ -181,11 +186,20 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     opacity: 0.8,
   },
+  welcomeTextLarge: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   userNameText: {
     fontSize: 32,
     fontWeight: '700',
     color: '#1C1C1E',
     marginTop: 2,
+  },
+  userNameTextLarge: {
+    fontSize: 28,
+    lineHeight: 34,
+    marginTop: 4,
   },
   collapsedHeaderContent: {
     justifyContent: 'center',
@@ -195,5 +209,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#1C1C1E',
+  },
+  collapsedHeaderTextLarge: {
+    fontSize: 16,
+    lineHeight: 20,
   },
 });

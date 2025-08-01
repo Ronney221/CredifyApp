@@ -30,6 +30,8 @@ import * as Sentry from '@sentry/react-native';
 import { useOnboardingContext, HAS_REDEEMED_FIRST_PERK_KEY, HAS_SEEN_TAP_ONBOARDING_KEY, HAS_SEEN_SWIPE_ONBOARDING_KEY, useOnboarding } from '../(onboarding)/_context/OnboardingContext';
 import { DatabaseTester } from '../../components/debug/DatabaseTester';
 import { logger } from '../../utils/logger';
+import { useSmartNotificationPrompts } from '../../hooks/useSmartNotificationPrompts';
+import NotificationPromptBanner from '../../components/notifications/NotificationPromptBanner';
 
 // Constants
 const TAB_BAR_OFFSET = Platform.OS === 'ios' ? 120 : 80; // Increased to account for home indicator
@@ -41,9 +43,11 @@ const CHAT_USAGE_KEY = '@ai_chat_usage';
 const ProfileScreen = () => {
   const router = useRouter();
   const { signOut, user } = useAuth();
-  const { setHasRedeemedFirstPerk } = useOnboardingContext();
+  const { setHasRedeemedFirstPerk, setNotificationChoice } = useOnboardingContext();
   const { reloadOnboardingFlags } = useOnboarding();
   const [showTester, setShowTester] = useState(false);
+  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
+  const { promptAfterFirstPerk, promptAfterViewingSavings, checkNotificationStatus } = useSmartNotificationPrompts();
 
   const handleTestPerkExpiryNotifications = async () => {
     if (!user?.id) {
@@ -279,6 +283,98 @@ const ProfileScreen = () => {
     );
   };
 
+  const handleTestFirstPerkPrompt = async () => {
+    try {
+      console.log('🧪 Testing first perk prompt...');
+      
+      // Set the required conditions for the prompt to show
+      await setNotificationChoice('declined'); // Ensure we're in a state to show prompts
+      await setHasRedeemedFirstPerk(true); // Set that user has redeemed first perk
+      await AsyncStorage.removeItem('@last_notification_prompt_date'); // Clear cooldown
+      
+      console.log('🧪 Conditions set, waiting for prompt...');
+      
+      // Wait a moment for state to update
+      setTimeout(async () => {
+        console.log('🧪 Triggering prompt now...');
+        await promptAfterFirstPerk();
+        console.log('🧪 Prompt function called');
+      }, 500); // Increased delay
+      
+      // Show immediate feedback
+      Alert.alert('Debug', 'Conditions set for first perk prompt. Check console logs.');
+    } catch (error) {
+      console.error('Error testing first perk prompt:', error);
+      Alert.alert('Error', `Failed to show first perk prompt: ${error.message}`);
+    }
+  };
+
+  const handleTestSavingsPrompt = async () => {
+    try {
+      console.log('🧪 Testing savings prompt...');
+      
+      await setNotificationChoice('declined'); // Ensure we're in a state to show prompts
+      await AsyncStorage.removeItem('@last_notification_prompt_date'); // Clear cooldown
+      const mockSavings = 342; // Mock savings amount
+      
+      console.log('🧪 Conditions set for savings prompt, waiting...');
+      
+      // Wait a moment for state to update
+      setTimeout(async () => {
+        console.log('🧪 Triggering savings prompt now...');
+        await promptAfterViewingSavings(mockSavings);
+        console.log('🧪 Savings prompt function called');
+      }, 500); // Increased delay
+      
+      // Show immediate feedback
+      Alert.alert('Debug', 'Conditions set for savings prompt. Check console logs.');
+    } catch (error) {
+      console.error('Error testing savings prompt:', error);
+      Alert.alert('Error', `Failed to show savings prompt: ${error.message}`);
+    }
+  };
+
+  const handleToggleNotificationBanner = () => {
+    const newValue = !showNotificationBanner;
+    console.log('Toggling banner from', showNotificationBanner, 'to', newValue);
+    setShowNotificationBanner(newValue);
+    
+    // Show a confirmation alert
+    Alert.alert(
+      'Banner Toggle',
+      `Banner is now ${newValue ? 'visible' : 'hidden'}. ${newValue ? 'Look for the blue banner below.' : ''}`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleTestNotificationStatus = async () => {
+    try {
+      const hasPermissions = await checkNotificationStatus();
+      Alert.alert(
+        'Notification Status',
+        `Current notification permissions: ${hasPermissions ? 'Granted' : 'Not granted'}`
+      );
+    } catch (error) {
+      console.error('Error checking notification status:', error);
+      Alert.alert('Error', 'Failed to check notification status.');
+    }
+  };
+
+  const handleResetNotificationChoice = async () => {
+    try {
+      await setNotificationChoice('declined');
+      // Also clear the last prompt date
+      await AsyncStorage.removeItem('@last_notification_prompt_date');
+      Alert.alert(
+        'Success',
+        'Notification choice reset to "declined". Smart prompts will now show again.'
+      );
+    } catch (error) {
+      console.error('Error resetting notification choice:', error);
+      Alert.alert('Error', 'Failed to reset notification choice.');
+    }
+  };
+
   const handleSignOut = async () => {
     Alert.alert(
       "Sign Out",
@@ -356,6 +452,51 @@ const ProfileScreen = () => {
       isDestructive: true,
       showChevron: false,
       onPress: handleSignOut
+    },
+  ];
+
+  const developerSettings = [
+    {
+      id: 'test-first-perk-prompt',
+      title: 'Test First Perk Prompt',
+      subtitle: 'Trigger notification prompt after first redemption',
+      icon: 'trophy-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleTestFirstPerkPrompt
+    },
+    {
+      id: 'test-savings-prompt',
+      title: 'Test Savings Prompt',
+      subtitle: 'Trigger prompt with $342 savings amount',
+      icon: 'cash-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleTestSavingsPrompt
+    },
+    {
+      id: 'toggle-banner',
+      title: showNotificationBanner ? 'Hide Banner' : 'Show Banner',
+      subtitle: 'Toggle notification re-engagement banner',
+      icon: 'flag-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleToggleNotificationBanner
+    },
+    {
+      id: 'check-status',
+      title: 'Check Notification Status',
+      subtitle: 'Check current notification permissions',
+      icon: 'checkmark-circle-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleTestNotificationStatus
+    },
+    {
+      id: 'reset-notification-choice',
+      title: 'Reset Notification Choice',
+      subtitle: 'Reset to show smart prompts again',
+      icon: 'refresh-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: handleResetNotificationChoice
+    },
+    {
+      id: 'notification-intro',
+      title: 'Go to Notification Intro',
+      subtitle: 'See the onboarding notification screen',
+      icon: 'notifications-outline' as keyof typeof Ionicons.glyphMap,
+      onPress: () => router.push('/(onboarding)/notifications-intro')
     },
   ];
 
@@ -481,6 +622,39 @@ const ProfileScreen = () => {
           items={supportSettings}
         />
 
+        {/* Test Notification Banner - Show at top for visibility */}
+        {showNotificationBanner && (
+          <View style={styles.bannerContainer}>
+            <Text style={styles.debugText}>🧪 Testing Notification Banner</Text>
+            {/* Simple test banner */}
+            <View style={styles.testBanner}>
+              <Text style={styles.testBannerText}>
+                💰 You've saved $342! Enable reminders to maximize your remaining perks
+              </Text>
+              <Pressable 
+                style={styles.testBannerButton}
+                onPress={() => {
+                  Alert.alert('Test Banner', 'This is a test notification banner!');
+                }}
+              >
+                <Text style={styles.testBannerButtonText}>Enable</Text>
+              </Pressable>
+              <Pressable 
+                style={styles.testBannerClose}
+                onPress={() => setShowNotificationBanner(false)}
+              >
+                <Text style={styles.testBannerCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.debugText}>🧪 Banner shown above</Text>
+          </View>
+        )}
+
+        {/* <SettingsSection 
+          title="🧪 Notification Testing" 
+          items={developerSettings}
+        /> */}
+
         {user?.id && (
           <>
             {/* <ProfileStatsCards userId={user.id} /> */}
@@ -519,6 +693,64 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     // No padding needed since each component handles its own margins
+  },
+  bannerContainer: {
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)', // Slight background to make it visible
+    borderRadius: 8,
+    padding: 4,
+  },
+  debugText: {
+    fontSize: 14,
+    color: Colors.light.text,
+    textAlign: 'center',
+    padding: 8,
+    backgroundColor: 'rgba(255, 0, 0, 0.1)', // Red background for debugging
+  },
+  testBanner: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    padding: 16,
+    margin: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  testBannerText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 12,
+  },
+  testBannerButton: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  testBannerButtonText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  testBannerClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  testBannerCloseText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });
 
