@@ -86,11 +86,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const ACTION_BUTTON_WIDTH = 120;
   const INSTANT_LOG_ANIMATION_DURATION = 300;
   
-  // Enhanced haptic thresholds for escalating intensity
-  const HAPTIC_THRESHOLD_1 = 45; // 25% - Ultra-light haptic
-  const HAPTIC_THRESHOLD_2 = 80; // 45% - Light haptic  
-  const HAPTIC_THRESHOLD_3 = 135; // 75% - Medium haptic
-  const HAPTIC_THRESHOLD_4 = 180; // 100% - Success haptic
+  // iOS-style haptic threshold - single feedback at full action point
+  const HAPTIC_ACTION_THRESHOLD = LONG_SWIPE_THRESHOLD; // 180px - when releasing would complete the action
   
   // Shared values for gesture
   const translateX = useSharedValue(0);
@@ -158,8 +155,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
   
   // Enhanced swipe handlers
   const enhancedOnSwipeableWillOpen = (direction: 'left' | 'right') => {
-    // Only light haptic when swipe reveals action buttons
-    triggerHapticFeedback('light');
+    // No haptic here - already handled in gesture handler
     onSwipeableWillOpen(direction);
   };
   
@@ -176,11 +172,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
     };
   });
   
-  // Track which haptic thresholds have been triggered
-  const hasTriggeredHaptic1 = useSharedValue(false); // Ultra-light
-  const hasTriggeredHaptic2 = useSharedValue(false); // Light
-  const hasTriggeredHaptic3 = useSharedValue(false); // Medium
-  const hasTriggeredHaptic4 = useSharedValue(false); // Success
+  // Track if haptic has been triggered for this gesture (iOS style - once per swipe)
+  const hasTriggeredHaptic = useSharedValue(false);
   
   // Handle instant log for long swipe
   const handleInstantLog = () => {
@@ -259,11 +252,8 @@ const PerkRow: React.FC<PerkRowProps> = ({
   const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent>({
     onStart: () => {
       isGestureActive.value = true;
-      // Always reset all haptic flags on gesture start for consistent feedback
-      hasTriggeredHaptic1.value = false;
-      hasTriggeredHaptic2.value = false;
-      hasTriggeredHaptic3.value = false;
-      hasTriggeredHaptic4.value = false;
+      // Reset haptic flag for new gesture (iOS style)
+      hasTriggeredHaptic.value = false;
       // Remember the current position when starting a new gesture
       gestureStartX.value = translateX.value;
     },
@@ -277,76 +267,37 @@ const PerkRow: React.FC<PerkRowProps> = ({
         // Allow swipe beyond ACTION_BUTTON_WIDTH for long swipe
         translateX.value = Math.max(0, newTranslateX);
         
-        // Reset haptic flags if direction changes or value decreases significantly
-        if (translateX.value < previousTranslateX - 10) {
-          hasTriggeredHaptic1.value = false;
-          hasTriggeredHaptic2.value = false;
-          hasTriggeredHaptic3.value = false;
-          hasTriggeredHaptic4.value = false;
-        }
-        
-        // Escalating haptic feedback system
-        // 25% threshold - Ultra-light haptic (initial engagement)
-        if (translateX.value >= HAPTIC_THRESHOLD_1 && !hasTriggeredHaptic1.value) {
-          hasTriggeredHaptic1.value = true;
-          runOnJS(triggerHapticFeedback)('ultralight');
-        }
-        
-        // 45% threshold - Light haptic (committed to action)
-        if (translateX.value >= HAPTIC_THRESHOLD_2 && !hasTriggeredHaptic2.value) {
-          hasTriggeredHaptic2.value = true;
+        // iOS-style haptic: single feedback when crossing action threshold
+        if (translateX.value >= HAPTIC_ACTION_THRESHOLD && 
+            previousTranslateX < HAPTIC_ACTION_THRESHOLD && 
+            !hasTriggeredHaptic.value) {
+          hasTriggeredHaptic.value = true;
           runOnJS(triggerHapticFeedback)('light');
         }
         
-        // 75% threshold - Medium haptic (approaching completion)
-        if (translateX.value >= HAPTIC_THRESHOLD_3 && !hasTriggeredHaptic3.value) {
-          hasTriggeredHaptic3.value = true;
-          runOnJS(triggerHapticFeedback)('medium');
-        }
-        
-        // 100% threshold - Success haptic (ready for instant action)
-        if (translateX.value >= HAPTIC_THRESHOLD_4 && !hasTriggeredHaptic4.value) {
-          hasTriggeredHaptic4.value = true;
-          runOnJS(triggerHapticFeedback)('success');
+        // Reset haptic if swipe goes back below threshold
+        if (translateX.value < HAPTIC_ACTION_THRESHOLD) {
+          hasTriggeredHaptic.value = false;
         }
       } else {
         // For redeemed perks, allow left swipe only (negative translateX)
         // Allow swipe beyond ACTION_BUTTON_WIDTH for long swipe
         translateX.value = Math.min(0, newTranslateX);
         
-        // Reset haptic flags if direction changes or value increases significantly (less negative)
-        if (translateX.value > previousTranslateX + 10) {
-          hasTriggeredHaptic1.value = false;
-          hasTriggeredHaptic2.value = false;
-          hasTriggeredHaptic3.value = false;
-          hasTriggeredHaptic4.value = false;
-        }
-        
-        // Escalating haptic feedback system for left swipe
         const absTranslateX = Math.abs(translateX.value);
+        const absPreviousTranslateX = Math.abs(previousTranslateX);
         
-        // 25% threshold - Ultra-light haptic
-        if (absTranslateX >= HAPTIC_THRESHOLD_1 && !hasTriggeredHaptic1.value) {
-          hasTriggeredHaptic1.value = true;
-          runOnJS(triggerHapticFeedback)('ultralight');
-        }
-        
-        // 45% threshold - Light haptic
-        if (absTranslateX >= HAPTIC_THRESHOLD_2 && !hasTriggeredHaptic2.value) {
-          hasTriggeredHaptic2.value = true;
+        // iOS-style haptic: single feedback when crossing action threshold
+        if (absTranslateX >= HAPTIC_ACTION_THRESHOLD && 
+            absPreviousTranslateX < HAPTIC_ACTION_THRESHOLD && 
+            !hasTriggeredHaptic.value) {
+          hasTriggeredHaptic.value = true;
           runOnJS(triggerHapticFeedback)('light');
         }
         
-        // 75% threshold - Medium haptic
-        if (absTranslateX >= HAPTIC_THRESHOLD_3 && !hasTriggeredHaptic3.value) {
-          hasTriggeredHaptic3.value = true;
-          runOnJS(triggerHapticFeedback)('medium');
-        }
-        
-        // 100% threshold - Success haptic
-        if (absTranslateX >= HAPTIC_THRESHOLD_4 && !hasTriggeredHaptic4.value) {
-          hasTriggeredHaptic4.value = true;
-          runOnJS(triggerHapticFeedback)('success');
+        // Reset haptic if swipe goes back below threshold
+        if (absTranslateX < HAPTIC_ACTION_THRESHOLD) {
+          hasTriggeredHaptic.value = false;
         }
       }
     },
@@ -354,8 +305,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
       const absTranslateX = Math.abs(translateX.value);
       
       if (isAvailable && translateX.value >= LONG_SWIPE_THRESHOLD) {
-        // Long swipe right on available perk - trigger instant log with celebration haptic
-        runOnJS(triggerHapticFeedback)('completion');
+        // Long swipe right on available perk - trigger instant log (no extra haptic)
         runOnJS(handleInstantLog)();
         // Animate back to closed position after a brief pause
         translateX.value = withSequence(
@@ -363,8 +313,7 @@ const PerkRow: React.FC<PerkRowProps> = ({
           withSpring(0, springConfig)
         );
       } else if (!isAvailable && translateX.value <= -LONG_SWIPE_THRESHOLD) {
-        // Long swipe left on redeemed perk - trigger instant mark available with celebration haptic
-        runOnJS(triggerHapticFeedback)('completion');
+        // Long swipe left on redeemed perk - trigger instant mark available (no extra haptic)
         runOnJS(handleInstantMarkAvailable)();
         // Animate back to closed position after a brief pause
         translateX.value = withSequence(
@@ -383,14 +332,6 @@ const PerkRow: React.FC<PerkRowProps> = ({
       } else {
         // Didn't pass threshold - snap back to closed
         translateX.value = withSpring(0, springConfig);
-      }
-      
-      // Reset haptic flags when gesture ends and item returns to closed position
-      if (Math.abs(translateX.value) < HAPTIC_THRESHOLD_1) {
-        hasTriggeredHaptic1.value = false;
-        hasTriggeredHaptic2.value = false;
-        hasTriggeredHaptic3.value = false;
-        hasTriggeredHaptic4.value = false;
       }
       
       isGestureActive.value = false;
